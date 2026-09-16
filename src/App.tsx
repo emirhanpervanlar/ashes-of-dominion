@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { CARD_DEFINITIONS, HERO_SKILL_DEFINITIONS } from './engine/index.js';
 import type { ArmyStack, CardTargeting, EnemyIntent, PlayerAction, Position } from './engine/index.js';
 import { applyRunAction, createRun } from './engine/run/index.js';
-import type { RunState } from './engine/run/index.js';
+import type { RunEvent, RunState } from './engine/run/index.js';
 import { StackTile } from './ui/StackTile.js';
-import { CardTile } from './ui/CardTile.js';
+import { ActionCardTile } from './ui/ActionCardTile.js';
 import { StartingRelicScreen } from './ui/StartingRelicScreen.js';
 import { RewardScreen } from './ui/RewardScreen.js';
 import { RunEndScreen } from './ui/RunEndScreen.js';
@@ -14,6 +14,10 @@ import { MerchantScreen } from './ui/MerchantScreen.js';
 import { CityScreen } from './ui/CityScreen.js';
 import { describeEvent } from './ui/eventText.js';
 import { relicIcon } from './ui/relicIcons.js';
+import { CARD_DESCRIPTIONS } from './ui/cardText.js';
+import { HistoryPanel } from './ui/HistoryPanel.js';
+import { ToastStack } from './ui/Toast.js';
+import type { ToastItem } from './ui/Toast.js';
 
 const STORAGE_KEY = 'aod_run_state_v1';
 
@@ -43,6 +47,9 @@ function stackAt(army: ArmyStack[], position: Position): ArmyStack | undefined {
 export default function App() {
   const [run, setRun] = useState<RunState>(loadInitialRun);
   const [pending, setPending] = useState<PendingAction | null>(null);
+  const [toasts, setToasts] = useState<ToastItem[]>([]);
+  const [logCollapsed, setLogCollapsed] = useState(false);
+  const nextToastId = useRef(1);
 
   useEffect(() => {
     try {
@@ -60,13 +67,48 @@ export default function App() {
     return map;
   }, [combat?.enemyIntents]);
 
+  function pushToast(icon: string, text: string) {
+    setToasts((t) => [...t, { id: nextToastId.current++, icon, text }]);
+  }
+
+  function dismissToast(id: number) {
+    setToasts((t) => t.filter((x) => x.id !== id));
+  }
+
+  /** Resource-gain toasts (AGENT.md UX feedback) — a generic before/after diff plus a few event-specific call-outs. */
+  function toastsForRunEvents(events: RunEvent[], before: RunState, after: RunState) {
+    for (const e of events) {
+      if (e.type === 'RESOURCE_FOUND') {
+        pushToast('💰', `+${e.gold} Gold, +${e.food} Food`);
+      }
+      if (e.type === 'EVENT_RESOLVED') {
+        const goldDelta = after.gold - before.gold;
+        const foodDelta = after.food - before.food;
+        const hpDelta = after.hero.hp - before.hero.hp;
+        const parts: string[] = [];
+        if (goldDelta !== 0) parts.push(`${goldDelta > 0 ? '+' : ''}${goldDelta} Gold`);
+        if (foodDelta !== 0) parts.push(`${foodDelta > 0 ? '+' : ''}${foodDelta} Food`);
+        if (hpDelta !== 0) parts.push(`${hpDelta > 0 ? '+' : ''}${hpDelta} HP`);
+        if (e.outcome === 'search_relic') parts.push('a relic!');
+        if (e.outcome === 'search_trap') parts.push('a trap!');
+        const icon = e.outcome === 'search_relic' ? '★' : e.outcome === 'search_trap' ? '⚠️' : hpDelta > 0 ? '❤️' : '✨';
+        pushToast(icon, parts.length ? parts.join(', ') : 'Nothing happened.');
+      }
+      if (e.type === 'STARVING') {
+        pushToast('💀', `Starving! Lost ${e.unitsLost} unit(s).`);
+      }
+    }
+  }
+
   function newRun() {
     setRun(createRun(Date.now() & 0xffffffff));
     setPending(null);
   }
 
   function dispatchRun(action: Parameters<typeof applyRunAction>[1]) {
+    const before = run;
     const result = applyRunAction(run, action);
+    toastsForRunEvents(result.events, before, result.run);
     setRun(result.run);
     return result;
   }
@@ -182,72 +224,100 @@ export default function App() {
     return stack.stackId === pending.actingStackId || stack.stackId === pending.targetStackId;
   }
 
+  const toastLayer = <ToastStack toasts={toasts} onDismiss={dismissToast} />;
+
   if (run.phase === 'choosing_starting_relic') {
-    return <StartingRelicScreen onChoose={(relicId) => dispatchRun({ type: 'CHOOSE_STARTING_RELIC', relicId })} />;
+    return (
+      <>
+        {toastLayer}
+        <StartingRelicScreen onChoose={(relicId) => dispatchRun({ type: 'CHOOSE_STARTING_RELIC', relicId })} />
+      </>
+    );
   }
 
   if (run.phase === 'reward' && run.pendingReward) {
     return (
-      <RewardScreen
-        reward={run.pendingReward}
-        onClaimRelic={(relicId) => dispatchRun({ type: 'CLAIM_RELIC', relicId })}
-        onClaimCard={(cardId) => dispatchRun({ type: 'CLAIM_CARD', cardId })}
-        onClaimUpgrade={(instanceId) => dispatchRun({ type: 'CLAIM_UPGRADE', instanceId })}
-        onConfirm={() => dispatchRun({ type: 'CONFIRM_REWARD' })}
-      />
+      <>
+        {toastLayer}
+        <RewardScreen
+          reward={run.pendingReward}
+          onClaimRelic={(relicId) => dispatchRun({ type: 'CLAIM_RELIC', relicId })}
+          onClaimCard={(cardId) => dispatchRun({ type: 'CLAIM_CARD', cardId })}
+          onClaimUpgrade={(instanceId) => dispatchRun({ type: 'CLAIM_UPGRADE', instanceId })}
+          onConfirm={() => dispatchRun({ type: 'CONFIRM_REWARD' })}
+        />
+      </>
     );
   }
 
   if (run.phase === 'run_complete' || run.phase === 'defeat') {
-    return <RunEndScreen run={run} onNewRun={newRun} />;
+    return (
+      <>
+        {toastLayer}
+        <RunEndScreen run={run} onNewRun={newRun} />
+      </>
+    );
   }
 
   if (run.phase === 'on_map') {
     return (
-      <WorldMapScreen
-        run={run}
-        onMoveTo={(nodeId) => dispatchRun({ type: 'MOVE_TO', nodeId })}
-        onEnterCity={() => dispatchRun({ type: 'ENTER_CITY' })}
-        onNewRun={newRun}
-      />
+      <>
+        {toastLayer}
+        <WorldMapScreen
+          run={run}
+          onMoveTo={(nodeId) => dispatchRun({ type: 'MOVE_TO', nodeId })}
+          onEnterCity={() => dispatchRun({ type: 'ENTER_CITY' })}
+          onNewRun={newRun}
+        />
+      </>
     );
   }
 
   if (run.phase === 'city') {
     return (
-      <CityScreen
-        city={run.city}
-        gold={run.gold}
-        food={run.food}
-        army={run.army}
-        onRecruit={(unitId, count, destination) => dispatchRun({ type: 'RECRUIT', unitId, count, destination })}
-        onBuild={(buildingId) => dispatchRun({ type: 'BUILD_BUILDING', buildingId })}
-        onUpgradeCity={() => dispatchRun({ type: 'UPGRADE_CITY' })}
-        onChooseDoctrine={(doctrineId) => dispatchRun({ type: 'CHOOSE_DOCTRINE', doctrineId })}
-        onTransferToArmy={(stackId) => dispatchRun({ type: 'TRANSFER_GARRISON_TO_ARMY', stackId })}
-        onLeave={() => dispatchRun({ type: 'LEAVE_CITY' })}
-      />
+      <>
+        {toastLayer}
+        <CityScreen
+          city={run.city}
+          gold={run.gold}
+          food={run.food}
+          hero={run.hero}
+          army={run.army}
+          onRecruit={(unitId, count, destination) => dispatchRun({ type: 'RECRUIT', unitId, count, destination })}
+          onBuild={(buildingId) => dispatchRun({ type: 'BUILD_BUILDING', buildingId })}
+          onUpgradeCity={() => dispatchRun({ type: 'UPGRADE_CITY' })}
+          onChooseDoctrine={(doctrineId) => dispatchRun({ type: 'CHOOSE_DOCTRINE', doctrineId })}
+          onTransferToArmy={(stackId) => dispatchRun({ type: 'TRANSFER_GARRISON_TO_ARMY', stackId })}
+          onLeave={() => dispatchRun({ type: 'LEAVE_CITY' })}
+        />
+      </>
     );
   }
 
   if (run.phase === 'event' && run.pendingEvent) {
     return (
-      <EventScreen
-        eventId={run.pendingEvent.eventId}
-        onChoose={(optionId) => dispatchRun({ type: 'CHOOSE_EVENT_OPTION', optionId })}
-      />
+      <>
+        {toastLayer}
+        <EventScreen
+          eventId={run.pendingEvent.eventId}
+          onChoose={(optionId) => dispatchRun({ type: 'CHOOSE_EVENT_OPTION', optionId })}
+        />
+      </>
     );
   }
 
   if (run.phase === 'merchant' && run.pendingMerchant) {
     return (
-      <MerchantScreen
-        gold={run.gold}
-        inventory={run.pendingMerchant}
-        onBuyCard={(cardId) => dispatchRun({ type: 'BUY_CARD', cardId })}
-        onBuyRelic={(relicId) => dispatchRun({ type: 'BUY_RELIC', relicId })}
-        onLeave={() => dispatchRun({ type: 'LEAVE_MERCHANT' })}
-      />
+      <>
+        {toastLayer}
+        <MerchantScreen
+          gold={run.gold}
+          inventory={run.pendingMerchant}
+          onBuyCard={(cardId) => dispatchRun({ type: 'BUY_CARD', cardId })}
+          onBuyRelic={(relicId) => dispatchRun({ type: 'BUY_RELIC', relicId })}
+          onLeave={() => dispatchRun({ type: 'LEAVE_MERCHANT' })}
+        />
+      </>
     );
   }
 
@@ -257,12 +327,13 @@ export default function App() {
 
   const front = [1, 2, 3] as const;
   const back = [4, 5, 6] as const;
-  const recentLog = combat.log.slice(-40);
+  const combatHistory = combat.log.map((e) => describeEvent(combat, e)).filter((line): line is string => line !== null);
   const manaPct = combat.hero.maxMana > 0 ? Math.min(100, (combat.hero.mana / combat.hero.maxMana) * 100) : 0;
   const canAct = combat.phase === 'player' && combat.result === 'ongoing';
 
   return (
     <div>
+      {toastLayer}
       <div className="top-bar">
         <div className="hero-card">
           <div className="hero-portrait">🧑‍✈️</div>
@@ -286,30 +357,6 @@ export default function App() {
                 {combat.hero.mana}/{combat.hero.maxMana}
               </span>
             </div>
-            <div className="skills-row">
-              {combat.heroSkills.map((skillState) => {
-                const skillDef = HERO_SKILL_DEFINITIONS[skillState.skillId];
-                if (!skillDef) return null;
-                const onCooldown = skillState.cooldownRemaining > 0;
-                const affordable = canAct && hasResource('skill', skillDef.id);
-                return (
-                  <button
-                    key={skillDef.id}
-                    className={`skill-chip${pending?.kind === 'skill' && pending.id === skillDef.id ? ' pending' : ''}`}
-                    disabled={!affordable || onCooldown}
-                    onClick={() => handleSkillClick(skillDef.id)}
-                    title={skillDef.description}
-                  >
-                    {skillDef.name}
-                    <span className="skill-chip-cost">
-                      {skillDef.cost.amount}
-                      {skillDef.cost.type === 'MANA' ? 'M' : skillDef.cost.type}
-                    </span>
-                    {onCooldown ? ` (${skillState.cooldownRemaining})` : ''}
-                  </button>
-                );
-              })}
-            </div>
           </div>
         </div>
 
@@ -318,140 +365,155 @@ export default function App() {
             <strong>Turn {combat.turnNumber}</strong>
           </div>
           <div>{combat.phase === 'player' ? 'Your turn' : combat.phase === 'enemy' ? 'Enemy turn' : 'Battle over'}</div>
-          <div>Hero HP {combat.hero.hp}/{combat.hero.maxHp}</div>
-          <div style={{ marginTop: 6 }}>
-            <button onClick={newRun}>Abandon Run</button>
+          <div>
+            Hero HP {combat.hero.hp}/{combat.hero.maxHp}
           </div>
         </div>
       </div>
 
-      {pending && <div className="hint">Targeting for {pending.name} — click the card/skill again to cancel.</div>}
-
-      <div className="battlefield-v2">
-        <div className="side-columns">
-          <div className="unit-column">
-            {back.map((p) => {
-              const s = stackAt(combat.playerArmy, p);
-              return (
-                <StackTile
-                  key={`p-${p}`}
-                  state={combat}
-                  stack={s}
-                  position={p}
-                  side="player"
-                  selectable={isSelectable(s, 'player')}
-                  selected={isSelected(s)}
-                  onClick={() => handleStackClick(s, p, 'player')}
-                />
-              );
-            })}
-          </div>
-          <div className="unit-column">
-            {front.map((p) => {
-              const s = stackAt(combat.playerArmy, p);
-              return (
-                <StackTile
-                  key={`p-${p}`}
-                  state={combat}
-                  stack={s}
-                  position={p}
-                  side="player"
-                  selectable={isSelectable(s, 'player')}
-                  selected={isSelected(s)}
-                  onClick={() => handleStackClick(s, p, 'player')}
-                />
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="vs-divider">VS</div>
-
-        <div className="side-columns">
-          <div className="unit-column">
-            {front.map((p) => {
-              const s = stackAt(combat.enemyArmy, p);
-              return (
-                <StackTile
-                  key={`e-${p}`}
-                  state={combat}
-                  stack={s}
-                  position={p}
-                  side="enemy"
-                  intent={s ? intentByStack.get(s.stackId) : undefined}
-                  selectable={isSelectable(s, 'enemy')}
-                  selected={isSelected(s)}
-                  onClick={() => handleStackClick(s, p, 'enemy')}
-                />
-              );
-            })}
-          </div>
-          <div className="unit-column">
-            {back.map((p) => {
-              const s = stackAt(combat.enemyArmy, p);
-              return (
-                <StackTile
-                  key={`e-${p}`}
-                  state={combat}
-                  stack={s}
-                  position={p}
-                  side="enemy"
-                  intent={s ? intentByStack.get(s.stackId) : undefined}
-                  selectable={isSelectable(s, 'enemy')}
-                  selected={isSelected(s)}
-                  onClick={() => handleStackClick(s, p, 'enemy')}
-                />
-              );
-            })}
-          </div>
-        </div>
-      </div>
-
-      <div className="bottom-bar">
-        <div className="resource-pips">
-          <div className="pip">
-            <span className="pip-dot ac" /> AC {combat.hero.ac}/{combat.hero.maxAc}
-          </div>
-          <div className="pip">
-            <span className="pip-dot dc" /> DC {combat.hero.dc}/{combat.hero.maxDc}
-          </div>
-        </div>
-        <button className="primary" disabled={!canAct} onClick={() => dispatchCombat({ type: 'END_TURN' })}>
-          End Turn
-        </button>
-        <div className="pile-counts">
-          Deck {combat.deck.length} · Discard {combat.discard.length} · Exhausted {combat.exhausted.length}
-        </div>
-      </div>
-
-      <div className="hand-tray">
-        {combat.hand.map((instance) => {
-          const cardDef = CARD_DEFINITIONS[instance.cardId];
-          if (!cardDef) return null;
+      <div className="skills-row-standalone">
+        {combat.heroSkills.map((skillState) => {
+          const skillDef = HERO_SKILL_DEFINITIONS[skillState.skillId];
+          if (!skillDef) return null;
+          const onCooldown = skillState.cooldownRemaining > 0;
           return (
-            <CardTile
-              key={instance.instanceId}
-              instance={instance}
-              cardDef={cardDef}
-              affordable={canAct && hasResource('card', cardDef.id)}
-              pending={pending?.kind === 'card' && pending.id === instance.instanceId}
-              onClick={() => handleCardClick(instance.instanceId, instance.cardId)}
+            <ActionCardTile
+              key={skillDef.id}
+              id={skillDef.id}
+              name={skillDef.name}
+              description={skillDef.description}
+              cost={skillDef.cost}
+              affordable={canAct && hasResource('skill', skillDef.id) && !onCooldown}
+              pending={pending?.kind === 'skill' && pending.id === skillDef.id}
+              footer={onCooldown ? `Cooldown: ${skillState.cooldownRemaining}` : 'Hero Skill'}
+              onClick={() => handleSkillClick(skillDef.id)}
             />
           );
         })}
       </div>
 
-      <div className="log">
-        {recentLog.map((event, i) => {
-          const text = describeEvent(combat, event);
-          if (!text) return null;
-          const cls = event.type === 'ACTION_REJECTED' ? 'rejected' : event.type === 'BATTLE_ENDED' ? 'result' : undefined;
-          return (
-            <div key={i} className={cls}>
-              {text}
+      {pending && <div className="hint">Targeting for {pending.name} — click the card/skill again to cancel.</div>}
+
+      <div className="battle-layout">
+        <div className="battle-main">
+          <div className="battlefield-v2">
+            <div className="side-columns player-side">
+              <div className="unit-column">
+                {back.map((p) => {
+                  const s = stackAt(combat.playerArmy, p);
+                  return (
+                    <StackTile
+                      key={`p-${p}`}
+                      state={combat}
+                      stack={s}
+                      position={p}
+                      side="player"
+                      selectable={isSelectable(s, 'player')}
+                      selected={isSelected(s)}
+                      onClick={() => handleStackClick(s, p, 'player')}
+                    />
+                  );
+                })}
+              </div>
+              <div className="unit-column">
+                {front.map((p) => {
+                  const s = stackAt(combat.playerArmy, p);
+                  return (
+                    <StackTile
+                      key={`p-${p}`}
+                      state={combat}
+                      stack={s}
+                      position={p}
+                      side="player"
+                      selectable={isSelectable(s, 'player')}
+                      selected={isSelected(s)}
+                      onClick={() => handleStackClick(s, p, 'player')}
+                    />
+                  );
+                })}
+              </div>
             </div>
-          );
-        })}
+
+            <div className="side-columns enemy-side">
+              <div className="unit-column">
+                {front.map((p) => {
+                  const s = stackAt(combat.enemyArmy, p);
+                  return (
+                    <StackTile
+                      key={`e-${p}`}
+                      state={combat}
+                      stack={s}
+                      position={p}
+                      side="enemy"
+                      intent={s ? intentByStack.get(s.stackId) : undefined}
+                      selectable={isSelectable(s, 'enemy')}
+                      selected={isSelected(s)}
+                      onClick={() => handleStackClick(s, p, 'enemy')}
+                    />
+                  );
+                })}
+              </div>
+              <div className="unit-column">
+                {back.map((p) => {
+                  const s = stackAt(combat.enemyArmy, p);
+                  return (
+                    <StackTile
+                      key={`e-${p}`}
+                      state={combat}
+                      stack={s}
+                      position={p}
+                      side="enemy"
+                      intent={s ? intentByStack.get(s.stackId) : undefined}
+                      selectable={isSelectable(s, 'enemy')}
+                      selected={isSelected(s)}
+                      onClick={() => handleStackClick(s, p, 'enemy')}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          <div className="bottom-bar">
+            <div className="orb-row">
+              <div className="resource-orb ac" title="Attack Command">
+                {combat.hero.ac}/{combat.hero.maxAc}
+              </div>
+              <div className="resource-orb dc" title="Defense Command">
+                {combat.hero.dc}/{combat.hero.maxDc}
+              </div>
+            </div>
+            <button className="primary" disabled={!canAct} onClick={() => dispatchCombat({ type: 'END_TURN' })}>
+              End Turn
+            </button>
+          </div>
+
+          <div className="action-card-tray">
+            {combat.hand.map((instance) => {
+              const cardDef = CARD_DEFINITIONS[instance.cardId];
+              if (!cardDef) return null;
+              return (
+                <ActionCardTile
+                  key={instance.instanceId}
+                  id={cardDef.id}
+                  name={cardDef.name}
+                  description={CARD_DESCRIPTIONS[cardDef.id] ?? cardDef.id}
+                  cost={cardDef.cost}
+                  affordable={canAct && hasResource('card', cardDef.id)}
+                  pending={pending?.kind === 'card' && pending.id === instance.instanceId}
+                  onClick={() => handleCardClick(instance.instanceId, instance.cardId)}
+                />
+              );
+            })}
+          </div>
+        </div>
+
+        <HistoryPanel
+          title={`Battle Log (Deck ${combat.deck.length} · Discard ${combat.discard.length} · Exhausted ${combat.exhausted.length})`}
+          lines={combatHistory}
+          collapsed={logCollapsed}
+          onToggle={() => setLogCollapsed((c) => !c)}
+        />
       </div>
     </div>
   );

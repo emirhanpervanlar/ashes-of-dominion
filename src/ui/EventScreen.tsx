@@ -10,12 +10,14 @@ export function EventScreen({ eventId, onChoose }: Props) {
   if (!def) return null;
 
   return (
-    <div>
+    <div className="event-screen">
+      <div className="question-mark-badge">?</div>
       <h1>{def.title}</h1>
       <div className="subtitle">{def.description}</div>
-      <div className="hand" style={{ flexWrap: 'wrap' }}>
+
+      <div className="event-options">
         {def.options.map((option) => (
-          <div key={option.id} className="card-tile" style={{ minWidth: 220, cursor: 'pointer' }} onClick={() => onChoose(option.id)}>
+          <div key={option.id} className="card-tile" onClick={() => onChoose(option.id)}>
             <div className="card-name">
               <span>{option.label}</span>
             </div>

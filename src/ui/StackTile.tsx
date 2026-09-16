@@ -55,7 +55,6 @@ export function StackTile({ state, stack, position, side, intent, selectable, se
     <div className="unit-slot">
       <div className={classes.join(' ')} onClick={selectable ? onClick : undefined} title={def.name}>
         <span className="unit-icon">{UNIT_ICONS[stack.unitId]}</span>
-        <span className="unit-count">×{stack.count}</span>
       </div>
       <div className="unit-label">
         <div className="bar">
@@ -66,7 +65,9 @@ export function StackTile({ state, stack, position, side, intent, selectable, se
             <div className="bar-fill-block" style={{ width: `${blockPct}%` }} />
           </div>
         )}
-        <div className="unit-name">{def.name}</div>
+        <div className="unit-name">
+          {def.name} <span className="unit-count">×{stack.count}</span>
+        </div>
         <div className="badges">
           {stack.block > 0 && <span className="badge">Block {stack.block}</span>}
           {stack.morale !== 0 && (
