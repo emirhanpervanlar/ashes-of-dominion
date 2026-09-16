@@ -2,6 +2,7 @@ import { CARD_DEFINITIONS } from '../engine/index.js';
 import { RELIC_DEFINITIONS } from '../engine/run/index.js';
 import type { PendingReward } from '../engine/run/index.js';
 import { CARD_DESCRIPTIONS } from './cardText.js';
+import { relicIcon } from './relicIcons.js';
 
 interface Props {
   reward: PendingReward;
@@ -33,7 +34,9 @@ export function RewardScreen({ reward, onClaimRelic, onClaimCard, onClaimUpgrade
                   onClick={() => onClaimRelic(relicId)}
                 >
                   <div className="card-name">
-                    <span>{relic.name}</span>
+                    <span>
+                      {relicIcon(relicId)} {relic.name}
+                    </span>
                   </div>
                   <div className="card-text">{relic.description}</div>
                 </div>

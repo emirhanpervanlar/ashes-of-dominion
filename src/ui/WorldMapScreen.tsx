@@ -19,14 +19,28 @@ const NODE_LABELS: Record<MapNode['type'], string> = {
   boss: 'Boss',
 };
 
+const NODE_ICONS: Record<MapNode['type'], string> = {
+  road: '·',
+  battle: '⚔️',
+  elite_battle: '☠️',
+  resource: '💰',
+  merchant: '🛒',
+  event: '❓',
+  city: '🏰',
+  boss: '👑',
+};
+
 export function WorldMapScreen({ run, onMoveTo, onEnterCity, onNewRun }: Props) {
   const current = run.worldMap.nodes.find((n) => n.id === run.worldMap.currentNodeId)!;
-  const layers = Math.max(...run.worldMap.nodes.map((n) => n.layer)) + 1;
+  const layerCount = Math.max(...run.worldMap.nodes.map((n) => n.layer)) + 1;
+  const layers = Array.from({ length: layerCount }, (_, layer) => run.worldMap.nodes.filter((n) => n.layer === layer));
 
   return (
     <div>
       <h1>Ashes of Dominion — World Map</h1>
-      <div className="subtitle">Run seed {run.seed} · Battles won {run.battlesWon}</div>
+      <div className="subtitle">
+        Run seed {run.seed} · Battles won {run.battlesWon}
+      </div>
 
       <div className="toolbar">
         <button onClick={onNewRun}>Abandon Run / New Run</button>
@@ -58,22 +72,24 @@ export function WorldMapScreen({ run, onMoveTo, onEnterCity, onNewRun }: Props) 
         </div>
       </div>
 
-      <div style={{ display: 'flex', gap: 10, overflowX: 'auto', paddingBottom: 8 }}>
-        {Array.from({ length: layers }, (_, layer) => (
-          <div key={layer} style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 160 }}>
-            {run.worldMap.nodes
-              .filter((n) => n.layer === layer)
-              .map((node) => {
+      <div className="map-column">
+        {layers.map((nodes, layer) => (
+          <div key={layer}>
+            <div className="map-layer">
+              {nodes.map((node) => {
                 const isCurrent = node.id === current.id;
                 const isSelectable = !isCurrent && current.connectsTo.includes(node.id) && node.visibility !== 'unknown';
                 const classes = ['stack-tile'];
                 if (isCurrent) classes.push('selected', 'player');
                 else if (isSelectable) classes.push('selectable', 'player');
                 else classes.push('empty');
+                const known = node.visibility !== 'unknown';
                 return (
                   <div key={node.id} className={classes.join(' ')} onClick={isSelectable ? () => onMoveTo(node.id) : undefined}>
                     <div className="stack-name">
-                      <span>{node.visibility === 'unknown' ? 'Unknown' : NODE_LABELS[node.type]}</span>
+                      <span>
+                        {known ? NODE_ICONS[node.type] : '?'} {known ? NODE_LABELS[node.type] : 'Unknown'}
+                      </span>
                     </div>
                     <div className="badges">
                       <span className="badge">layer {node.layer}</span>
@@ -82,6 +98,8 @@ export function WorldMapScreen({ run, onMoveTo, onEnterCity, onNewRun }: Props) 
                   </div>
                 );
               })}
+            </div>
+            {layer < layers.length - 1 && <div className="map-connector">│</div>}
           </div>
         ))}
       </div>

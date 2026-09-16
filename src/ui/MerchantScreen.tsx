@@ -2,6 +2,7 @@ import { CARD_DEFINITIONS } from '../engine/index.js';
 import { RELIC_DEFINITIONS } from '../engine/run/index.js';
 import type { MerchantInventory } from '../engine/run/index.js';
 import { CARD_DESCRIPTIONS } from './cardText.js';
+import { relicIcon } from './relicIcons.js';
 
 interface Props {
   gold: number;
@@ -47,7 +48,9 @@ export function MerchantScreen({ gold, inventory, onBuyCard, onBuyRelic, onLeave
                 onClick={affordable ? () => onBuyRelic(inventory.relicOffer!.relicId) : undefined}
               >
                 <div className="card-name">
-                  <span>{relic.name}</span>
+                  <span>
+                    {relicIcon(inventory.relicOffer.relicId)} {relic.name}
+                  </span>
                   <span className="card-cost">{inventory.relicOffer.price}g</span>
                 </div>
                 <div className="card-text">{relic.description}</div>

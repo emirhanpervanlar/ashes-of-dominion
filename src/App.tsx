@@ -5,7 +5,6 @@ import { applyRunAction, createRun } from './engine/run/index.js';
 import type { RunState } from './engine/run/index.js';
 import { StackTile } from './ui/StackTile.js';
 import { CardTile } from './ui/CardTile.js';
-import { SkillTile } from './ui/SkillTile.js';
 import { StartingRelicScreen } from './ui/StartingRelicScreen.js';
 import { RewardScreen } from './ui/RewardScreen.js';
 import { RunEndScreen } from './ui/RunEndScreen.js';
@@ -14,6 +13,7 @@ import { EventScreen } from './ui/EventScreen.js';
 import { MerchantScreen } from './ui/MerchantScreen.js';
 import { CityScreen } from './ui/CityScreen.js';
 import { describeEvent } from './ui/eventText.js';
+import { relicIcon } from './ui/relicIcons.js';
 
 const STORAGE_KEY = 'aod_run_state_v1';
 
@@ -258,132 +258,173 @@ export default function App() {
   const front = [1, 2, 3] as const;
   const back = [4, 5, 6] as const;
   const recentLog = combat.log.slice(-40);
+  const manaPct = combat.hero.maxMana > 0 ? Math.min(100, (combat.hero.mana / combat.hero.maxMana) * 100) : 0;
+  const canAct = combat.phase === 'player' && combat.result === 'ongoing';
 
   return (
     <div>
-      <h1>Ashes of Dominion — Combat</h1>
-      <div className="subtitle">
-        Run seed {run.seed} · Battle {run.battlesWon + 1} · Relics: {run.relics.map((r) => r.name).join(', ') || 'none'}
-      </div>
-
-      <div className="toolbar">
-        <button onClick={newRun}>Abandon Run / New Run</button>
-        {pending && <span className="hint">Targeting for {pending.name} — click the card/skill again to cancel.</span>}
-      </div>
-
-      <div className="hero-panel">
-        <strong>{combat.hero.name}</strong>
-        <div className="stat">
-          <span className="stat-label">HP</span> {combat.hero.hp}/{combat.hero.maxHp}
-        </div>
-        <div className="stat">
-          <span className="stat-label">Mana</span> {combat.hero.mana}/{combat.hero.maxMana}
-        </div>
-        <div className="stat">
-          <span className="stat-label">AC</span> {combat.hero.ac}/{combat.hero.maxAc}
-        </div>
-        <div className="stat">
-          <span className="stat-label">DC</span> {combat.hero.dc}/{combat.hero.maxDc}
-        </div>
-        <div className="stat">
-          <span className="stat-label">Turn</span> {combat.turnNumber} ({combat.phase})
-        </div>
-      </div>
-
-      <div className="battlefield">
-        <div className="row">
-          {back.map((p) => {
-            const s = stackAt(combat.enemyArmy, p);
-            return (
-              <StackTile
-                key={`e-${p}`}
-                state={combat}
-                stack={s}
-                position={p}
-                side="enemy"
-                intent={s ? intentByStack.get(s.stackId) : undefined}
-                selectable={isSelectable(s, 'enemy')}
-                selected={isSelected(s)}
-                onClick={() => handleStackClick(s, p, 'enemy')}
-              />
-            );
-          })}
-        </div>
-        <div className="row">
-          {front.map((p) => {
-            const s = stackAt(combat.enemyArmy, p);
-            return (
-              <StackTile
-                key={`e-${p}`}
-                state={combat}
-                stack={s}
-                position={p}
-                side="enemy"
-                intent={s ? intentByStack.get(s.stackId) : undefined}
-                selectable={isSelectable(s, 'enemy')}
-                selected={isSelected(s)}
-                onClick={() => handleStackClick(s, p, 'enemy')}
-              />
-            );
-          })}
+      <div className="top-bar">
+        <div className="hero-card">
+          <div className="hero-portrait">🧑‍✈️</div>
+          <div className="hero-info">
+            <div className="hero-name-row">
+              <span>{combat.hero.name}</span>
+              <div className="relic-icons">
+                {run.relics.map((r) => (
+                  <span key={r.id} className="relic-icon" title={`${r.name} — ${r.description}`}>
+                    {relicIcon(r.id)}
+                  </span>
+                ))}
+              </div>
+            </div>
+            <div className="mana-row">
+              <span className="mana-label">Mana</span>
+              <div className="mana-bar-track">
+                <div className="mana-bar-fill" style={{ width: `${manaPct}%` }} />
+              </div>
+              <span>
+                {combat.hero.mana}/{combat.hero.maxMana}
+              </span>
+            </div>
+            <div className="skills-row">
+              {combat.heroSkills.map((skillState) => {
+                const skillDef = HERO_SKILL_DEFINITIONS[skillState.skillId];
+                if (!skillDef) return null;
+                const onCooldown = skillState.cooldownRemaining > 0;
+                const affordable = canAct && hasResource('skill', skillDef.id);
+                return (
+                  <button
+                    key={skillDef.id}
+                    className={`skill-chip${pending?.kind === 'skill' && pending.id === skillDef.id ? ' pending' : ''}`}
+                    disabled={!affordable || onCooldown}
+                    onClick={() => handleSkillClick(skillDef.id)}
+                    title={skillDef.description}
+                  >
+                    {skillDef.name}
+                    <span className="skill-chip-cost">
+                      {skillDef.cost.amount}
+                      {skillDef.cost.type === 'MANA' ? 'M' : skillDef.cost.type}
+                    </span>
+                    {onCooldown ? ` (${skillState.cooldownRemaining})` : ''}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </div>
 
-        <div className="row-divider" />
-
-        <div className="row">
-          {front.map((p) => {
-            const s = stackAt(combat.playerArmy, p);
-            return (
-              <StackTile
-                key={`p-${p}`}
-                state={combat}
-                stack={s}
-                position={p}
-                side="player"
-                selectable={isSelectable(s, 'player')}
-                selected={isSelected(s)}
-                onClick={() => handleStackClick(s, p, 'player')}
-              />
-            );
-          })}
-        </div>
-        <div className="row">
-          {back.map((p) => {
-            const s = stackAt(combat.playerArmy, p);
-            return (
-              <StackTile
-                key={`p-${p}`}
-                state={combat}
-                stack={s}
-                position={p}
-                side="player"
-                selectable={isSelectable(s, 'player')}
-                selected={isSelected(s)}
-                onClick={() => handleStackClick(s, p, 'player')}
-              />
-            );
-          })}
+        <div className="turn-badge">
+          <div>
+            <strong>Turn {combat.turnNumber}</strong>
+          </div>
+          <div>{combat.phase === 'player' ? 'Your turn' : combat.phase === 'enemy' ? 'Enemy turn' : 'Battle over'}</div>
+          <div>Hero HP {combat.hero.hp}/{combat.hero.maxHp}</div>
+          <div style={{ marginTop: 6 }}>
+            <button onClick={newRun}>Abandon Run</button>
+          </div>
         </div>
       </div>
 
-      <div className="hand">
-        {combat.heroSkills.map((skillState) => {
-          const skillDef = HERO_SKILL_DEFINITIONS[skillState.skillId];
-          if (!skillDef) return null;
-          return (
-            <SkillTile
-              key={skillState.skillId}
-              skillDef={skillDef}
-              skillState={skillState}
-              affordable={combat.phase === 'player' && combat.result === 'ongoing' && hasResource('skill', skillDef.id)}
-              pending={pending?.kind === 'skill' && pending.id === skillDef.id}
-              onClick={() => handleSkillClick(skillDef.id)}
-            />
-          );
-        })}
+      {pending && <div className="hint">Targeting for {pending.name} — click the card/skill again to cancel.</div>}
+
+      <div className="battlefield-v2">
+        <div className="side-columns">
+          <div className="unit-column">
+            {back.map((p) => {
+              const s = stackAt(combat.playerArmy, p);
+              return (
+                <StackTile
+                  key={`p-${p}`}
+                  state={combat}
+                  stack={s}
+                  position={p}
+                  side="player"
+                  selectable={isSelectable(s, 'player')}
+                  selected={isSelected(s)}
+                  onClick={() => handleStackClick(s, p, 'player')}
+                />
+              );
+            })}
+          </div>
+          <div className="unit-column">
+            {front.map((p) => {
+              const s = stackAt(combat.playerArmy, p);
+              return (
+                <StackTile
+                  key={`p-${p}`}
+                  state={combat}
+                  stack={s}
+                  position={p}
+                  side="player"
+                  selectable={isSelectable(s, 'player')}
+                  selected={isSelected(s)}
+                  onClick={() => handleStackClick(s, p, 'player')}
+                />
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="vs-divider">VS</div>
+
+        <div className="side-columns">
+          <div className="unit-column">
+            {front.map((p) => {
+              const s = stackAt(combat.enemyArmy, p);
+              return (
+                <StackTile
+                  key={`e-${p}`}
+                  state={combat}
+                  stack={s}
+                  position={p}
+                  side="enemy"
+                  intent={s ? intentByStack.get(s.stackId) : undefined}
+                  selectable={isSelectable(s, 'enemy')}
+                  selected={isSelected(s)}
+                  onClick={() => handleStackClick(s, p, 'enemy')}
+                />
+              );
+            })}
+          </div>
+          <div className="unit-column">
+            {back.map((p) => {
+              const s = stackAt(combat.enemyArmy, p);
+              return (
+                <StackTile
+                  key={`e-${p}`}
+                  state={combat}
+                  stack={s}
+                  position={p}
+                  side="enemy"
+                  intent={s ? intentByStack.get(s.stackId) : undefined}
+                  selectable={isSelectable(s, 'enemy')}
+                  selected={isSelected(s)}
+                  onClick={() => handleStackClick(s, p, 'enemy')}
+                />
+              );
+            })}
+          </div>
+        </div>
       </div>
 
-      <div className="hand">
+      <div className="bottom-bar">
+        <div className="resource-pips">
+          <div className="pip">
+            <span className="pip-dot ac" /> AC {combat.hero.ac}/{combat.hero.maxAc}
+          </div>
+          <div className="pip">
+            <span className="pip-dot dc" /> DC {combat.hero.dc}/{combat.hero.maxDc}
+          </div>
+        </div>
+        <button className="primary" disabled={!canAct} onClick={() => dispatchCombat({ type: 'END_TURN' })}>
+          End Turn
+        </button>
+        <div className="pile-counts">
+          Deck {combat.deck.length} · Discard {combat.discard.length} · Exhausted {combat.exhausted.length}
+        </div>
+      </div>
+
+      <div className="hand-tray">
         {combat.hand.map((instance) => {
           const cardDef = CARD_DEFINITIONS[instance.cardId];
           if (!cardDef) return null;
@@ -392,25 +433,12 @@ export default function App() {
               key={instance.instanceId}
               instance={instance}
               cardDef={cardDef}
-              affordable={combat.phase === 'player' && combat.result === 'ongoing' && hasResource('card', cardDef.id)}
+              affordable={canAct && hasResource('card', cardDef.id)}
               pending={pending?.kind === 'card' && pending.id === instance.instanceId}
               onClick={() => handleCardClick(instance.instanceId, instance.cardId)}
             />
           );
         })}
-      </div>
-
-      <div className="toolbar">
-        <button
-          className="primary"
-          disabled={combat.phase !== 'player' || combat.result !== 'ongoing'}
-          onClick={() => dispatchCombat({ type: 'END_TURN' })}
-        >
-          End Turn
-        </button>
-        <span className="subtitle">
-          Deck {combat.deck.length} · Discard {combat.discard.length} · Exhausted {combat.exhausted.length}
-        </span>
       </div>
 
       <div className="log">
