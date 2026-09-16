@@ -240,6 +240,92 @@ describe('determinism', () => {
   });
 });
 
+describe('hero skills', () => {
+  it('Second Wind grants Block, costs Mana, and enters cooldown', () => {
+    const { state } = createVerticalSliceScenario(20);
+    const result = applyPlayerAction(state, {
+      type: 'USE_SKILL',
+      skillId: 'second_wind',
+      actingStackId: 'player_swordsman_2',
+    });
+    const stack = result.state.playerArmy.find((s) => s.stackId === 'player_swordsman_2')!;
+    expect(stack.block).toBe(20);
+    expect(result.state.hero.mana).toBe(3); // 5 - 2
+    expect(result.state.heroSkills.find((s) => s.skillId === 'second_wind')?.cooldownRemaining).toBe(3);
+  });
+
+  it('rejects a skill still on cooldown', () => {
+    const { state } = createVerticalSliceScenario(21);
+    const first = applyPlayerAction(state, {
+      type: 'USE_SKILL',
+      skillId: 'second_wind',
+      actingStackId: 'player_swordsman_2',
+    });
+    const second = applyPlayerAction(first.state, {
+      type: 'USE_SKILL',
+      skillId: 'second_wind',
+      actingStackId: 'player_knight_1',
+    });
+    expect(second.events.some((e) => e.type === 'ACTION_REJECTED')).toBe(true);
+  });
+
+  it('cooldown ticks down each subsequent player turn', () => {
+    let { state } = createVerticalSliceScenario(22);
+    let result = applyPlayerAction(state, {
+      type: 'USE_SKILL',
+      skillId: 'second_wind',
+      actingStackId: 'player_swordsman_2',
+    });
+    expect(result.state.heroSkills.find((s) => s.skillId === 'second_wind')?.cooldownRemaining).toBe(3);
+
+    result = applyPlayerAction(result.state, { type: 'END_TURN' });
+    expect(result.state.heroSkills.find((s) => s.skillId === 'second_wind')?.cooldownRemaining).toBe(2);
+  });
+});
+
+describe('relics', () => {
+  it('PLAYER_DAMAGE_MULT increases friendly attack damage', () => {
+    const { state: baseState } = createVerticalSliceScenario(23);
+    const buffedState: CombatState = { ...baseState, activeRelicEffects: [{ kind: 'PLAYER_DAMAGE_MULT', multiplier: 1.5 }] };
+
+    const withHandCard = (s: CombatState) => withHand(s, ['command_strike']);
+    const base = applyPlayerAction(withHandCard(baseState), {
+      type: 'PLAY_CARD',
+      instanceId: handCard(withHandCard(baseState), 'command_strike').instanceId,
+      actingStackId: 'player_knight_1',
+      targetStackId: 'enemy_orc_1',
+    });
+    const buffed = applyPlayerAction(withHandCard(buffedState), {
+      type: 'PLAY_CARD',
+      instanceId: handCard(withHandCard(buffedState), 'command_strike').instanceId,
+      actingStackId: 'player_knight_1',
+      targetStackId: 'enemy_orc_1',
+    });
+
+    const baseDamage = base.events.find((e) => e.type === 'STACK_ATTACKED');
+    const buffedDamage = buffed.events.find((e) => e.type === 'STACK_ATTACKED');
+    if (baseDamage?.type === 'STACK_ATTACKED' && buffedDamage?.type === 'STACK_ATTACKED') {
+      expect(buffedDamage.rawDamage).toBeGreaterThan(baseDamage.rawDamage);
+    } else {
+      throw new Error('expected STACK_ATTACKED events');
+    }
+  });
+
+  it('relics never affect enemy-side attacks', () => {
+    const { state: baseState } = createVerticalSliceScenario(24);
+    const buffedState: CombatState = { ...baseState, activeRelicEffects: [{ kind: 'PLAYER_DAMAGE_MULT', multiplier: 5 }] };
+
+    const baseEnd = applyPlayerAction(baseState, { type: 'END_TURN' });
+    const buffedEnd = applyPlayerAction(buffedState, { type: 'END_TURN' });
+
+    const baseDmg = baseEnd.events.filter((e) => e.type === 'STACK_ATTACKED').map((e) => (e.type === 'STACK_ATTACKED' ? e.finalDamage : 0));
+    const buffedDmg = buffedEnd.events
+      .filter((e) => e.type === 'STACK_ATTACKED')
+      .map((e) => (e.type === 'STACK_ATTACKED' ? e.finalDamage : 0));
+    expect(buffedDmg).toEqual(baseDmg); // identical seed/actions, enemy attacks unaffected by player relics
+  });
+});
+
 describe('long-run stability', () => {
   it('survives many consecutive End Turns without throwing or violating invariants', () => {
     let { state } = createVerticalSliceScenario(99);

@@ -118,6 +118,51 @@ export interface CardInstance {
   cardId: string;
 }
 
+/**
+ * Passive relic modifiers (AGENT.md §16/§17). "Stat-boost" kinds are applied
+ * once, permanently, at the moment a relic is granted (see run/relics.ts).
+ * "Combat-modifier" kinds are read fresh from the currently-held relics on
+ * every player-side attack — see combat.ts's resolveAttack.
+ */
+export type RelicEffect =
+  | { kind: 'HERO_MAX_MANA'; amount: number }
+  | { kind: 'HERO_MAX_AC'; amount: number }
+  | { kind: 'HERO_MAX_DC'; amount: number }
+  | { kind: 'ARMY_SIZE_MULT'; multiplier: number }
+  | { kind: 'ARMY_SIZE_FLAT_LARGEST'; amount: number }
+  | { kind: 'PLAYER_DAMAGE_MULT'; multiplier: number }
+  | { kind: 'TAG_DAMAGE_MULT'; tag: string; multiplier: number }
+  | { kind: 'LARGE_STACK_STRENGTH'; threshold: number; amount: number }
+  | { kind: 'SMALL_STACK_DAMAGE_MULT'; threshold: number; multiplier: number };
+
+export interface RelicDefinition {
+  id: string;
+  name: string;
+  description: string;
+  effects: RelicEffect[];
+}
+
+/**
+ * Hero skills (AGENT.md §5 "Active skill slots: 4") — always available
+ * during combat (not drawn/discarded like cards), gated by Mana cost and a
+ * per-battle cooldown instead of a hand/deck. Reuses CardEffect so the same
+ * executor in combat.ts handles both.
+ */
+export interface HeroSkillDefinition {
+  id: string;
+  name: string;
+  description: string;
+  cost: CardCost;
+  targeting: CardTargeting;
+  effects: CardEffect[];
+  cooldownTurns: number;
+}
+
+export interface HeroSkillState {
+  skillId: string;
+  cooldownRemaining: number;
+}
+
 export interface EnemyIntent {
   stackId: string;
   kind: 'attack' | 'buff';
@@ -153,12 +198,20 @@ export type CombatEvent =
   | { type: 'INTENTS_GENERATED'; intents: EnemyIntent[] }
   | { type: 'ENEMY_TURN_RESOLVED' }
   | { type: 'ACTION_REJECTED'; reason: string }
+  | { type: 'SKILL_USED'; skillId: string }
   | { type: 'BATTLE_ENDED'; result: 'victory' | 'defeat' };
 
 export type PlayerAction =
   | {
       type: 'PLAY_CARD';
       instanceId: string;
+      actingStackId?: string;
+      targetStackId?: string;
+      toPosition?: Position;
+    }
+  | {
+      type: 'USE_SKILL';
+      skillId: string;
       actingStackId?: string;
       targetStackId?: string;
       toPosition?: Position;
@@ -179,6 +232,9 @@ export interface CombatState {
   discard: CardInstance[];
   exhausted: CardInstance[];
   enemyIntents: EnemyIntent[];
+  /** Passive relic effects active for this battle — see RunState.relics. */
+  activeRelicEffects: RelicEffect[];
+  heroSkills: HeroSkillState[];
   log: CombatEvent[];
 }
 

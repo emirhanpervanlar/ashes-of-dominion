@@ -6,3 +6,5 @@ export * from './combat.js';
 export * from './scenario.js';
 export { UNIT_DEFINITIONS } from './data/units.js';
 export { CARD_DEFINITIONS } from './data/cards.js';
+export { HERO_SKILL_DEFINITIONS, DEFAULT_HERO_SKILL_LOADOUT } from './data/heroSkills.js';
+export * from './army.js';

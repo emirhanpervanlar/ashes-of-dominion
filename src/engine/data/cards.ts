@@ -99,4 +99,44 @@ export const CARD_DEFINITIONS: Record<string, CardDefinition> = {
     exhaust: true,
     tags: ['hero', 'draw'],
   },
+
+  // Upgraded variants (AGENT.md §14 "Upgrades may change mechanics, not
+  // only numbers") — Phase 3 MVP keeps these as straightforward numeric
+  // bumps; see run/cardUpgrades.ts for which base card maps to which.
+  command_strike_plus: {
+    id: 'command_strike_plus',
+    name: 'Command: Strike+',
+    cost: { type: 'AC', amount: 1 },
+    targeting: 'ally-stack+enemy-stack',
+    effects: [{ kind: 'ATTACK', multiplier: 1.25 }],
+    exhaust: false,
+    tags: ['command', 'attack'],
+  },
+  defend_plus: {
+    id: 'defend_plus',
+    name: 'Defend+',
+    cost: { type: 'DC', amount: 1 },
+    targeting: 'ally-stack',
+    effects: [{ kind: 'GAIN_BLOCK', amount: 25 }],
+    exhaust: false,
+    tags: ['defense'],
+  },
+  shield_wall_plus: {
+    id: 'shield_wall_plus',
+    name: 'Shield Wall+',
+    cost: { type: 'DC', amount: 1 },
+    targeting: 'none',
+    effects: [{ kind: 'GAIN_BLOCK_ALL_FRONT', amount: 35 }],
+    exhaust: false,
+    tags: ['defense'],
+  },
+  volley_plus: {
+    id: 'volley_plus',
+    name: 'Volley+',
+    cost: { type: 'AC', amount: 2 },
+    targeting: 'enemy-stack',
+    effects: [{ kind: 'ATTACK_ALL_WITH_TAG', tag: 'archer', multiplier: 1.2 }],
+    exhaust: false,
+    tags: ['archer', 'attack'],
+  },
 };

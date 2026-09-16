@@ -1,20 +1,27 @@
 import { CARD_DEFINITIONS } from './data/cards.js';
+import { HERO_SKILL_DEFINITIONS } from './data/heroSkills.js';
 import { UNIT_DEFINITIONS } from './data/units.js';
-import { applyDamageToStack, computeRawDamage } from './damage.js';
+import { applyDamageToStack, computeRawDamage, relicDamageMultiplier, relicFlatAttackBonus } from './damage.js';
 import { generateEnemyIntents } from './intents.js';
 import { shuffle } from './rng.js';
 import type {
   ApplyResult,
   ArmyStack,
-  CardDefinition,
+  CardCostType,
   CardEffect,
   CardInstance,
+  CardTargeting,
   CombatEvent,
   CombatState,
   Hero,
+  HeroSkillState,
   PlayerAction,
   Position,
+  RelicEffect,
 } from './types.js';
+
+/** Shape shared by PLAY_CARD and USE_SKILL — all executeEffect/validateTargeting need. */
+type TargetedAction = { actingStackId?: string; targetStackId?: string; toPosition?: Position };
 
 const HAND_SIZE = 5;
 const MAX_HAND = 10;
@@ -36,7 +43,7 @@ function reject(events: CombatEvent[], reason: string): void {
   events.push({ type: 'ACTION_REJECTED', reason });
 }
 
-function getHeroResource(hero: Hero, type: CardDefinition['cost']['type']): number {
+function getHeroResource(hero: Hero, type: CardCostType): number {
   switch (type) {
     case 'AC':
       return hero.ac;
@@ -47,7 +54,7 @@ function getHeroResource(hero: Hero, type: CardDefinition['cost']['type']): numb
   }
 }
 
-function spendHeroResource(hero: Hero, type: CardDefinition['cost']['type'], amount: number): void {
+function spendHeroResource(hero: Hero, type: CardCostType, amount: number): void {
   switch (type) {
     case 'AC':
       hero.ac -= amount;
@@ -90,11 +97,15 @@ function resolveAttack(
   target: ArmyStack,
   army: ArmyStack[],
   multiplier: number,
-  events: CombatEvent[]
+  events: CombatEvent[],
+  relics: RelicEffect[]
 ): void {
   const attackerDef = UNIT_DEFINITIONS[attacker.unitId];
   const targetDef = UNIT_DEFINITIONS[target.unitId];
-  const raw = computeRawDamage(attacker, attackerDef.attack, targetDef.defense, multiplier);
+  // Relics belong to the player's Hero — only ever modify player-side attacks.
+  const relicMult = attacker.side === 'player' ? relicDamageMultiplier(relics, attacker.count, attackerDef.tags) : 1;
+  const relicFlat = attacker.side === 'player' ? relicFlatAttackBonus(relics, attacker.count) : 0;
+  const raw = computeRawDamage(attacker, attackerDef.attack + relicFlat, targetDef.defense, multiplier * relicMult);
   const resolution = applyDamageToStack(target, targetDef.hpPerUnit, raw);
   replaceStack(army, resolution.stack);
 
@@ -114,17 +125,12 @@ function resolveAttack(
   }
 }
 
-function executeEffect(
-  state: CombatState,
-  effect: CardEffect,
-  action: Extract<PlayerAction, { type: 'PLAY_CARD' }>,
-  events: CombatEvent[]
-): void {
+function executeEffect(state: CombatState, effect: CardEffect, action: TargetedAction, events: CombatEvent[]): void {
   switch (effect.kind) {
     case 'ATTACK': {
       const attacker = findStack(state.playerArmy, action.actingStackId)!;
       const target = findStack(state.enemyArmy, action.targetStackId)!;
-      resolveAttack(attacker, target, state.enemyArmy, effect.multiplier, events);
+      resolveAttack(attacker, target, state.enemyArmy, effect.multiplier, events, state.activeRelicEffects);
       return;
     }
     case 'ATTACK_ALL_WITH_TAG': {
@@ -136,7 +142,7 @@ function executeEffect(
       for (const attacker of attackers) {
         const target = findStack(state.enemyArmy, action.targetStackId);
         if (!target) break;
-        resolveAttack(attacker, target, state.enemyArmy, effect.multiplier, events);
+        resolveAttack(attacker, target, state.enemyArmy, effect.multiplier, events, state.activeRelicEffects);
       }
       return;
     }
@@ -199,17 +205,17 @@ function executeEffect(
 
 function validateTargeting(
   state: CombatState,
-  cardDef: CardDefinition,
-  action: Extract<PlayerAction, { type: 'PLAY_CARD' }>
+  def: { id: string; targeting: CardTargeting },
+  action: TargetedAction
 ): string | null {
-  const needsAlly = cardDef.targeting === 'ally-stack' || cardDef.targeting === 'ally-stack+enemy-stack' || cardDef.targeting === 'ally-stack+position';
-  const needsEnemy = cardDef.targeting === 'enemy-stack' || cardDef.targeting === 'ally-stack+enemy-stack';
-  const needsPosition = cardDef.targeting === 'ally-stack+position';
+  const needsAlly = def.targeting === 'ally-stack' || def.targeting === 'ally-stack+enemy-stack' || def.targeting === 'ally-stack+position';
+  const needsEnemy = def.targeting === 'enemy-stack' || def.targeting === 'ally-stack+enemy-stack';
+  const needsPosition = def.targeting === 'ally-stack+position';
 
   if (needsAlly) {
     const stack = findStack(state.playerArmy, action.actingStackId);
     if (!stack) return 'Invalid or dead friendly stack.';
-    if (cardDef.id === 'charge' && !UNIT_DEFINITIONS[stack.unitId].tags.includes('cavalry')) {
+    if (def.id === 'charge' && !UNIT_DEFINITIONS[stack.unitId].tags.includes('cavalry')) {
       return 'Charge requires a friendly Cavalry stack.';
     }
   }
@@ -302,9 +308,52 @@ function resolveEnemyTurn(state: CombatState, events: CombatEvent[]): void {
     }
     if (!target) continue;
 
-    resolveAttack(actor, target, state.playerArmy, 1, events);
+    resolveAttack(actor, target, state.playerArmy, 1, events, state.activeRelicEffects);
   }
   events.push({ type: 'ENEMY_TURN_RESOLVED' });
+}
+
+function useSkill(state: CombatState, action: Extract<PlayerAction, { type: 'USE_SKILL' }>, events: CombatEvent[]): ApplyResult {
+  const skillDef = HERO_SKILL_DEFINITIONS[action.skillId];
+  if (!skillDef) {
+    reject(events, 'Unknown skill.');
+    return { state, events };
+  }
+  const skillState = state.heroSkills.find((s) => s.skillId === action.skillId);
+  if (!skillState) {
+    reject(events, 'Skill is not equipped.');
+    return { state, events };
+  }
+  if (skillState.cooldownRemaining > 0) {
+    reject(events, `${skillDef.name} is on cooldown for ${skillState.cooldownRemaining} more turn(s).`);
+    return { state, events };
+  }
+  if (getHeroResource(state.hero, skillDef.cost.type) < skillDef.cost.amount) {
+    reject(events, `Not enough ${skillDef.cost.type}.`);
+    return { state, events };
+  }
+  const targetingError = validateTargeting(state, skillDef, action);
+  if (targetingError) {
+    reject(events, targetingError);
+    return { state, events };
+  }
+
+  spendHeroResource(state.hero, skillDef.cost.type, skillDef.cost.amount);
+  skillState.cooldownRemaining = skillDef.cooldownTurns;
+  events.push({ type: 'SKILL_USED', skillId: skillDef.id });
+
+  for (const effect of skillDef.effects) {
+    executeEffect(state, effect, action, events);
+  }
+
+  const result = checkBattleResult(state);
+  if (result !== 'ongoing') {
+    state.result = result;
+    state.phase = 'ended';
+    events.push({ type: 'BATTLE_ENDED', result });
+  }
+
+  return { state, events };
 }
 
 /**
@@ -327,6 +376,10 @@ function startPlayerTurn(state: CombatState, events: CombatEvent[], isFirstTurn:
 
     tickStatuses(state.playerArmy);
     tickStatuses(state.enemyArmy);
+
+    for (const skill of state.heroSkills) {
+      if (skill.cooldownRemaining > 0) skill.cooldownRemaining -= 1;
+    }
   }
 
   state.enemyIntents = generateEnemyIntents(state);
@@ -372,7 +425,14 @@ export function applyPlayerAction(state: CombatState, action: PlayerAction): App
     return { state: working, events };
   }
 
-  const result = action.type === 'END_TURN' ? endPlayerTurn(working, events) : playCard(working, action, events);
+  let result: ApplyResult;
+  if (action.type === 'END_TURN') {
+    result = endPlayerTurn(working, events);
+  } else if (action.type === 'USE_SKILL') {
+    result = useSkill(working, action, events);
+  } else {
+    result = playCard(working, action, events);
+  }
   result.state.log = [...result.state.log, ...result.events];
   return result;
 }
@@ -384,10 +444,19 @@ export interface StartBattleParams {
   playerArmy: ArmyStack[];
   enemyArmy: ArmyStack[];
   deck: CardInstance[];
+  /** Passive relics carried over from the run (AGENT.md §16); [] outside a run. */
+  activeRelicEffects?: RelicEffect[];
+  /** Hero skill loadout for this battle (AGENT.md §5); defaults to none. */
+  heroSkillIds?: string[];
 }
 
 export function startBattle(params: StartBattleParams): ApplyResult {
   const events: CombatEvent[] = [{ type: 'BATTLE_STARTED' }];
+
+  const heroSkills: HeroSkillState[] = (params.heroSkillIds ?? []).map((skillId) => ({
+    skillId,
+    cooldownRemaining: 0,
+  }));
 
   const state: CombatState = {
     seed: params.seed,
@@ -403,6 +472,8 @@ export function startBattle(params: StartBattleParams): ApplyResult {
     discard: [],
     exhausted: [],
     enemyIntents: [],
+    activeRelicEffects: params.activeRelicEffects ?? [],
+    heroSkills,
     log: [],
   };
 

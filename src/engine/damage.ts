@@ -1,4 +1,4 @@
-import type { ArmyStack, StatusType } from './types.js';
+import type { ArmyStack, RelicEffect, StatusType } from './types.js';
 
 /**
  * Diminishing returns on raw stack count — AGENT.md §11.
@@ -48,6 +48,25 @@ export function computeRawDamage(
   const perUnitNet = Math.max(0, perUnitAttack - targetDefense);
   const raw = perUnitNet * effectiveCount(attackerStack.count) * multiplier;
   return Math.round(raw);
+}
+
+/** Combat-modifier relic effects, read fresh on every attack (AGENT.md §16). */
+export function relicDamageMultiplier(relics: RelicEffect[], attackerCount: number, attackerTags: string[]): number {
+  let mult = 1;
+  for (const effect of relics) {
+    if (effect.kind === 'PLAYER_DAMAGE_MULT') mult *= effect.multiplier;
+    if (effect.kind === 'TAG_DAMAGE_MULT' && attackerTags.includes(effect.tag)) mult *= effect.multiplier;
+    if (effect.kind === 'SMALL_STACK_DAMAGE_MULT' && attackerCount < effect.threshold) mult *= effect.multiplier;
+  }
+  return mult;
+}
+
+export function relicFlatAttackBonus(relics: RelicEffect[], attackerCount: number): number {
+  let bonus = 0;
+  for (const effect of relics) {
+    if (effect.kind === 'LARGE_STACK_STRENGTH' && attackerCount > effect.threshold) bonus += effect.amount;
+  }
+  return bonus;
 }
 
 export interface DamageResolution {

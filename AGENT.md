@@ -2086,6 +2086,30 @@ Goal:
 
 Battle naturally creates build decisions.
 
+IMPLEMENTED (2026-09-16): engine/run/ — a RunState layer above the Phase 1/2
+combat engine. Scope notes/assumptions, since Phase 4 (World map) does not
+exist yet:
+- One battle per run for now. Victory -> a combined reward screen (pick at
+  most one relic AND at most one new card/upgrade, both skippable) ->
+  "run_complete", a terminal screen. Phase 4 replaces this terminal state
+  with real map navigation triggering further battles via the same
+  RunState (persisted army/casualties/deck/relics/hero).
+- Relics: a representative subset of §16/§17's examples — only ones with
+  a real mechanical hook right now (no recruitment/shops/Hero-damage
+  spells yet, so relics referencing those are deferred, not stubbed).
+  "Stat-boost" relic effects (max Mana/AC/DC, starting army size) apply
+  once, permanently, when granted. "Combat-modifier" effects (damage
+  multipliers) are read fresh from the held relics on every player-side
+  attack — see damage.ts's relicDamageMultiplier/relicFlatAttackBonus.
+- Card upgrades: a fixed base-card -> "+" card id map (run/cardUpgrades.ts),
+  4 of the 10 MVP cards upgradable so far. Reward screen offers upgrading
+  an owned card as an alternative to a brand new card, mutually exclusive.
+- Hero skills: modeled as always-available actions gated by Mana + a
+  per-battle cooldown (not drawn/discarded like cards) — reuses the same
+  CardEffect executor as cards. 2 of the 4 skill slots are filled
+  (Second Wind, Inspire); the doc's Hero skill-TREE (meta-progression,
+  §4) is a separate, later concern.
+
 Phase 4 — World map
 nodes
 movement
