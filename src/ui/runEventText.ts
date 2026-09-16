@@ -18,9 +18,8 @@ function unitName(unitId: string): string {
 export function describeRunEvent(event: RunEvent): string | null {
   switch (event.type) {
     case 'RUN_STARTED':
-      return 'Run started.';
     case 'STARTING_RELIC_CHOSEN':
-      return `Chose starting relic: ${relicName(event.relicId)}.`;
+      return null; // already visible in the sidebar's Relics list — noise in the history feed
     case 'MOVED':
       return `Moved onward (−${event.foodCost} Food).`;
     case 'STARVING':

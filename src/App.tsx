@@ -419,20 +419,6 @@ export default function App() {
               </div>
             </div>
           </div>
-          <div className="orb-row">
-            <div className="resource-orb ac" title="Attack Command">
-              <span className="orb-value">
-                {combat.hero.ac}/{combat.hero.maxAc}
-              </span>
-              <span className="orb-name">AC</span>
-            </div>
-            <div className="resource-orb dc" title="Defense Command">
-              <span className="orb-value">
-                {combat.hero.dc}/{combat.hero.maxDc}
-              </span>
-              <span className="orb-name">DC</span>
-            </div>
-          </div>
         </div>
 
         <div className="turn-info">
@@ -591,6 +577,21 @@ export default function App() {
               </div>
             );
           })}
+        </div>
+      </div>
+
+      <div className="orb-row">
+        <div className="resource-orb ac" title="Attack Command">
+          <span className="orb-value">
+            {combat.hero.ac}/{combat.hero.maxAc}
+          </span>
+          <span className="orb-name">AC</span>
+        </div>
+        <div className="resource-orb dc" title="Defense Command">
+          <span className="orb-value">
+            {combat.hero.dc}/{combat.hero.maxDc}
+          </span>
+          <span className="orb-name">DC</span>
         </div>
       </div>
 

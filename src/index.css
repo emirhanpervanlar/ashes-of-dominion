@@ -330,24 +330,24 @@ button.primary {
 
 .hero-card {
   display: flex;
-  gap: 12px;
+  gap: 10px;
   background: var(--panel);
   border: 1px solid var(--border);
   border-radius: 10px;
-  padding: 10px 14px;
-  min-width: 250px;
+  padding: 8px 12px;
+  width: 220px;
 }
 
 .hero-portrait {
-  width: 52px;
-  height: 52px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   background: radial-gradient(circle at 35% 30%, #3a4a6c, #1a2030);
   border: 2px solid var(--player);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 24px;
+  font-size: 20px;
   flex-shrink: 0;
 }
 
@@ -469,30 +469,32 @@ button.primary {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 28px;
+  gap: 16px;
   flex: 1;
   min-height: 0;
   flex-wrap: nowrap;
   padding: 4px;
-  overflow: hidden;
 }
 
 .side-columns {
   display: flex;
-  gap: 18px;
+  gap: 12px;
+  flex-shrink: 0;
 }
 
 .unit-column {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 10px;
+  justify-content: center;
 }
 
 .unit-slot {
   display: flex;
   flex-direction: column;
   align-items: center;
-  width: 116px;
+  width: 98px;
+  flex-shrink: 0;
   transition: opacity 0.15s ease, filter 0.15s ease;
 }
 
@@ -548,8 +550,8 @@ button.primary {
 }
 
 .unit-octagon {
-  width: 84px;
-  height: 84px;
+  width: 68px;
+  height: 68px;
   clip-path: polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%);
   display: flex;
   flex-direction: column;
@@ -585,6 +587,12 @@ button.primary {
 .unit-octagon.selectable {
   cursor: pointer;
   box-shadow: 0 0 0 3px var(--accent);
+  transition: transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+.unit-octagon.selectable:hover {
+  transform: scale(1.12);
+  box-shadow: 0 0 0 4px var(--accent), 0 0 18px var(--accent);
 }
 
 .unit-octagon.selected {
@@ -592,7 +600,7 @@ button.primary {
 }
 
 .unit-icon {
-  font-size: 26px;
+  font-size: 20px;
   line-height: 1;
 }
 
@@ -889,7 +897,7 @@ button.primary {
 .road-layout {
   display: flex;
   gap: 16px;
-  align-items: flex-start;
+  align-items: stretch;
 }
 
 .road-sidebar-left {
@@ -971,6 +979,183 @@ button.primary {
 
 .resource-chip .resource-chip-icon {
   font-size: 18px;
+}
+
+.army-unit-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 6px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.army-unit-card:hover {
+  background: var(--panel-2);
+}
+
+.army-unit-icon {
+  font-size: 28px;
+  flex-shrink: 0;
+  width: 34px;
+  text-align: center;
+}
+
+.army-unit-name {
+  flex: 1;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.army-unit-count {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--accent);
+  background: #00000055;
+  border-left: 2px solid var(--accent);
+  padding: 2px 10px;
+  border-radius: 0 4px 4px 0;
+}
+
+.resource-card-row {
+  display: flex;
+  gap: 8px;
+}
+
+.resource-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 4px;
+}
+
+.resource-card-icon {
+  font-size: 20px;
+}
+
+.resource-card-value {
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.resource-card-label {
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
+.day-block {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 12px;
+  margin-top: auto;
+}
+
+.day-block .resource-card-value {
+  font-size: 14px;
+}
+
+/* ============ Unit popup (Heroes3-style stack card) ============ */
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: #000000b0;
+  z-index: 950;
+}
+
+.unit-popup-card {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 240px;
+  min-height: 340px;
+  background: linear-gradient(160deg, #20242f, #14161c);
+  border: 2px solid var(--accent);
+  border-radius: 14px;
+  z-index: 951;
+  padding: 18px 16px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.unit-popup-card::after {
+  content: '';
+  position: absolute;
+  inset: 5px;
+  border: 1.5px solid var(--accent);
+  opacity: 0.4;
+  border-radius: 9px;
+  pointer-events: none;
+}
+
+.modal-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 2px 8px;
+}
+
+.unit-popup-icon {
+  font-size: 56px;
+  margin-top: 8px;
+}
+
+.unit-popup-name {
+  font-size: 18px;
+  font-weight: 800;
+  margin-top: 8px;
+}
+
+.unit-popup-desc {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-top: 6px;
+}
+
+.unit-popup-stats-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  width: 100%;
+  margin-top: auto;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.unit-popup-stats {
+  text-align: left;
+  font-size: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.unit-popup-count-block {
+  text-align: right;
+}
+
+.unit-popup-count {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--accent);
+}
+
+.unit-popup-total {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-top: 4px;
 }
 
 /* ============ City / town view ============ */
@@ -1110,19 +1295,33 @@ button.primary {
 
 .action-card {
   --card-color: var(--border);
-  width: 118px;
-  min-height: 150px;
+  width: 104px;
+  min-height: 128px;
   border-radius: 12px;
   border: 2px solid var(--card-color);
   background: linear-gradient(160deg, #20242f, #14161c);
   position: relative;
-  padding: 8px 6px 10px;
+  padding: 6px 6px 8px;
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
   cursor: pointer;
   flex-shrink: 0;
+}
+
+.skills-row-standalone .action-card {
+  width: 92px;
+  min-height: 108px;
+}
+
+.skills-row-standalone .action-card-icon {
+  font-size: 20px;
+  margin-top: 6px;
+}
+
+.skills-row-standalone .action-card-desc {
+  font-size: 9px;
 }
 
 .action-card::after {
@@ -1178,9 +1377,9 @@ button.primary {
 }
 
 .action-card-icon {
-  font-size: 30px;
-  margin-top: 10px;
-  margin-bottom: 6px;
+  font-size: 24px;
+  margin-top: 8px;
+  margin-bottom: 4px;
   filter: drop-shadow(0 0 6px var(--polarity-glow, transparent));
 }
 
@@ -1287,8 +1486,11 @@ button.primary {
 
 .orb-row {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   align-items: center;
+  position: absolute;
+  left: 6px;
+  bottom: 6px;
 }
 
 .battle-viewport {
@@ -1297,7 +1499,10 @@ button.primary {
   flex-direction: column;
   height: calc(100vh - 32px);
   min-height: 560px;
-  gap: 6px;
+  max-height: calc(100vh - 32px);
+  gap: 4px;
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .battle-header {
@@ -1311,7 +1516,7 @@ button.primary {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  width: 240px;
+  width: 220px;
   flex-shrink: 0;
 }
 

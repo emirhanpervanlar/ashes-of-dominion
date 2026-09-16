@@ -1,10 +1,13 @@
+import { useState } from 'react';
 import { UNIT_DEFINITIONS } from '../engine/index.js';
+import type { ArmyStack } from '../engine/index.js';
 import type { RunState } from '../engine/run/index.js';
 import type { MapNode } from '../engine/run/index.js';
 import { HistoryPanel } from './HistoryPanel.js';
 import { describeRunEvent } from './runEventText.js';
 import { relicIcon } from './relicIcons.js';
 import { UNIT_ICONS } from './unitIcons.js';
+import { UnitPopup } from './UnitPopup.js';
 
 interface Props {
   run: RunState;
@@ -36,6 +39,7 @@ const NODE_ICONS: Record<MapNode['type'], string> = {
 };
 
 export function WorldMapScreen({ run, onMoveTo, onEnterCity, onNewRun }: Props) {
+  const [popupStack, setPopupStack] = useState<ArmyStack | null>(null);
   const current = run.worldMap.nodes.find((n) => n.id === run.worldMap.currentNodeId)!;
   const layerCount = Math.max(...run.worldMap.nodes.map((n) => n.layer)) + 1;
   const layers = Array.from({ length: layerCount }, (_, layer) => run.worldMap.nodes.filter((n) => n.layer === layer));
@@ -77,11 +81,10 @@ export function WorldMapScreen({ run, onMoveTo, onEnterCity, onNewRun }: Props) 
             {run.army
               .filter((s) => s.count > 0)
               .map((s) => (
-                <div key={s.stackId} className="side-army-line">
-                  <span>{UNIT_ICONS[s.unitId]}</span>
-                  <span>
-                    {UNIT_DEFINITIONS[s.unitId].name} ×{s.count}
-                  </span>
+                <div key={s.stackId} className="army-unit-card" onClick={() => setPopupStack(s)}>
+                  <span className="army-unit-icon">{UNIT_ICONS[s.unitId]}</span>
+                  <span className="army-unit-name">{UNIT_DEFINITIONS[s.unitId].name}</span>
+                  <span className="army-unit-count">{s.count}</span>
                 </div>
               ))}
           </div>
@@ -101,17 +104,24 @@ export function WorldMapScreen({ run, onMoveTo, onEnterCity, onNewRun }: Props) 
           </div>
 
           <div className="side-block">
-            <div className="resource-chip-row">
-              <div className="resource-chip">
-                <span className="resource-chip-icon">📅</span> Day {run.day}
+            <h4>Resources</h4>
+            <div className="resource-card-row">
+              <div className="resource-card">
+                <span className="resource-card-icon">💰</span>
+                <span className="resource-card-value">{run.gold}</span>
+                <span className="resource-card-label">Gold</span>
               </div>
-              <div className="resource-chip">
-                <span className="resource-chip-icon">💰</span> {run.gold} Gold
-              </div>
-              <div className="resource-chip">
-                <span className="resource-chip-icon">🌾</span> {run.food} Food
+              <div className="resource-card">
+                <span className="resource-card-icon">🌾</span>
+                <span className="resource-card-value">{run.food}</span>
+                <span className="resource-card-label">Food</span>
               </div>
             </div>
+          </div>
+
+          <div className="day-block">
+            <span className="resource-card-icon">⏳</span>
+            <span className="resource-card-value">Day {run.day}</span>
           </div>
         </div>
 
@@ -151,6 +161,8 @@ export function WorldMapScreen({ run, onMoveTo, onEnterCity, onNewRun }: Props) 
 
         <HistoryPanel title="History" lines={historyLines} />
       </div>
+
+      {popupStack && <UnitPopup stack={popupStack} onClose={() => setPopupStack(null)} />}
     </div>
   );
 }
