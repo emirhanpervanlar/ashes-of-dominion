@@ -16,7 +16,7 @@ const NODE_LABELS: Record<MapNode['type'], string> = {
   merchant: 'Merchant',
   event: 'Event',
   city: 'City',
-  end: 'End (Phase 3 MVP)',
+  boss: 'Boss',
 };
 
 export function WorldMapScreen({ run, onMoveTo, onEnterCity, onNewRun }: Props) {

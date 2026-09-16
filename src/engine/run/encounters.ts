@@ -33,3 +33,21 @@ export function generateBattleEncounter(layer: number, elite: boolean): ArmyStac
 
   return positions.map(([unitId, position, count]) => createStack(unitId, 'enemy', position, count));
 }
+
+/**
+ * AGENT.md §42 — the single MVP boss (§55: Boss count = 1). Warlord's
+ * "gains strength based on player's army size" is implemented in
+ * damage.ts's bossScalingAttackBonus, applied automatically in combat
+ * whenever a unit has UnitDefinition.scalesWithPlayerArmy set.
+ */
+export function generateBossEncounter(): ArmyStack[] {
+  const positions: Array<[UnitId, Position, number]> = [
+    ['orc', 1, 50],
+    ['warlord', 2, 1],
+    ['orc', 3, 50],
+    ['wolf', 4, 30],
+    ['shaman', 5, 18],
+    ['wolf', 6, 30],
+  ];
+  return positions.map(([unitId, position, count]) => createStack(unitId, 'enemy', position, count));
+}

@@ -1,7 +1,7 @@
 import { CARD_DEFINITIONS } from './data/cards.js';
 import { HERO_SKILL_DEFINITIONS } from './data/heroSkills.js';
 import { UNIT_DEFINITIONS } from './data/units.js';
-import { applyDamageToStack, computeRawDamage, relicDamageMultiplier, relicFlatAttackBonus } from './damage.js';
+import { applyDamageToStack, bossScalingAttackBonus, computeRawDamage, relicDamageMultiplier, relicFlatAttackBonus } from './damage.js';
 import { generateEnemyIntents } from './intents.js';
 import { shuffle } from './rng.js';
 import type {
@@ -105,7 +105,9 @@ function resolveAttack(
   // Relics belong to the player's Hero — only ever modify player-side attacks.
   const relicMult = attacker.side === 'player' ? relicDamageMultiplier(relics, attacker.count, attackerDef.tags) : 1;
   const relicFlat = attacker.side === 'player' ? relicFlatAttackBonus(relics, attacker.count) : 0;
-  const raw = computeRawDamage(attacker, attackerDef.attack + relicFlat, targetDef.defense, multiplier * relicMult);
+  // `army` is the TARGET's army — for an enemy attacker that's the player's army, exactly what the Warlord mechanic needs.
+  const bossFlat = attacker.side === 'enemy' ? bossScalingAttackBonus(attackerDef, army) : 0;
+  const raw = computeRawDamage(attacker, attackerDef.attack + relicFlat + bossFlat, targetDef.defense, multiplier * relicMult);
   const resolution = applyDamageToStack(target, targetDef.hpPerUnit, raw);
   replaceStack(army, resolution.stack);
 

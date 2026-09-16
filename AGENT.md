@@ -2203,6 +2203,40 @@ Goal:
 
 Complete 20–40 minute vertical slice.
 
+IMPLEMENTED (2026-09-16): the map's Boss node (formerly a no-op 'end'
+placeholder, renamed) now starts a real boss battle instead of instantly
+completing the run. Scope notes/assumptions:
+- One boss (§55: Boss count = 1): Warlord, from §42's example list.
+  "Gains strength based on player's army size" is implemented as a flat
+  Attack bonus (+1 per 15 total player units) computed fresh on every
+  attack from UnitDefinition.scalesWithPlayerArmy — never stored as a
+  status, so it can't accidentally stack across turns. Applied
+  consistently in both actual damage resolution (combat.ts) and the
+  visible enemy-intent damage preview (intents.ts), so the number shown
+  before the enemy turn matches what actually lands.
+  Dragon (AoE) and Lich King (resurrection) from §42's list are deferred
+  — each needs its own new mechanic (a multi-target enemy attack, a
+  dead-unit-tracking/revival system) that doesn't exist yet; one real
+  boss beats three half-built ones.
+- Defeating the boss routes through the normal victory reward screen
+  (relic + card/upgrade, both skippable) — reusing existing reward
+  infrastructure — then confirming it ends the run at 'run_complete'
+  instead of returning to the map (tracked via RunState.finalBattle).
+  Losing to the boss is an ordinary defeat, consistent with the locked
+  "Hero defeat ends only the battle" rule; there's just nowhere left to
+  retreat to with no further map nodes.
+- Run summary (RunEndScreen) now shows Day, City level, Gold, Relics,
+  Deck size and final army composition, not just battles/relics/deck.
+- Save/resume was already in place since Phase 2 (full RunState in
+  localStorage after every action) — verified end-to-end here across a
+  full run including a mid-battle page reload.
+- Verified live in-browser: a full seed-to-Warlord-to-Victory run via a
+  headless-Chrome driver script (with intermediate battles resolved by
+  editing the saved state's enemy army, the same technique a save-editor
+  or a future "simulate battle" test hook would use, then reloading and
+  clicking End Turn through the normal UI) — no console errors, correct
+  Run Summary screen.
+
 Phase 7 — Build expansion
 
 First:

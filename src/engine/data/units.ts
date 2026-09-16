@@ -104,4 +104,17 @@ export const UNIT_DEFINITIONS: Record<UnitId, UnitDefinition> = {
     tags: ['beast', 'fast'],
     targetPreference: 'backline',
   },
+  warlord: {
+    id: 'warlord',
+    name: 'Warlord',
+    side: 'enemy',
+    // AGENT.md §42 boss list — Warlord: "gains strength based on player's
+    // army size." A single powerful entity (count 1), not a unit stack.
+    hpPerUnit: 500,
+    attack: 20,
+    defense: 6,
+    tags: ['boss', 'brute'],
+    targetPreference: 'frontline',
+    scalesWithPlayerArmy: { divisor: 15 },
+  },
 };

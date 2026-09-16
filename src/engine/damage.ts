@@ -1,4 +1,4 @@
-import type { ArmyStack, RelicEffect, StatusType } from './types.js';
+import type { ArmyStack, RelicEffect, StatusType, UnitDefinition } from './types.js';
 
 /**
  * Diminishing returns on raw stack count — AGENT.md §11.
@@ -67,6 +67,13 @@ export function relicFlatAttackBonus(relics: RelicEffect[], attackerCount: numbe
     if (effect.kind === 'LARGE_STACK_STRENGTH' && attackerCount > effect.threshold) bonus += effect.amount;
   }
   return bonus;
+}
+
+/** AGENT.md §42 Warlord mechanic — computed fresh each attack, never stored as a status (see UnitDefinition doc comment). */
+export function bossScalingAttackBonus(attackerDef: UnitDefinition, playerArmy: ArmyStack[]): number {
+  if (!attackerDef.scalesWithPlayerArmy) return 0;
+  const totalPlayerCount = playerArmy.reduce((sum, s) => sum + s.count, 0);
+  return Math.floor(totalPlayerCount / attackerDef.scalesWithPlayerArmy.divisor);
 }
 
 export interface DamageResolution {

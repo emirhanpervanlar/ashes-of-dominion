@@ -1,5 +1,5 @@
 import { UNIT_DEFINITIONS } from './data/units.js';
-import { computeRawDamage } from './damage.js';
+import { bossScalingAttackBonus, computeRawDamage } from './damage.js';
 import { nextInt } from './rng.js';
 import type { ArmyStack, CombatState, EnemyIntent } from './types.js';
 
@@ -44,7 +44,8 @@ export function generateEnemyIntents(state: CombatState): EnemyIntent[] {
     const rowPool = livePlayer.filter((s) => (pref === 'backline' ? !isFront(s) : isFront(s)));
     const pool = rowPool.length > 0 ? rowPool : livePlayer;
     const target = pool[nextInt(state.rng, pool.length)]!;
-    const estimatedDamage = computeRawDamage(stack, def.attack, UNIT_DEFINITIONS[target.unitId].defense, 1);
+    const bossFlat = bossScalingAttackBonus(def, state.playerArmy);
+    const estimatedDamage = computeRawDamage(stack, def.attack + bossFlat, UNIT_DEFINITIONS[target.unitId].defense, 1);
 
     intents.push({
       stackId: stack.stackId,

@@ -17,7 +17,7 @@ import {
   createInitialCityState,
   recruitCost,
 } from './city.js';
-import { generateBattleEncounter } from './encounters.js';
+import { generateBattleEncounter, generateBossEncounter } from './encounters.js';
 import { EVENT_DEFINITIONS, EVENT_IDS } from './events.js';
 import { applyStarvation, moveFoodCost } from './food.js';
 import { generateMerchantInventory } from './merchant.js';
@@ -78,6 +78,7 @@ export function createRun(seed: number): RunState {
     battlesWon: 0,
     worldMap: generateWorldMap(rng),
     city: createInitialCityState(),
+    finalBattle: false,
     phase: 'choosing_starting_relic',
     combat: null,
     pendingReward: null,
@@ -219,10 +220,12 @@ function moveTo(run: RunState, nodeId: string, events: RunEvent[]): RunApplyResu
   switch (destination.type) {
     case 'road':
       break;
-    case 'end':
-      run.phase = 'run_complete';
-      events.push({ type: 'RUN_COMPLETE' });
+    case 'boss': {
+      run.finalBattle = true;
+      run.phase = 'in_battle';
+      run.combat = startBattleForRun(run, generateBossEncounter());
       break;
+    }
     case 'battle':
     case 'elite_battle': {
       const encounter = generateBattleEncounter(destination.layer, destination.type === 'elite_battle');
@@ -379,7 +382,12 @@ function confirmReward(run: RunState, events: RunEvent[]): RunApplyResult {
   }
 
   run.pendingReward = null;
-  run.phase = 'on_map';
+  if (run.finalBattle) {
+    run.phase = 'run_complete';
+    events.push({ type: 'RUN_COMPLETE' });
+  } else {
+    run.phase = 'on_map';
+  }
   return { run, events };
 }
 

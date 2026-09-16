@@ -45,7 +45,10 @@ export function StackTile({ state, stack, position, side, intent, selectable, se
   return (
     <div className={classes.join(' ')} onClick={selectable ? onClick : undefined}>
       <div className="stack-name">
-        <span>{def.name}</span>
+        <span>
+          {def.tags.includes('boss') && '☠ '}
+          {def.name}
+        </span>
         <span className="stack-count">×{stack.count}</span>
       </div>
       <div className="bar">
@@ -64,6 +67,7 @@ export function StackTile({ state, stack, position, side, intent, selectable, se
             {s.type} {s.amount}
           </span>
         ))}
+        {def.scalesWithPlayerArmy && <span className="badge">grows with your army size</span>}
         <span className="badge">pos {position}</span>
       </div>
       {intentText && <div className="intent">{intentText}</div>}

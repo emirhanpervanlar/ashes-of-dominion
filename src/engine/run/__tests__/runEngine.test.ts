@@ -130,11 +130,13 @@ describe('movement', () => {
     expect(result.run.food).toBeGreaterThan(0);
   });
 
-  it('the end node completes the run', () => {
+  it('the boss node starts a battle, not an immediate run_complete', () => {
     const onMap = startOnMap(14);
-    const { run, nodeId } = withNextNodeType(onMap, 'end');
+    const { run, nodeId } = withNextNodeType(onMap, 'boss');
     const result = applyRunAction(run, { type: 'MOVE_TO', nodeId });
-    expect(result.run.phase).toBe('run_complete');
+    expect(result.run.phase).toBe('in_battle');
+    expect(result.run.finalBattle).toBe(true);
+    expect(result.run.combat!.enemyArmy.some((s) => s.unitId === 'warlord')).toBe(true);
   });
 });
 

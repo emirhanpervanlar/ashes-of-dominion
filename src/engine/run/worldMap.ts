@@ -1,7 +1,7 @@
 import { nextInt } from '../rng.js';
 import type { RngState } from '../rng.js';
 
-export type NodeType = 'road' | 'battle' | 'elite_battle' | 'resource' | 'merchant' | 'event' | 'city' | 'end';
+export type NodeType = 'road' | 'battle' | 'elite_battle' | 'resource' | 'merchant' | 'event' | 'city' | 'boss';
 export type NodeVisibility = 'unknown' | 'revealed' | 'visited';
 
 export interface MapNode {
@@ -22,8 +22,8 @@ export interface WorldMapState {
  * §70): 7 layers, small layers fully bipartite-connected to the next so
  * every node is always reachable (no orphan nodes) while still giving the
  * player a real choice of node type at every step. AGENT.md's "~30 nodes"
- * MVP target grows once City (Phase 5) and Boss (Phase 6) nodes replace
- * the current 'end' placeholder.
+ * MVP target is expected to grow with future content passes (§70: node
+ * count is explicitly not locked).
  */
 const LAYER_SIZES = [1, 3, 3, 3, 3, 3, 1];
 
@@ -49,7 +49,7 @@ export function generateWorldMap(rng: RngState): WorldMapState {
     const isLast = layer === LAYER_SIZES.length - 1;
     const nodes: MapNode[] = [];
     for (let i = 0; i < size; i++) {
-      const type: NodeType = isFirst ? 'road' : isLast ? 'end' : MIDDLE_LAYER_TYPE_POOL[nextInt(rng, MIDDLE_LAYER_TYPE_POOL.length)]!;
+      const type: NodeType = isFirst ? 'road' : isLast ? 'boss' : MIDDLE_LAYER_TYPE_POOL[nextInt(rng, MIDDLE_LAYER_TYPE_POOL.length)]!;
       nodes.push({
         id: `n${layer}_${i}`,
         type,

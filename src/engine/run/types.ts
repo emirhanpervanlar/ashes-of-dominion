@@ -65,6 +65,8 @@ export interface RunState {
   battlesWon: number;
   worldMap: WorldMapState;
   city: CityState;
+  /** Set when the current battle was triggered by the map's Boss node — its reward routes to 'run_complete' instead of 'on_map'. */
+  finalBattle: boolean;
   phase: RunPhase;
   combat: CombatState | null;
   pendingReward: PendingReward | null;

@@ -15,7 +15,8 @@ export type UnitId =
   | 'goblin'
   | 'orc'
   | 'shaman'
-  | 'wolf';
+  | 'wolf'
+  | 'warlord';
 
 export type EnemyTargetPreference = 'frontline' | 'backline' | 'buff-weakest-ally';
 
@@ -29,6 +30,13 @@ export interface UnitDefinition {
   tags: string[];
   /** Only used for enemy units to drive intent generation (AGENT.md §8/§9). */
   targetPreference?: EnemyTargetPreference;
+  /**
+   * AGENT.md §42 "Warlord: gains strength based on player's army size" —
+   * +1 flat Attack per `divisor` total player units, computed fresh each
+   * attack (see damage.ts's bossScalingAttackBonus), never stored as a
+   * status so it can't accidentally stack.
+   */
+  scalesWithPlayerArmy?: { divisor: number };
 }
 
 export type StatusType =
