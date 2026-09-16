@@ -37,6 +37,24 @@ export const RELIC_DEFINITIONS: Record<string, RelicDefinition> = {
     description: 'Stacks with Count < 25 deal +30% damage.',
     effects: [{ kind: 'SMALL_STACK_DAMAGE_MULT', threshold: 25, multiplier: 1.3 }],
   },
+  banner_of_the_horde: {
+    id: 'banner_of_the_horde',
+    name: 'Banner of the Horde',
+    description: 'Stacks with Count > 50 gain +3 Strength.',
+    effects: [{ kind: 'LARGE_STACK_STRENGTH', threshold: 50, amount: 3 }],
+  },
+  bulwark_standard: {
+    id: 'bulwark_standard',
+    name: 'Bulwark Standard',
+    description: 'Army takes -15% damage.',
+    effects: [{ kind: 'PLAYER_DAMAGE_TAKEN_MULT', multiplier: 0.85 }],
+  },
+  grave_crown: {
+    id: 'grave_crown',
+    name: 'Grave Crown',
+    description: '30% of your casualties rise again as Skeletons.',
+    effects: [{ kind: 'NECROMANCY', ratio: 0.3 }],
+  },
 };
 
 /** Starting relics (AGENT.md §17) — chosen once, before the first battle of a run. */

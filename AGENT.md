@@ -2247,6 +2247,62 @@ Horde
 
 Then expand to other archetypes.
 
+IMPLEMENTED (2026-09-16), deliberately scoped down from §48's full per-archetype
+checklist (15-25 cards, 5-6 relics, city doctrine, traits, weaknesses/counters,
+early/mid/late progression — each ×3 archetypes). That checklist is
+months of content authoring; building 3 shallow archetypes to the letter
+would violate §72's "smallest complete vertical slice" instruction as
+badly as skipping Phase 7 entirely. Instead this pass built the
+**foundational mechanics** every archetype (and future ones) needs, plus
+a small themed content set per archetype — real and testable, not a
+placeholder:
+
+- **Morale and Veterancy now affect combat** (previously tracked but
+  inert): Morale is a ±5%-per-point damage multiplier (both sides,
+  soft-capped ±50%); Veterancy is a flat Attack bonus (+1 per 3 points).
+  This alone makes every already-existing Morale/Veterancy card and the
+  §30 stack-merging veterancy blend mean something.
+- **Taunt / Guard** (Immortal Knights): a new "Guard Stance" card grants
+  Taunt + Block; intents.ts's targeting now checks for taunting player
+  stacks before falling back to row preference. Intents are locked in at
+  the start of a turn, so Taunt protects starting the *next* enemy turn,
+  not retroactively — consistent with how intents are already "shown
+  before they execute" (§8).
+- **Necromancy / Skeletons** (Undying Legion): a new Skeleton unit, a
+  NECROMANCY relic-effect kind (raises a fraction of player casualties
+  as Skeletons, read fresh on every attack like other combat-modifier
+  effects), a "Raise Dead" card (sacrifice part of a stack for
+  Skeletons directly), and the Necromantic Doctrine (below).
+- **City Doctrines** (§27, previously unbuilt): one permanent
+  specialization per city — Military (+15% army damage), Arcane (+20%
+  caster damage), Necromantic (25% casualty-to-Skeleton), Economic
+  (+30% resource-node Gold/Food). Military/Arcane/Necromantic route
+  through the same RelicEffect pipeline combat already reads for
+  relics; Economic is checked directly where resource nodes pay out.
+- **6 new cards**: 4 from the original §15 pool that Phase 1's MVP
+  minimum didn't require (Commander's Presence, Execute, Focus Fire,
+  Veteran's Resolve — the last two now meaningfully hook into
+  Vulnerable/HP-threshold and Veterancy) plus Guard Stance and Raise
+  Dead (new). Added to the reward pool, not the starting deck — build
+  discovery stays reward-driven per §45.
+- **3 new relics**: Banner of the Horde (Horde), Bulwark Standard
+  (Immortal Knights, first relic that reduces incoming damage), Grave
+  Crown (Undying Legion, a relic-based Necromancy path independent of
+  the city doctrine).
+- New status: Vulnerable (Focus Fire) — a target-side damage-taken
+  multiplier; damage.ts's vulnerableDamageMultiplier is the first
+  target-side (as opposed to attacker-side) combat modifier.
+- **Explicitly deferred, not stubbed**: Hero Traits (§18 — a separate
+  system from Phase 7's own checklist, cut for scope); Formations (§12
+  — Break Formation card therefore not added, nothing to break yet);
+  the full 15-25-cards/5-6-relics-per-archetype breadth; explicit
+  weaknesses/counters catalog; early/mid/late progression curves. All
+  are real future work, not simulated.
+- 77 tests passing (14 new: morale/veterancy/taunt/vulnerable/execute/
+  necromancy mechanics, doctrine selection and effects). Verified live
+  in-browser: reaching the City, picking Necromantic Doctrine, building
+  — no console errors.
+
 72. CLAUDE'S ROLE
 
 Claude should act as both:

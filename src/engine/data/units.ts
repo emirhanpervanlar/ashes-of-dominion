@@ -62,6 +62,18 @@ export const UNIT_DEFINITIONS: Record<UnitId, UnitDefinition> = {
     // which previously had no valid MVP target.
     tags: ['cavalry', 'melee', 'fast'],
   },
+  skeleton: {
+    id: 'skeleton',
+    name: 'Skeleton',
+    side: 'player',
+    // Undying Legion (AGENT.md §46/§48) — cheap, expendable, raised from
+    // player casualties via the Necromantic Doctrine or Grave Crown relic
+    // (NECROMANCY effect) or the Raise Dead card, never recruited directly.
+    hpPerUnit: 6,
+    attack: 3,
+    defense: 0,
+    tags: ['undead', 'infantry'],
+  },
   goblin: {
     id: 'goblin',
     name: 'Goblin',

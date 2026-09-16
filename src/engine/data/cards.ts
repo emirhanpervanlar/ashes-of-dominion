@@ -139,4 +139,65 @@ export const CARD_DEFINITIONS: Record<string, CardDefinition> = {
     exhaust: false,
     tags: ['archer', 'attack'],
   },
+
+  // Phase 7 build-archetype support (AGENT.md §48) — the first 4 are from
+  // the original §15 card pool (not required by §73's MVP minimum, added
+  // now that Morale/Veterancy actually affect combat); the last 2 are new.
+  commanders_presence: {
+    id: 'commanders_presence',
+    name: "Commander's Presence",
+    cost: { type: 'DC', amount: 2 },
+    targeting: 'none',
+    effects: [{ kind: 'GAIN_MORALE_ALL', amount: 1 }],
+    exhaust: false,
+    tags: ['morale', 'support', 'command', 'horde'],
+  },
+  execute: {
+    id: 'execute',
+    name: 'Execute',
+    cost: { type: 'AC', amount: 2 },
+    targeting: 'ally-stack+enemy-stack',
+    effects: [{ kind: 'ATTACK', multiplier: 1, conditionalBonus: { targetHpBelowPercent: 30, multiplier: 1.5 } }],
+    exhaust: false,
+    tags: ['attack', 'finisher'],
+  },
+  focus_fire: {
+    id: 'focus_fire',
+    name: 'Focus Fire',
+    cost: { type: 'AC', amount: 1 },
+    targeting: 'enemy-stack',
+    effects: [{ kind: 'APPLY_VULNERABLE', amount: 25, duration: 1 }],
+    exhaust: false,
+    tags: ['debuff', 'tactical'],
+  },
+  veterans_resolve: {
+    id: 'veterans_resolve',
+    name: "Veteran's Resolve",
+    cost: { type: 'AC', amount: 2 },
+    targeting: 'ally-stack+enemy-stack',
+    effects: [{ kind: 'ATTACK', multiplier: 1.3 }],
+    exhaust: false,
+    tags: ['veteran', 'attack', 'immortal-knights'],
+  },
+  guard_stance: {
+    id: 'guard_stance',
+    name: 'Guard Stance',
+    cost: { type: 'DC', amount: 1 },
+    targeting: 'ally-stack',
+    effects: [
+      { kind: 'GAIN_TAUNT', duration: 2 },
+      { kind: 'GAIN_BLOCK', amount: 15 },
+    ],
+    exhaust: false,
+    tags: ['guard', 'defense', 'immortal-knights'],
+  },
+  raise_dead: {
+    id: 'raise_dead',
+    name: 'Raise Dead',
+    cost: { type: 'DC', amount: 1 },
+    targeting: 'ally-stack',
+    effects: [{ kind: 'SACRIFICE_FOR_SKELETONS', sacrificePercent: 20, skeletonsPerSacrificed: 1 }],
+    exhaust: false,
+    tags: ['death', 'sacrifice', 'summon', 'undying-legion'],
+  },
 };

@@ -9,6 +9,7 @@ import type { ArmyStack, CardInstance, CombatState, Hero, PlayerAction, RelicDef
 import { CARD_UPGRADES } from './cardUpgrades.js';
 import {
   BUILDING_DEFINITIONS,
+  DOCTRINE_DEFINITIONS,
   LEVEL_SLOTS,
   LEVEL_UP_COST,
   addUnitsToArmy,
@@ -147,7 +148,8 @@ function grantRelic(run: RunState, def: RelicDefinition, events: RunEvent[]): vo
 }
 
 function startBattleForRun(run: RunState, encounterArmy: ArmyStack[]): CombatState {
-  const relicEffects: RelicEffect[] = run.relics.flatMap((r) => r.effects);
+  const doctrine = run.city.doctrine ? DOCTRINE_DEFINITIONS[run.city.doctrine] : undefined;
+  const relicEffects: RelicEffect[] = [...run.relics.flatMap((r) => r.effects), ...(doctrine?.combatEffects ?? [])];
   const { state } = startBattle({
     seed: run.seed,
     rng: run.rng,
@@ -183,8 +185,9 @@ function chooseStartingRelic(run: RunState, relicId: string, events: RunEvent[])
 
 /** A modest, deterministic one-time pickup — see AGENT.md §35 (ongoing per-day production is future work). */
 function resolveResourceNode(run: RunState, events: RunEvent[]): void {
-  const gold = 20 + nextInt(run.rng, 21); // 20-40
-  const food = 10 + nextInt(run.rng, 11); // 10-20
+  const econMult = run.city.doctrine === 'economic' ? 1.3 : 1;
+  const gold = Math.round((20 + nextInt(run.rng, 21)) * econMult); // 20-40, +30% under Economic Doctrine
+  const food = Math.round((10 + nextInt(run.rng, 11)) * econMult); // 10-20
   run.gold += gold;
   run.food += food;
   events.push({ type: 'RESOURCE_FOUND', gold, food });
@@ -616,6 +619,24 @@ function upgradeCity(run: RunState, events: RunEvent[]): RunApplyResult {
   return { run, events };
 }
 
+function chooseDoctrine(run: RunState, doctrineId: string, events: RunEvent[]): RunApplyResult {
+  if (run.phase !== 'city') {
+    reject(events, 'Not at the city.');
+    return { run, events };
+  }
+  if (run.city.doctrine) {
+    reject(events, 'A Doctrine has already been chosen for this city.');
+    return { run, events };
+  }
+  if (!DOCTRINE_DEFINITIONS[doctrineId]) {
+    reject(events, 'Unknown doctrine.');
+    return { run, events };
+  }
+  run.city.doctrine = doctrineId;
+  events.push({ type: 'DOCTRINE_CHOSEN', doctrineId });
+  return { run, events };
+}
+
 function transferGarrisonToArmy(run: RunState, stackId: string, events: RunEvent[]): RunApplyResult {
   if (run.phase !== 'city') {
     reject(events, 'Not at the city.');
@@ -697,6 +718,9 @@ export function applyRunAction(run: RunState, action: RunAction): RunApplyResult
       break;
     case 'UPGRADE_CITY':
       result = upgradeCity(working, events);
+      break;
+    case 'CHOOSE_DOCTRINE':
+      result = chooseDoctrine(working, action.doctrineId, events);
       break;
     case 'TRANSFER_GARRISON_TO_ARMY':
       result = transferGarrisonToArmy(working, action.stackId, events);

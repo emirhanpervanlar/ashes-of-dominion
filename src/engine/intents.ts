@@ -41,8 +41,10 @@ export function generateEnemyIntents(state: CombatState): EnemyIntent[] {
     }
 
     if (livePlayer.length === 0) continue;
+    // Guard Stance's Taunt (AGENT.md §48 Immortal Knights) overrides normal row targeting.
+    const taunting = livePlayer.filter((s) => s.statuses.some((st) => st.type === 'taunt'));
     const rowPool = livePlayer.filter((s) => (pref === 'backline' ? !isFront(s) : isFront(s)));
-    const pool = rowPool.length > 0 ? rowPool : livePlayer;
+    const pool = taunting.length > 0 ? taunting : rowPool.length > 0 ? rowPool : livePlayer;
     const target = pool[nextInt(state.rng, pool.length)]!;
     const bossFlat = bossScalingAttackBonus(def, state.playerArmy);
     const estimatedDamage = computeRawDamage(stack, def.attack + bossFlat, UNIT_DEFINITIONS[target.unitId].defense, 1);

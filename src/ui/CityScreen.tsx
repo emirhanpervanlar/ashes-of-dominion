@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { BUILDING_DEFINITIONS, LEVEL_SLOTS, LEVEL_UP_COST, canRecruitUnit, recruitCost } from '../engine/run/index.js';
+import { BUILDING_DEFINITIONS, DOCTRINE_DEFINITIONS, LEVEL_SLOTS, LEVEL_UP_COST, canRecruitUnit, recruitCost } from '../engine/run/index.js';
 import type { CityState } from '../engine/run/index.js';
 import { UNIT_DEFINITIONS } from '../engine/index.js';
 import type { ArmyStack, UnitId } from '../engine/index.js';
@@ -12,13 +12,25 @@ interface Props {
   onRecruit: (unitId: UnitId, count: number, destination: 'army' | 'garrison') => void;
   onBuild: (buildingId: string) => void;
   onUpgradeCity: () => void;
+  onChooseDoctrine: (doctrineId: string) => void;
   onTransferToArmy: (stackId: string) => void;
   onLeave: () => void;
 }
 
 const RECRUITABLE: UnitId[] = ['swordsman', 'archer', 'knight', 'priest', 'mage', 'cavalier'];
 
-export function CityScreen({ city, gold, food, army, onRecruit, onBuild, onUpgradeCity, onTransferToArmy, onLeave }: Props) {
+export function CityScreen({
+  city,
+  gold,
+  food,
+  army,
+  onRecruit,
+  onBuild,
+  onUpgradeCity,
+  onChooseDoctrine,
+  onTransferToArmy,
+  onLeave,
+}: Props) {
   const [counts, setCounts] = useState<Record<string, number>>({});
   const armyFull = army.filter((s) => s.count > 0).length >= 6;
   const nextLevel = city.level < 3 ? ((city.level + 1) as 2 | 3) : null;
@@ -101,6 +113,27 @@ export function CityScreen({ city, gold, food, army, onRecruit, onBuild, onUpgra
                 <span className="card-cost">{built ? 'built' : `${building.cost}g`}</span>
               </div>
               <div className="card-text">{building.description}</div>
+            </div>
+          );
+        })}
+      </div>
+
+      <h2 style={{ fontSize: 14 }}>Doctrine</h2>
+      <div className="hand" style={{ flexWrap: 'wrap' }}>
+        {Object.values(DOCTRINE_DEFINITIONS).map((doctrine) => {
+          const chosen = city.doctrine === doctrine.id;
+          const disabled = !!city.doctrine && !chosen;
+          return (
+            <div
+              key={doctrine.id}
+              className={`card-tile${chosen ? ' pending' : ''}${disabled ? ' disabled' : ''}`}
+              onClick={!city.doctrine ? () => onChooseDoctrine(doctrine.id) : undefined}
+            >
+              <div className="card-name">
+                <span>{doctrine.name}</span>
+                {chosen && <span className="card-cost">chosen</span>}
+              </div>
+              <div className="card-text">{doctrine.description}</div>
             </div>
           );
         })}

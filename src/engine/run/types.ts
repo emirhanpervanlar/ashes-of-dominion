@@ -46,6 +46,7 @@ export type RunEvent =
   | { type: 'UNITS_RECRUITED'; unitId: string; count: number; destination: 'army' | 'garrison' }
   | { type: 'BUILDING_BUILT'; buildingId: string }
   | { type: 'CITY_LEVELED_UP'; level: number }
+  | { type: 'DOCTRINE_CHOSEN'; doctrineId: string }
   | { type: 'GARRISON_TRANSFERRED'; unitId: string; count: number }
   | { type: 'RUN_COMPLETE' }
   | { type: 'ACTION_REJECTED'; reason: string };
@@ -91,6 +92,7 @@ export type RunAction =
   | { type: 'RECRUIT'; unitId: UnitId; count: number; destination: 'army' | 'garrison' }
   | { type: 'BUILD_BUILDING'; buildingId: string }
   | { type: 'UPGRADE_CITY' }
+  | { type: 'CHOOSE_DOCTRINE'; doctrineId: string }
   | { type: 'TRANSFER_GARRISON_TO_ARMY'; stackId: string }
   | { type: 'LEAVE_CITY' };
 

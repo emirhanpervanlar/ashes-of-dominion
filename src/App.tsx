@@ -223,6 +223,7 @@ export default function App() {
         onRecruit={(unitId, count, destination) => dispatchRun({ type: 'RECRUIT', unitId, count, destination })}
         onBuild={(buildingId) => dispatchRun({ type: 'BUILD_BUILDING', buildingId })}
         onUpgradeCity={() => dispatchRun({ type: 'UPGRADE_CITY' })}
+        onChooseDoctrine={(doctrineId) => dispatchRun({ type: 'CHOOSE_DOCTRINE', doctrineId })}
         onTransferToArmy={(stackId) => dispatchRun({ type: 'TRANSFER_GARRISON_TO_ARMY', stackId })}
         onLeave={() => dispatchRun({ type: 'LEAVE_CITY' })}
       />

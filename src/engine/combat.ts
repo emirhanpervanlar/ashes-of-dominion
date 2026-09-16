@@ -1,7 +1,18 @@
 import { CARD_DEFINITIONS } from './data/cards.js';
 import { HERO_SKILL_DEFINITIONS } from './data/heroSkills.js';
 import { UNIT_DEFINITIONS } from './data/units.js';
-import { applyDamageToStack, bossScalingAttackBonus, computeRawDamage, relicDamageMultiplier, relicFlatAttackBonus } from './damage.js';
+import {
+  applyDamageToStack,
+  bossScalingAttackBonus,
+  computeRawDamage,
+  moraleDamageMultiplier,
+  necromancyRatio,
+  relicDamageMultiplier,
+  relicDamageTakenMultiplier,
+  relicFlatAttackBonus,
+  veterancyFlatBonus,
+  vulnerableDamageMultiplier,
+} from './damage.js';
 import { generateEnemyIntents } from './intents.js';
 import { shuffle } from './rng.js';
 import type {
@@ -92,22 +103,80 @@ function drawCards(state: CombatState, amount: number, events: CombatEvent[]): v
   }
 }
 
+function findFreePlayerPosition(army: ArmyStack[]): Position | null {
+  const taken = new Set(army.filter((s) => s.count > 0).map((s) => s.position));
+  for (let p = 1 as Position; p <= 6; p++) {
+    if (!taken.has(p)) return p;
+  }
+  return null;
+}
+
+/** Necromantic Doctrine / Grave Crown — merges into an existing player Skeleton stack or creates one in a free slot. */
+function raiseSkeletons(army: ArmyStack[], count: number, events: CombatEvent[]): void {
+  const hpPerUnit = UNIT_DEFINITIONS.skeleton.hpPerUnit;
+  const existingIdx = army.findIndex((s) => s.unitId === 'skeleton' && s.count > 0);
+  if (existingIdx >= 0) {
+    const existing = army[existingIdx]!;
+    army[existingIdx] = {
+      ...existing,
+      count: existing.count + count,
+      currentHp: existing.currentHp + count * hpPerUnit,
+      maxHp: existing.maxHp + count * hpPerUnit,
+      startingCount: existing.startingCount + count,
+    };
+    events.push({ type: 'SKELETONS_RAISED', count });
+    return;
+  }
+  const position = findFreePlayerPosition(army);
+  if (position === null) return; // no room this battle — the casualties simply aren't raised (documented limitation)
+  const maxHp = count * hpPerUnit;
+  army.push({
+    stackId: `player_skeleton_${position}`,
+    unitId: 'skeleton',
+    side: 'player',
+    position,
+    count,
+    currentHp: maxHp,
+    maxHp,
+    startingCount: count,
+    morale: 0,
+    veterancy: 0,
+    block: 0,
+    statuses: [],
+  });
+  events.push({ type: 'SKELETONS_RAISED', count });
+}
+
 function resolveAttack(
   attacker: ArmyStack,
   target: ArmyStack,
   army: ArmyStack[],
   multiplier: number,
   events: CombatEvent[],
-  relics: RelicEffect[]
+  relics: RelicEffect[],
+  conditionalBonus?: { targetHpBelowPercent: number; multiplier: number }
 ): void {
   const attackerDef = UNIT_DEFINITIONS[attacker.unitId];
   const targetDef = UNIT_DEFINITIONS[target.unitId];
-  // Relics belong to the player's Hero — only ever modify player-side attacks.
+
+  // Relics belong to the player's Hero — only ever modify player-side attacks / player-side damage taken.
   const relicMult = attacker.side === 'player' ? relicDamageMultiplier(relics, attacker.count, attackerDef.tags) : 1;
   const relicFlat = attacker.side === 'player' ? relicFlatAttackBonus(relics, attacker.count) : 0;
+  const damageTakenMult = target.side === 'player' ? relicDamageTakenMultiplier(relics) : 1;
   // `army` is the TARGET's army — for an enemy attacker that's the player's army, exactly what the Warlord mechanic needs.
   const bossFlat = attacker.side === 'enemy' ? bossScalingAttackBonus(attackerDef, army) : 0;
-  const raw = computeRawDamage(attacker, attackerDef.attack + relicFlat + bossFlat, targetDef.defense, multiplier * relicMult);
+  // Morale/Veterancy apply to both sides — they're intrinsic stack properties, not Hero-exclusive relics.
+  const moraleMult = moraleDamageMultiplier(attacker.morale);
+  const veterancyFlat = veterancyFlatBonus(attacker.veterancy);
+  const vulnerableMult = vulnerableDamageMultiplier(target);
+
+  let execMult = 1;
+  if (conditionalBonus && target.maxHp > 0 && (target.currentHp / target.maxHp) * 100 < conditionalBonus.targetHpBelowPercent) {
+    execMult = conditionalBonus.multiplier;
+  }
+
+  const totalMultiplier = multiplier * relicMult * moraleMult * vulnerableMult * damageTakenMult * execMult;
+  const raw = computeRawDamage(attacker, attackerDef.attack + relicFlat + bossFlat + veterancyFlat, targetDef.defense, totalMultiplier);
   const resolution = applyDamageToStack(target, targetDef.hpPerUnit, raw);
   replaceStack(army, resolution.stack);
 
@@ -121,6 +190,11 @@ function resolveAttack(
   });
   if (resolution.unitsKilled > 0) {
     events.push({ type: 'UNITS_KILLED', stackId: target.stackId, count: resolution.unitsKilled });
+    if (target.side === 'player') {
+      const ratio = necromancyRatio(relics);
+      const raised = Math.floor(resolution.unitsKilled * ratio);
+      if (raised > 0) raiseSkeletons(army, raised, events);
+    }
   }
   if (resolution.stack.count === 0) {
     events.push({ type: 'STACK_DESTROYED', stackId: target.stackId });
@@ -132,7 +206,7 @@ function executeEffect(state: CombatState, effect: CardEffect, action: TargetedA
     case 'ATTACK': {
       const attacker = findStack(state.playerArmy, action.actingStackId)!;
       const target = findStack(state.enemyArmy, action.targetStackId)!;
-      resolveAttack(attacker, target, state.enemyArmy, effect.multiplier, events, state.activeRelicEffects);
+      resolveAttack(attacker, target, state.enemyArmy, effect.multiplier, events, state.activeRelicEffects, effect.conditionalBonus);
       return;
     }
     case 'ATTACK_ALL_WITH_TAG': {
@@ -200,6 +274,32 @@ function executeEffect(state: CombatState, effect: CardEffect, action: TargetedA
     }
     case 'DRAW': {
       drawCards(state, effect.amount, events);
+      return;
+    }
+    case 'GAIN_TAUNT': {
+      const stack = findStack(state.playerArmy, action.actingStackId)!;
+      stack.statuses.push({ type: 'taunt', amount: 1, duration: effect.duration });
+      events.push({ type: 'STATUS_APPLIED', stackId: stack.stackId, status: 'taunt', amount: 1, duration: effect.duration });
+      return;
+    }
+    case 'APPLY_VULNERABLE': {
+      const target = findStack(state.enemyArmy, action.targetStackId)!;
+      target.statuses.push({ type: 'vulnerable', amount: effect.amount, duration: effect.duration });
+      events.push({ type: 'STATUS_APPLIED', stackId: target.stackId, status: 'vulnerable', amount: effect.amount, duration: effect.duration });
+      return;
+    }
+    case 'SACRIFICE_FOR_SKELETONS': {
+      const stack = findStack(state.playerArmy, action.actingStackId)!;
+      const def = UNIT_DEFINITIONS[stack.unitId];
+      const sacrificeCount = Math.min(stack.count, Math.max(1, Math.floor(stack.count * (effect.sacrificePercent / 100))));
+      const newCount = stack.count - sacrificeCount;
+      const newMaxHp = newCount * def.hpPerUnit;
+      const updated: ArmyStack = { ...stack, count: newCount, currentHp: Math.min(stack.currentHp, newMaxHp), maxHp: newMaxHp };
+      replaceStack(state.playerArmy, updated);
+      events.push({ type: 'UNITS_KILLED', stackId: stack.stackId, count: sacrificeCount });
+      if (updated.count === 0) events.push({ type: 'STACK_DESTROYED', stackId: stack.stackId });
+      const skeletonsToRaise = sacrificeCount * effect.skeletonsPerSacrificed;
+      if (skeletonsToRaise > 0) raiseSkeletons(state.playerArmy, skeletonsToRaise, events);
       return;
     }
   }

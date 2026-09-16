@@ -201,3 +201,65 @@ describe('shrine', () => {
     expect(revisit.run.army[0]!.currentHp).toBeGreaterThan(hpBefore);
   });
 });
+
+describe('doctrines', () => {
+  it('choosing a doctrine is permanent and rejects a second pick', () => {
+    const run = reachCity(16);
+    const first = applyRunAction(run, { type: 'CHOOSE_DOCTRINE', doctrineId: 'military' });
+    expect(first.run.city.doctrine).toBe('military');
+
+    const second = applyRunAction(first.run, { type: 'CHOOSE_DOCTRINE', doctrineId: 'economic' });
+    expect(second.events.some((e) => e.type === 'ACTION_REJECTED')).toBe(true);
+    expect(second.run.city.doctrine).toBe('military');
+  });
+
+  it('Economic Doctrine increases resource-node payouts', () => {
+    const base = reachCity(17);
+    const withDoctrine = applyRunAction(base, { type: 'CHOOSE_DOCTRINE', doctrineId: 'economic' }).run;
+
+    const leftBase = applyRunAction(base, { type: 'LEAVE_CITY' }).run;
+    const leftDoctrine = applyRunAction(withDoctrine, { type: 'LEAVE_CITY' }).run;
+
+    // Force the next node to a resource node for both, using the same seed's RNG state so the roll matches.
+    const withNextResource = (r: RunState) => {
+      const current = r.worldMap.nodes.find((n) => n.id === r.worldMap.currentNodeId)!;
+      const nextId = current.connectsTo[0]!;
+      const worldMap = { ...r.worldMap, nodes: r.worldMap.nodes.map((n) => (n.id === nextId ? { ...n, type: 'resource' as const } : n)) };
+      return { run: { ...r, worldMap }, nodeId: nextId };
+    };
+
+    const baseNode = withNextResource(leftBase);
+    const doctrineNode = withNextResource(leftDoctrine);
+    const baseResult = applyRunAction(baseNode.run, { type: 'MOVE_TO', nodeId: baseNode.nodeId });
+    const doctrineResult = applyRunAction(doctrineNode.run, { type: 'MOVE_TO', nodeId: doctrineNode.nodeId });
+
+    const baseFound = baseResult.events.find((e) => e.type === 'RESOURCE_FOUND');
+    const doctrineFound = doctrineResult.events.find((e) => e.type === 'RESOURCE_FOUND');
+    expect(baseFound?.type).toBe('RESOURCE_FOUND');
+    expect(doctrineFound?.type).toBe('RESOURCE_FOUND');
+    if (baseFound?.type === 'RESOURCE_FOUND' && doctrineFound?.type === 'RESOURCE_FOUND') {
+      expect(doctrineFound.gold).toBeGreaterThan(baseFound.gold);
+    }
+  });
+
+  it('Necromantic Doctrine raises Skeletons from player casualties in battle', () => {
+    const run = reachCity(18);
+    const withDoctrine = applyRunAction(run, { type: 'CHOOSE_DOCTRINE', doctrineId: 'necromantic' }).run;
+    // Free a stack slot (vertical-slice army fills all 6) so raised Skeletons have somewhere to go.
+    const freedSlot: RunState = {
+      ...withDoctrine,
+      army: withDoctrine.army.map((s) => (s.unitId === 'priest' ? { ...s, count: 0, currentHp: 0 } : s)),
+    };
+    const left = applyRunAction(freedSlot, { type: 'LEAVE_CITY' }).run;
+    const { run: onBattlePath, nodeId } = (() => {
+      const current = left.worldMap.nodes.find((n) => n.id === left.worldMap.currentNodeId)!;
+      const nextId = current.connectsTo[0]!;
+      const worldMap = { ...left.worldMap, nodes: left.worldMap.nodes.map((n) => (n.id === nextId ? { ...n, type: 'battle' as const } : n)) };
+      return { run: { ...left, worldMap }, nodeId: nextId };
+    })();
+    const started = applyRunAction(onBattlePath, { type: 'MOVE_TO', nodeId });
+    const result = applyRunAction(started.run, { type: 'COMBAT_ACTION', action: { type: 'END_TURN' } });
+    const combatEvents = result.run.combat?.log ?? [];
+    expect(combatEvents.some((e) => e.type === 'SKELETONS_RAISED')).toBe(true);
+  });
+});

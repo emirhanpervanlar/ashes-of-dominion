@@ -16,7 +16,8 @@ export type UnitId =
   | 'orc'
   | 'shaman'
   | 'wolf'
-  | 'warlord';
+  | 'warlord'
+  | 'skeleton';
 
 export type EnemyTargetPreference = 'frontline' | 'backline' | 'buff-weakest-ally';
 
@@ -48,7 +49,9 @@ export type StatusType =
   | 'burn'
   | 'fear'
   | 'taunt'
-  | 'haste';
+  | 'haste'
+  /** +`amount`% damage taken this status's duration (Focus Fire, AGENT.md §15). */
+  | 'vulnerable';
 
 export interface StatusEffect {
   type: StatusType;
@@ -100,7 +103,12 @@ export type CardTargeting =
   | 'ally-stack+position';
 
 export type CardEffect =
-  | { kind: 'ATTACK'; multiplier: number }
+  | {
+      kind: 'ATTACK';
+      multiplier: number;
+      /** Execute, AGENT.md §15: extra multiplier when the target is below a HP% threshold. */
+      conditionalBonus?: { targetHpBelowPercent: number; multiplier: number };
+    }
   | { kind: 'ATTACK_ALL_WITH_TAG'; tag: string; multiplier: number }
   | { kind: 'GAIN_BLOCK'; amount: number }
   | { kind: 'GAIN_BLOCK_ALL_FRONT'; amount: number }
@@ -109,7 +117,13 @@ export type CardEffect =
   | { kind: 'GAIN_MORALE_ALL'; amount: number }
   | { kind: 'GAIN_MANA'; amount: number }
   | { kind: 'GAIN_MANA_AND_DRAW'; mana: number; draw: number }
-  | { kind: 'DRAW'; amount: number };
+  | { kind: 'DRAW'; amount: number }
+  /** Guard Stance (Immortal Knights, AGENT.md §48) — see intents.ts's taunt-aware targeting. */
+  | { kind: 'GAIN_TAUNT'; duration: number }
+  /** Focus Fire, AGENT.md §15. */
+  | { kind: 'APPLY_VULNERABLE'; amount: number; duration: number }
+  /** Raise Dead (Undying Legion, AGENT.md §48) — sacrifice part of a stack to summon Skeletons. */
+  | { kind: 'SACRIFICE_FOR_SKELETONS'; sacrificePercent: number; skeletonsPerSacrificed: number };
 
 export interface CardDefinition {
   id: string;
@@ -141,7 +155,16 @@ export type RelicEffect =
   | { kind: 'PLAYER_DAMAGE_MULT'; multiplier: number }
   | { kind: 'TAG_DAMAGE_MULT'; tag: string; multiplier: number }
   | { kind: 'LARGE_STACK_STRENGTH'; threshold: number; amount: number }
-  | { kind: 'SMALL_STACK_DAMAGE_MULT'; threshold: number; multiplier: number };
+  | { kind: 'SMALL_STACK_DAMAGE_MULT'; threshold: number; multiplier: number }
+  /** Reduces incoming damage to player stacks — Immortal Knights (AGENT.md §48). */
+  | { kind: 'PLAYER_DAMAGE_TAKEN_MULT'; multiplier: number }
+  /**
+   * Necromantic Doctrine / Grave Crown (AGENT.md §27/§48): when a player
+   * stack takes casualties, a fraction of the units lost are raised as
+   * Skeletons. Combat-modifier kind, read fresh in combat.ts — see the
+   * "Necromancy" section of resolveAttack.
+   */
+  | { kind: 'NECROMANCY'; ratio: number };
 
 export interface RelicDefinition {
   id: string;
@@ -207,6 +230,7 @@ export type CombatEvent =
   | { type: 'ENEMY_TURN_RESOLVED' }
   | { type: 'ACTION_REJECTED'; reason: string }
   | { type: 'SKILL_USED'; skillId: string }
+  | { type: 'SKELETONS_RAISED'; count: number }
   | { type: 'BATTLE_ENDED'; result: 'victory' | 'defeat' };
 
 export type PlayerAction =

@@ -1,5 +1,5 @@
 import { UNIT_DEFINITIONS } from '../data/units.js';
-import type { ArmyStack, Position, UnitId } from '../types.js';
+import type { ArmyStack, Position, RelicEffect, UnitId } from '../types.js';
 
 export type BuildingCategory = 'economy' | 'army' | 'hero' | 'special';
 
@@ -15,7 +15,49 @@ export interface CityState {
   level: 1 | 2 | 3;
   buildings: string[];
   garrison: ArmyStack[];
+  doctrine: string | null;
 }
+
+/**
+ * City Doctrines (AGENT.md §27) — one permanent specialization choice.
+ * Military/Arcane/Necromantic route through the same RelicEffect pipeline
+ * combat already reads for relics (see runEngine.ts's startBattleForRun);
+ * Economic is checked directly at the resource-node payout call site
+ * since it isn't a combat effect.
+ */
+export interface CityDoctrineDefinition {
+  id: string;
+  name: string;
+  description: string;
+  combatEffects: RelicEffect[];
+}
+
+export const DOCTRINE_DEFINITIONS: Record<string, CityDoctrineDefinition> = {
+  military: {
+    id: 'military',
+    name: 'Military Doctrine',
+    description: 'Army damage +15%.',
+    combatEffects: [{ kind: 'PLAYER_DAMAGE_MULT', multiplier: 1.15 }],
+  },
+  arcane: {
+    id: 'arcane',
+    name: 'Arcane Doctrine',
+    description: 'Caster units (Mage) +20% Attack.',
+    combatEffects: [{ kind: 'TAG_DAMAGE_MULT', tag: 'caster', multiplier: 1.2 }],
+  },
+  necromantic: {
+    id: 'necromantic',
+    name: 'Necromantic Doctrine',
+    description: '25% of your casualties rise again as Skeletons.',
+    combatEffects: [{ kind: 'NECROMANCY', ratio: 0.25 }],
+  },
+  economic: {
+    id: 'economic',
+    name: 'Economic Doctrine',
+    description: 'Resource nodes yield +30% Gold/Food.',
+    combatEffects: [],
+  },
+};
 
 /**
  * AGENT.md §26 — "6 active slots, ~10 possible buildings, player cannot
@@ -87,7 +129,7 @@ export const RECRUIT_COSTS: Partial<Record<UnitId, { gold: number; food: number 
 };
 
 export function createInitialCityState(): CityState {
-  return { level: 1, buildings: [], garrison: [] };
+  return { level: 1, buildings: [], garrison: [], doctrine: null };
 }
 
 export function canRecruitUnit(city: CityState, unitId: UnitId): boolean {

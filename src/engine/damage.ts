@@ -18,8 +18,42 @@ export function effectiveCount(count: number): number {
   return count * (bracket ? bracket.multiplier : 0.45);
 }
 
-function statusAmount(stack: ArmyStack, type: StatusType): number {
+export function statusAmount(stack: ArmyStack, type: StatusType): number {
   return stack.statuses.filter((s) => s.type === type).reduce((sum, s) => sum + s.amount, 0);
+}
+
+/** Morale (AGENT.md §46 Horde/§48 archetypes) — ±5% damage dealt per point, soft-capped at ±50%. */
+export function moraleDamageMultiplier(morale: number): number {
+  const clamped = Math.max(-10, Math.min(10, morale));
+  return 1 + clamped * 0.05;
+}
+
+/** Veterancy (AGENT.md §30 stack merging, §48 Immortal Knights) — a flat per-unit Attack bonus. */
+export function veterancyFlatBonus(veterancy: number): number {
+  return Math.floor(veterancy / 3);
+}
+
+/** Focus Fire's Vulnerable status — a target-side damage-taken multiplier (`amount` is percentage points). */
+export function vulnerableDamageMultiplier(target: ArmyStack): number {
+  return 1 + statusAmount(target, 'vulnerable') / 100;
+}
+
+/** Immortal Knights relics (e.g. Bulwark Standard) — reduces incoming damage to player stacks. */
+export function relicDamageTakenMultiplier(relics: RelicEffect[]): number {
+  let mult = 1;
+  for (const effect of relics) {
+    if (effect.kind === 'PLAYER_DAMAGE_TAKEN_MULT') mult *= effect.multiplier;
+  }
+  return mult;
+}
+
+/** Necromantic Doctrine / Grave Crown — fraction of player casualties raised as Skeletons. */
+export function necromancyRatio(relics: RelicEffect[]): number {
+  let ratio = 0;
+  for (const effect of relics) {
+    if (effect.kind === 'NECROMANCY') ratio = Math.max(ratio, effect.ratio);
+  }
+  return ratio;
 }
 
 /**
