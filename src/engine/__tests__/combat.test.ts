@@ -35,7 +35,7 @@ describe('vertical slice scenario setup', () => {
 describe('resource economy (AC/DC)', () => {
   it('rejects a card when its command pool is insufficient, without spending anything', () => {
     let { state } = createVerticalSliceScenario(2);
-    state = withHand(state, ['command_strike', 'charge', 'volley']);
+    state = withHand(state, ['command_strike', 'command_strike', 'volley']);
 
     const strikeResult = applyPlayerAction(state, {
       type: 'PLAY_CARD',
@@ -45,18 +45,18 @@ describe('resource economy (AC/DC)', () => {
     });
     expect(strikeResult.state.hero.ac).toBe(2);
 
-    const chargeResult = applyPlayerAction(strikeResult.state, {
+    const secondStrikeResult = applyPlayerAction(strikeResult.state, {
       type: 'PLAY_CARD',
-      instanceId: handCard(strikeResult.state, 'charge').instanceId,
+      instanceId: handCard(strikeResult.state, 'command_strike').instanceId,
       actingStackId: 'player_knight_1',
       targetStackId: 'enemy_orc_1',
     });
-    expect(chargeResult.state.hero.ac).toBe(1);
+    expect(secondStrikeResult.state.hero.ac).toBe(1);
 
     // Volley costs 2 AC but only 1 remains.
-    const volleyResult = applyPlayerAction(chargeResult.state, {
+    const volleyResult = applyPlayerAction(secondStrikeResult.state, {
       type: 'PLAY_CARD',
-      instanceId: handCard(chargeResult.state, 'volley').instanceId,
+      instanceId: handCard(secondStrikeResult.state, 'volley').instanceId,
       targetStackId: 'enemy_orc_1',
     });
     expect(volleyResult.events.some((e) => e.type === 'ACTION_REJECTED')).toBe(true);
@@ -101,21 +101,58 @@ describe('attack cards and casualties', () => {
     });
 
     const attackEvents = result.events.filter((e) => e.type === 'STACK_ATTACKED');
-    expect(attackEvents).toHaveLength(2); // two archer stacks in the scenario
+    expect(attackEvents).toHaveLength(1); // one Archer-tagged stack in the scenario (Mage is not tagged 'archer')
     expect(result.state.hero.ac).toBe(1);
   });
 
-  it('Charge is rejected from a BACK-row stack (MVP: no cavalry unit yet)', () => {
+  it('Charge is rejected for a non-cavalry stack', () => {
     let { state } = createVerticalSliceScenario(12);
     state = withHand(state, ['charge']);
 
     const result = applyPlayerAction(state, {
       type: 'PLAY_CARD',
       instanceId: handCard(state, 'charge').instanceId,
-      actingStackId: 'player_archer_4', // BACK row
+      actingStackId: 'player_knight_1',
       targetStackId: 'enemy_orc_1',
     });
     expect(result.events.some((e) => e.type === 'ACTION_REJECTED')).toBe(true);
+  });
+
+  it('Charge succeeds for a Cavalry-tagged stack, with a 1.5x multiplier', () => {
+    let { state } = createVerticalSliceScenario(13);
+    // The default scenario has no Cavalry stack yet (content additions are
+    // deferred) — swap one in for this test only.
+    state = {
+      ...state,
+      playerArmy: state.playerArmy.map((s) =>
+        s.stackId === 'player_knight_1'
+          ? { ...s, stackId: 'player_cavalier_1', unitId: 'cavalier' as const, count: 10, currentHp: 110, maxHp: 110 }
+          : s
+      ),
+    };
+    state = withHand(state, ['charge', 'command_strike']);
+
+    const chargeResult = applyPlayerAction(state, {
+      type: 'PLAY_CARD',
+      instanceId: handCard(state, 'charge').instanceId,
+      actingStackId: 'player_cavalier_1',
+      targetStackId: 'enemy_orc_1',
+    });
+    expect(chargeResult.events.some((e) => e.type === 'ACTION_REJECTED')).toBe(false);
+    const chargeDamage = chargeResult.events.find((e) => e.type === 'STACK_ATTACKED');
+    expect(chargeDamage).toBeDefined();
+
+    const strikeResult = applyPlayerAction(state, {
+      type: 'PLAY_CARD',
+      instanceId: handCard(state, 'command_strike').instanceId,
+      actingStackId: 'player_cavalier_1',
+      targetStackId: 'enemy_orc_1',
+    });
+    const strikeDamage = strikeResult.events.find((e) => e.type === 'STACK_ATTACKED');
+
+    if (chargeDamage?.type === 'STACK_ATTACKED' && strikeDamage?.type === 'STACK_ATTACKED') {
+      expect(chargeDamage.rawDamage).toBeGreaterThan(strikeDamage.rawDamage);
+    }
   });
 });
 

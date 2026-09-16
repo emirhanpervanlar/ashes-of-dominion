@@ -4,10 +4,9 @@ import type { CardDefinition } from '../types.js';
  * MVP card pool — the 10 cards AGENT.md §73 names as the minimum set for
  * the combat engine vertical slice. Costs use AC/DC/Mana per AGENT.md §15.
  *
- * ASSUMPTION (documented per AGENT.md §72): "Charge" requires a cavalry
- * stack in the full design, but no MVP unit is tagged cavalry yet. For the
- * vertical slice, Charge targets any friendly FRONT-row stack instead.
- * Revisit once a cavalry unit exists.
+ * "Charge" requires a friendly stack tagged 'cavalry' (enforced in
+ * combat.ts's validateTargeting) — the Cavalier unit (data/units.ts) is
+ * the first unit to carry that tag.
  */
 export const CARD_DEFINITIONS: Record<string, CardDefinition> = {
   command_strike: {

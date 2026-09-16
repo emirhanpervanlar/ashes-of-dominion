@@ -209,8 +209,8 @@ function validateTargeting(
   if (needsAlly) {
     const stack = findStack(state.playerArmy, action.actingStackId);
     if (!stack) return 'Invalid or dead friendly stack.';
-    if (cardDef.id === 'charge' && stack.position > 3) {
-      return 'Charge requires a friendly FRONT-row stack (MVP: no cavalry unit yet).';
+    if (cardDef.id === 'charge' && !UNIT_DEFINITIONS[stack.unitId].tags.includes('cavalry')) {
+      return 'Charge requires a friendly Cavalry stack.';
     }
   }
   if (needsEnemy) {

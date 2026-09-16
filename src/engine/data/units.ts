@@ -40,6 +40,28 @@ export const UNIT_DEFINITIONS: Record<UnitId, UnitDefinition> = {
     defense: 1,
     tags: ['support', 'healer'],
   },
+  mage: {
+    id: 'mage',
+    name: 'Mage',
+    side: 'player',
+    hpPerUnit: 6,
+    attack: 5,
+    defense: 0,
+    // Smallest spell-oriented prototype per AGENT.md §73 — no special
+    // passive yet, just a fragile, high-attack ranged/caster unit.
+    tags: ['ranged', 'caster', 'spell'],
+  },
+  cavalier: {
+    id: 'cavalier',
+    name: 'Cavalier',
+    side: 'player',
+    hpPerUnit: 11,
+    attack: 6,
+    defense: 2,
+    // First cavalry-tagged unit — unlocks the "Charge" card (AGENT.md §15),
+    // which previously had no valid MVP target.
+    tags: ['cavalry', 'melee', 'fast'],
+  },
   goblin: {
     id: 'goblin',
     name: 'Goblin',

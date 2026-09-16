@@ -3,7 +3,9 @@
     "allow": [
       "Bash(wc -l \"d:\\\\\\\\ai_project\\\\\\\\wow\\\\\\\\AGENT.md\")",
       "Bash(npx tsc *)",
-      "Bash(npx vitest *)"
+      "Bash(npx vitest *)",
+      "Bash(npm view *)",
+      "Bash(npm install *)"
     ]
   }
 }

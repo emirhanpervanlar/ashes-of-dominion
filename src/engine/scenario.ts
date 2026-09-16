@@ -29,8 +29,6 @@ function buildDeck(cardIds: string[]): CardInstance[] {
 
 /**
  * The exact vertical-slice scenario from AGENT.md §73.
- * "Mage x10" has no MVP unit definition yet, so it's substituted with
- * Archer x10 (documented assumption — AGENT.md §72 / §73).
  */
 export function createVerticalSliceScenario(seed: number): ApplyResult {
   const hero: Hero = {
@@ -51,7 +49,7 @@ export function createVerticalSliceScenario(seed: number): ApplyResult {
     createStack('swordsman', 'player', 2, 80),
     createStack('knight', 'player', 3, 8),
     createStack('archer', 'player', 4, 30),
-    createStack('archer', 'player', 5, 10), // Mage substitute
+    createStack('mage', 'player', 5, 10),
     createStack('priest', 'player', 6, 15),
   ];
 

@@ -10,6 +10,8 @@ export type UnitId =
   | 'archer'
   | 'knight'
   | 'priest'
+  | 'mage'
+  | 'cavalier'
   | 'goblin'
   | 'orc'
   | 'shaman'
