@@ -51,11 +51,11 @@ function buildStartingDeck(): CardInstance[] {
   return ids.map((cardId, i) => ({ instanceId: `${cardId}#${i}`, cardId }));
 }
 
-export function createRun(seed: number): RunState {
+export function createRun(seed: number, heroName?: string): RunState {
   const rng = createRng(seed);
   const hero: Hero = {
     id: 'commander',
-    name: 'Commander',
+    name: heroName && heroName.trim().length > 0 ? heroName.trim().slice(0, 24) : 'Commander',
     hp: 100,
     maxHp: 100,
     mana: 5,

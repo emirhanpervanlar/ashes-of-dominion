@@ -252,7 +252,7 @@ export function CityScreen({
 
       <div className="city-bottom-bar">
         <div className="side-hero-row">
-          <div className="hero-portrait">🧑‍✈️</div>
+          <div className="hero-portrait">🤴</div>
           <div>
             <strong>{hero.name}</strong>
             <div className="subtitle" style={{ margin: 0 }}>

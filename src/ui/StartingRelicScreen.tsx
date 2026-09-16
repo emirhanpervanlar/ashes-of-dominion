@@ -2,14 +2,15 @@ import { STARTING_RELIC_DEFINITIONS } from '../engine/run/index.js';
 import { relicIcon } from './relicIcons.js';
 
 interface Props {
+  heroName: string;
   onChoose: (relicId: string) => void;
 }
 
-export function StartingRelicScreen({ onChoose }: Props) {
+export function StartingRelicScreen({ heroName, onChoose }: Props) {
   return (
     <div className="setup-screen">
-      <div className="setup-hero-portrait">🧑‍✈️</div>
-      <h1>Commander</h1>
+      <div className="setup-hero-portrait">🤴</div>
+      <h1>{heroName}</h1>
       <div className="subtitle">
         A veteran officer of the shattered Kingdom, commanding what remains of a proud army through the fractured
         realm. Choose one starting relic to begin the run (AGENT.md §17).

@@ -19,8 +19,15 @@ import { HistoryDrawer } from './ui/HistoryDrawer.js';
 import { ToastStack } from './ui/Toast.js';
 import type { ToastItem } from './ui/Toast.js';
 import { previewAttackDamage } from './ui/damagePreview.js';
+import { TitleScreen } from './ui/TitleScreen.js';
+import { NameEntryScreen } from './ui/NameEntryScreen.js';
+import { CommanderSelectScreen } from './ui/CommanderSelectScreen.js';
+import { PauseMenu } from './ui/PauseMenu.js';
+import { startMusic, setMusicEnabled } from './ui/music.js';
 
 const STORAGE_KEY = 'aod_run_state_v1';
+
+type AppStage = 'title' | 'name' | 'commander' | 'game';
 
 interface PendingAction {
   kind: 'card' | 'skill';
@@ -51,7 +58,26 @@ export default function App() {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [hoveredStackId, setHoveredStackId] = useState<string | null>(null);
+  const [appStage, setAppStage] = useState<AppStage>('title');
+  const [heroNameDraft, setHeroNameDraft] = useState('');
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [musicOn, setMusicOn] = useState(true);
+  const [hasSave, setHasSave] = useState(() => {
+    try {
+      return !!localStorage.getItem(STORAGE_KEY);
+    } catch {
+      return false;
+    }
+  });
   const nextToastId = useRef(1);
+
+  function toggleMusic() {
+    setMusicOn((v) => {
+      const next = !v;
+      setMusicEnabled(next);
+      return next;
+    });
+  }
 
   useEffect(() => {
     try {
@@ -280,13 +306,84 @@ export default function App() {
     return undefined;
   }
 
+  if (appStage === 'title') {
+    return (
+      <TitleScreen
+        onStart={() => {
+          startMusic();
+          setAppStage('name');
+        }}
+        onContinue={
+          hasSave
+            ? () => {
+                startMusic();
+                setAppStage('game');
+              }
+            : undefined
+        }
+      />
+    );
+  }
+
+  if (appStage === 'name') {
+    return (
+      <NameEntryScreen
+        onBack={() => setAppStage('title')}
+        onConfirm={(name) => {
+          setHeroNameDraft(name);
+          setAppStage('commander');
+        }}
+      />
+    );
+  }
+
+  if (appStage === 'commander') {
+    return (
+      <CommanderSelectScreen
+        heroName={heroNameDraft || 'Commander'}
+        onBack={() => setAppStage('name')}
+        onBegin={() => {
+          setRun(createRun(Date.now() & 0xffffffff, heroNameDraft));
+          setHasSave(true);
+          setAppStage('game');
+        }}
+      />
+    );
+  }
+
   const toastLayer = <ToastStack toasts={toasts} onDismiss={dismissToast} />;
+  const menuButton = (
+    <button className="pause-menu-btn" onClick={() => setMenuOpen(true)} title="Menu">
+      ☰
+    </button>
+  );
+  const pauseMenuOverlay = menuOpen ? (
+    <PauseMenu
+      onClose={() => setMenuOpen(false)}
+      onMainMenu={() => {
+        setMenuOpen(false);
+        setAppStage('title');
+      }}
+      musicOn={musicOn}
+      onToggleMusic={toggleMusic}
+    />
+  ) : null;
+  const gameChrome = (
+    <>
+      {toastLayer}
+      {menuButton}
+      {pauseMenuOverlay}
+    </>
+  );
 
   if (run.phase === 'choosing_starting_relic') {
     return (
       <>
-        {toastLayer}
-        <StartingRelicScreen onChoose={(relicId) => dispatchRun({ type: 'CHOOSE_STARTING_RELIC', relicId })} />
+        {gameChrome}
+        <StartingRelicScreen
+          heroName={run.hero.name}
+          onChoose={(relicId) => dispatchRun({ type: 'CHOOSE_STARTING_RELIC', relicId })}
+        />
       </>
     );
   }
@@ -294,7 +391,7 @@ export default function App() {
   if (run.phase === 'reward' && run.pendingReward) {
     return (
       <>
-        {toastLayer}
+        {gameChrome}
         <RewardScreen
           reward={run.pendingReward}
           onClaimRelic={(relicId) => dispatchRun({ type: 'CLAIM_RELIC', relicId })}
@@ -309,7 +406,7 @@ export default function App() {
   if (run.phase === 'run_complete' || run.phase === 'defeat') {
     return (
       <>
-        {toastLayer}
+        {gameChrome}
         <RunEndScreen run={run} onNewRun={newRun} />
       </>
     );
@@ -318,7 +415,7 @@ export default function App() {
   if (run.phase === 'on_map') {
     return (
       <>
-        {toastLayer}
+        {gameChrome}
         <WorldMapScreen
           run={run}
           onMoveTo={(nodeId) => dispatchRun({ type: 'MOVE_TO', nodeId })}
@@ -332,7 +429,7 @@ export default function App() {
   if (run.phase === 'city') {
     return (
       <>
-        {toastLayer}
+        {gameChrome}
         <CityScreen
           city={run.city}
           gold={run.gold}
@@ -353,7 +450,7 @@ export default function App() {
   if (run.phase === 'event' && run.pendingEvent) {
     return (
       <>
-        {toastLayer}
+        {gameChrome}
         <EventScreen
           eventId={run.pendingEvent.eventId}
           onChoose={(optionId) => dispatchRun({ type: 'CHOOSE_EVENT_OPTION', optionId })}
@@ -365,7 +462,7 @@ export default function App() {
   if (run.phase === 'merchant' && run.pendingMerchant) {
     return (
       <>
-        {toastLayer}
+        {gameChrome}
         <MerchantScreen
           gold={run.gold}
           inventory={run.pendingMerchant}
@@ -391,12 +488,12 @@ export default function App() {
 
   return (
     <div className="battle-viewport">
-      {toastLayer}
+      {gameChrome}
 
       <div className="battle-header">
         <div className="hero-column">
           <div className="hero-card">
-            <div className="hero-portrait">🧑‍✈️</div>
+            <div className="hero-portrait">🤴</div>
             <div className="hero-info">
               <div className="hero-name-row">
                 <span>{combat.hero.name}</span>

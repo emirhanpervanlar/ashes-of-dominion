@@ -63,7 +63,7 @@ export function WorldMapScreen({ run, onMoveTo, onEnterCity, onNewRun }: Props) 
         <div className="road-sidebar-left">
           <div className="side-block">
             <div className="side-hero-row">
-              <div className="hero-portrait">🧑‍✈️</div>
+              <div className="hero-portrait">🤴</div>
               <div>
                 <strong>{run.hero.name}</strong>
                 <div className="bar" style={{ width: 120, marginTop: 4 }}>
