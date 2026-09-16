@@ -1,5 +1,6 @@
 import type { RngState } from '../rng.js';
-import type { ArmyStack, CardInstance, CombatState, Hero, PlayerAction, RelicDefinition } from '../types.js';
+import type { ArmyStack, CardInstance, CombatState, Hero, PlayerAction, RelicDefinition, UnitId } from '../types.js';
+import type { CityState } from './city.js';
 import type { MerchantInventory } from './merchant.js';
 import type { WorldMapState } from './worldMap.js';
 
@@ -10,6 +11,7 @@ export type RunPhase =
   | 'reward'
   | 'event'
   | 'merchant'
+  | 'city'
   | 'run_complete'
   | 'defeat';
 
@@ -41,6 +43,10 @@ export type RunEvent =
   | { type: 'REWARD_SKIPPED' }
   | { type: 'EVENT_RESOLVED'; eventId: string; optionId: string; outcome: string }
   | { type: 'ITEM_PURCHASED'; itemId: string; price: number }
+  | { type: 'UNITS_RECRUITED'; unitId: string; count: number; destination: 'army' | 'garrison' }
+  | { type: 'BUILDING_BUILT'; buildingId: string }
+  | { type: 'CITY_LEVELED_UP'; level: number }
+  | { type: 'GARRISON_TRANSFERRED'; unitId: string; count: number }
   | { type: 'RUN_COMPLETE' }
   | { type: 'ACTION_REJECTED'; reason: string };
 
@@ -58,6 +64,7 @@ export interface RunState {
   day: number;
   battlesWon: number;
   worldMap: WorldMapState;
+  city: CityState;
   phase: RunPhase;
   combat: CombatState | null;
   pendingReward: PendingReward | null;
@@ -77,7 +84,13 @@ export type RunAction =
   | { type: 'CHOOSE_EVENT_OPTION'; optionId: string }
   | { type: 'BUY_CARD'; cardId: string }
   | { type: 'BUY_RELIC'; relicId: string }
-  | { type: 'LEAVE_MERCHANT' };
+  | { type: 'LEAVE_MERCHANT' }
+  | { type: 'ENTER_CITY' }
+  | { type: 'RECRUIT'; unitId: UnitId; count: number; destination: 'army' | 'garrison' }
+  | { type: 'BUILD_BUILDING'; buildingId: string }
+  | { type: 'UPGRADE_CITY' }
+  | { type: 'TRANSFER_GARRISON_TO_ARMY'; stackId: string }
+  | { type: 'LEAVE_CITY' };
 
 export interface RunApplyResult {
   run: RunState;

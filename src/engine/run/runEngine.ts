@@ -5,8 +5,18 @@ import { RELIC_DEFINITIONS, STARTING_RELIC_DEFINITIONS } from '../data/relics.js
 import { UNIT_DEFINITIONS } from '../data/units.js';
 import { applyPlayerAction, startBattle } from '../combat.js';
 import { createRng, nextInt, shuffle } from '../rng.js';
-import type { ArmyStack, CardInstance, CombatState, Hero, PlayerAction, RelicDefinition, RelicEffect } from '../types.js';
+import type { ArmyStack, CardInstance, CombatState, Hero, PlayerAction, RelicDefinition, RelicEffect, UnitId } from '../types.js';
 import { CARD_UPGRADES } from './cardUpgrades.js';
+import {
+  BUILDING_DEFINITIONS,
+  LEVEL_SLOTS,
+  LEVEL_UP_COST,
+  addUnitsToArmy,
+  addUnitsToGarrison,
+  canRecruitUnit,
+  createInitialCityState,
+  recruitCost,
+} from './city.js';
 import { generateBattleEncounter } from './encounters.js';
 import { EVENT_DEFINITIONS, EVENT_IDS } from './events.js';
 import { applyStarvation, moveFoodCost } from './food.js';
@@ -67,6 +77,7 @@ export function createRun(seed: number): RunState {
     day: 1,
     battlesWon: 0,
     worldMap: generateWorldMap(rng),
+    city: createInitialCityState(),
     phase: 'choosing_starting_relic',
     combat: null,
     pendingReward: null,
@@ -232,8 +243,37 @@ function moveTo(run: RunState, nodeId: string, events: RunEvent[]): RunApplyResu
       run.phase = 'event';
       break;
     }
+    case 'city':
+      enterCityEffects(run);
+      run.phase = 'city';
+      break;
   }
 
+  return { run, events };
+}
+
+/** Shared by moveTo's 'city' arrival and re-entering a city you're already standing on. */
+function enterCityEffects(run: RunState): void {
+  if (run.city.buildings.includes('shrine')) {
+    run.army = run.army.map((s) =>
+      s.count > 0 ? { ...s, currentHp: Math.min(s.maxHp, s.currentHp + Math.round(s.maxHp * 0.2)) } : s
+    );
+  }
+}
+
+/**
+ * The world map only moves forward (AGENT.md §19's DAG, no backward
+ * edges), but a city should stay revisitable like a Heroes3 town — this
+ * re-enters the city node you're currently standing on without moving.
+ */
+function enterCity(run: RunState, events: RunEvent[]): RunApplyResult {
+  const current = findNode(run.worldMap, run.worldMap.currentNodeId);
+  if (run.phase !== 'on_map' || !current || current.type !== 'city') {
+    reject(events, 'Not standing on a city.');
+    return { run, events };
+  }
+  enterCityEffects(run);
+  run.phase = 'city';
   return { run, events };
 }
 
@@ -456,6 +496,149 @@ function leaveMerchant(run: RunState, events: RunEvent[]): RunApplyResult {
   return { run, events };
 }
 
+function recruit(
+  run: RunState,
+  unitId: UnitId,
+  count: number,
+  destination: 'army' | 'garrison',
+  events: RunEvent[]
+): RunApplyResult {
+  if (run.phase !== 'city') {
+    reject(events, 'Not at the city.');
+    return { run, events };
+  }
+  if (count <= 0) {
+    reject(events, 'Invalid recruit count.');
+    return { run, events };
+  }
+  if (!canRecruitUnit(run.city, unitId)) {
+    reject(events, 'That unit cannot be recruited yet (missing building).');
+    return { run, events };
+  }
+  const cost = recruitCost(run.city, unitId, count);
+  if (!cost) {
+    reject(events, 'Unknown recruitable unit.');
+    return { run, events };
+  }
+  if (run.gold < cost.gold || run.food < cost.food) {
+    reject(events, 'Not enough Gold/Food to recruit that many.');
+    return { run, events };
+  }
+
+  if (destination === 'garrison') {
+    run.gold -= cost.gold;
+    run.food -= cost.food;
+    run.city.garrison = addUnitsToGarrison(run.city.garrison, unitId, count);
+    events.push({ type: 'UNITS_RECRUITED', unitId, count, destination: 'garrison' });
+    return { run, events };
+  }
+
+  const updatedArmy = addUnitsToArmy(run.army, unitId, count);
+  if (!updatedArmy) {
+    reject(events, 'Field army is full (6 stacks) and has no matching stack — recruit to the garrison instead.');
+    return { run, events };
+  }
+  run.gold -= cost.gold;
+  run.food -= cost.food;
+  run.army = updatedArmy;
+  events.push({ type: 'UNITS_RECRUITED', unitId, count, destination: 'army' });
+  return { run, events };
+}
+
+function buildBuilding(run: RunState, buildingId: string, events: RunEvent[]): RunApplyResult {
+  if (run.phase !== 'city') {
+    reject(events, 'Not at the city.');
+    return { run, events };
+  }
+  const def = BUILDING_DEFINITIONS[buildingId];
+  if (!def) {
+    reject(events, 'Unknown building.');
+    return { run, events };
+  }
+  if (run.city.buildings.includes(buildingId)) {
+    reject(events, 'Already built.');
+    return { run, events };
+  }
+  if (run.city.buildings.length >= LEVEL_SLOTS[run.city.level]) {
+    reject(events, 'No free building slots at this city level.');
+    return { run, events };
+  }
+  if (run.gold < def.cost) {
+    reject(events, 'Not enough Gold.');
+    return { run, events };
+  }
+
+  run.gold -= def.cost;
+  run.city.buildings.push(buildingId);
+
+  if (buildingId === 'gold_mine') run.gold += 100;
+  if (buildingId === 'training_hall') {
+    run.hero.maxAc += 1;
+    run.hero.ac += 1;
+    run.hero.maxDc += 1;
+    run.hero.dc += 1;
+  }
+  if (buildingId === 'forge') {
+    run.hero.maxMana += 2;
+    run.hero.mana += 2;
+  }
+
+  events.push({ type: 'BUILDING_BUILT', buildingId });
+  return { run, events };
+}
+
+function upgradeCity(run: RunState, events: RunEvent[]): RunApplyResult {
+  if (run.phase !== 'city') {
+    reject(events, 'Not at the city.');
+    return { run, events };
+  }
+  if (run.city.level >= 3) {
+    reject(events, 'City is already at max level.');
+    return { run, events };
+  }
+  const nextLevel = (run.city.level + 1) as 2 | 3;
+  const cost = LEVEL_UP_COST[nextLevel];
+  if (run.gold < cost) {
+    reject(events, 'Not enough Gold.');
+    return { run, events };
+  }
+  run.gold -= cost;
+  run.city.level = nextLevel;
+  events.push({ type: 'CITY_LEVELED_UP', level: nextLevel });
+  return { run, events };
+}
+
+function transferGarrisonToArmy(run: RunState, stackId: string, events: RunEvent[]): RunApplyResult {
+  if (run.phase !== 'city') {
+    reject(events, 'Not at the city.');
+    return { run, events };
+  }
+  const idx = run.city.garrison.findIndex((s) => s.stackId === stackId && s.count > 0);
+  if (idx === -1) {
+    reject(events, 'That garrison stack does not exist.');
+    return { run, events };
+  }
+  const stack = run.city.garrison[idx]!;
+  const updatedArmy = addUnitsToArmy(run.army, stack.unitId, stack.count);
+  if (!updatedArmy) {
+    reject(events, 'Field army is full (6 stacks) and has no matching stack to merge into.');
+    return { run, events };
+  }
+  run.army = updatedArmy;
+  run.city.garrison = run.city.garrison.filter((_, i) => i !== idx);
+  events.push({ type: 'GARRISON_TRANSFERRED', unitId: stack.unitId, count: stack.count });
+  return { run, events };
+}
+
+function leaveCity(run: RunState, events: RunEvent[]): RunApplyResult {
+  if (run.phase !== 'city') {
+    reject(events, 'Not at the city.');
+    return { run, events };
+  }
+  run.phase = 'on_map';
+  return { run, events };
+}
+
 export function applyRunAction(run: RunState, action: RunAction): RunApplyResult {
   const working = cloneRun(run);
   const events: RunEvent[] = [];
@@ -494,6 +677,24 @@ export function applyRunAction(run: RunState, action: RunAction): RunApplyResult
       break;
     case 'LEAVE_MERCHANT':
       result = leaveMerchant(working, events);
+      break;
+    case 'ENTER_CITY':
+      result = enterCity(working, events);
+      break;
+    case 'RECRUIT':
+      result = recruit(working, action.unitId, action.count, action.destination, events);
+      break;
+    case 'BUILD_BUILDING':
+      result = buildBuilding(working, action.buildingId, events);
+      break;
+    case 'UPGRADE_CITY':
+      result = upgradeCity(working, events);
+      break;
+    case 'TRANSFER_GARRISON_TO_ARMY':
+      result = transferGarrisonToArmy(working, action.stackId, events);
+      break;
+    case 'LEAVE_CITY':
+      result = leaveCity(working, events);
       break;
   }
 

@@ -4,6 +4,7 @@ import type { MapNode } from '../engine/run/index.js';
 interface Props {
   run: RunState;
   onMoveTo: (nodeId: string) => void;
+  onEnterCity: () => void;
   onNewRun: () => void;
 }
 
@@ -14,10 +15,11 @@ const NODE_LABELS: Record<MapNode['type'], string> = {
   resource: 'Resource',
   merchant: 'Merchant',
   event: 'Event',
+  city: 'City',
   end: 'End (Phase 3 MVP)',
 };
 
-export function WorldMapScreen({ run, onMoveTo, onNewRun }: Props) {
+export function WorldMapScreen({ run, onMoveTo, onEnterCity, onNewRun }: Props) {
   const current = run.worldMap.nodes.find((n) => n.id === run.worldMap.currentNodeId)!;
   const layers = Math.max(...run.worldMap.nodes.map((n) => n.layer)) + 1;
 
@@ -28,6 +30,11 @@ export function WorldMapScreen({ run, onMoveTo, onNewRun }: Props) {
 
       <div className="toolbar">
         <button onClick={onNewRun}>Abandon Run / New Run</button>
+        {current.type === 'city' && (
+          <button className="primary" onClick={onEnterCity}>
+            Enter City
+          </button>
+        )}
       </div>
 
       <div className="hero-panel">

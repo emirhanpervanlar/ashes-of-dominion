@@ -1,7 +1,7 @@
 import { nextInt } from '../rng.js';
 import type { RngState } from '../rng.js';
 
-export type NodeType = 'road' | 'battle' | 'elite_battle' | 'resource' | 'merchant' | 'event' | 'end';
+export type NodeType = 'road' | 'battle' | 'elite_battle' | 'resource' | 'merchant' | 'event' | 'city' | 'end';
 export type NodeVisibility = 'unknown' | 'revealed' | 'visited';
 
 export interface MapNode {
@@ -60,6 +60,11 @@ export function generateWorldMap(rng: RngState): WorldMapState {
     }
     layers.push(nodes);
   }
+
+  // Exactly one City node per run (AGENT.md §55 MVP: City count = 1),
+  // placed at the map's midpoint rather than left to the random pool.
+  const cityLayer = layers[3];
+  if (cityLayer && cityLayer[0]) cityLayer[0].type = 'city';
 
   for (let layer = 0; layer < layers.length - 1; layer++) {
     const from = layers[layer]!;

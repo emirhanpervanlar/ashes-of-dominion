@@ -2164,6 +2164,34 @@ Goal:
 
 Heroes III strategic layer becomes real.
 
+IMPLEMENTED (2026-09-16): engine/run/city.ts, wired into runEngine.ts (ENTER_CITY/
+RECRUIT/BUILD_BUILDING/UPGRADE_CITY/TRANSFER_GARRISON_TO_ARMY). Scope
+notes/assumptions:
+- Exactly one City node, forced onto the map's midpoint layer (§55: City
+  count = 1) rather than left to the random node-type pool.
+- "Cities must be captured" (§23) is simplified for MVP: the city is
+  already friendly on arrival, no capture battle — there's no rival
+  faction/hostile-city-ownership model yet to make capture meaningful.
+- 7 buildings (not the full ~10-building catalog), 3/5/6 slots at
+  Level 1/2/3 — picking 6 of 7 is still a real specialization choice.
+  Two buildings gate recruitment entirely (Mage Tower -> Mage, Stable ->
+  Cavalier) rather than just discounting it, giving "6 buildings" real
+  mechanical teeth instead of only percentages.
+- Recruitment merges into a matching field-army stack (veterancy blended
+  by weighted average) or creates a new stack in a free slot; if the
+  army is full (6 stacks) with no match, recruits must go to the
+  Garrison instead of being silently rejected.
+- Healing is tied to the Shrine building (+20% army HP on every city
+  visit) rather than a separate always-available paid action — keeps
+  the "healing" requirement real without adding a second heal mechanic.
+- The map's forward-only DAG (§19) has no back-edges, so a dedicated
+  ENTER_CITY action lets the player re-enter the city they're standing
+  on without "moving" — otherwise a Heroes3-style town you return to
+  would be unreachable after the first visit.
+- No day-tick recruitment queue yet (§28's "Swordsman x20, ETA: Day 6")
+  — recruits are instant. Production-over-days needs the same day-tick
+  system Phase 4's resource nodes deferred; still future work.
+
 Phase 6 — Boss + complete run
 boss
 final reward

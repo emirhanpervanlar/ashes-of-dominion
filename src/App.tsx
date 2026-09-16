@@ -12,6 +12,7 @@ import { RunEndScreen } from './ui/RunEndScreen.js';
 import { WorldMapScreen } from './ui/WorldMapScreen.js';
 import { EventScreen } from './ui/EventScreen.js';
 import { MerchantScreen } from './ui/MerchantScreen.js';
+import { CityScreen } from './ui/CityScreen.js';
 import { describeEvent } from './ui/eventText.js';
 
 const STORAGE_KEY = 'aod_run_state_v1';
@@ -202,7 +203,30 @@ export default function App() {
   }
 
   if (run.phase === 'on_map') {
-    return <WorldMapScreen run={run} onMoveTo={(nodeId) => dispatchRun({ type: 'MOVE_TO', nodeId })} onNewRun={newRun} />;
+    return (
+      <WorldMapScreen
+        run={run}
+        onMoveTo={(nodeId) => dispatchRun({ type: 'MOVE_TO', nodeId })}
+        onEnterCity={() => dispatchRun({ type: 'ENTER_CITY' })}
+        onNewRun={newRun}
+      />
+    );
+  }
+
+  if (run.phase === 'city') {
+    return (
+      <CityScreen
+        city={run.city}
+        gold={run.gold}
+        food={run.food}
+        army={run.army}
+        onRecruit={(unitId, count, destination) => dispatchRun({ type: 'RECRUIT', unitId, count, destination })}
+        onBuild={(buildingId) => dispatchRun({ type: 'BUILD_BUILDING', buildingId })}
+        onUpgradeCity={() => dispatchRun({ type: 'UPGRADE_CITY' })}
+        onTransferToArmy={(stackId) => dispatchRun({ type: 'TRANSFER_GARRISON_TO_ARMY', stackId })}
+        onLeave={() => dispatchRun({ type: 'LEAVE_CITY' })}
+      />
+    );
   }
 
   if (run.phase === 'event' && run.pendingEvent) {
