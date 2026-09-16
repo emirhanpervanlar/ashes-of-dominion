@@ -1,44 +1,34 @@
 import { useState } from 'react';
+import { SettingsPanel } from './SettingsPanel.js';
 
 interface Props {
   onClose: () => void;
   onMainMenu: () => void;
-  musicOn: boolean;
-  onToggleMusic: () => void;
+  volume: number;
+  onVolumeChange: (v: number) => void;
 }
 
-export function PauseMenu({ onClose, onMainMenu, musicOn, onToggleMusic }: Props) {
+export function PauseMenu({ onClose, onMainMenu, volume, onVolumeChange }: Props) {
   const [view, setView] = useState<'main' | 'settings'>('main');
+
+  if (view === 'settings') {
+    return <SettingsPanel volume={volume} onVolumeChange={onVolumeChange} onClose={() => setView('main')} />;
+  }
 
   return (
     <>
       <div className="modal-backdrop pause-backdrop" onClick={onClose} />
       <div className="pause-menu-card">
-        {view === 'main' ? (
-          <>
-            <h2 className="pause-menu-title">Paused</h2>
-            <button className="pause-menu-option primary" onClick={onClose}>
-              Continue
-            </button>
-            <button className="pause-menu-option" onClick={() => setView('settings')}>
-              Settings
-            </button>
-            <button className="pause-menu-option" onClick={onMainMenu}>
-              Main Menu
-            </button>
-          </>
-        ) : (
-          <>
-            <h2 className="pause-menu-title">Settings</h2>
-            <label className="pause-menu-setting">
-              <input type="checkbox" checked={musicOn} onChange={onToggleMusic} />
-              Music
-            </label>
-            <button className="pause-menu-option" onClick={() => setView('main')}>
-              Back
-            </button>
-          </>
-        )}
+        <h2 className="pause-menu-title">Paused</h2>
+        <button className="pause-menu-option primary" onClick={onClose}>
+          Continue
+        </button>
+        <button className="pause-menu-option" onClick={() => setView('settings')}>
+          Settings
+        </button>
+        <button className="pause-menu-option" onClick={onMainMenu}>
+          Main Menu
+        </button>
       </div>
     </>
   );

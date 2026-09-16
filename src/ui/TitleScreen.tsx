@@ -1,9 +1,10 @@
 interface Props {
   onStart: () => void;
   onContinue?: () => void;
+  onSettings: () => void;
 }
 
-export function TitleScreen({ onStart, onContinue }: Props) {
+export function TitleScreen({ onStart, onContinue, onSettings }: Props) {
   return (
     <div className="title-screen">
       <div className="title-crest">🛡️</div>
@@ -19,6 +20,9 @@ export function TitleScreen({ onStart, onContinue }: Props) {
             Continue
           </button>
         )}
+        <button className="title-menu-btn" onClick={onSettings}>
+          Settings
+        </button>
       </div>
 
       <div className="title-footer">A turn-based dominion of armies, cards, and attrition.</div>

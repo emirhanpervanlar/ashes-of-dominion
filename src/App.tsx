@@ -20,14 +20,14 @@ import { ToastStack } from './ui/Toast.js';
 import type { ToastItem } from './ui/Toast.js';
 import { previewAttackDamage } from './ui/damagePreview.js';
 import { TitleScreen } from './ui/TitleScreen.js';
-import { NameEntryScreen } from './ui/NameEntryScreen.js';
-import { CommanderSelectScreen } from './ui/CommanderSelectScreen.js';
+import { CommanderSetupScreen } from './ui/CommanderSetupScreen.js';
 import { PauseMenu } from './ui/PauseMenu.js';
-import { startMusic, setMusicEnabled } from './ui/music.js';
+import { SettingsPanel } from './ui/SettingsPanel.js';
+import { startMusic, setMusicVolume } from './ui/music.js';
 
 const STORAGE_KEY = 'aod_run_state_v1';
 
-type AppStage = 'title' | 'name' | 'commander' | 'game';
+type AppStage = 'title' | 'setup' | 'game';
 
 interface PendingAction {
   kind: 'card' | 'skill';
@@ -59,9 +59,9 @@ export default function App() {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [hoveredStackId, setHoveredStackId] = useState<string | null>(null);
   const [appStage, setAppStage] = useState<AppStage>('title');
-  const [heroNameDraft, setHeroNameDraft] = useState('');
   const [menuOpen, setMenuOpen] = useState(false);
-  const [musicOn, setMusicOn] = useState(true);
+  const [titleSettingsOpen, setTitleSettingsOpen] = useState(false);
+  const [musicVolume, setMusicVolumeState] = useState(0.5);
   const [hasSave, setHasSave] = useState(() => {
     try {
       return !!localStorage.getItem(STORAGE_KEY);
@@ -71,12 +71,9 @@ export default function App() {
   });
   const nextToastId = useRef(1);
 
-  function toggleMusic() {
-    setMusicOn((v) => {
-      const next = !v;
-      setMusicEnabled(next);
-      return next;
-    });
+  function changeMusicVolume(v: number) {
+    setMusicVolumeState(v);
+    setMusicVolume(v);
   }
 
   useEffect(() => {
@@ -86,6 +83,14 @@ export default function App() {
       // storage full/unavailable — non-fatal for a local playtest build
     }
   }, [run]);
+
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') setPending(null);
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, []);
 
   const combat = run.combat;
 
@@ -308,42 +313,37 @@ export default function App() {
 
   if (appStage === 'title') {
     return (
-      <TitleScreen
-        onStart={() => {
-          startMusic();
-          setAppStage('name');
-        }}
-        onContinue={
-          hasSave
-            ? () => {
-                startMusic();
-                setAppStage('game');
-              }
-            : undefined
-        }
-      />
+      <>
+        <TitleScreen
+          onStart={() => {
+            startMusic();
+            setAppStage('setup');
+          }}
+          onContinue={
+            hasSave
+              ? () => {
+                  startMusic();
+                  setAppStage('game');
+                }
+              : undefined
+          }
+          onSettings={() => setTitleSettingsOpen(true)}
+        />
+        {titleSettingsOpen && (
+          <SettingsPanel volume={musicVolume} onVolumeChange={changeMusicVolume} onClose={() => setTitleSettingsOpen(false)} />
+        )}
+      </>
     );
   }
 
-  if (appStage === 'name') {
+  if (appStage === 'setup') {
     return (
-      <NameEntryScreen
+      <CommanderSetupScreen
         onBack={() => setAppStage('title')}
-        onConfirm={(name) => {
-          setHeroNameDraft(name);
-          setAppStage('commander');
-        }}
-      />
-    );
-  }
-
-  if (appStage === 'commander') {
-    return (
-      <CommanderSelectScreen
-        heroName={heroNameDraft || 'Commander'}
-        onBack={() => setAppStage('name')}
-        onBegin={() => {
-          setRun(createRun(Date.now() & 0xffffffff, heroNameDraft));
+        onBegin={(heroName, relicId) => {
+          const freshRun = createRun(Date.now() & 0xffffffff, heroName);
+          const result = applyRunAction(freshRun, { type: 'CHOOSE_STARTING_RELIC', relicId });
+          setRun(result.run);
           setHasSave(true);
           setAppStage('game');
         }}
@@ -364,8 +364,8 @@ export default function App() {
         setMenuOpen(false);
         setAppStage('title');
       }}
-      musicOn={musicOn}
-      onToggleMusic={toggleMusic}
+      volume={musicVolume}
+      onVolumeChange={changeMusicVolume}
     />
   ) : null;
   const gameChrome = (
@@ -657,8 +657,8 @@ export default function App() {
             const cardDef = CARD_DEFINITIONS[instance.cardId];
             if (!cardDef) return null;
             const offset = i - handMid;
-            const rotate = Math.max(-16, Math.min(16, offset * 6));
-            const ty = Math.abs(offset) * 5;
+            const rotate = Math.max(-11, Math.min(11, offset * 5));
+            const ty = Math.abs(offset) * 3;
             const slotStyle = { '--rot': `${rotate}deg`, '--ty': `${ty}px` } as React.CSSProperties;
             return (
               <div key={instance.instanceId} className="hand-card-slot" style={slotStyle}>
