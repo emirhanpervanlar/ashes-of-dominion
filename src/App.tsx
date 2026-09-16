@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { CARD_DEFINITIONS, HERO_SKILL_DEFINITIONS } from './engine/index.js';
-import type { ArmyStack, CardTargeting, EnemyIntent, PlayerAction, Position } from './engine/index.js';
+import type { ArmyStack, CardEffect, CardTargeting, EnemyIntent, PlayerAction, Position } from './engine/index.js';
 import { applyRunAction, createRun } from './engine/run/index.js';
 import type { RunEvent, RunState } from './engine/run/index.js';
 import { StackTile } from './ui/StackTile.js';
@@ -15,9 +15,10 @@ import { CityScreen } from './ui/CityScreen.js';
 import { describeEvent } from './ui/eventText.js';
 import { relicIcon } from './ui/relicIcons.js';
 import { CARD_DESCRIPTIONS } from './ui/cardText.js';
-import { HistoryPanel } from './ui/HistoryPanel.js';
+import { HistoryDrawer } from './ui/HistoryDrawer.js';
 import { ToastStack } from './ui/Toast.js';
 import type { ToastItem } from './ui/Toast.js';
+import { previewAttackDamage } from './ui/damagePreview.js';
 
 const STORAGE_KEY = 'aod_run_state_v1';
 
@@ -48,7 +49,8 @@ export default function App() {
   const [run, setRun] = useState<RunState>(loadInitialRun);
   const [pending, setPending] = useState<PendingAction | null>(null);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
-  const [logCollapsed, setLogCollapsed] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [hoveredStackId, setHoveredStackId] = useState<string | null>(null);
   const nextToastId = useRef(1);
 
   useEffect(() => {
@@ -224,6 +226,60 @@ export default function App() {
     return stack.stackId === pending.actingStackId || stack.stackId === pending.targetStackId;
   }
 
+  /** Hovering my own unit highlights the enemy that intends to hit it, and vice versa; everything else fades. */
+  function hoverHighlightSet(): Set<string> | null {
+    if (!combat || pending || !hoveredStackId) return null;
+    const set = new Set([hoveredStackId]);
+    for (const intent of combat.enemyIntents) {
+      if (intent.kind !== 'attack') continue;
+      if (intent.targetStackId === hoveredStackId) set.add(intent.stackId);
+      if (intent.stackId === hoveredStackId && intent.targetStackId) set.add(intent.targetStackId);
+    }
+    return set;
+  }
+
+  function isDimmed(stack: ArmyStack | undefined, side: 'player' | 'enemy'): boolean {
+    if (!stack) return false;
+    if (pending) {
+      const selectable = isSelectable(stack, side);
+      const chosen = stack.stackId === pending.actingStackId || stack.stackId === pending.targetStackId;
+      return !selectable && !chosen;
+    }
+    const highlight = hoverHighlightSet();
+    return highlight !== null && !highlight.has(stack.stackId);
+  }
+
+  function isThreatened(stack: ArmyStack | undefined): boolean {
+    if (!combat || !stack) return false;
+    return combat.enemyIntents.some((i) => i.kind === 'attack' && i.targetStackId === stack.stackId);
+  }
+
+  function findPendingAttackEffect(): Extract<CardEffect, { kind: 'ATTACK' }> | undefined {
+    if (!combat || !pending) return undefined;
+    const def =
+      pending.kind === 'card'
+        ? CARD_DEFINITIONS[combat.hand.find((c) => c.instanceId === pending.id)?.cardId ?? '']
+        : HERO_SKILL_DEFINITIONS[pending.id];
+    return def?.effects.find((e): e is Extract<CardEffect, { kind: 'ATTACK' }> => e.kind === 'ATTACK');
+  }
+
+  function previewDamageFor(stack: ArmyStack | undefined, side: 'player' | 'enemy'): number | undefined {
+    if (!combat || !stack) return undefined;
+    if (pending) {
+      if (side !== 'enemy' || !isSelectable(stack, 'enemy')) return undefined;
+      const attackEffect = findPendingAttackEffect();
+      if (!attackEffect || !pending.actingStackId) return undefined;
+      const attacker = combat.playerArmy.find((s) => s.stackId === pending.actingStackId);
+      if (!attacker) return undefined;
+      return previewAttackDamage(combat, attacker, stack, attackEffect);
+    }
+    if (side === 'player' && hoveredStackId === stack.stackId) {
+      const intent = combat.enemyIntents.find((i) => i.kind === 'attack' && i.targetStackId === stack.stackId);
+      return intent?.estimatedDamage;
+    }
+    return undefined;
+  }
+
   const toastLayer = <ToastStack toasts={toasts} onDismiss={dismissToast} />;
 
   if (run.phase === 'choosing_starting_relic') {
@@ -330,44 +386,68 @@ export default function App() {
   const combatHistory = combat.log.map((e) => describeEvent(combat, e)).filter((line): line is string => line !== null);
   const manaPct = combat.hero.maxMana > 0 ? Math.min(100, (combat.hero.mana / combat.hero.maxMana) * 100) : 0;
   const canAct = combat.phase === 'player' && combat.result === 'ongoing';
+  const handCount = combat.hand.length;
+  const handMid = (handCount - 1) / 2;
 
   return (
-    <div>
+    <div className="battle-viewport">
       {toastLayer}
-      <div className="top-bar">
-        <div className="hero-card">
-          <div className="hero-portrait">🧑‍✈️</div>
-          <div className="hero-info">
-            <div className="hero-name-row">
-              <span>{combat.hero.name}</span>
-              <div className="relic-icons">
-                {run.relics.map((r) => (
-                  <span key={r.id} className="relic-icon" title={`${r.name} — ${r.description}`}>
-                    {relicIcon(r.id)}
-                  </span>
-                ))}
+
+      <div className="battle-header">
+        <div className="hero-column">
+          <div className="hero-card">
+            <div className="hero-portrait">🧑‍✈️</div>
+            <div className="hero-info">
+              <div className="hero-name-row">
+                <span>{combat.hero.name}</span>
+                <div className="relic-icons">
+                  {run.relics.map((r) => (
+                    <span key={r.id} className="relic-icon" title={`${r.name} — ${r.description}`}>
+                      {relicIcon(r.id)}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <div className="mana-row">
+                <span className="mana-label">Mana</span>
+                <div className="mana-bar-track">
+                  <div className="mana-bar-fill" style={{ width: `${manaPct}%` }} />
+                </div>
+                <span>
+                  {combat.hero.mana}/{combat.hero.maxMana}
+                </span>
               </div>
             </div>
-            <div className="mana-row">
-              <span className="mana-label">Mana</span>
-              <div className="mana-bar-track">
-                <div className="mana-bar-fill" style={{ width: `${manaPct}%` }} />
-              </div>
-              <span>
-                {combat.hero.mana}/{combat.hero.maxMana}
+          </div>
+          <div className="orb-row">
+            <div className="resource-orb ac" title="Attack Command">
+              <span className="orb-value">
+                {combat.hero.ac}/{combat.hero.maxAc}
               </span>
+              <span className="orb-name">AC</span>
+            </div>
+            <div className="resource-orb dc" title="Defense Command">
+              <span className="orb-value">
+                {combat.hero.dc}/{combat.hero.maxDc}
+              </span>
+              <span className="orb-name">DC</span>
             </div>
           </div>
         </div>
 
-        <div className="turn-badge">
-          <div>
-            <strong>Turn {combat.turnNumber}</strong>
+        <div className="turn-info">
+          <div className="turn-badge-inline">
+            <div>
+              <strong>Turn {combat.turnNumber}</strong>
+            </div>
+            <div>{combat.phase === 'player' ? 'Your turn' : combat.phase === 'enemy' ? 'Enemy turn' : 'Battle over'}</div>
+            <div>
+              Hero HP {combat.hero.hp}/{combat.hero.maxHp}
+            </div>
           </div>
-          <div>{combat.phase === 'player' ? 'Your turn' : combat.phase === 'enemy' ? 'Enemy turn' : 'Battle over'}</div>
-          <div>
-            Hero HP {combat.hero.hp}/{combat.hero.maxHp}
-          </div>
+          <button className="history-toggle-btn" onClick={() => setHistoryOpen(true)}>
+            📜 Log
+          </button>
         </div>
       </div>
 
@@ -392,109 +472,114 @@ export default function App() {
         })}
       </div>
 
-      {pending && <div className="hint">Targeting for {pending.name} — click the card/skill again to cancel.</div>}
-
-      <div className="battle-layout">
-        <div className="battle-main">
-          <div className="battlefield-v2">
-            <div className="side-columns player-side">
-              <div className="unit-column">
-                {back.map((p) => {
-                  const s = stackAt(combat.playerArmy, p);
-                  return (
-                    <StackTile
-                      key={`p-${p}`}
-                      state={combat}
-                      stack={s}
-                      position={p}
-                      side="player"
-                      selectable={isSelectable(s, 'player')}
-                      selected={isSelected(s)}
-                      onClick={() => handleStackClick(s, p, 'player')}
-                    />
-                  );
-                })}
-              </div>
-              <div className="unit-column">
-                {front.map((p) => {
-                  const s = stackAt(combat.playerArmy, p);
-                  return (
-                    <StackTile
-                      key={`p-${p}`}
-                      state={combat}
-                      stack={s}
-                      position={p}
-                      side="player"
-                      selectable={isSelectable(s, 'player')}
-                      selected={isSelected(s)}
-                      onClick={() => handleStackClick(s, p, 'player')}
-                    />
-                  );
-                })}
-              </div>
-            </div>
-
-            <div className="side-columns enemy-side">
-              <div className="unit-column">
-                {front.map((p) => {
-                  const s = stackAt(combat.enemyArmy, p);
-                  return (
-                    <StackTile
-                      key={`e-${p}`}
-                      state={combat}
-                      stack={s}
-                      position={p}
-                      side="enemy"
-                      intent={s ? intentByStack.get(s.stackId) : undefined}
-                      selectable={isSelectable(s, 'enemy')}
-                      selected={isSelected(s)}
-                      onClick={() => handleStackClick(s, p, 'enemy')}
-                    />
-                  );
-                })}
-              </div>
-              <div className="unit-column">
-                {back.map((p) => {
-                  const s = stackAt(combat.enemyArmy, p);
-                  return (
-                    <StackTile
-                      key={`e-${p}`}
-                      state={combat}
-                      stack={s}
-                      position={p}
-                      side="enemy"
-                      intent={s ? intentByStack.get(s.stackId) : undefined}
-                      selectable={isSelectable(s, 'enemy')}
-                      selected={isSelected(s)}
-                      onClick={() => handleStackClick(s, p, 'enemy')}
-                    />
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-
-          <div className="bottom-bar">
-            <div className="orb-row">
-              <div className="resource-orb ac" title="Attack Command">
-                {combat.hero.ac}/{combat.hero.maxAc}
-              </div>
-              <div className="resource-orb dc" title="Defense Command">
-                {combat.hero.dc}/{combat.hero.maxDc}
-              </div>
-            </div>
-            <button className="primary" disabled={!canAct} onClick={() => dispatchCombat({ type: 'END_TURN' })}>
-              End Turn
-            </button>
-          </div>
-
-          <div className="action-card-tray">
-            {combat.hand.map((instance) => {
-              const cardDef = CARD_DEFINITIONS[instance.cardId];
-              if (!cardDef) return null;
+      <div className="battlefield-v2">
+        <div className="side-columns player-side">
+          <div className="unit-column">
+            {back.map((p) => {
+              const s = stackAt(combat.playerArmy, p);
               return (
+                <StackTile
+                  key={`p-${p}`}
+                  state={combat}
+                  stack={s}
+                  position={p}
+                  side="player"
+                  selectable={isSelectable(s, 'player')}
+                  selected={isSelected(s)}
+                  dimmed={isDimmed(s, 'player')}
+                  threatened={isThreatened(s)}
+                  previewDamage={previewDamageFor(s, 'player')}
+                  onClick={() => handleStackClick(s, p, 'player')}
+                  onHoverStart={() => s && setHoveredStackId(s.stackId)}
+                  onHoverEnd={() => setHoveredStackId(null)}
+                />
+              );
+            })}
+          </div>
+          <div className="unit-column">
+            {front.map((p) => {
+              const s = stackAt(combat.playerArmy, p);
+              return (
+                <StackTile
+                  key={`p-${p}`}
+                  state={combat}
+                  stack={s}
+                  position={p}
+                  side="player"
+                  selectable={isSelectable(s, 'player')}
+                  selected={isSelected(s)}
+                  dimmed={isDimmed(s, 'player')}
+                  threatened={isThreatened(s)}
+                  previewDamage={previewDamageFor(s, 'player')}
+                  onClick={() => handleStackClick(s, p, 'player')}
+                  onHoverStart={() => s && setHoveredStackId(s.stackId)}
+                  onHoverEnd={() => setHoveredStackId(null)}
+                />
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="side-columns enemy-side">
+          <div className="unit-column">
+            {front.map((p) => {
+              const s = stackAt(combat.enemyArmy, p);
+              return (
+                <StackTile
+                  key={`e-${p}`}
+                  state={combat}
+                  stack={s}
+                  position={p}
+                  side="enemy"
+                  intent={s ? intentByStack.get(s.stackId) : undefined}
+                  selectable={isSelectable(s, 'enemy')}
+                  selected={isSelected(s)}
+                  dimmed={isDimmed(s, 'enemy')}
+                  previewDamage={previewDamageFor(s, 'enemy')}
+                  onClick={() => handleStackClick(s, p, 'enemy')}
+                  onHoverStart={() => s && setHoveredStackId(s.stackId)}
+                  onHoverEnd={() => setHoveredStackId(null)}
+                />
+              );
+            })}
+          </div>
+          <div className="unit-column">
+            {back.map((p) => {
+              const s = stackAt(combat.enemyArmy, p);
+              return (
+                <StackTile
+                  key={`e-${p}`}
+                  state={combat}
+                  stack={s}
+                  position={p}
+                  side="enemy"
+                  intent={s ? intentByStack.get(s.stackId) : undefined}
+                  selectable={isSelectable(s, 'enemy')}
+                  selected={isSelected(s)}
+                  dimmed={isDimmed(s, 'enemy')}
+                  previewDamage={previewDamageFor(s, 'enemy')}
+                  onClick={() => handleStackClick(s, p, 'enemy')}
+                  onHoverStart={() => s && setHoveredStackId(s.stackId)}
+                  onHoverEnd={() => setHoveredStackId(null)}
+                />
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      <div className="hand-fan-wrap">
+        <div className="hand-fan">
+          {combat.hand.map((instance, i) => {
+            const cardDef = CARD_DEFINITIONS[instance.cardId];
+            if (!cardDef) return null;
+            const offset = i - handMid;
+            const rotate = Math.max(-16, Math.min(16, offset * 6));
+            const ty = Math.abs(offset) * 5;
+            const slotStyle = { '--rot': `${rotate}deg`, '--ty': `${ty}px` } as React.CSSProperties;
+            return (
+              <div key={instance.instanceId} className="hand-card-slot" style={slotStyle}>
                 <ActionCardTile
-                  key={instance.instanceId}
                   id={cardDef.id}
                   name={cardDef.name}
                   description={CARD_DESCRIPTIONS[cardDef.id] ?? cardDef.id}
@@ -503,18 +588,22 @@ export default function App() {
                   pending={pending?.kind === 'card' && pending.id === instance.instanceId}
                   onClick={() => handleCardClick(instance.instanceId, instance.cardId)}
                 />
-              );
-            })}
-          </div>
+              </div>
+            );
+          })}
         </div>
-
-        <HistoryPanel
-          title={`Battle Log (Deck ${combat.deck.length} · Discard ${combat.discard.length} · Exhausted ${combat.exhausted.length})`}
-          lines={combatHistory}
-          collapsed={logCollapsed}
-          onToggle={() => setLogCollapsed((c) => !c)}
-        />
       </div>
+
+      <button className="end-turn-fab" disabled={!canAct} onClick={() => dispatchCombat({ type: 'END_TURN' })}>
+        ⚔️ End Turn
+      </button>
+
+      <HistoryDrawer
+        open={historyOpen}
+        onClose={() => setHistoryOpen(false)}
+        title={`Battle Log (Deck ${combat.deck.length} · Discard ${combat.discard.length} · Exhausted ${combat.exhausted.length})`}
+        lines={combatHistory}
+      />
     </div>
   );
 }

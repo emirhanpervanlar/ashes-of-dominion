@@ -1,4 +1,4 @@
-import { UNIT_DEFINITIONS } from '../engine/index.js';
+import { applyDamageToStack, UNIT_DEFINITIONS } from '../engine/index.js';
 import type { ArmyStack, EnemyIntent, Position } from '../engine/index.js';
 import { stackLabel } from './eventText.js';
 import { UNIT_ICONS } from './unitIcons.js';
@@ -12,10 +12,29 @@ interface StackTileProps {
   intent?: EnemyIntent;
   selectable: boolean;
   selected: boolean;
+  dimmed?: boolean;
+  threatened?: boolean;
+  previewDamage?: number;
   onClick: () => void;
+  onHoverStart?: () => void;
+  onHoverEnd?: () => void;
 }
 
-export function StackTile({ state, stack, position, side, intent, selectable, selected, onClick }: StackTileProps) {
+export function StackTile({
+  state,
+  stack,
+  position,
+  side,
+  intent,
+  selectable,
+  selected,
+  dimmed,
+  threatened,
+  previewDamage,
+  onClick,
+  onHoverStart,
+  onHoverEnd,
+}: StackTileProps) {
   if (!stack || stack.count === 0) {
     const classes = ['unit-octagon', 'empty'];
     if (stack?.count === 0) classes.push('dead');
@@ -38,9 +57,21 @@ export function StackTile({ state, stack, position, side, intent, selectable, se
   const hpPct = Math.max(0, Math.min(100, (stack.currentHp / stack.maxHp) * 100));
   const blockPct = stack.maxHp > 0 ? Math.min(100, (stack.block / stack.maxHp) * 100) : 0;
 
+  let previewHpLossPct = 0;
+  let previewBlockLossPct = 0;
+  if (previewDamage && previewDamage > 0) {
+    const resolution = applyDamageToStack(stack, def.hpPerUnit, previewDamage);
+    previewBlockLossPct = stack.maxHp > 0 ? Math.min(100, (resolution.blocked / stack.maxHp) * 100) : 0;
+    previewHpLossPct = stack.maxHp > 0 ? Math.min(100, ((stack.currentHp - resolution.stack.currentHp) / stack.maxHp) * 100) : 0;
+  }
+
   const classes = ['unit-octagon', side];
   if (selectable) classes.push('selectable');
   if (selected) classes.push('selected');
+  if (threatened) classes.push('threatened');
+
+  const slotClasses = ['unit-slot'];
+  if (dimmed) slotClasses.push('dimmed');
 
   let intentText: string | null = null;
   if (intent) {
@@ -52,17 +83,23 @@ export function StackTile({ state, stack, position, side, intent, selectable, se
   }
 
   return (
-    <div className="unit-slot">
+    <div className={slotClasses.join(' ')} onMouseEnter={onHoverStart} onMouseLeave={onHoverEnd}>
       <div className={classes.join(' ')} onClick={selectable ? onClick : undefined} title={def.name}>
         <span className="unit-icon">{UNIT_ICONS[stack.unitId]}</span>
       </div>
       <div className="unit-label">
         <div className="bar">
           <div className={`bar-fill-hp${hpPct < 30 ? ' low' : ''}`} style={{ width: `${hpPct}%` }} />
+          {previewHpLossPct > 0 && (
+            <div className="bar-fill-preview" style={{ width: `${previewHpLossPct}%`, left: `${hpPct - previewHpLossPct}%` }} />
+          )}
         </div>
-        {stack.block > 0 && (
+        {(stack.block > 0 || previewBlockLossPct > 0) && (
           <div className="bar">
             <div className="bar-fill-block" style={{ width: `${blockPct}%` }} />
+            {previewBlockLossPct > 0 && (
+              <div className="bar-fill-preview" style={{ width: `${previewBlockLossPct}%`, left: `${blockPct - previewBlockLossPct}%` }} />
+            )}
           </div>
         )}
         <div className="unit-name">
