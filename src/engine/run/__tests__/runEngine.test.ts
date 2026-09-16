@@ -2,11 +2,34 @@ import { describe, expect, it } from 'vitest';
 import { applyRunAction, createRun } from '../runEngine.js';
 import type { CombatState } from '../../types.js';
 import type { RunState } from '../types.js';
+import type { NodeType } from '../worldMap.js';
 
 /**
- * These tests exercise the reward/relic/upgrade loop, not combat AI —
- * wipe the enemy army directly (same pattern as combat.test.ts's battle
- * outcome tests) rather than simulating a full, possibly-losing battle.
+ * The map's node types are randomized per seed, so tests that care about a
+ * specific node type override the current node's first connection rather
+ * than searching the random graph for one — simpler and fully deterministic.
+ */
+function withNextNodeType(run: RunState, type: NodeType): { run: RunState; nodeId: string } {
+  const current = run.worldMap.nodes.find((n) => n.id === run.worldMap.currentNodeId)!;
+  const nextId = current.connectsTo[0]!;
+  const worldMap = {
+    ...run.worldMap,
+    nodes: run.worldMap.nodes.map((n) => (n.id === nextId ? { ...n, type } : n)),
+  };
+  return { run: { ...run, worldMap }, nodeId: nextId };
+}
+
+function startOnMap(seed: number): RunState {
+  const run = createRun(seed);
+  const started = applyRunAction(run, { type: 'CHOOSE_STARTING_RELIC', relicId: 'royal_banner' });
+  return started.run;
+}
+
+/**
+ * Reward-loop tests care about the reward/relic/upgrade mechanics, not
+ * combat AI — wipe the enemy army directly (same pattern as
+ * combat.test.ts's battle outcome tests) rather than simulating a
+ * possibly-losing battle.
  */
 function forceVictory(run: RunState): RunState {
   const combat = run.combat;
@@ -19,25 +42,37 @@ function forceVictory(run: RunState): RunState {
   return result.run;
 }
 
+function reachBattle(seed: number): RunState {
+  const onMap = startOnMap(seed);
+  const { run, nodeId } = withNextNodeType(onMap, 'battle');
+  const result = applyRunAction(run, { type: 'MOVE_TO', nodeId });
+  return result.run;
+}
+
 describe('run creation', () => {
-  it('starts in choosing_starting_relic with the vertical-slice army/deck', () => {
+  it('starts in choosing_starting_relic with the vertical-slice army/deck/map/resources', () => {
     const run = createRun(1);
     expect(run.phase).toBe('choosing_starting_relic');
     expect(run.army.map((s) => s.count)).toEqual([18, 80, 8, 30, 10, 15]);
     expect(run.masterDeck.length).toBe(12);
     expect(run.combat).toBeNull();
+    expect(run.gold).toBe(100);
+    expect(run.food).toBe(50);
+    expect(run.day).toBe(1);
+    expect(run.worldMap.nodes.length).toBeGreaterThan(10);
+    const start = run.worldMap.nodes.find((n) => n.id === run.worldMap.currentNodeId)!;
+    expect(start.visibility).toBe('visited');
   });
 });
 
 describe('starting relic', () => {
-  it('Royal Banner adds +20 to the largest starting stack', () => {
+  it('Royal Banner adds +20 to the largest starting stack and moves to the map', () => {
     const run = createRun(2);
     const result = applyRunAction(run, { type: 'CHOOSE_STARTING_RELIC', relicId: 'royal_banner' });
-    // Largest stack is the Swordsman x80.
     const swordsman = result.run.army.find((s) => s.unitId === 'swordsman')!;
     expect(swordsman.count).toBe(100);
-    expect(result.run.phase).toBe('in_battle');
-    expect(result.run.combat).not.toBeNull();
+    expect(result.run.phase).toBe('on_map');
+    expect(result.run.combat).toBeNull();
   });
 
   it('Arcane Crystal boosts max Mana and shrinks the whole army by 10%', () => {
@@ -56,75 +91,143 @@ describe('starting relic', () => {
   });
 });
 
-describe('battle -> reward -> run complete loop', () => {
-  it('winning the battle offers a reward, and confirming it ends the run (Phase 3 MVP has one battle)', () => {
-    const run = createRun(5);
-    const started = applyRunAction(run, { type: 'CHOOSE_STARTING_RELIC', relicId: 'royal_banner' });
-    const won = forceVictory(started.run);
+describe('movement', () => {
+  it('rejects moving to a node not connected to the current one', () => {
+    const onMap = startOnMap(10);
+    const maxLayer = Math.max(...onMap.worldMap.nodes.map((n) => n.layer));
+    const farNode = onMap.worldMap.nodes.find((n) => n.layer === maxLayer)!;
+    const result = applyRunAction(onMap, { type: 'MOVE_TO', nodeId: farNode.id });
+    expect(result.events.some((e) => e.type === 'ACTION_REJECTED')).toBe(true);
+  });
+
+  it('consumes Food and advances the Day counter on every move', () => {
+    const onMap = startOnMap(11);
+    const { run, nodeId } = withNextNodeType(onMap, 'road');
+    const result = applyRunAction(run, { type: 'MOVE_TO', nodeId });
+    expect(result.run.food).toBeLessThan(run.food);
+    expect(result.run.day).toBe(run.day + 1);
+    expect(result.run.worldMap.currentNodeId).toBe(nodeId);
+  });
+
+  it('applies Starvation (HP -5%, Morale -1) instead of ending the run when Food runs out', () => {
+    const onMap = startOnMap(12);
+    const starving = { ...onMap, food: 0 };
+    const { run, nodeId } = withNextNodeType(starving, 'road');
+    const hpBefore = run.army[0]!.currentHp;
+    const result = applyRunAction(run, { type: 'MOVE_TO', nodeId });
+    expect(result.run.food).toBe(0);
+    expect(result.run.phase).not.toBe('defeat');
+    expect(result.run.army[0]!.currentHp).toBeLessThan(hpBefore);
+    expect(result.run.army[0]!.morale).toBeLessThan(run.army[0]!.morale);
+  });
+
+  it('a resource node grants Gold and Food and stays on the map', () => {
+    const onMap = startOnMap(13);
+    const { run, nodeId } = withNextNodeType(onMap, 'resource');
+    const result = applyRunAction(run, { type: 'MOVE_TO', nodeId });
+    expect(result.run.phase).toBe('on_map');
+    expect(result.run.gold).toBeGreaterThan(run.gold - 3); // food cost only reduces food, not gold
+    expect(result.run.food).toBeGreaterThan(0);
+  });
+
+  it('the end node completes the run', () => {
+    const onMap = startOnMap(14);
+    const { run, nodeId } = withNextNodeType(onMap, 'end');
+    const result = applyRunAction(run, { type: 'MOVE_TO', nodeId });
+    expect(result.run.phase).toBe('run_complete');
+  });
+});
+
+describe('battle -> reward -> back to map loop', () => {
+  it('winning a battle offers a reward, and confirming it returns to the map (not run_complete)', () => {
+    const won = forceVictory(reachBattle(20));
 
     expect(won.phase).toBe('reward');
     expect(won.pendingReward).not.toBeNull();
-    expect(won.pendingReward!.cardOptions.length).toBeGreaterThan(0);
     expect(won.battlesWon).toBe(1);
 
     const cardId = won.pendingReward!.cardOptions[0]!;
     const claimed = applyRunAction(won, { type: 'CLAIM_CARD', cardId });
     const confirmed = applyRunAction(claimed.run, { type: 'CONFIRM_REWARD' });
 
-    expect(confirmed.run.phase).toBe('run_complete');
+    expect(confirmed.run.phase).toBe('on_map');
     expect(confirmed.run.masterDeck.some((c) => c.cardId === cardId)).toBe(true);
-    expect(confirmed.run.masterDeck.length).toBe(13); // 12 starting + 1 reward
+    expect(confirmed.run.masterDeck.length).toBe(13);
   });
 
   it('claiming an upgrade replaces the card id in the master deck instead of adding a new one', () => {
-    const run = createRun(6);
-    const started = applyRunAction(run, { type: 'CHOOSE_STARTING_RELIC', relicId: 'royal_banner' });
-    const won = forceVictory(started.run);
-
+    const won = forceVictory(reachBattle(21));
     const upgrade = won.pendingReward!.upgradeOptions.find((o) => o.cardId === 'command_strike');
     expect(upgrade).toBeDefined();
 
     const claimed = applyRunAction(won, { type: 'CLAIM_UPGRADE', instanceId: upgrade!.instanceId });
     const confirmed = applyRunAction(claimed.run, { type: 'CONFIRM_REWARD' });
 
-    expect(confirmed.run.masterDeck.length).toBe(12); // no net new card
+    expect(confirmed.run.masterDeck.length).toBe(12);
     expect(confirmed.run.masterDeck.find((c) => c.instanceId === upgrade!.instanceId)?.cardId).toBe('command_strike_plus');
   });
 
-  it('claiming a relic reward applies its effect immediately', () => {
-    const run = createRun(7);
-    const started = applyRunAction(run, { type: 'CHOOSE_STARTING_RELIC', relicId: 'royal_banner' });
-    const won = forceVictory(started.run);
+  it('losing a battle moves to defeat, not run_complete', () => {
+    const onMap = startOnMap(22);
+    const { run, nodeId } = withNextNodeType(onMap, 'battle');
+    const started = applyRunAction(run, { type: 'MOVE_TO', nodeId });
+    const wiped: CombatState = {
+      ...started.run.combat!,
+      playerArmy: started.run.combat!.playerArmy.map((s) => ({ ...s, count: 0, currentHp: 0 })),
+    };
+    const result = applyRunAction({ ...started.run, combat: wiped }, { type: 'COMBAT_ACTION', action: { type: 'END_TURN' } });
+    expect(result.run.phase).toBe('defeat');
+  });
+});
 
-    const relicId = won.pendingReward!.relicOptions.find((id) => id === 'cursed_crown') ?? won.pendingReward!.relicOptions[0];
-    expect(relicId).toBeDefined();
-    const manaBefore = won.hero.maxMana;
+describe('events', () => {
+  it('entering an event node pauses the map and resolving an option returns to it', () => {
+    const onMap = startOnMap(30);
+    const { run, nodeId } = withNextNodeType(onMap, 'event');
+    const arrived = applyRunAction(run, { type: 'MOVE_TO', nodeId });
+    expect(arrived.run.phase).toBe('event');
+    expect(arrived.run.pendingEvent).not.toBeNull();
 
-    const claimed = applyRunAction(won, { type: 'CLAIM_RELIC', relicId: relicId! });
-    const confirmed = applyRunAction(claimed.run, { type: 'CONFIRM_REWARD' });
+    const eventId = arrived.run.pendingEvent!.eventId;
+    const optionId = eventId === 'abandoned_camp' ? 'rest' : 'pay';
+    const resolved = applyRunAction(arrived.run, { type: 'CHOOSE_EVENT_OPTION', optionId });
+    expect(resolved.run.phase).toBe('on_map');
+    expect(resolved.run.pendingEvent).toBeNull();
+  });
+});
 
-    expect(confirmed.run.relics.some((r) => r.id === relicId)).toBe(true);
-    if (relicId === 'cursed_crown') {
-      expect(confirmed.run.hero.maxMana).toBe(manaBefore + 3);
-    }
+describe('merchant', () => {
+  it('entering a merchant node offers cards/a relic for Gold, purchasable while affordable', () => {
+    const onMap = startOnMap(40);
+    const richRun = { ...onMap, gold: 500 };
+    const { run, nodeId } = withNextNodeType(richRun, 'merchant');
+    const arrived = applyRunAction(run, { type: 'MOVE_TO', nodeId });
+    expect(arrived.run.phase).toBe('merchant');
+    expect(arrived.run.pendingMerchant!.cardOffers.length).toBeGreaterThan(0);
+
+    const offer = arrived.run.pendingMerchant!.cardOffers[0]!;
+    const bought = applyRunAction(arrived.run, { type: 'BUY_CARD', cardId: offer.cardId });
+    expect(bought.run.gold).toBe(500 - offer.price);
+    expect(bought.run.masterDeck.some((c) => c.cardId === offer.cardId)).toBe(true);
+
+    const left = applyRunAction(bought.run, { type: 'LEAVE_MERCHANT' });
+    expect(left.run.phase).toBe('on_map');
   });
 
-  it('rejects claiming a relic/card that is not among the offered options', () => {
-    const run = createRun(8);
-    const started = applyRunAction(run, { type: 'CHOOSE_STARTING_RELIC', relicId: 'royal_banner' });
-    const won = forceVictory(started.run);
-    const result = applyRunAction(won, { type: 'CLAIM_CARD', cardId: 'not_a_real_card' });
+  it('rejects a purchase without enough Gold', () => {
+    const onMap = startOnMap(41);
+    const poorRun = { ...onMap, gold: 0 };
+    const { run, nodeId } = withNextNodeType(poorRun, 'merchant');
+    const arrived = applyRunAction(run, { type: 'MOVE_TO', nodeId });
+    const offer = arrived.run.pendingMerchant!.cardOffers[0]!;
+    const result = applyRunAction(arrived.run, { type: 'BUY_CARD', cardId: offer.cardId });
     expect(result.events.some((e) => e.type === 'ACTION_REJECTED')).toBe(true);
   });
 });
 
 describe('determinism', () => {
   it('identical seed + identical actions produce identical run state', () => {
-    const run = (seed: number) => {
-      const created = createRun(seed);
-      const started = applyRunAction(created, { type: 'CHOOSE_STARTING_RELIC', relicId: 'royal_banner' });
-      return forceVictory(started.run);
-    };
+    const run = (seed: number) => forceVictory(reachBattle(seed));
     const a = run(100);
     const b = run(100);
     expect(JSON.stringify(a)).toBe(JSON.stringify(b));

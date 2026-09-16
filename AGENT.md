@@ -2125,6 +2125,33 @@ Goal:
 
 Player can complete a small run.
 
+IMPLEMENTED (2026-09-16): engine/run/worldMap.ts + food.ts + encounters.ts +
+events.ts + merchant.ts, wired into runEngine.ts's MOVE_TO action. Scope
+notes/assumptions:
+- Topology: 7 layers (1 start Road, 5 middle layers of 3 nodes each, 1 end
+  node), fully bipartite-connected between adjacent layers so every node
+  is always reachable — no orphan nodes — while the player still picks
+  which node type to walk into next. ~17 nodes today; node count is
+  explicitly PROTOTYPE (§70) and grows once City/Boss nodes (Phase 5/6)
+  replace the current single 'end' placeholder.
+- Fog of war: a node is 'unknown' until one of its incoming edges has been
+  visited, then 'revealed' (type visible, not yet enterable except via its
+  connection), then 'visited'. Matches Heroes3-lite/StS hybrid per §19.
+- Food/Day: every move costs Food (base + army-size bracket, §20) and
+  advances Day by 1. Food hitting 0 triggers Starving (§21: Army HP -5%,
+  Morale -1) rather than ending the run.
+- Resource nodes: a one-time Gold+Food pickup on arrival, not Heroes3-style
+  ongoing daily production (no "day tick" system exists yet — would need
+  its own design pass, deferred rather than half-built).
+- Battle encounters scale with map layer depth and Elite-vs-normal (a
+  PROTOTYPE anti-snowball stand-in for full Threat scaling, §41).
+- Events/Merchant: a representative subset (2 events, a 3-card + 1-relic
+  shop), not the full §38/§40 catalog — same reasoning as Phase 3's relic
+  subset.
+- City and Boss node types do not exist yet; the 'end' node is Phase 4's
+  own terminal milestone ("map cleared"), replaced by real content in
+  Phase 5/6.
+
 Phase 5 — City
 one city
 recruitment

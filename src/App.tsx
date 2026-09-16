@@ -9,6 +9,9 @@ import { SkillTile } from './ui/SkillTile.js';
 import { StartingRelicScreen } from './ui/StartingRelicScreen.js';
 import { RewardScreen } from './ui/RewardScreen.js';
 import { RunEndScreen } from './ui/RunEndScreen.js';
+import { WorldMapScreen } from './ui/WorldMapScreen.js';
+import { EventScreen } from './ui/EventScreen.js';
+import { MerchantScreen } from './ui/MerchantScreen.js';
 import { describeEvent } from './ui/eventText.js';
 
 const STORAGE_KEY = 'aod_run_state_v1';
@@ -196,6 +199,31 @@ export default function App() {
 
   if (run.phase === 'run_complete' || run.phase === 'defeat') {
     return <RunEndScreen run={run} onNewRun={newRun} />;
+  }
+
+  if (run.phase === 'on_map') {
+    return <WorldMapScreen run={run} onMoveTo={(nodeId) => dispatchRun({ type: 'MOVE_TO', nodeId })} onNewRun={newRun} />;
+  }
+
+  if (run.phase === 'event' && run.pendingEvent) {
+    return (
+      <EventScreen
+        eventId={run.pendingEvent.eventId}
+        onChoose={(optionId) => dispatchRun({ type: 'CHOOSE_EVENT_OPTION', optionId })}
+      />
+    );
+  }
+
+  if (run.phase === 'merchant' && run.pendingMerchant) {
+    return (
+      <MerchantScreen
+        gold={run.gold}
+        inventory={run.pendingMerchant}
+        onBuyCard={(cardId) => dispatchRun({ type: 'BUY_CARD', cardId })}
+        onBuyRelic={(relicId) => dispatchRun({ type: 'BUY_RELIC', relicId })}
+        onLeave={() => dispatchRun({ type: 'LEAVE_MERCHANT' })}
+      />
+    );
   }
 
   if (!combat) {

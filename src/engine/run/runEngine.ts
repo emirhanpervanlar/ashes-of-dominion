@@ -1,14 +1,22 @@
-import { buildVerticalSliceEnemyArmy, buildVerticalSlicePlayerArmy } from '../army.js';
+import { buildVerticalSlicePlayerArmy } from '../army.js';
 import { CARD_DEFINITIONS } from '../data/cards.js';
 import { DEFAULT_HERO_SKILL_LOADOUT } from '../data/heroSkills.js';
 import { RELIC_DEFINITIONS, STARTING_RELIC_DEFINITIONS } from '../data/relics.js';
 import { UNIT_DEFINITIONS } from '../data/units.js';
 import { applyPlayerAction, startBattle } from '../combat.js';
-import { createRng } from '../rng.js';
+import { createRng, nextInt, shuffle } from '../rng.js';
 import type { ArmyStack, CardInstance, CombatState, Hero, PlayerAction, RelicDefinition, RelicEffect } from '../types.js';
 import { CARD_UPGRADES } from './cardUpgrades.js';
+import { generateBattleEncounter } from './encounters.js';
+import { EVENT_DEFINITIONS, EVENT_IDS } from './events.js';
+import { applyStarvation, moveFoodCost } from './food.js';
+import { generateMerchantInventory } from './merchant.js';
 import { buildPendingReward } from './rewards.js';
 import type { RunAction, RunApplyResult, RunEvent, RunState } from './types.js';
+import { findNode, generateWorldMap, visitNode } from './worldMap.js';
+
+const STARTING_GOLD = 100;
+const STARTING_FOOD = 50;
 
 function cloneRun(run: RunState): RunState {
   return JSON.parse(JSON.stringify(run)) as RunState;
@@ -33,6 +41,7 @@ function buildStartingDeck(): CardInstance[] {
 }
 
 export function createRun(seed: number): RunState {
+  const rng = createRng(seed);
   const hero: Hero = {
     id: 'commander',
     name: 'Commander',
@@ -48,15 +57,21 @@ export function createRun(seed: number): RunState {
 
   return {
     seed,
-    rng: createRng(seed),
+    rng,
     hero,
     army: buildVerticalSlicePlayerArmy(),
     masterDeck: buildStartingDeck(),
     relics: [],
+    gold: STARTING_GOLD,
+    food: STARTING_FOOD,
+    day: 1,
     battlesWon: 0,
+    worldMap: generateWorldMap(rng),
     phase: 'choosing_starting_relic',
     combat: null,
     pendingReward: null,
+    pendingEvent: null,
+    pendingMerchant: null,
     log: [{ type: 'RUN_STARTED' }],
   };
 }
@@ -113,14 +128,20 @@ function applyRelicStatEffectsOnce(run: RunState, def: RelicDefinition): void {
   }
 }
 
-function startBattleForRun(run: RunState): CombatState {
+function grantRelic(run: RunState, def: RelicDefinition, events: RunEvent[]): void {
+  applyRelicStatEffectsOnce(run, def);
+  run.relics.push(def);
+  events.push({ type: 'RELIC_CLAIMED', relicId: def.id });
+}
+
+function startBattleForRun(run: RunState, encounterArmy: ArmyStack[]): CombatState {
   const relicEffects: RelicEffect[] = run.relics.flatMap((r) => r.effects);
   const { state } = startBattle({
     seed: run.seed,
     rng: run.rng,
     hero: run.hero,
     playerArmy: run.army,
-    enemyArmy: buildVerticalSliceEnemyArmy(),
+    enemyArmy: encounterArmy,
     deck: run.masterDeck,
     activeRelicEffects: relicEffects,
     heroSkillIds: DEFAULT_HERO_SKILL_LOADOUT,
@@ -142,13 +163,77 @@ function chooseStartingRelic(run: RunState, relicId: string, events: RunEvent[])
     reject(events, 'Unknown starting relic.');
     return { run, events };
   }
+  grantRelic(run, def, events);
+  events[events.length - 1] = { type: 'STARTING_RELIC_CHOSEN', relicId }; // replace the generic RELIC_CLAIMED with a more specific event
+  run.phase = 'on_map';
+  return { run, events };
+}
 
-  applyRelicStatEffectsOnce(run, def);
-  run.relics.push(def);
-  events.push({ type: 'STARTING_RELIC_CHOSEN', relicId });
+/** A modest, deterministic one-time pickup — see AGENT.md §35 (ongoing per-day production is future work). */
+function resolveResourceNode(run: RunState, events: RunEvent[]): void {
+  const gold = 20 + nextInt(run.rng, 21); // 20-40
+  const food = 10 + nextInt(run.rng, 11); // 10-20
+  run.gold += gold;
+  run.food += food;
+  events.push({ type: 'RESOURCE_FOUND', gold, food });
+}
 
-  run.phase = 'in_battle';
-  run.combat = startBattleForRun(run);
+function moveTo(run: RunState, nodeId: string, events: RunEvent[]): RunApplyResult {
+  if (run.phase !== 'on_map') {
+    reject(events, 'Cannot move right now.');
+    return { run, events };
+  }
+  const current = findNode(run.worldMap, run.worldMap.currentNodeId);
+  const destination = findNode(run.worldMap, nodeId);
+  if (!current || !destination || !current.connectsTo.includes(nodeId)) {
+    reject(events, 'That node is not reachable from here.');
+    return { run, events };
+  }
+
+  const foodCost = moveFoodCost(run.army);
+  run.food -= foodCost;
+  run.day += 1;
+  events.push({ type: 'MOVED', nodeId, foodCost });
+
+  if (run.food < 0) {
+    run.food = 0;
+    const result = applyStarvation(run.army);
+    run.army = result.army;
+    if (result.unitsLost > 0) events.push({ type: 'STARVING', unitsLost: result.unitsLost });
+  }
+
+  visitNode(run.worldMap, nodeId);
+  events.push({ type: 'ARRIVED_AT_NODE', nodeId, nodeType: destination.type });
+
+  switch (destination.type) {
+    case 'road':
+      break;
+    case 'end':
+      run.phase = 'run_complete';
+      events.push({ type: 'RUN_COMPLETE' });
+      break;
+    case 'battle':
+    case 'elite_battle': {
+      const encounter = generateBattleEncounter(destination.layer, destination.type === 'elite_battle');
+      run.phase = 'in_battle';
+      run.combat = startBattleForRun(run, encounter);
+      break;
+    }
+    case 'resource':
+      resolveResourceNode(run, events);
+      break;
+    case 'merchant':
+      run.pendingMerchant = generateMerchantInventory(run.rng, run.relics);
+      run.phase = 'merchant';
+      break;
+    case 'event': {
+      const eventId = EVENT_IDS[nextInt(run.rng, EVENT_IDS.length)]!;
+      run.pendingEvent = { eventId };
+      run.phase = 'event';
+      break;
+    }
+  }
+
   return { run, events };
 }
 
@@ -203,7 +288,7 @@ function claimCard(run: RunState, cardId: string, events: RunEvent[]): RunApplyR
     return { run, events };
   }
   run.pendingReward.chosenCardId = cardId;
-  run.pendingReward.chosenUpgradeInstanceId = null; // mutually exclusive with an upgrade pick
+  run.pendingReward.chosenUpgradeInstanceId = null;
   return { run, events };
 }
 
@@ -217,7 +302,7 @@ function claimUpgrade(run: RunState, instanceId: string, events: RunEvent[]): Ru
     return { run, events };
   }
   run.pendingReward.chosenUpgradeInstanceId = instanceId;
-  run.pendingReward.chosenCardId = null; // mutually exclusive with a new-card pick
+  run.pendingReward.chosenCardId = null;
   return { run, events };
 }
 
@@ -227,23 +312,16 @@ function confirmReward(run: RunState, events: RunEvent[]): RunApplyResult {
     return { run, events };
   }
   const reward = run.pendingReward;
-  let choseSomething = false;
 
   if (reward.chosenRelicId) {
     const def = RELIC_DEFINITIONS[reward.chosenRelicId];
-    if (def) {
-      applyRelicStatEffectsOnce(run, def);
-      run.relics.push(def);
-      events.push({ type: 'RELIC_CLAIMED', relicId: def.id });
-      choseSomething = true;
-    }
+    if (def) grantRelic(run, def, events);
   }
 
   if (reward.chosenCardId && CARD_DEFINITIONS[reward.chosenCardId]) {
     const instanceId = `${reward.chosenCardId}#reward${run.masterDeck.length}`;
     run.masterDeck.push({ instanceId, cardId: reward.chosenCardId });
     events.push({ type: 'CARD_REWARD_CLAIMED', cardId: reward.chosenCardId });
-    choseSomething = true;
   } else if (reward.chosenUpgradeInstanceId) {
     const idx = run.masterDeck.findIndex((c) => c.instanceId === reward.chosenUpgradeInstanceId);
     if (idx >= 0) {
@@ -252,20 +330,129 @@ function confirmReward(run: RunState, events: RunEvent[]): RunApplyResult {
       if (upgradedId) {
         events.push({ type: 'CARD_UPGRADED', instanceId: card.instanceId, fromCardId: card.cardId, toCardId: upgradedId });
         run.masterDeck[idx] = { ...card, cardId: upgradedId };
-        choseSomething = true;
       }
     }
   }
 
-  if (!choseSomething) {
+  if (!reward.chosenRelicId && !reward.chosenCardId && !reward.chosenUpgradeInstanceId) {
     events.push({ type: 'REWARD_SKIPPED' });
   }
 
   run.pendingReward = null;
-  // Phase 3 MVP has no world map yet — one battle, one reward, run ends
-  // here. Phase 4 replaces this terminal state with real map navigation.
-  run.phase = 'run_complete';
-  events.push({ type: 'RUN_COMPLETE' });
+  run.phase = 'on_map';
+  return { run, events };
+}
+
+function pickUnownedRelicId(run: RunState): string | undefined {
+  const ownedIds = new Set(run.relics.map((r) => r.id));
+  const available = Object.keys(RELIC_DEFINITIONS).filter((id) => !ownedIds.has(id));
+  return shuffle(run.rng, available)[0];
+}
+
+function chooseEventOption(run: RunState, optionId: string, events: RunEvent[]): RunApplyResult {
+  if (run.phase !== 'event' || !run.pendingEvent) {
+    reject(events, 'No event pending.');
+    return { run, events };
+  }
+  const def = EVENT_DEFINITIONS[run.pendingEvent.eventId];
+  const option = def?.options.find((o) => o.id === optionId);
+  if (!def || !option) {
+    reject(events, 'Unknown event option.');
+    return { run, events };
+  }
+
+  let outcome = option.id;
+  switch (option.effect.kind) {
+    case 'GOLD_DELTA':
+      run.gold = Math.max(0, run.gold + option.effect.amount);
+      break;
+    case 'FOOD_DELTA':
+      run.food = Math.max(0, run.food + option.effect.amount);
+      break;
+    case 'HERO_HEAL_PERCENT':
+      run.hero.hp = Math.min(run.hero.maxHp, run.hero.hp + Math.round((run.hero.maxHp * option.effect.percent) / 100));
+      break;
+    case 'RISKY_SEARCH': {
+      const roll = nextInt(run.rng, 100);
+      if (roll < Math.round(option.effect.successChance * 100)) {
+        const relicId = pickUnownedRelicId(run);
+        if (relicId) {
+          grantRelic(run, RELIC_DEFINITIONS[relicId]!, events);
+          outcome = 'search_relic';
+        } else {
+          run.gold += 30; // nothing left to find — modest consolation Gold
+          outcome = 'search_nothing_left';
+        }
+      } else {
+        run.gold = Math.max(0, run.gold - option.effect.trapGoldLoss);
+        outcome = 'search_trap';
+      }
+      break;
+    }
+  }
+
+  events.push({ type: 'EVENT_RESOLVED', eventId: def.id, optionId, outcome });
+  run.pendingEvent = null;
+  run.phase = 'on_map';
+  return { run, events };
+}
+
+function buyCard(run: RunState, cardId: string, events: RunEvent[]): RunApplyResult {
+  if (run.phase !== 'merchant' || !run.pendingMerchant) {
+    reject(events, 'Not at a merchant.');
+    return { run, events };
+  }
+  const offerIdx = run.pendingMerchant.cardOffers.findIndex((o) => o.cardId === cardId);
+  if (offerIdx === -1) {
+    reject(events, 'That card is not for sale here.');
+    return { run, events };
+  }
+  const offer = run.pendingMerchant.cardOffers[offerIdx]!;
+  if (run.gold < offer.price) {
+    reject(events, 'Not enough Gold.');
+    return { run, events };
+  }
+  run.gold -= offer.price;
+  const instanceId = `${cardId}#shop${run.masterDeck.length}`;
+  run.masterDeck.push({ instanceId, cardId });
+  run.pendingMerchant.cardOffers.splice(offerIdx, 1);
+  events.push({ type: 'ITEM_PURCHASED', itemId: cardId, price: offer.price });
+  return { run, events };
+}
+
+function buyRelic(run: RunState, relicId: string, events: RunEvent[]): RunApplyResult {
+  if (run.phase !== 'merchant' || !run.pendingMerchant || !run.pendingMerchant.relicOffer) {
+    reject(events, 'No relic for sale here.');
+    return { run, events };
+  }
+  if (run.pendingMerchant.relicOffer.relicId !== relicId) {
+    reject(events, 'That relic is not for sale here.');
+    return { run, events };
+  }
+  const offer = run.pendingMerchant.relicOffer;
+  if (run.gold < offer.price) {
+    reject(events, 'Not enough Gold.');
+    return { run, events };
+  }
+  const def = RELIC_DEFINITIONS[relicId];
+  if (!def) {
+    reject(events, 'Unknown relic.');
+    return { run, events };
+  }
+  run.gold -= offer.price;
+  grantRelic(run, def, events);
+  run.pendingMerchant.relicOffer = null;
+  events.push({ type: 'ITEM_PURCHASED', itemId: relicId, price: offer.price });
+  return { run, events };
+}
+
+function leaveMerchant(run: RunState, events: RunEvent[]): RunApplyResult {
+  if (run.phase !== 'merchant') {
+    reject(events, 'Not at a merchant.');
+    return { run, events };
+  }
+  run.pendingMerchant = null;
+  run.phase = 'on_map';
   return { run, events };
 }
 
@@ -277,6 +464,9 @@ export function applyRunAction(run: RunState, action: RunAction): RunApplyResult
   switch (action.type) {
     case 'CHOOSE_STARTING_RELIC':
       result = chooseStartingRelic(working, action.relicId, events);
+      break;
+    case 'MOVE_TO':
+      result = moveTo(working, action.nodeId, events);
       break;
     case 'COMBAT_ACTION':
       result = forwardCombatAction(working, action.action, events);
@@ -292,6 +482,18 @@ export function applyRunAction(run: RunState, action: RunAction): RunApplyResult
       break;
     case 'CONFIRM_REWARD':
       result = confirmReward(working, events);
+      break;
+    case 'CHOOSE_EVENT_OPTION':
+      result = chooseEventOption(working, action.optionId, events);
+      break;
+    case 'BUY_CARD':
+      result = buyCard(working, action.cardId, events);
+      break;
+    case 'BUY_RELIC':
+      result = buyRelic(working, action.relicId, events);
+      break;
+    case 'LEAVE_MERCHANT':
+      result = leaveMerchant(working, events);
       break;
   }
 
