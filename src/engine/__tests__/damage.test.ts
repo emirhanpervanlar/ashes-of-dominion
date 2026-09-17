@@ -16,6 +16,7 @@ function stack(overrides: Partial<ArmyStack> = {}): ArmyStack {
     veterancy: 0,
     block: 0,
     statuses: [],
+    actedThisTurn: false,
     ...overrides,
   };
 }

@@ -22,10 +22,8 @@ export function createVerticalSliceScenario(seed: number): ApplyResult {
     maxHp: 100,
     mana: 5,
     maxMana: 8,
-    ac: 3,
-    maxAc: 3,
-    dc: 3,
-    maxDc: 3,
+    energy: 3,
+    maxEnergy: 3,
   };
 
   const deck = buildDeck([

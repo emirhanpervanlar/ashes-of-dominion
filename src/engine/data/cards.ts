@@ -1,8 +1,10 @@
 import type { CardDefinition } from '../types.js';
 
 /**
- * MVP card pool — the 10 cards AGENT.md §73 names as the minimum set for
- * the combat engine vertical slice. Costs use AC/DC/Mana per AGENT.md §15.
+ * v2 card pool (v2_list.md §8/§9/§10) — cards are unit abilities and
+ * Commander commands layered on top of each stack's free basic action, not
+ * the only way units act. All costs use the single Energy resource except
+ * Hero/Mana-flavored utility cards, which stay on Mana.
  *
  * "Charge" requires a friendly stack tagged 'cavalry' (enforced in
  * combat.ts's validateTargeting) — the Cavalier unit (data/units.ts) is
@@ -12,7 +14,7 @@ export const CARD_DEFINITIONS: Record<string, CardDefinition> = {
   command_strike: {
     id: 'command_strike',
     name: 'Command: Strike',
-    cost: { type: 'AC', amount: 1 },
+    cost: { type: 'ENERGY', amount: 1 },
     targeting: 'ally-stack+enemy-stack',
     effects: [{ kind: 'ATTACK', multiplier: 1 }],
     exhaust: false,
@@ -21,7 +23,7 @@ export const CARD_DEFINITIONS: Record<string, CardDefinition> = {
   charge: {
     id: 'charge',
     name: 'Charge',
-    cost: { type: 'AC', amount: 1 },
+    cost: { type: 'ENERGY', amount: 1 },
     targeting: 'ally-stack+enemy-stack',
     effects: [{ kind: 'ATTACK', multiplier: 1.5 }],
     exhaust: false,
@@ -30,7 +32,7 @@ export const CARD_DEFINITIONS: Record<string, CardDefinition> = {
   volley: {
     id: 'volley',
     name: 'Volley',
-    cost: { type: 'AC', amount: 2 },
+    cost: { type: 'ENERGY', amount: 2 },
     targeting: 'enemy-stack',
     effects: [{ kind: 'ATTACK_ALL_WITH_TAG', tag: 'archer', multiplier: 1 }],
     exhaust: false,
@@ -39,7 +41,7 @@ export const CARD_DEFINITIONS: Record<string, CardDefinition> = {
   defend: {
     id: 'defend',
     name: 'Defend',
-    cost: { type: 'DC', amount: 1 },
+    cost: { type: 'ENERGY', amount: 1 },
     targeting: 'ally-stack',
     effects: [{ kind: 'GAIN_BLOCK', amount: 15 }],
     exhaust: false,
@@ -48,7 +50,7 @@ export const CARD_DEFINITIONS: Record<string, CardDefinition> = {
   shield_wall: {
     id: 'shield_wall',
     name: 'Shield Wall',
-    cost: { type: 'DC', amount: 1 },
+    cost: { type: 'ENERGY', amount: 1 },
     targeting: 'none',
     effects: [{ kind: 'GAIN_BLOCK_ALL_FRONT', amount: 25 }],
     exhaust: false,
@@ -57,7 +59,7 @@ export const CARD_DEFINITIONS: Record<string, CardDefinition> = {
   reposition: {
     id: 'reposition',
     name: 'Reposition',
-    cost: { type: 'DC', amount: 1 },
+    cost: { type: 'ENERGY', amount: 1 },
     targeting: 'ally-stack+position',
     effects: [{ kind: 'MOVE_STACK' }],
     exhaust: false,
@@ -66,7 +68,7 @@ export const CARD_DEFINITIONS: Record<string, CardDefinition> = {
   rally: {
     id: 'rally',
     name: 'Rally',
-    cost: { type: 'DC', amount: 1 },
+    cost: { type: 'ENERGY', amount: 1 },
     targeting: 'ally-stack',
     effects: [{ kind: 'GAIN_MORALE', amount: 2 }],
     exhaust: false,
@@ -75,7 +77,7 @@ export const CARD_DEFINITIONS: Record<string, CardDefinition> = {
   arcane_focus: {
     id: 'arcane_focus',
     name: 'Arcane Focus',
-    cost: { type: 'DC', amount: 1 },
+    cost: { type: 'ENERGY', amount: 1 },
     targeting: 'none',
     effects: [{ kind: 'GAIN_MANA', amount: 2 }],
     exhaust: false,
@@ -84,7 +86,7 @@ export const CARD_DEFINITIONS: Record<string, CardDefinition> = {
   battle_meditation: {
     id: 'battle_meditation',
     name: 'Battle Meditation',
-    cost: { type: 'DC', amount: 1 },
+    cost: { type: 'ENERGY', amount: 1 },
     targeting: 'none',
     effects: [{ kind: 'GAIN_MANA_AND_DRAW', mana: 1, draw: 1 }],
     exhaust: false,
@@ -106,7 +108,7 @@ export const CARD_DEFINITIONS: Record<string, CardDefinition> = {
   command_strike_plus: {
     id: 'command_strike_plus',
     name: 'Command: Strike+',
-    cost: { type: 'AC', amount: 1 },
+    cost: { type: 'ENERGY', amount: 1 },
     targeting: 'ally-stack+enemy-stack',
     effects: [{ kind: 'ATTACK', multiplier: 1.25 }],
     exhaust: false,
@@ -115,7 +117,7 @@ export const CARD_DEFINITIONS: Record<string, CardDefinition> = {
   defend_plus: {
     id: 'defend_plus',
     name: 'Defend+',
-    cost: { type: 'DC', amount: 1 },
+    cost: { type: 'ENERGY', amount: 1 },
     targeting: 'ally-stack',
     effects: [{ kind: 'GAIN_BLOCK', amount: 25 }],
     exhaust: false,
@@ -124,7 +126,7 @@ export const CARD_DEFINITIONS: Record<string, CardDefinition> = {
   shield_wall_plus: {
     id: 'shield_wall_plus',
     name: 'Shield Wall+',
-    cost: { type: 'DC', amount: 1 },
+    cost: { type: 'ENERGY', amount: 1 },
     targeting: 'none',
     effects: [{ kind: 'GAIN_BLOCK_ALL_FRONT', amount: 35 }],
     exhaust: false,
@@ -133,7 +135,7 @@ export const CARD_DEFINITIONS: Record<string, CardDefinition> = {
   volley_plus: {
     id: 'volley_plus',
     name: 'Volley+',
-    cost: { type: 'AC', amount: 2 },
+    cost: { type: 'ENERGY', amount: 2 },
     targeting: 'enemy-stack',
     effects: [{ kind: 'ATTACK_ALL_WITH_TAG', tag: 'archer', multiplier: 1.2 }],
     exhaust: false,
@@ -146,7 +148,7 @@ export const CARD_DEFINITIONS: Record<string, CardDefinition> = {
   commanders_presence: {
     id: 'commanders_presence',
     name: "Commander's Presence",
-    cost: { type: 'DC', amount: 2 },
+    cost: { type: 'ENERGY', amount: 2 },
     targeting: 'none',
     effects: [{ kind: 'GAIN_MORALE_ALL', amount: 1 }],
     exhaust: false,
@@ -155,7 +157,7 @@ export const CARD_DEFINITIONS: Record<string, CardDefinition> = {
   execute: {
     id: 'execute',
     name: 'Execute',
-    cost: { type: 'AC', amount: 2 },
+    cost: { type: 'ENERGY', amount: 2 },
     targeting: 'ally-stack+enemy-stack',
     effects: [{ kind: 'ATTACK', multiplier: 1, conditionalBonus: { targetHpBelowPercent: 30, multiplier: 1.5 } }],
     exhaust: false,
@@ -164,7 +166,7 @@ export const CARD_DEFINITIONS: Record<string, CardDefinition> = {
   focus_fire: {
     id: 'focus_fire',
     name: 'Focus Fire',
-    cost: { type: 'AC', amount: 1 },
+    cost: { type: 'ENERGY', amount: 1 },
     targeting: 'enemy-stack',
     effects: [{ kind: 'APPLY_VULNERABLE', amount: 25, duration: 1 }],
     exhaust: false,
@@ -173,7 +175,7 @@ export const CARD_DEFINITIONS: Record<string, CardDefinition> = {
   veterans_resolve: {
     id: 'veterans_resolve',
     name: "Veteran's Resolve",
-    cost: { type: 'AC', amount: 2 },
+    cost: { type: 'ENERGY', amount: 2 },
     targeting: 'ally-stack+enemy-stack',
     effects: [{ kind: 'ATTACK', multiplier: 1.3 }],
     exhaust: false,
@@ -182,7 +184,7 @@ export const CARD_DEFINITIONS: Record<string, CardDefinition> = {
   guard_stance: {
     id: 'guard_stance',
     name: 'Guard Stance',
-    cost: { type: 'DC', amount: 1 },
+    cost: { type: 'ENERGY', amount: 1 },
     targeting: 'ally-stack',
     effects: [
       { kind: 'GAIN_TAUNT', duration: 2 },
@@ -194,7 +196,7 @@ export const CARD_DEFINITIONS: Record<string, CardDefinition> = {
   raise_dead: {
     id: 'raise_dead',
     name: 'Raise Dead',
-    cost: { type: 'DC', amount: 1 },
+    cost: { type: 'ENERGY', amount: 1 },
     targeting: 'ally-stack',
     effects: [{ kind: 'SACRIFICE_FOR_SKELETONS', sacrificePercent: 20, skeletonsPerSacrificed: 1 }],
     exhaust: false,

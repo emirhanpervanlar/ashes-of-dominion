@@ -1,11 +1,8 @@
 import { UNIT_DEFINITIONS } from './data/units.js';
 import { bossScalingAttackBonus, computeRawDamage } from './damage.js';
+import { computeValidTargets, isFrontPosition } from './targeting.js';
 import { nextInt } from './rng.js';
 import type { ArmyStack, CombatState, EnemyIntent } from './types.js';
-
-function isFront(stack: ArmyStack): boolean {
-  return stack.position <= 3;
-}
 
 function alive(stacks: ArmyStack[]): ArmyStack[] {
   return stacks.filter((s) => s.count > 0);
@@ -13,7 +10,9 @@ function alive(stacks: ArmyStack[]): ArmyStack[] {
 
 /**
  * Visible enemy intents, generated before the player's turn (AGENT.md §8).
- * Deterministic: draws only from state.rng.
+ * v2_list.md §5/§14 — the target pool is now the same lane-geometry the
+ * player uses, with `targetPreference` narrowing that pool rather than
+ * picking from the whole row. Deterministic: draws only from state.rng.
  */
 export function generateEnemyIntents(state: CombatState): EnemyIntent[] {
   const intents: EnemyIntent[] = [];
@@ -41,10 +40,19 @@ export function generateEnemyIntents(state: CombatState): EnemyIntent[] {
     }
 
     if (livePlayer.length === 0) continue;
-    // Guard Stance's Taunt (AGENT.md §48 Immortal Knights) overrides normal row targeting.
+
+    // Guard Stance's Taunt (AGENT.md §48 Immortal Knights) overrides normal targeting
+    // entirely, including the lane geometry — that's the point of drawing aggro.
     const taunting = livePlayer.filter((s) => s.statuses.some((st) => st.type === 'taunt'));
-    const rowPool = livePlayer.filter((s) => (pref === 'backline' ? !isFront(s) : isFront(s)));
-    const pool = taunting.length > 0 ? taunting : rowPool.length > 0 ? rowPool : livePlayer;
+    let pool: ArmyStack[];
+    if (taunting.length > 0) {
+      pool = taunting;
+    } else {
+      const validTargets = computeValidTargets(stack, livePlayer, def);
+      if (validTargets.length === 0) continue;
+      const rowPool = validTargets.filter((s) => (pref === 'backline' ? !isFrontPosition(s.position) : isFrontPosition(s.position)));
+      pool = rowPool.length > 0 ? rowPool : validTargets;
+    }
     const target = pool[nextInt(state.rng, pool.length)]!;
     const bossFlat = bossScalingAttackBonus(def, state.playerArmy);
     const estimatedDamage = computeRawDamage(stack, def.attack + bossFlat, UNIT_DEFINITIONS[target.unitId].defense, 1);

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { CARD_DEFINITIONS, HERO_SKILL_DEFINITIONS } from './engine/index.js';
+import { CARD_DEFINITIONS, HERO_SKILL_DEFINITIONS, UNIT_DEFINITIONS, computeValidHealTargets, computeValidTargets } from './engine/index.js';
 import type { ArmyStack, CardEffect, CardTargeting, EnemyIntent, PlayerAction, Position } from './engine/index.js';
 import { applyRunAction, createRun } from './engine/run/index.js';
 import type { RunEvent, RunState } from './engine/run/index.js';
@@ -29,11 +29,13 @@ const STORAGE_KEY = 'aod_run_state_v1';
 
 type AppStage = 'title' | 'setup' | 'game';
 
+type PendingTargeting = CardTargeting | 'basic-attack' | 'basic-heal';
+
 interface PendingAction {
-  kind: 'card' | 'skill';
+  kind: 'card' | 'skill' | 'basic';
   id: string;
   name: string;
-  targeting: CardTargeting;
+  targeting: PendingTargeting;
   actingStackId?: string;
   targetStackId?: string;
 }
@@ -213,7 +215,7 @@ export default function App() {
     if (!combat) return false;
     const cost = kind === 'card' ? CARD_DEFINITIONS[id]?.cost : HERO_SKILL_DEFINITIONS[id]?.cost;
     if (!cost) return false;
-    const have = cost.type === 'AC' ? combat.hero.ac : cost.type === 'DC' ? combat.hero.dc : combat.hero.mana;
+    const have = cost.type === 'ENERGY' ? combat.hero.energy : combat.hero.mana;
     return have >= cost.amount;
   }
 
@@ -250,32 +252,46 @@ export default function App() {
     function dispatchNow() {
       if (current.kind === 'card') {
         dispatchCombat({ type: 'PLAY_CARD', instanceId: current.id, ...extra });
-      } else {
+      } else if (current.kind === 'skill') {
         dispatchCombat({ type: 'USE_SKILL', skillId: current.id, ...extra });
+      } else {
+        dispatchCombat({ type: 'BASIC_ACTION', stackId: current.id, targetStackId: extra.targetStackId });
       }
     }
 
-    const cardId = current.kind === 'card' ? combat.hand.find((c) => c.instanceId === current.id)?.cardId : undefined;
-    const def = current.kind === 'card' ? (cardId ? CARD_DEFINITIONS[cardId] : undefined) : HERO_SKILL_DEFINITIONS[current.id];
-    const effects = def?.effects ?? [];
-
     const fx: PlayerActionFx = {};
-    if (effects.some((e) => e.kind === 'ATTACK' || e.kind === 'ATTACK_ALL_WITH_TAG')) {
-      if (extra.actingStackId) fx.attackFrom = extra.actingStackId;
-      if (extra.targetStackId) fx.attackTo = extra.targetStackId;
-    }
-    if (effects.some((e) => e.kind === 'GAIN_BLOCK_ALL_FRONT')) {
-      fx.blockStacks = combat.playerArmy.filter((s) => s.count > 0 && (s.position === 1 || s.position === 2 || s.position === 3)).map((s) => s.stackId);
-    } else if (effects.some((e) => e.kind === 'GAIN_BLOCK') && extra.actingStackId) {
-      fx.blockStacks = [extra.actingStackId];
-    }
-    if (effects.some((e) => e.kind === 'GAIN_MORALE_ALL')) {
-      fx.buffStacks = combat.playerArmy.filter((s) => s.count > 0).map((s) => s.stackId);
-    } else if (effects.some((e) => BUFF_EFFECT_KINDS.has(e.kind)) && extra.actingStackId) {
-      fx.buffStacks = [extra.actingStackId];
-    }
-    if (effects.some((e) => e.kind === 'APPLY_VULNERABLE') && extra.targetStackId) {
-      fx.debuffStacks = [extra.targetStackId];
+
+    if (current.kind === 'basic') {
+      const actorStack = combat.playerArmy.find((s) => s.stackId === current.id);
+      const basicKind = actorStack ? UNIT_DEFINITIONS[actorStack.unitId].basicAction ?? 'attack' : 'attack';
+      if (basicKind === 'heal') {
+        if (extra.targetStackId) fx.buffStacks = [extra.targetStackId];
+      } else {
+        if (extra.actingStackId) fx.attackFrom = extra.actingStackId;
+        if (extra.targetStackId) fx.attackTo = extra.targetStackId;
+      }
+    } else {
+      const cardId = current.kind === 'card' ? combat.hand.find((c) => c.instanceId === current.id)?.cardId : undefined;
+      const def = current.kind === 'card' ? (cardId ? CARD_DEFINITIONS[cardId] : undefined) : HERO_SKILL_DEFINITIONS[current.id];
+      const effects = def?.effects ?? [];
+
+      if (effects.some((e) => e.kind === 'ATTACK' || e.kind === 'ATTACK_ALL_WITH_TAG')) {
+        if (extra.actingStackId) fx.attackFrom = extra.actingStackId;
+        if (extra.targetStackId) fx.attackTo = extra.targetStackId;
+      }
+      if (effects.some((e) => e.kind === 'GAIN_BLOCK_ALL_FRONT')) {
+        fx.blockStacks = combat.playerArmy.filter((s) => s.count > 0 && (s.position === 1 || s.position === 2 || s.position === 3)).map((s) => s.stackId);
+      } else if (effects.some((e) => e.kind === 'GAIN_BLOCK') && extra.actingStackId) {
+        fx.blockStacks = [extra.actingStackId];
+      }
+      if (effects.some((e) => e.kind === 'GAIN_MORALE_ALL')) {
+        fx.buffStacks = combat.playerArmy.filter((s) => s.count > 0).map((s) => s.stackId);
+      } else if (effects.some((e) => BUFF_EFFECT_KINDS.has(e.kind)) && extra.actingStackId) {
+        fx.buffStacks = [extra.actingStackId];
+      }
+      if (effects.some((e) => e.kind === 'APPLY_VULNERABLE') && extra.targetStackId) {
+        fx.debuffStacks = [extra.targetStackId];
+      }
     }
 
     const hasFx = fx.attackFrom || fx.attackTo || fx.blockStacks?.length || fx.buffStacks?.length || fx.debuffStacks?.length;
@@ -308,6 +324,14 @@ export default function App() {
     const alive = !!stack && stack.count > 0;
     const { targeting } = pending;
 
+    if (targeting === 'basic-attack' && side === 'enemy' && alive) {
+      finalize({ actingStackId: pending.actingStackId, targetStackId: stack!.stackId });
+      return;
+    }
+    if (targeting === 'basic-heal' && side === 'player' && alive) {
+      finalize({ actingStackId: pending.actingStackId, targetStackId: stack!.stackId });
+      return;
+    }
     if (targeting === 'ally-stack' && side === 'player' && alive) {
       finalize({ actingStackId: stack!.stackId });
       return;
@@ -341,13 +365,67 @@ export default function App() {
     }
   }
 
+  /**
+   * v2_list.md §4.2 — clicking one of your own not-yet-acted stacks (with nothing else
+   * pending) starts its free basic action instead of requiring a card. Clicking the same
+   * acting stack again cancels, same as re-clicking a pending card.
+   */
+  function onArmyStackClick(stack: ArmyStack | undefined, position: Position, side: 'player' | 'enemy') {
+    if (pending?.kind === 'basic' && side === 'player' && stack?.stackId === pending.actingStackId) {
+      setPending(null);
+      return;
+    }
+    if (pending) {
+      handleStackClick(stack, position, side);
+      return;
+    }
+    if (side === 'player' && stack && stack.count > 0 && !stack.actedThisTurn && canAct) {
+      const def = UNIT_DEFINITIONS[stack.unitId];
+      const kind = def.basicAction ?? 'attack';
+      setPending({
+        kind: 'basic',
+        id: stack.stackId,
+        name: def.name,
+        targeting: kind === 'heal' ? 'basic-heal' : 'basic-attack',
+        actingStackId: stack.stackId,
+      });
+    }
+  }
+
   function isSelectable(stack: ArmyStack | undefined, side: 'player' | 'enemy'): boolean {
-    if (!pending) return false;
+    if (!pending) {
+      // Nothing pending — only the player's own alive, not-yet-acted stacks are
+      // clickable, to start their free basic action.
+      if (side !== 'player' || !stack || stack.count === 0) return false;
+      return !stack.actedThisTurn && canAct;
+    }
     const alive = !!stack && stack.count > 0;
     const t = pending.targeting;
+    if (t === 'basic-attack') {
+      if (side !== 'enemy' || !alive || !combat) return false;
+      const actor = combat.playerArmy.find((s) => s.stackId === pending.actingStackId);
+      if (!actor) return false;
+      const validTargets = computeValidTargets(actor, combat.enemyArmy, UNIT_DEFINITIONS[actor.unitId]);
+      return validTargets.some((v) => v.stackId === stack!.stackId);
+    }
+    if (t === 'basic-heal') {
+      if (side !== 'player' || !alive || !combat) return false;
+      return computeValidHealTargets(combat.playerArmy).some((v) => v.stackId === stack!.stackId);
+    }
     if (t === 'ally-stack') return side === 'player' && alive;
     if (t === 'enemy-stack') return side === 'enemy' && alive;
-    if (t === 'ally-stack+enemy-stack') return (side === 'player' && alive) || (side === 'enemy' && alive);
+    if (t === 'ally-stack+enemy-stack') {
+      if (side === 'player' && alive) return true;
+      if (side === 'enemy' && alive) {
+        // Once an acting stack is chosen, only its lane-geometry-valid enemies stay selectable.
+        if (!pending.actingStackId || !combat) return true;
+        const actor = combat.playerArmy.find((s) => s.stackId === pending.actingStackId);
+        if (!actor) return true;
+        const validTargets = computeValidTargets(actor, combat.enemyArmy, UNIT_DEFINITIONS[actor.unitId]);
+        return validTargets.some((v) => v.stackId === stack!.stackId);
+      }
+      return false;
+    }
     if (t === 'ally-stack+position') {
       if (side !== 'player') return false;
       return !pending.actingStackId ? alive : true;
@@ -685,7 +763,7 @@ export default function App() {
                   fx={stackFx(s?.stackId)}
                   threatened={isThreatened(s)}
                   previewDamage={previewDamageFor(s, 'player')}
-                  onClick={() => handleStackClick(s, p, 'player')}
+                  onClick={() => onArmyStackClick(s, p, 'player')}
                   onHoverStart={() => s && setHoveredStackId(s.stackId)}
                   onHoverEnd={() => setHoveredStackId(null)}
                 />
@@ -708,7 +786,7 @@ export default function App() {
                   fx={stackFx(s?.stackId)}
                   threatened={isThreatened(s)}
                   previewDamage={previewDamageFor(s, 'player')}
-                  onClick={() => handleStackClick(s, p, 'player')}
+                  onClick={() => onArmyStackClick(s, p, 'player')}
                   onHoverStart={() => s && setHoveredStackId(s.stackId)}
                   onHoverEnd={() => setHoveredStackId(null)}
                 />
@@ -734,7 +812,7 @@ export default function App() {
                   dimmed={isDimmed(s, 'enemy')}
                   fx={stackFx(s?.stackId)}
                   previewDamage={previewDamageFor(s, 'enemy')}
-                  onClick={() => handleStackClick(s, p, 'enemy')}
+                  onClick={() => onArmyStackClick(s, p, 'enemy')}
                   onHoverStart={() => s && setHoveredStackId(s.stackId)}
                   onHoverEnd={() => setHoveredStackId(null)}
                 />
@@ -757,7 +835,7 @@ export default function App() {
                   dimmed={isDimmed(s, 'enemy')}
                   fx={stackFx(s?.stackId)}
                   previewDamage={previewDamageFor(s, 'enemy')}
-                  onClick={() => handleStackClick(s, p, 'enemy')}
+                  onClick={() => onArmyStackClick(s, p, 'enemy')}
                   onHoverStart={() => s && setHoveredStackId(s.stackId)}
                   onHoverEnd={() => setHoveredStackId(null)}
                 />
@@ -802,17 +880,11 @@ export default function App() {
       </div>
 
       <div className="orb-row">
-        <div className="resource-orb ac" title="Attack Command">
+        <div className="resource-orb energy" title="Energy — spent on cards">
           <span className="orb-value">
-            {combat.hero.ac}/{combat.hero.maxAc}
+            {combat.hero.energy}/{combat.hero.maxEnergy}
           </span>
-          <span className="orb-name">AC</span>
-        </div>
-        <div className="resource-orb dc" title="Defense Command">
-          <span className="orb-value">
-            {combat.hero.dc}/{combat.hero.maxDc}
-          </span>
-          <span className="orb-name">DC</span>
+          <span className="orb-name">Energy</span>
         </div>
       </div>
 

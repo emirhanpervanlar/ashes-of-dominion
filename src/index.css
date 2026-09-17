@@ -670,6 +670,26 @@ button.primary {
   border-color: #ffffff;
 }
 
+.unit-octagon.acted {
+  opacity: 0.55;
+  filter: grayscale(0.5);
+}
+
+.unit-acted-badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--panel);
+  border: 2px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+}
+
 /* ============ Unit shapes by role ============ */
 
 .unit-octagon.shape-octagon {
@@ -1769,12 +1789,8 @@ button.primary {
   pointer-events: none;
 }
 
-.action-card.cost-ac {
+.action-card.cost-energy {
   --card-color: #d9534f;
-}
-
-.action-card.cost-dc {
-  --card-color: #4a90d9;
 }
 
 .action-card.cost-mana {
@@ -1879,7 +1895,7 @@ button.primary {
   flex-shrink: 0;
 }
 
-/* ============ Resource orbs (AC/DC) ============ */
+/* ============ Resource orb (Energy) ============ */
 
 .resource-orb {
   width: 58px;
@@ -1906,18 +1922,11 @@ button.primary {
   opacity: 0.8;
 }
 
-.resource-orb.ac {
+.resource-orb.energy {
   border-color: #d9534f;
   --orb-hi: #4a2622;
   --orb-lo: #201212;
   color: #f0a09a;
-}
-
-.resource-orb.dc {
-  border-color: #4a90d9;
-  --orb-hi: #223347;
-  --orb-lo: #121a22;
-  color: #9ac6f0;
 }
 
 .orb-row {

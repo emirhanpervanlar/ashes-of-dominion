@@ -77,10 +77,13 @@ export function StackTile({
     previewHpLossPct = stack.maxHp > 0 ? Math.min(100, ((stack.currentHp - resolution.stack.currentHp) / stack.maxHp) * 100) : 0;
   }
 
+  const acted = side === 'player' && stack.actedThisTurn;
+
   const classes = ['unit-octagon', side, `shape-${UNIT_SHAPES[stack.unitId]}`];
   if (selectable) classes.push('selectable');
   if (selected) classes.push('selected');
   if (threatened) classes.push('threatened');
+  if (acted) classes.push('acted');
   if (fx?.acting) classes.push('fx-acting');
   if (fx?.hit) classes.push('fx-hit');
   if (fx?.block) classes.push('fx-block');
@@ -106,6 +109,7 @@ export function StackTile({
         <span className="unit-icon">{UNIT_ICONS[stack.unitId]}</span>
         <span className="unit-role-badge">{UNIT_ROLE_ICONS[stack.unitId]}</span>
         {selected && <span className="unit-selected-badge">✓</span>}
+        {acted && !selected && <span className="unit-acted-badge" title="Already acted this turn">💤</span>}
       </div>
       <div className="unit-label">
         <div className="bar">

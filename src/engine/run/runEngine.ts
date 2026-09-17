@@ -60,10 +60,8 @@ export function createRun(seed: number, heroName?: string): RunState {
     maxHp: 100,
     mana: 5,
     maxMana: 8,
-    ac: 3,
-    maxAc: 3,
-    dc: 3,
-    maxDc: 3,
+    energy: 3,
+    maxEnergy: 3,
   };
 
   return {
@@ -121,13 +119,9 @@ function applyRelicStatEffectsOnce(run: RunState, def: RelicDefinition): void {
         run.hero.maxMana += effect.amount;
         run.hero.mana += effect.amount;
         break;
-      case 'HERO_MAX_AC':
-        run.hero.maxAc += effect.amount;
-        run.hero.ac += effect.amount;
-        break;
-      case 'HERO_MAX_DC':
-        run.hero.maxDc += effect.amount;
-        run.hero.dc += effect.amount;
+      case 'HERO_MAX_ENERGY':
+        run.hero.maxEnergy += effect.amount;
+        run.hero.energy += effect.amount;
         break;
       case 'ARMY_SIZE_MULT':
         run.army = run.army.map((s) => rescaleStack(s, effect.multiplier));
@@ -604,10 +598,8 @@ function buildBuilding(run: RunState, buildingId: string, events: RunEvent[]): R
 
   if (buildingId === 'gold_mine') run.gold += 100;
   if (buildingId === 'training_hall') {
-    run.hero.maxAc += 1;
-    run.hero.ac += 1;
-    run.hero.maxDc += 1;
-    run.hero.dc += 1;
+    run.hero.maxEnergy += 2;
+    run.hero.energy += 2;
   }
   if (buildingId === 'forge') {
     run.hero.maxMana += 2;

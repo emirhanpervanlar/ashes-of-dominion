@@ -21,8 +21,7 @@ describe('vertical slice scenario setup', () => {
   it('starts with the exact armies from AGENT.md §73', () => {
     const { state } = createVerticalSliceScenario(1);
     expect(state.hero.hp).toBe(100);
-    expect(state.hero.ac).toBe(3);
-    expect(state.hero.dc).toBe(3);
+    expect(state.hero.energy).toBe(3);
     expect(state.hero.mana).toBe(5);
     expect(state.playerArmy.map((s) => s.count)).toEqual([18, 80, 8, 30, 10, 15]);
     expect(state.enemyArmy.map((s) => s.count)).toEqual([42, 30, 20, 12, 45, 45]);
@@ -32,7 +31,7 @@ describe('vertical slice scenario setup', () => {
   });
 });
 
-describe('resource economy (AC/DC)', () => {
+describe('resource economy (Energy)', () => {
   it('rejects a card when its command pool is insufficient, without spending anything', () => {
     let { state } = createVerticalSliceScenario(2);
     state = withHand(state, ['command_strike', 'command_strike', 'volley']);
@@ -43,7 +42,7 @@ describe('resource economy (AC/DC)', () => {
       actingStackId: 'player_swordsman_2',
       targetStackId: 'enemy_orc_1',
     });
-    expect(strikeResult.state.hero.ac).toBe(2);
+    expect(strikeResult.state.hero.energy).toBe(2);
 
     const secondStrikeResult = applyPlayerAction(strikeResult.state, {
       type: 'PLAY_CARD',
@@ -51,16 +50,16 @@ describe('resource economy (AC/DC)', () => {
       actingStackId: 'player_knight_1',
       targetStackId: 'enemy_orc_1',
     });
-    expect(secondStrikeResult.state.hero.ac).toBe(1);
+    expect(secondStrikeResult.state.hero.energy).toBe(1);
 
-    // Volley costs 2 AC but only 1 remains.
+    // Volley costs 2 Energy but only 1 remains.
     const volleyResult = applyPlayerAction(secondStrikeResult.state, {
       type: 'PLAY_CARD',
       instanceId: handCard(secondStrikeResult.state, 'volley').instanceId,
       targetStackId: 'enemy_orc_1',
     });
     expect(volleyResult.events.some((e) => e.type === 'ACTION_REJECTED')).toBe(true);
-    expect(volleyResult.state.hero.ac).toBe(1); // unchanged, rejected plays cost nothing
+    expect(volleyResult.state.hero.energy).toBe(1); // unchanged, rejected plays cost nothing
     expect(volleyResult.state.hand.some((c) => c.cardId === 'volley')).toBe(true); // card stays in hand
   });
 
@@ -68,6 +67,76 @@ describe('resource economy (AC/DC)', () => {
     const { state } = createVerticalSliceScenario(3);
     const endResult = applyPlayerAction(state, { type: 'END_TURN' });
     expect(endResult.events.some((e) => e.type === 'STACK_ATTACKED' && e.attackerStackId === 'player_swordsman_2')).toBe(false);
+  });
+});
+
+describe('v2 basic action (v2_list.md §4.2/§7) — free, card-less normal attack', () => {
+  it('a free basic attack deals damage without spending Energy, and marks the stack as having acted', () => {
+    const { state } = createVerticalSliceScenario(30);
+    const result = applyPlayerAction(state, {
+      type: 'BASIC_ACTION',
+      stackId: 'player_knight_1',
+      targetStackId: 'enemy_orc_1',
+    });
+    expect(result.events.some((e) => e.type === 'STACK_ATTACKED')).toBe(true);
+    expect(result.state.hero.energy).toBe(3); // unchanged — basic actions are free
+    const knight = result.state.playerArmy.find((s) => s.stackId === 'player_knight_1')!;
+    expect(knight.actedThisTurn).toBe(true);
+  });
+
+  it('rejects a second basic action from the same stack in the same turn', () => {
+    const { state } = createVerticalSliceScenario(31);
+    const first = applyPlayerAction(state, {
+      type: 'BASIC_ACTION',
+      stackId: 'player_knight_1',
+      targetStackId: 'enemy_orc_1',
+    });
+    const second = applyPlayerAction(first.state, {
+      type: 'BASIC_ACTION',
+      stackId: 'player_knight_1',
+      targetStackId: 'enemy_orc_2',
+    });
+    expect(second.events.some((e) => e.type === 'ACTION_REJECTED')).toBe(true);
+  });
+
+  it('rejects a basic attack against a target outside the lane geometry', () => {
+    const { state } = createVerticalSliceScenario(32);
+    // player_knight_1 is front-left (lane left → enemy left+center only); enemy_wolf_3 is front-right.
+    const result = applyPlayerAction(state, {
+      type: 'BASIC_ACTION',
+      stackId: 'player_knight_1',
+      targetStackId: 'enemy_wolf_3',
+    });
+    expect(result.events.some((e) => e.type === 'ACTION_REJECTED')).toBe(true);
+  });
+
+  it("Priest's basic action heals a friendly stack instead of attacking", () => {
+    const { state: baseState } = createVerticalSliceScenario(33);
+    const damaged: CombatState = {
+      ...baseState,
+      playerArmy: baseState.playerArmy.map((s) => (s.stackId === 'player_swordsman_2' ? { ...s, currentHp: s.maxHp - 50 } : s)),
+    };
+    const result = applyPlayerAction(damaged, {
+      type: 'BASIC_ACTION',
+      stackId: 'player_priest_6',
+      targetStackId: 'player_swordsman_2',
+    });
+    expect(result.events.some((e) => e.type === 'STACK_HEALED')).toBe(true);
+    const swordsman = result.state.playerArmy.find((s) => s.stackId === 'player_swordsman_2')!;
+    const before = damaged.playerArmy.find((s) => s.stackId === 'player_swordsman_2')!;
+    expect(swordsman.currentHp).toBeGreaterThan(before.currentHp);
+  });
+
+  it('actedThisTurn resets for every player stack at the start of the next player turn', () => {
+    const { state } = createVerticalSliceScenario(34);
+    const acted = applyPlayerAction(state, {
+      type: 'BASIC_ACTION',
+      stackId: 'player_knight_1',
+      targetStackId: 'enemy_orc_1',
+    });
+    const afterEndTurn = applyPlayerAction(acted.state, { type: 'END_TURN' });
+    const knight = afterEndTurn.state.playerArmy.find((s) => s.stackId === 'player_knight_1')!;
+    expect(knight.actedThisTurn).toBe(false);
   });
 });
 
@@ -87,7 +156,7 @@ describe('attack cards and casualties', () => {
     const orcAfter = result.state.enemyArmy.find((s) => s.stackId === 'enemy_orc_1')!;
     expect(orcAfter.currentHp).toBeLessThan(orcBefore.currentHp);
     expect(result.events.some((e) => e.type === 'STACK_ATTACKED')).toBe(true);
-    expect(result.state.hero.ac).toBe(2);
+    expect(result.state.hero.energy).toBe(2);
   });
 
   it('Volley makes every friendly Archer stack attack the same target', () => {
@@ -102,7 +171,7 @@ describe('attack cards and casualties', () => {
 
     const attackEvents = result.events.filter((e) => e.type === 'STACK_ATTACKED');
     expect(attackEvents).toHaveLength(1); // one Archer-tagged stack in the scenario (Mage is not tagged 'archer')
-    expect(result.state.hero.ac).toBe(1);
+    expect(result.state.hero.energy).toBe(1);
   });
 
   it('Charge is rejected for a non-cavalry stack', () => {
@@ -169,7 +238,7 @@ describe('defense cards', () => {
     for (const stack of front) {
       expect(stack.block).toBe(25);
     }
-    expect(result.state.hero.dc).toBe(2);
+    expect(result.state.hero.energy).toBe(2);
   });
 });
 
@@ -189,7 +258,7 @@ describe('hero-only utility cards', () => {
     expect(result.state.hand).toHaveLength(2); // insight consumed, 2 drawn
   });
 
-  it('Arcane Focus converts DC into Mana', () => {
+  it('Arcane Focus converts Energy into Mana', () => {
     let { state } = createVerticalSliceScenario(8);
     state = withHand(state, ['arcane_focus']);
     const result = applyPlayerAction(state, {
@@ -197,7 +266,7 @@ describe('hero-only utility cards', () => {
       instanceId: handCard(state, 'arcane_focus').instanceId,
     });
     expect(result.state.hero.mana).toBe(7); // 5 starting + 2 from Arcane Focus
-    expect(result.state.hero.dc).toBe(2);
+    expect(result.state.hero.energy).toBe(2);
   });
 });
 
@@ -208,8 +277,7 @@ describe('turn loop', () => {
 
     expect(result.state.turnNumber).toBe(2);
     expect(result.state.phase).toBe('player');
-    expect(result.state.hero.ac).toBe(3);
-    expect(result.state.hero.dc).toBe(3);
+    expect(result.state.hero.energy).toBe(3);
     expect(result.state.hand).toHaveLength(5);
     expect(result.events.some((e) => e.type === 'ENEMY_TURN_RESOLVED')).toBe(true);
     expect(result.events.some((e) => e.type === 'INTENTS_GENERATED')).toBe(true);
@@ -334,8 +402,7 @@ describe('long-run stability', () => {
       state = result.state;
 
       expect(state.hand.length).toBeLessThanOrEqual(10);
-      expect(state.hero.ac).toBeGreaterThanOrEqual(0);
-      expect(state.hero.dc).toBeGreaterThanOrEqual(0);
+      expect(state.hero.energy).toBeGreaterThanOrEqual(0);
       expect(state.hero.mana).toBeGreaterThanOrEqual(0);
       for (const s of [...state.playerArmy, ...state.enemyArmy]) {
         expect(s.count).toBeGreaterThanOrEqual(0);

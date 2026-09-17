@@ -17,6 +17,7 @@ export function createStack(unitId: UnitId, side: Side, position: Position, coun
     veterancy: 0,
     block: 0,
     statuses: [],
+    actedThisTurn: false,
   };
 }
 

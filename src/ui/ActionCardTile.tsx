@@ -13,8 +13,7 @@ interface ActionCardTileProps {
 }
 
 const COST_CLASS: Record<CardCostType, string> = {
-  AC: 'cost-ac',
-  DC: 'cost-dc',
+  ENERGY: 'cost-energy',
   MANA: 'cost-mana',
 };
 
@@ -28,7 +27,7 @@ export function ActionCardTile({ id, name, description, cost, affordable, pendin
     <div className={classes.join(' ')} onClick={affordable ? onClick : undefined} title={description}>
       <div className="action-card-cost">
         {cost.amount}
-        {cost.type === 'MANA' ? 'M' : cost.type === 'AC' ? 'A' : 'D'}
+        {cost.type === 'MANA' ? 'M' : 'E'}
       </div>
       <div className={`action-card-icon polarity-${visual.polarity}`}>{visual.icon}</div>
       <div className="action-card-name">{name}</div>

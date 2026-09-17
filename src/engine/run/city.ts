@@ -198,6 +198,7 @@ export function addUnitsToArmy(army: ArmyStack[], unitId: UnitId, count: number)
     veterancy: 0,
     block: 0,
     statuses: [],
+    actedThisTurn: false,
   };
   return [...army, newStack];
 }
@@ -237,6 +238,7 @@ export function addUnitsToGarrison(garrison: ArmyStack[], unitId: UnitId, count:
     veterancy: 0,
     block: 0,
     statuses: [],
+    actedThisTurn: false,
   };
   return [...garrison, newStack];
 }

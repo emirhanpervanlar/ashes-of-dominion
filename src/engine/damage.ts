@@ -117,6 +117,21 @@ export interface DamageResolution {
   unitsKilled: number;
 }
 
+export interface HealResolution {
+  stack: ArmyStack;
+  healedAmount: number;
+}
+
+/** v2_list.md §7/§9 Priest basic action — heals up to maxHp, no revival of dead units. */
+export function computeHealAmount(healer: ArmyStack, healPower: number): number {
+  return Math.round(effectiveCount(healer.count) * healPower);
+}
+
+export function applyHealToStack(target: ArmyStack, amount: number): HealResolution {
+  const newHp = Math.min(target.maxHp, target.currentHp + amount);
+  return { stack: { ...target, currentHp: newHp }, healedAmount: newHp - target.currentHp };
+}
+
 /** Applies damage to a target stack: Block absorbs first, then HP/casualties. */
 export function applyDamageToStack(target: ArmyStack, hpPerUnit: number, rawDamage: number): DamageResolution {
   const blocked = Math.min(target.block, rawDamage);

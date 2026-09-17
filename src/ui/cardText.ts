@@ -23,7 +23,6 @@ export const CARD_DESCRIPTIONS: Record<string, string> = {
 };
 
 export const CARD_COST_LABEL: Record<string, string> = {
-  AC: 'AC',
-  DC: 'DC',
+  ENERGY: 'Energy',
   MANA: 'Mana',
 };

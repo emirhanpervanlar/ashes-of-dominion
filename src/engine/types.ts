@@ -21,6 +21,14 @@ export type UnitId =
 
 export type EnemyTargetPreference = 'frontline' | 'backline' | 'buff-weakest-ally';
 
+/**
+ * v2 (Disciples-style combat, v2_list.md §7) — every stack has one free
+ * "basic action" it can perform once per player turn without a card:
+ * `attack`/`ranged_attack` follow the lane targeting geometry (targeting.ts),
+ * `heal` targets a friendly stack instead of an enemy.
+ */
+export type BasicActionKind = 'attack' | 'ranged_attack' | 'heal';
+
 export interface UnitDefinition {
   id: UnitId;
   name: string;
@@ -38,6 +46,15 @@ export interface UnitDefinition {
    * status so it can't accidentally stack.
    */
   scalesWithPlayerArmy?: { divisor: number };
+  /** v2_list.md §7 — the unit's free normal action. Defaults to 'attack' if omitted. */
+  basicAction?: BasicActionKind;
+  /**
+   * v2_list.md §5 "ranged backline units such as Archers can target all
+   * relevant enemy positions" — bypasses the lane geometry entirely.
+   */
+  rangedAllAccess?: boolean;
+  /** Heal strength per effective unit of count, for `basicAction: 'heal'` stacks. */
+  healPower?: number;
 }
 
 export type StatusType =
@@ -73,6 +90,8 @@ export interface ArmyStack {
   veterancy: number;
   block: number;
   statuses: StatusEffect[];
+  /** v2_list.md §7 — reset to false at the start of every player turn. */
+  actedThisTurn: boolean;
 }
 
 export interface Hero {
@@ -82,13 +101,12 @@ export interface Hero {
   maxHp: number;
   mana: number;
   maxMana: number;
-  ac: number;
-  maxAc: number;
-  dc: number;
-  maxDc: number;
+  /** v2_list.md §11/§16 — replaces the old AC/DC pair; the single resource that pays for cards. */
+  energy: number;
+  maxEnergy: number;
 }
 
-export type CardCostType = 'AC' | 'DC' | 'MANA';
+export type CardCostType = 'ENERGY' | 'MANA';
 
 export interface CardCost {
   type: CardCostType;
@@ -148,8 +166,7 @@ export interface CardInstance {
  */
 export type RelicEffect =
   | { kind: 'HERO_MAX_MANA'; amount: number }
-  | { kind: 'HERO_MAX_AC'; amount: number }
-  | { kind: 'HERO_MAX_DC'; amount: number }
+  | { kind: 'HERO_MAX_ENERGY'; amount: number }
   | { kind: 'ARMY_SIZE_MULT'; multiplier: number }
   | { kind: 'ARMY_SIZE_FLAT_LARGEST'; amount: number }
   | { kind: 'PLAYER_DAMAGE_MULT'; multiplier: number }
@@ -221,6 +238,7 @@ export type CombatEvent =
     }
   | { type: 'UNITS_KILLED'; stackId: string; count: number }
   | { type: 'STACK_DESTROYED'; stackId: string }
+  | { type: 'STACK_HEALED'; stackId: string; amount: number }
   | { type: 'BLOCK_GAINED'; stackId: string; amount: number }
   | { type: 'MORALE_CHANGED'; stackId: string; amount: number }
   | { type: 'STATUS_APPLIED'; stackId: string; status: StatusType; amount: number; duration: number }
@@ -248,6 +266,8 @@ export type PlayerAction =
       targetStackId?: string;
       toPosition?: Position;
     }
+  /** v2_list.md §4.2/§7 — the free, card-less normal action every stack has. */
+  | { type: 'BASIC_ACTION'; stackId: string; targetStackId?: string }
   | { type: 'END_TURN' };
 
 export interface CombatState {

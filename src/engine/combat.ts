@@ -3,7 +3,9 @@ import { HERO_SKILL_DEFINITIONS } from './data/heroSkills.js';
 import { UNIT_DEFINITIONS } from './data/units.js';
 import {
   applyDamageToStack,
+  applyHealToStack,
   bossScalingAttackBonus,
+  computeHealAmount,
   computeRawDamage,
   moraleDamageMultiplier,
   necromancyRatio,
@@ -14,6 +16,7 @@ import {
   vulnerableDamageMultiplier,
 } from './damage.js';
 import { generateEnemyIntents } from './intents.js';
+import { computeValidHealTargets, computeValidTargets } from './targeting.js';
 import { shuffle } from './rng.js';
 import type {
   ApplyResult,
@@ -56,10 +59,8 @@ function reject(events: CombatEvent[], reason: string): void {
 
 function getHeroResource(hero: Hero, type: CardCostType): number {
   switch (type) {
-    case 'AC':
-      return hero.ac;
-    case 'DC':
-      return hero.dc;
+    case 'ENERGY':
+      return hero.energy;
     case 'MANA':
       return hero.mana;
   }
@@ -67,11 +68,8 @@ function getHeroResource(hero: Hero, type: CardCostType): number {
 
 function spendHeroResource(hero: Hero, type: CardCostType, amount: number): void {
   switch (type) {
-    case 'AC':
-      hero.ac -= amount;
-      return;
-    case 'DC':
-      hero.dc -= amount;
+    case 'ENERGY':
+      hero.energy -= amount;
       return;
     case 'MANA':
       hero.mana -= amount;
@@ -143,6 +141,7 @@ function raiseSkeletons(army: ArmyStack[], count: number, events: CombatEvent[])
     veterancy: 0,
     block: 0,
     statuses: [],
+    actedThisTurn: false,
   });
   events.push({ type: 'SKELETONS_RAISED', count });
 }
@@ -324,6 +323,15 @@ function validateTargeting(
   if (needsEnemy) {
     const stack = findStack(state.enemyArmy, action.targetStackId);
     if (!stack) return 'Invalid or dead enemy stack.';
+    // v2_list.md §5 — a card tied to one acting stack (e.g. Charge, Command: Strike)
+    // still respects that stack's lane geometry, same as its free basic attack.
+    if (def.targeting === 'ally-stack+enemy-stack') {
+      const actor = findStack(state.playerArmy, action.actingStackId)!;
+      const validTargets = computeValidTargets(actor, state.enemyArmy, UNIT_DEFINITIONS[actor.unitId]);
+      if (!validTargets.some((t) => t.stackId === stack.stackId)) {
+        return `${UNIT_DEFINITIONS[actor.unitId].name} cannot reach that target from its position.`;
+      }
+    }
   }
   if (needsPosition) {
     if (!action.toPosition || action.toPosition < 1 || action.toPosition > 6) {
@@ -333,6 +341,62 @@ function validateTargeting(
     if (occupied) return 'Destination position is occupied.';
   }
   return null;
+}
+
+/**
+ * v2_list.md §4.2/§7 — every stack's free, card-less normal action. Melee/ranged
+ * attacks reuse resolveAttack (multiplier 1); Priest's basic action heals a
+ * friendly stack instead. Once per stack per player turn (ArmyStack.actedThisTurn).
+ */
+function basicAction(state: CombatState, action: Extract<PlayerAction, { type: 'BASIC_ACTION' }>, events: CombatEvent[]): ApplyResult {
+  const actor = findStack(state.playerArmy, action.stackId);
+  if (!actor) {
+    reject(events, 'Invalid or dead friendly stack.');
+    return { state, events };
+  }
+  if (actor.actedThisTurn) {
+    reject(events, 'That stack has already acted this turn.');
+    return { state, events };
+  }
+
+  const def = UNIT_DEFINITIONS[actor.unitId];
+  const kind = def.basicAction ?? 'attack';
+
+  if (kind === 'heal') {
+    const target = findStack(state.playerArmy, action.targetStackId);
+    if (!target) {
+      reject(events, 'Invalid or dead friendly stack to heal.');
+      return { state, events };
+    }
+    const amount = computeHealAmount(actor, def.healPower ?? 1);
+    const resolution = applyHealToStack(target, amount);
+    replaceStack(state.playerArmy, resolution.stack);
+    events.push({ type: 'STACK_HEALED', stackId: target.stackId, amount: resolution.healedAmount });
+  } else {
+    const target = findStack(state.enemyArmy, action.targetStackId);
+    if (!target) {
+      reject(events, 'Invalid or dead enemy stack.');
+      return { state, events };
+    }
+    const validTargets = computeValidTargets(actor, state.enemyArmy, def);
+    if (!validTargets.some((t) => t.stackId === target.stackId)) {
+      reject(events, `${def.name} cannot reach that target from its position.`);
+      return { state, events };
+    }
+    resolveAttack(actor, target, state.enemyArmy, 1, events, state.activeRelicEffects);
+  }
+
+  actor.actedThisTurn = true;
+  replaceStack(state.playerArmy, actor);
+
+  const result = checkBattleResult(state);
+  if (result !== 'ongoing') {
+    state.result = result;
+    state.phase = 'ended';
+    events.push({ type: 'BATTLE_ENDED', result });
+  }
+
+  return { state, events };
 }
 
 function playCard(state: CombatState, action: Extract<PlayerAction, { type: 'PLAY_CARD' }>, events: CombatEvent[]): ApplyResult {
@@ -462,14 +526,15 @@ function useSkill(state: CombatState, action: Extract<PlayerAction, { type: 'USE
  * Turn 1 starts with the Hero's configured starting resources (e.g. Mana
  * 5/8 is an intentional partial start, AGENT.md §5) — it must NOT also
  * receive the "restored each turn" bonus. Every subsequent turn restores
- * AC/DC to full, regenerates Mana, resets Block, and ticks statuses.
+ * Energy to full, regenerates Mana, resets Block, and ticks statuses.
+ * Every stack's free basic action (v2_list.md §7) resets every turn,
+ * including the first.
  */
 function startPlayerTurn(state: CombatState, events: CombatEvent[], isFirstTurn: boolean): void {
   state.turnNumber += 1;
 
   if (!isFirstTurn) {
-    state.hero.ac = state.hero.maxAc;
-    state.hero.dc = state.hero.maxDc;
+    state.hero.energy = state.hero.maxEnergy;
     state.hero.mana = Math.min(state.hero.maxMana, state.hero.mana + 2);
 
     for (const stack of state.playerArmy) {
@@ -482,6 +547,10 @@ function startPlayerTurn(state: CombatState, events: CombatEvent[], isFirstTurn:
     for (const skill of state.heroSkills) {
       if (skill.cooldownRemaining > 0) skill.cooldownRemaining -= 1;
     }
+  }
+
+  for (const stack of state.playerArmy) {
+    stack.actedThisTurn = false;
   }
 
   state.enemyIntents = generateEnemyIntents(state);
@@ -532,6 +601,8 @@ export function applyPlayerAction(state: CombatState, action: PlayerAction): App
     result = endPlayerTurn(working, events);
   } else if (action.type === 'USE_SKILL') {
     result = useSkill(working, action, events);
+  } else if (action.type === 'BASIC_ACTION') {
+    result = basicAction(working, action, events);
   } else {
     result = playCard(working, action, events);
   }

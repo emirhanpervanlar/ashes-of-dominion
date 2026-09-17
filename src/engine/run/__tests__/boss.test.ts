@@ -55,7 +55,7 @@ describe('Warlord scaling mechanic', () => {
       const { state } = startBattle({
         seed,
         rng: createRng(seed),
-        hero: { id: 'commander', name: 'Commander', hp: 100, maxHp: 100, mana: 5, maxMana: 8, ac: 3, maxAc: 3, dc: 3, maxDc: 3 },
+        hero: { id: 'commander', name: 'Commander', hp: 100, maxHp: 100, mana: 5, maxMana: 8, energy: 3, maxEnergy: 3 },
         playerArmy,
         enemyArmy: generateBossEncounter(),
         deck: [],
@@ -80,7 +80,7 @@ describe('Warlord scaling mechanic', () => {
     const { state } = startBattle({
       seed,
       rng: createRng(seed),
-      hero: { id: 'commander', name: 'Commander', hp: 100, maxHp: 100, mana: 5, maxMana: 8, ac: 3, maxAc: 3, dc: 3, maxDc: 3 },
+      hero: { id: 'commander', name: 'Commander', hp: 100, maxHp: 100, mana: 5, maxMana: 8, energy: 3, maxEnergy: 3 },
       playerArmy: bigArmy,
       enemyArmy: generateBossEncounter(),
       deck: [],

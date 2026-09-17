@@ -12,6 +12,7 @@ export const UNIT_DEFINITIONS: Record<UnitId, UnitDefinition> = {
     attack: 3,
     defense: 2,
     tags: ['infantry', 'melee'],
+    basicAction: 'attack',
   },
   archer: {
     id: 'archer',
@@ -21,6 +22,8 @@ export const UNIT_DEFINITIONS: Record<UnitId, UnitDefinition> = {
     attack: 4,
     defense: 0,
     tags: ['ranged', 'archer'],
+    basicAction: 'ranged_attack',
+    rangedAllAccess: true,
   },
   knight: {
     id: 'knight',
@@ -30,6 +33,7 @@ export const UNIT_DEFINITIONS: Record<UnitId, UnitDefinition> = {
     attack: 7,
     defense: 4,
     tags: ['infantry', 'heavy'],
+    basicAction: 'attack',
   },
   priest: {
     id: 'priest',
@@ -39,6 +43,8 @@ export const UNIT_DEFINITIONS: Record<UnitId, UnitDefinition> = {
     attack: 1,
     defense: 1,
     tags: ['support', 'healer'],
+    basicAction: 'heal',
+    healPower: 4,
   },
   mage: {
     id: 'mage',
@@ -47,9 +53,11 @@ export const UNIT_DEFINITIONS: Record<UnitId, UnitDefinition> = {
     hpPerUnit: 6,
     attack: 5,
     defense: 0,
-    // Smallest spell-oriented prototype per AGENT.md §73 — no special
-    // passive yet, just a fragile, high-attack ranged/caster unit.
+    // Not part of the v2 MVP roster (v2_list.md §61 "do not silently add
+    // Mage") — kept defined but unused by the default scenario/army.
     tags: ['ranged', 'caster', 'spell'],
+    basicAction: 'ranged_attack',
+    rangedAllAccess: true,
   },
   cavalier: {
     id: 'cavalier',
@@ -58,9 +66,9 @@ export const UNIT_DEFINITIONS: Record<UnitId, UnitDefinition> = {
     hpPerUnit: 11,
     attack: 6,
     defense: 2,
-    // First cavalry-tagged unit — unlocks the "Charge" card (AGENT.md §15),
-    // which previously had no valid MVP target.
+    // Not part of the v2 MVP roster — kept for the "Charge" card's cavalry tag.
     tags: ['cavalry', 'melee', 'fast'],
+    basicAction: 'attack',
   },
   skeleton: {
     id: 'skeleton',
@@ -73,6 +81,7 @@ export const UNIT_DEFINITIONS: Record<UnitId, UnitDefinition> = {
     attack: 3,
     defense: 0,
     tags: ['undead', 'infantry'],
+    basicAction: 'attack',
   },
   goblin: {
     id: 'goblin',
@@ -85,6 +94,7 @@ export const UNIT_DEFINITIONS: Record<UnitId, UnitDefinition> = {
     // AGENT.md §9 only defines targeting for Orc/Wolf/Shaman/Assassin.
     // ASSUMPTION: Goblin behaves like a basic grunt and targets the frontline.
     targetPreference: 'frontline',
+    basicAction: 'attack',
   },
   orc: {
     id: 'orc',
@@ -95,6 +105,7 @@ export const UNIT_DEFINITIONS: Record<UnitId, UnitDefinition> = {
     defense: 0,
     tags: ['infantry', 'brute'],
     targetPreference: 'frontline',
+    basicAction: 'attack',
   },
   shaman: {
     id: 'shaman',
@@ -105,6 +116,7 @@ export const UNIT_DEFINITIONS: Record<UnitId, UnitDefinition> = {
     defense: 0,
     tags: ['support', 'caster'],
     targetPreference: 'buff-weakest-ally',
+    basicAction: 'attack',
   },
   wolf: {
     id: 'wolf',
@@ -115,6 +127,7 @@ export const UNIT_DEFINITIONS: Record<UnitId, UnitDefinition> = {
     defense: 0,
     tags: ['beast', 'fast'],
     targetPreference: 'backline',
+    basicAction: 'attack',
   },
   warlord: {
     id: 'warlord',
@@ -128,5 +141,6 @@ export const UNIT_DEFINITIONS: Record<UnitId, UnitDefinition> = {
     tags: ['boss', 'brute'],
     targetPreference: 'frontline',
     scalesWithPlayerArmy: { divisor: 15 },
+    basicAction: 'attack',
   },
 };

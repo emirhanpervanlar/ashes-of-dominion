@@ -135,12 +135,11 @@ describe('buildings', () => {
     expect(result.run.gold).toBe(100 - 80 + 100);
   });
 
-  it('Training Hall permanently raises Hero max AC/DC', () => {
+  it('Training Hall permanently raises Hero max Energy', () => {
     let run = reachCity(10);
     run = { ...run, gold: 200, food: 200 };
     const result = applyRunAction(run, { type: 'BUILD_BUILDING', buildingId: 'training_hall' });
-    expect(result.run.hero.maxAc).toBe(4);
-    expect(result.run.hero.maxDc).toBe(4);
+    expect(result.run.hero.maxEnergy).toBe(5);
   });
 });
 
