@@ -58,6 +58,7 @@ export default function App() {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [hoveredStackId, setHoveredStackId] = useState<string | null>(null);
+  const [droppingInstanceId, setDroppingInstanceId] = useState<string | null>(null);
   const [appStage, setAppStage] = useState<AppStage>('title');
   const [menuOpen, setMenuOpen] = useState(false);
   const [titleSettingsOpen, setTitleSettingsOpen] = useState(false);
@@ -167,10 +168,8 @@ export default function App() {
     }
     const cardDef = CARD_DEFINITIONS[cardId];
     if (!cardDef || !hasResource('card', cardId)) return;
-    if (cardDef.targeting === 'none') {
-      dispatchCombat({ type: 'PLAY_CARD', instanceId });
-      return;
-    }
+    // No-target cards no longer play instantly — they require a Drop Card confirmation
+    // in the middle of the battlefield, same as any other pending selection.
     setPending({ kind: 'card', id: instanceId, name: cardDef.name, targeting: cardDef.targeting });
   }
 
@@ -184,10 +183,6 @@ export default function App() {
     }
     const skillDef = HERO_SKILL_DEFINITIONS[skillId];
     if (!skillDef || !hasResource('skill', skillId)) return;
-    if (skillDef.targeting === 'none') {
-      dispatchCombat({ type: 'USE_SKILL', skillId });
-      return;
-    }
     setPending({ kind: 'skill', id: skillId, name: skillDef.name, targeting: skillDef.targeting });
   }
 
@@ -197,6 +192,19 @@ export default function App() {
       dispatchCombat({ type: 'PLAY_CARD', instanceId: pending.id, ...extra });
     } else {
       dispatchCombat({ type: 'USE_SKILL', skillId: pending.id, ...extra });
+    }
+  }
+
+  function handleDropZoneConfirm() {
+    if (!pending) return;
+    if (pending.kind === 'card') {
+      setDroppingInstanceId(pending.id);
+      setTimeout(() => {
+        finalize({});
+        setDroppingInstanceId(null);
+      }, 360);
+    } else {
+      finalize({});
     }
   }
 
@@ -651,6 +659,13 @@ export default function App() {
             })}
           </div>
         </div>
+
+        {pending?.targeting === 'none' && (
+          <div className="drop-zone" onClick={handleDropZoneConfirm}>
+            <div className="drop-zone-icon">🃏</div>
+            <div className="drop-zone-label">{pending.kind === 'card' ? 'Drop Card' : 'Confirm'}</div>
+          </div>
+        )}
       </div>
 
       <div className="hand-fan-wrap">
@@ -662,8 +677,9 @@ export default function App() {
             const rotate = Math.max(-11, Math.min(11, offset * 5));
             const ty = Math.abs(offset) * 3;
             const slotStyle = { '--rot': `${rotate}deg`, '--ty': `${ty}px` } as React.CSSProperties;
+            const isDropping = droppingInstanceId === instance.instanceId;
             return (
-              <div key={instance.instanceId} className="hand-card-slot" style={slotStyle}>
+              <div key={instance.instanceId} className={`hand-card-slot${isDropping ? ' dropping' : ''}`} style={slotStyle}>
                 <ActionCardTile
                   id={cardDef.id}
                   name={cardDef.name}

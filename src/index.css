@@ -467,6 +467,7 @@ button.primary {
 }
 
 .battlefield-v2 {
+  position: relative;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -475,6 +476,72 @@ button.primary {
   min-height: 0;
   flex-wrap: nowrap;
   padding: 2px;
+}
+
+.drop-zone {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 120px;
+  height: 140px;
+  border: 3px dashed var(--accent);
+  border-radius: 14px;
+  background: #e0b34c14;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: pointer;
+  z-index: 70;
+  animation: drop-zone-pulse 1.4s ease-in-out infinite;
+}
+
+.drop-zone:hover {
+  background: #e0b34c2a;
+  transform: translate(-50%, -50%) scale(1.05);
+}
+
+.drop-zone-icon {
+  font-size: 32px;
+}
+
+.drop-zone-label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+@keyframes drop-zone-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 #e0b34c55;
+  }
+  50% {
+    box-shadow: 0 0 0 10px #e0b34c00;
+  }
+}
+
+@keyframes card-drop-fly {
+  0% {
+    transform: rotate(var(--rot, 0deg)) translateY(var(--ty, 0px)) scale(1);
+    opacity: 1;
+  }
+  70% {
+    transform: translateY(-320px) scale(0.55);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-340px) scale(0.25);
+    opacity: 0;
+  }
+}
+
+.hand-card-slot.dropping {
+  animation: card-drop-fly 0.36s ease-in forwards;
+  z-index: 100;
+  pointer-events: none;
 }
 
 .side-columns {
