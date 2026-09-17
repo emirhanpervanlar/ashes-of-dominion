@@ -50,10 +50,10 @@ function reachBattle(seed: number): RunState {
 }
 
 describe('run creation', () => {
-  it('starts in choosing_starting_relic with the vertical-slice army/deck/map/resources', () => {
+  it('starts in choosing_starting_relic with the small starting army/deck/map/resources', () => {
     const run = createRun(1);
     expect(run.phase).toBe('choosing_starting_relic');
-    expect(run.army.map((s) => s.count)).toEqual([18, 80, 8, 30, 10, 15]);
+    expect(run.army.map((s) => s.count)).toEqual([6, 4]);
     expect(run.masterDeck.length).toBe(12);
     expect(run.combat).toBeNull();
     expect(run.gold).toBe(100);
@@ -70,7 +70,7 @@ describe('starting relic', () => {
     const run = createRun(2);
     const result = applyRunAction(run, { type: 'CHOOSE_STARTING_RELIC', relicId: 'royal_banner' });
     const swordsman = result.run.army.find((s) => s.unitId === 'swordsman')!;
-    expect(swordsman.count).toBe(100);
+    expect(swordsman.count).toBe(26); // 6 (starting) + 20
     expect(result.run.phase).toBe('on_map');
     expect(result.run.combat).toBeNull();
   });
@@ -80,7 +80,7 @@ describe('starting relic', () => {
     const result = applyRunAction(run, { type: 'CHOOSE_STARTING_RELIC', relicId: 'arcane_crystal' });
     expect(result.run.hero.maxMana).toBe(10);
     expect(result.run.hero.mana).toBe(7);
-    expect(result.run.army.find((s) => s.unitId === 'swordsman')!.count).toBe(72); // floor(80*0.9)
+    expect(result.run.army.find((s) => s.unitId === 'swordsman')!.count).toBe(5); // floor(6*0.9)
   });
 
   it('rejects choosing a starting relic twice', () => {

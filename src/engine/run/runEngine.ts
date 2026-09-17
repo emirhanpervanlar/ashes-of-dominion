@@ -1,4 +1,4 @@
-import { buildVerticalSlicePlayerArmy } from '../army.js';
+import { buildStartingPlayerArmy, mergeArmyStacks, splitArmyStack } from '../army.js';
 import { CARD_DEFINITIONS } from '../data/cards.js';
 import { DEFAULT_HERO_SKILL_LOADOUT } from '../data/heroSkills.js';
 import { RELIC_DEFINITIONS, STARTING_RELIC_DEFINITIONS } from '../data/relics.js';
@@ -70,7 +70,7 @@ export function createRun(seed: number, heroName?: string): RunState {
     seed,
     rng,
     hero,
-    army: buildVerticalSlicePlayerArmy(),
+    army: buildStartingPlayerArmy(),
     masterDeck: buildStartingDeck(),
     relics: [],
     gold: STARTING_GOLD,
@@ -556,6 +556,26 @@ function recruit(
   return { run, events };
 }
 
+function splitStackAction(run: RunState, stackId: string, splitCount: number, events: RunEvent[]): RunApplyResult {
+  const updatedArmy = splitArmyStack(run.army, stackId, splitCount);
+  if (!updatedArmy) {
+    reject(events, 'Cannot split that stack (invalid amount or army already has 6 stacks).');
+    return { run, events };
+  }
+  run.army = updatedArmy;
+  return { run, events };
+}
+
+function mergeStacksAction(run: RunState, stackIdA: string, stackIdB: string, events: RunEvent[]): RunApplyResult {
+  const updatedArmy = mergeArmyStacks(run.army, stackIdA, stackIdB);
+  if (!updatedArmy) {
+    reject(events, 'Cannot merge those stacks (must be the same unit type).');
+    return { run, events };
+  }
+  run.army = updatedArmy;
+  return { run, events };
+}
+
 function buildBuilding(run: RunState, buildingId: string, events: RunEvent[]): RunApplyResult {
   if (run.phase !== 'city') {
     reject(events, 'Not at the city.');
@@ -727,6 +747,12 @@ export function applyRunAction(run: RunState, action: RunAction): RunApplyResult
       break;
     case 'LEAVE_CITY':
       result = leaveCity(working, events);
+      break;
+    case 'SPLIT_STACK':
+      result = splitStackAction(working, action.stackId, action.splitCount, events);
+      break;
+    case 'MERGE_STACKS':
+      result = mergeStacksAction(working, action.stackIdA, action.stackIdB, events);
       break;
   }
 

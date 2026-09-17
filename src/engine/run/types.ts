@@ -94,7 +94,9 @@ export type RunAction =
   | { type: 'UPGRADE_CITY' }
   | { type: 'CHOOSE_DOCTRINE'; doctrineId: string }
   | { type: 'TRANSFER_GARRISON_TO_ARMY'; stackId: string }
-  | { type: 'LEAVE_CITY' };
+  | { type: 'LEAVE_CITY' }
+  | { type: 'SPLIT_STACK'; stackId: string; splitCount: number }
+  | { type: 'MERGE_STACKS'; stackIdA: string; stackIdB: string };
 
 export interface RunApplyResult {
   run: RunState;

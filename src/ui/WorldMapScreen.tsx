@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import { UNIT_DEFINITIONS } from '../engine/index.js';
-import type { ArmyStack } from '../engine/index.js';
 import type { RunState } from '../engine/run/index.js';
 import type { MapNode } from '../engine/run/index.js';
 import { HistoryPanel } from './HistoryPanel.js';
@@ -14,6 +13,8 @@ interface Props {
   onMoveTo: (nodeId: string) => void;
   onEnterCity: () => void;
   onNewRun: () => void;
+  onSplitStack: (stackId: string, splitCount: number) => void;
+  onMergeStacks: (stackIdA: string, stackIdB: string) => void;
 }
 
 const NODE_LABELS: Record<MapNode['type'], string> = {
@@ -38,8 +39,9 @@ const NODE_ICONS: Record<MapNode['type'], string> = {
   boss: '👑',
 };
 
-export function WorldMapScreen({ run, onMoveTo, onEnterCity, onNewRun }: Props) {
-  const [popupStack, setPopupStack] = useState<ArmyStack | null>(null);
+export function WorldMapScreen({ run, onMoveTo, onEnterCity, onNewRun, onSplitStack, onMergeStacks }: Props) {
+  const [popupStackId, setPopupStackId] = useState<string | null>(null);
+  const popupStack = popupStackId ? run.army.find((s) => s.stackId === popupStackId && s.count > 0) ?? null : null;
   const current = run.worldMap.nodes.find((n) => n.id === run.worldMap.currentNodeId)!;
   const layerCount = Math.max(...run.worldMap.nodes.map((n) => n.layer)) + 1;
   const layers = Array.from({ length: layerCount }, (_, layer) => run.worldMap.nodes.filter((n) => n.layer === layer));
@@ -81,7 +83,7 @@ export function WorldMapScreen({ run, onMoveTo, onEnterCity, onNewRun }: Props) 
             {run.army
               .filter((s) => s.count > 0)
               .map((s) => (
-                <div key={s.stackId} className="army-unit-card" onClick={() => setPopupStack(s)}>
+                <div key={s.stackId} className="army-unit-card" onClick={() => setPopupStackId(s.stackId)}>
                   <span className="army-unit-icon">{UNIT_ICONS[s.unitId]}</span>
                   <span className="army-unit-name">{UNIT_DEFINITIONS[s.unitId].name}</span>
                   <span className="army-unit-count">{s.count}</span>
@@ -162,7 +164,15 @@ export function WorldMapScreen({ run, onMoveTo, onEnterCity, onNewRun }: Props) 
         <HistoryPanel title="History" lines={historyLines} />
       </div>
 
-      {popupStack && <UnitPopup stack={popupStack} onClose={() => setPopupStack(null)} />}
+      {popupStack && (
+        <UnitPopup
+          stack={popupStack}
+          army={run.army}
+          onClose={() => setPopupStackId(null)}
+          onSplit={onSplitStack}
+          onMerge={onMergeStacks}
+        />
+      )}
     </div>
   );
 }

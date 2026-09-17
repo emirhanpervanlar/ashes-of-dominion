@@ -86,6 +86,7 @@ export function StackTile({
     <div className={slotClasses.join(' ')} onMouseEnter={onHoverStart} onMouseLeave={onHoverEnd}>
       <div className={classes.join(' ')} onClick={selectable ? onClick : undefined} title={def.name}>
         <span className="unit-icon">{UNIT_ICONS[stack.unitId]}</span>
+        {selected && <span className="unit-selected-badge">✓</span>}
       </div>
       <div className="unit-label">
         <div className="bar">

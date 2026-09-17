@@ -7,31 +7,46 @@ import type { ArmyStack, Position, UnitId } from '../types.js';
  * be farmed forever at the same difficulty.
  */
 function scale(base: number, layer: number, eliteMultiplier: number): number {
-  const layerMultiplier = 1 + layer * 0.15;
+  const layerMultiplier = 1 + layer * 0.18;
   return Math.max(1, Math.round(base * layerMultiplier * eliteMultiplier));
 }
 
-export function generateBattleEncounter(layer: number, elite: boolean): ArmyStack[] {
-  const eliteMultiplier = elite ? 1.4 : 1;
-  const positions: Array<[UnitId, Position, number]> = elite
-    ? [
-        ['orc', 1, scale(35, layer, eliteMultiplier)],
-        ['orc', 2, scale(35, layer, eliteMultiplier)],
-        ['wolf', 3, scale(18, layer, eliteMultiplier)],
-        ['shaman', 4, scale(10, layer, eliteMultiplier)],
-        ['wolf', 5, scale(18, layer, eliteMultiplier)],
-        ['shaman', 6, scale(10, layer, eliteMultiplier)],
-      ]
-    : [
-        ['orc', 1, scale(25, layer, eliteMultiplier)],
-        ['goblin', 2, scale(30, layer, eliteMultiplier)],
-        ['wolf', 3, scale(12, layer, eliteMultiplier)],
-        ['shaman', 4, scale(8, layer, eliteMultiplier)],
-        ['goblin', 5, scale(30, layer, eliteMultiplier)],
-        ['goblin', 6, scale(30, layer, eliteMultiplier)],
-      ];
+/**
+ * Slots are revealed progressively by layer so early fights are a single small pack
+ * and the full 6-stack formation only appears once the player has had a chance to
+ * grow past the small starting garrison (AGENT.md §73 vertical slice, revised: the
+ * player now starts with 1-2 stacks, so early encounters must match that).
+ */
+function slotsForLayer(layer: number, elite: boolean): number {
+  const base = elite ? 2 : 1;
+  return Math.min(6, base + layer);
+}
 
-  return positions.map(([unitId, position, count]) => createStack(unitId, 'enemy', position, count));
+const NON_ELITE_TEMPLATE: Array<[UnitId, Position, number]> = [
+  ['goblin', 2, 5],
+  ['orc', 1, 4],
+  ['wolf', 3, 3],
+  ['goblin', 5, 5],
+  ['shaman', 4, 3],
+  ['goblin', 6, 5],
+];
+
+const ELITE_TEMPLATE: Array<[UnitId, Position, number]> = [
+  ['orc', 1, 6],
+  ['wolf', 3, 4],
+  ['orc', 2, 6],
+  ['shaman', 4, 3],
+  ['wolf', 5, 4],
+  ['shaman', 6, 3],
+];
+
+export function generateBattleEncounter(layer: number, elite: boolean): ArmyStack[] {
+  const eliteMultiplier = elite ? 1.3 : 1;
+  const template = elite ? ELITE_TEMPLATE : NON_ELITE_TEMPLATE;
+  const slotCount = slotsForLayer(layer, elite);
+  const activeSlots = template.slice(0, slotCount);
+
+  return activeSlots.map(([unitId, position, base]) => createStack(unitId, 'enemy', position, scale(base, layer, eliteMultiplier)));
 }
 
 /**

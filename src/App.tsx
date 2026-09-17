@@ -421,6 +421,8 @@ export default function App() {
           onMoveTo={(nodeId) => dispatchRun({ type: 'MOVE_TO', nodeId })}
           onEnterCity={() => dispatchRun({ type: 'ENTER_CITY' })}
           onNewRun={newRun}
+          onSplitStack={(stackId, splitCount) => dispatchRun({ type: 'SPLIT_STACK', stackId, splitCount })}
+          onMergeStacks={(stackIdA, stackIdB) => dispatchRun({ type: 'MERGE_STACKS', stackIdA, stackIdB })}
         />
       </>
     );

@@ -245,12 +245,7 @@ describe('doctrines', () => {
   it('Necromantic Doctrine raises Skeletons from player casualties in battle', () => {
     const run = reachCity(18);
     const withDoctrine = applyRunAction(run, { type: 'CHOOSE_DOCTRINE', doctrineId: 'necromantic' }).run;
-    // Free a stack slot (vertical-slice army fills all 6) so raised Skeletons have somewhere to go.
-    const freedSlot: RunState = {
-      ...withDoctrine,
-      army: withDoctrine.army.map((s) => (s.unitId === 'priest' ? { ...s, count: 0, currentHp: 0 } : s)),
-    };
-    const left = applyRunAction(freedSlot, { type: 'LEAVE_CITY' }).run;
+    const left = applyRunAction(withDoctrine, { type: 'LEAVE_CITY' }).run;
     const { run: onBattlePath, nodeId } = (() => {
       const current = left.worldMap.nodes.find((n) => n.id === left.worldMap.currentNodeId)!;
       const nextId = current.connectsTo[0]!;
@@ -258,7 +253,21 @@ describe('doctrines', () => {
       return { run: { ...left, worldMap }, nodeId: nextId };
     })();
     const started = applyRunAction(onBattlePath, { type: 'MOVE_TO', nodeId });
-    const result = applyRunAction(started.run, { type: 'COMBAT_ACTION', action: { type: 'END_TURN' } });
+    // Force a guaranteed player casualty this turn (the starting army is small and the
+    // early encounter is now deliberately weak, so a normal turn may not kill anything).
+    const combat = started.run.combat!;
+    const targetStackId = combat.playerArmy[0]!.stackId;
+    const forcedKill: CombatState = {
+      ...combat,
+      playerArmy: combat.playerArmy.map((s) => ({ ...s, count: 8, currentHp: 8 })),
+      enemyIntents: combat.enemyIntents.map((intent) => ({
+        ...intent,
+        kind: 'attack',
+        targetStackId,
+        estimatedDamage: 9999,
+      })),
+    };
+    const result = applyRunAction({ ...started.run, combat: forcedKill }, { type: 'COMBAT_ACTION', action: { type: 'END_TURN' } });
     const combatEvents = result.run.combat?.log ?? [];
     expect(combatEvents.some((e) => e.type === 'SKELETONS_RAISED')).toBe(true);
   });

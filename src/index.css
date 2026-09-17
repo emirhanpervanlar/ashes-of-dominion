@@ -597,7 +597,26 @@ button.primary {
 }
 
 .unit-octagon.selected {
-  box-shadow: 0 0 0 3px var(--accent), 0 0 14px var(--accent);
+  box-shadow: 0 0 0 4px #ffffff, 0 0 22px #ffffffcc;
+  border-color: #ffffff;
+}
+
+.unit-selected-badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #ffffff;
+  color: #14161c;
+  font-size: 13px;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid var(--panel);
+  box-shadow: 0 0 8px #fff;
 }
 
 .unit-icon {
@@ -1157,6 +1176,43 @@ button.primary {
   font-size: 11px;
   color: var(--text-dim);
   margin-top: 4px;
+}
+
+.unit-popup-actions {
+  width: 100%;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.unit-popup-action-row {
+  display: flex;
+  gap: 6px;
+}
+
+.unit-popup-action-row input {
+  width: 56px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  padding: 4px 6px;
+  text-align: center;
+}
+
+.unit-popup-action-row button,
+.unit-popup-merge-btn {
+  flex: 1;
+  font-size: 12px;
+}
+
+.unit-popup-hint {
+  font-size: 11px;
+  color: var(--text-dim);
+  text-align: center;
 }
 
 /* ============ City / town view ============ */
