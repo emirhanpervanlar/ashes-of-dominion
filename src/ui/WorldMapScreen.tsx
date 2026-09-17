@@ -39,12 +39,25 @@ const NODE_ICONS: Record<MapNode['type'], string> = {
   boss: '👑',
 };
 
+const NODE_ACCENTS: Record<MapNode['type'], string> = {
+  road: '#6b7280',
+  battle: '#c85c5c',
+  elite_battle: '#8b2f2f',
+  resource: '#d4af37',
+  merchant: '#4a90d9',
+  event: '#a05cd9',
+  city: '#e0b34c',
+  boss: '#e0503c',
+};
+
 export function WorldMapScreen({ run, onMoveTo, onEnterCity, onNewRun, onSplitStack, onMergeStacks }: Props) {
   const [popupStackId, setPopupStackId] = useState<string | null>(null);
   const popupStack = popupStackId ? run.army.find((s) => s.stackId === popupStackId && s.count > 0) ?? null : null;
   const current = run.worldMap.nodes.find((n) => n.id === run.worldMap.currentNodeId)!;
   const layerCount = Math.max(...run.worldMap.nodes.map((n) => n.layer)) + 1;
-  const layers = Array.from({ length: layerCount }, (_, layer) => run.worldMap.nodes.filter((n) => n.layer === layer));
+  const nextChoices = current.connectsTo
+    .map((id) => run.worldMap.nodes.find((n) => n.id === id))
+    .filter((n): n is MapNode => !!n && n.visibility !== 'unknown');
   const historyLines = run.log.map(describeRunEvent).filter((line): line is string => line !== null);
   const hpPct = Math.max(0, Math.min(100, (run.hero.hp / run.hero.maxHp) * 100));
 
@@ -128,36 +141,33 @@ export function WorldMapScreen({ run, onMoveTo, onEnterCity, onNewRun, onSplitSt
         </div>
 
         <div className="road-main">
-          <div className="map-column">
-            {layers.map((nodes, layer) => (
-              <div key={layer}>
-                <div className="map-layer">
-                  {nodes.map((node) => {
-                    const isCurrent = node.id === current.id;
-                    const isSelectable = !isCurrent && current.connectsTo.includes(node.id) && node.visibility !== 'unknown';
-                    const classes = ['stack-tile'];
-                    if (isCurrent) classes.push('selected', 'player');
-                    else if (isSelectable) classes.push('selectable', 'player');
-                    else classes.push('empty');
-                    const known = node.visibility !== 'unknown';
-                    return (
-                      <div key={node.id} className={classes.join(' ')} onClick={isSelectable ? () => onMoveTo(node.id) : undefined}>
-                        <div className="stack-name">
-                          <span>
-                            {known ? NODE_ICONS[node.type] : '?'} {known ? NODE_LABELS[node.type] : 'Unknown'}
-                          </span>
-                        </div>
-                        <div className="badges">
-                          <span className="badge">layer {node.layer}</span>
-                          {isCurrent && <span className="badge">you are here</span>}
-                        </div>
-                      </div>
-                    );
-                  })}
+          <div className="path-progress">
+            Layer {current.layer + 1} / {layerCount}
+          </div>
+          <div className="current-location-badge" style={{ '--pc-color': NODE_ACCENTS[current.type] } as React.CSSProperties}>
+            <span className="current-location-icon">{NODE_ICONS[current.type]}</span>
+            <span>
+              You are here — {NODE_LABELS[current.type]}
+            </span>
+          </div>
+
+          <div className="path-choice-heading">Choose Your Path</div>
+          <div className="path-choice-row">
+            {nextChoices.length === 0 && <div className="subtitle">This is the end of the road.</div>}
+            {nextChoices.map((node) => {
+              const known = node.visibility !== 'unknown';
+              return (
+                <div
+                  key={node.id}
+                  className="path-choice-card"
+                  style={{ '--pc-color': NODE_ACCENTS[node.type] } as React.CSSProperties}
+                  onClick={() => onMoveTo(node.id)}
+                >
+                  <div className="path-choice-icon">{known ? NODE_ICONS[node.type] : '?'}</div>
+                  <div className="path-choice-name">{known ? NODE_LABELS[node.type] : 'Unknown'}</div>
                 </div>
-                {layer < layers.length - 1 && <div className="map-connector">│</div>}
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 

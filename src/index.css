@@ -601,6 +601,47 @@ button.primary {
   border-color: #ffffff;
 }
 
+/* ============ Unit shapes by role ============ */
+
+.unit-octagon.shape-octagon {
+  clip-path: polygon(30% 0%, 70% 0%, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0% 70%, 0% 30%);
+}
+
+.unit-octagon.shape-triangle {
+  clip-path: polygon(50% 2%, 4% 96%, 96% 96%);
+}
+
+.unit-octagon.shape-triangle .unit-icon {
+  margin-top: 14px;
+}
+
+.unit-octagon.shape-square {
+  clip-path: none;
+  border-radius: 14px;
+}
+
+.unit-octagon.shape-circle {
+  clip-path: none;
+  border-radius: 50%;
+}
+
+.unit-role-badge {
+  position: absolute;
+  bottom: -9px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--panel);
+  border: 2px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  line-height: 1;
+}
+
 .unit-selected-badge {
   position: absolute;
   top: -8px;
@@ -931,6 +972,81 @@ button.primary {
 .road-main {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 40px;
+}
+
+.path-progress {
+  color: var(--text-dim);
+  font-size: 12px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.current-location-badge {
+  --pc-color: var(--accent);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 8px 18px;
+  border-radius: 30px;
+  background: var(--panel);
+  border: 1px solid var(--pc-color);
+  color: var(--text-dim);
+  font-size: 13px;
+}
+
+.current-location-icon {
+  font-size: 18px;
+}
+
+.path-choice-heading {
+  margin-top: 32px;
+  margin-bottom: 22px;
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+
+.path-choice-row {
+  display: flex;
+  justify-content: center;
+  gap: 22px;
+  flex-wrap: wrap;
+}
+
+.path-choice-card {
+  --pc-color: var(--accent);
+  width: 190px;
+  min-height: 210px;
+  background: linear-gradient(160deg, #20242f, #14161c);
+  border: 2px solid var(--pc-color);
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.path-choice-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 0 0 3px var(--pc-color), 0 14px 28px #000a;
+}
+
+.path-choice-icon {
+  font-size: 56px;
+  filter: drop-shadow(0 0 10px var(--pc-color));
+}
+
+.path-choice-name {
+  font-size: 17px;
+  font-weight: 700;
 }
 
 .side-block {

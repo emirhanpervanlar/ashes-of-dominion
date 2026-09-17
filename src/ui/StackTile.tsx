@@ -2,6 +2,7 @@ import { applyDamageToStack, UNIT_DEFINITIONS } from '../engine/index.js';
 import type { ArmyStack, EnemyIntent, Position } from '../engine/index.js';
 import { stackLabel } from './eventText.js';
 import { UNIT_ICONS } from './unitIcons.js';
+import { UNIT_ROLE_ICONS, UNIT_SHAPES } from './unitShapes.js';
 import type { CombatState } from '../engine/index.js';
 
 interface StackTileProps {
@@ -37,6 +38,7 @@ export function StackTile({
 }: StackTileProps) {
   if (!stack || stack.count === 0) {
     const classes = ['unit-octagon', 'empty'];
+    if (stack) classes.push(`shape-${UNIT_SHAPES[stack.unitId]}`);
     if (stack?.count === 0) classes.push('dead');
     return (
       <div className="unit-slot">
@@ -65,7 +67,7 @@ export function StackTile({
     previewHpLossPct = stack.maxHp > 0 ? Math.min(100, ((stack.currentHp - resolution.stack.currentHp) / stack.maxHp) * 100) : 0;
   }
 
-  const classes = ['unit-octagon', side];
+  const classes = ['unit-octagon', side, `shape-${UNIT_SHAPES[stack.unitId]}`];
   if (selectable) classes.push('selectable');
   if (selected) classes.push('selected');
   if (threatened) classes.push('threatened');
@@ -86,6 +88,7 @@ export function StackTile({
     <div className={slotClasses.join(' ')} onMouseEnter={onHoverStart} onMouseLeave={onHoverEnd}>
       <div className={classes.join(' ')} onClick={selectable ? onClick : undefined} title={def.name}>
         <span className="unit-icon">{UNIT_ICONS[stack.unitId]}</span>
+        <span className="unit-role-badge">{UNIT_ROLE_ICONS[stack.unitId]}</span>
         {selected && <span className="unit-selected-badge">✓</span>}
       </div>
       <div className="unit-label">
