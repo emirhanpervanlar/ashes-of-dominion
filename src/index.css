@@ -1524,19 +1524,46 @@ button.primary {
 }
 
 .town-view {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 14px;
-  padding: 18px;
+  position: relative;
+  height: 460px;
   border-radius: 14px;
-  background: linear-gradient(180deg, #1b2233 0%, #232a1e 70%, #2a331f 100%);
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 8%, #3a3f5c33, transparent 45%),
+    linear-gradient(180deg, #1a2036 0%, #232a1e 55%, #2a331f 100%);
   border: 1px solid var(--border);
   margin-bottom: 14px;
 }
 
-.building-tile {
-  width: 110px;
-  min-height: 92px;
+.town-view::before {
+  /* A soft two-hill silhouette standing in for a town backdrop, built with pure CSS. */
+  content: '';
+  position: absolute;
+  left: -10%;
+  right: -10%;
+  bottom: -10%;
+  height: 55%;
+  background: radial-gradient(ellipse at 30% 100%, #232c1f 0%, transparent 60%), radial-gradient(ellipse at 75% 100%, #1e2618 0%, transparent 55%);
+  border-radius: 50% 50% 0 0;
+}
+
+.town-scene-label {
+  position: absolute;
+  top: 4%;
+  left: 50%;
+  transform: translateX(-50%);
+  color: var(--text-dim);
+  font-size: 11px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  opacity: 0.6;
+}
+
+.building-hotspot {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 104px;
+  min-height: 86px;
   background: var(--panel);
   border: 2px solid var(--border);
   border-radius: 10px;
@@ -1548,25 +1575,27 @@ button.primary {
   cursor: pointer;
   text-align: center;
   padding: 8px;
+  box-shadow: 0 6px 16px #000a;
 }
 
-.building-tile:hover {
+.building-hotspot:hover {
   border-color: var(--accent);
-  transform: translateY(-2px);
+  transform: translate(-50%, calc(-50% - 3px));
+  z-index: 5;
 }
 
-.building-tile.active {
+.building-hotspot.active {
   border-color: var(--accent);
-  box-shadow: 0 0 0 2px var(--accent);
+  box-shadow: 0 0 0 2px var(--accent), 0 6px 16px #000a;
 }
 
-.building-tile.locked {
-  opacity: 0.45;
+.building-hotspot.locked {
+  opacity: 0.5;
   border-style: dashed;
 }
 
 .building-tile-icon {
-  font-size: 28px;
+  font-size: 26px;
 }
 
 .building-tile-name {
@@ -1579,24 +1608,24 @@ button.primary {
   color: var(--text-dim);
 }
 
-.city-panel {
-  background: var(--panel);
-  border: 1px solid var(--accent);
-  border-radius: 10px;
-  padding: 14px;
-  margin-bottom: 14px;
+.city-building-popup {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 951;
+  width: min(560px, 92vw);
+  max-height: 80vh;
+  overflow-y: auto;
+  background: linear-gradient(160deg, #20242f, #14161c);
+  border: 2px solid var(--accent);
+  border-radius: 14px;
+  padding: 20px;
 }
 
-.city-panel-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 10px;
-}
-
-.city-panel-header h3 {
-  margin: 0;
-  font-size: 15px;
+.city-building-popup h3 {
+  margin: 0 0 8px;
+  font-size: 16px;
 }
 
 .city-bottom-bar {
@@ -1622,21 +1651,79 @@ button.primary {
   gap: 4px;
 }
 
-.city-gate-button {
-  display: block;
-  margin: 0 auto;
+.city-leave-gate {
+  position: fixed;
+  left: 16px;
+  bottom: 16px;
+  z-index: 80;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  cursor: pointer;
+  padding: 10px 16px;
+  border-radius: 10px;
   background: linear-gradient(180deg, #3a2c1a, #241a10);
   border: 2px solid var(--accent);
-  border-radius: 10px;
-  padding: 12px 28px;
-  color: var(--accent);
-  font-weight: 700;
-  font-size: 14px;
-  cursor: pointer;
 }
 
-.city-gate-button:hover {
+.city-leave-gate:hover {
   background: linear-gradient(180deg, #4a3a24, #2e2214);
+}
+
+.city-leave-gate-icon {
+  font-size: 26px;
+}
+
+.city-leave-gate-label {
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.army-unit-card-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.city-army-card {
+  position: relative;
+  width: 160px;
+}
+
+.recruit-flourish {
+  position: absolute;
+  top: -10px;
+  right: -6px;
+  background: #5cc97a;
+  color: #0c1a10;
+  font-weight: 800;
+  font-size: 11px;
+  padding: 2px 7px;
+  border-radius: 12px;
+  box-shadow: 0 0 10px #5cc97acc;
+  animation: recruit-flourish-pop 2.2s ease forwards;
+}
+
+@keyframes recruit-flourish-pop {
+  0% {
+    transform: scale(0.4) translateY(6px);
+    opacity: 0;
+  }
+  15% {
+    transform: scale(1.15) translateY(0);
+    opacity: 1;
+  }
+  25% {
+    transform: scale(1) translateY(0);
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
 }
 
 /* ============ Battle cards v2 ============ */
