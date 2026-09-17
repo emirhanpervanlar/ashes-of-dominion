@@ -188,6 +188,7 @@ button.primary {
 .bar-fill-hp {
   background: var(--hp);
   height: 100%;
+  transition: width 0.5s ease;
 }
 
 .bar-fill-hp.low {
@@ -197,6 +198,7 @@ button.primary {
 .bar-fill-block {
   background: var(--block);
   height: 100%;
+  transition: width 0.5s ease;
 }
 
 .badges {
@@ -707,6 +709,112 @@ button.primary {
   justify-content: center;
   font-size: 11px;
   line-height: 1;
+}
+
+/* ============ Battle action FX ============ */
+
+.unit-octagon.fx-acting {
+  transform: scale(1.16);
+  box-shadow: 0 0 0 4px #ffd76a, 0 0 26px #ffd76acc;
+  z-index: 45;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.unit-octagon.fx-hit {
+  animation: fx-hit-shake 0.45s ease;
+}
+
+.unit-octagon.fx-block {
+  animation: fx-block-pulse 0.5s ease;
+}
+
+.unit-octagon.fx-buff {
+  animation: fx-buff-rise 0.55s ease;
+}
+
+.unit-octagon.fx-debuff {
+  animation: fx-debuff-sink 0.55s ease;
+}
+
+@keyframes fx-hit-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+    box-shadow: 0 0 0 4px #e0503c00;
+  }
+  20% {
+    transform: translateX(-6px);
+    box-shadow: 0 0 0 4px #e0503ccc;
+  }
+  40% {
+    transform: translateX(5px);
+  }
+  60% {
+    transform: translateX(-4px);
+  }
+  80% {
+    transform: translateX(3px);
+  }
+}
+
+@keyframes fx-block-pulse {
+  0% {
+    box-shadow: 0 0 0 0 #4a90d9cc;
+  }
+  50% {
+    box-shadow: 0 0 0 10px #4a90d955;
+  }
+  100% {
+    box-shadow: 0 0 0 0 #4a90d900;
+  }
+}
+
+@keyframes fx-buff-rise {
+  0% {
+    box-shadow: 0 0 0 0 #5cc97a00;
+    transform: translateY(0);
+  }
+  40% {
+    box-shadow: 0 0 0 8px #5cc97a99;
+    transform: translateY(-6px);
+  }
+  100% {
+    box-shadow: 0 0 0 0 #5cc97a00;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fx-debuff-sink {
+  0% {
+    box-shadow: 0 0 0 0 #a05cd900;
+    transform: translateY(0);
+  }
+  40% {
+    box-shadow: 0 0 0 8px #a05cd999;
+    transform: translateY(4px);
+  }
+  100% {
+    box-shadow: 0 0 0 0 #a05cd900;
+    transform: translateY(0);
+  }
+}
+
+.acting-intent-bubble {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-bottom: 10px;
+  padding: 5px 10px;
+  border-radius: 8px;
+  background: #1a1a1a;
+  border: 1px solid #ffd76a;
+  color: #ffd76a;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px #000a;
+  z-index: 46;
 }
 
 .unit-selected-badge {

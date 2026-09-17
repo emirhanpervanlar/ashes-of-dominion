@@ -38,6 +38,16 @@ interface PendingAction {
   targetStackId?: string;
 }
 
+interface PlayerActionFx {
+  attackFrom?: string;
+  attackTo?: string;
+  blockStacks?: string[];
+  buffStacks?: string[];
+  debuffStacks?: string[];
+}
+
+const BUFF_EFFECT_KINDS = new Set(['GAIN_MORALE', 'GAIN_MORALE_ALL', 'GAIN_MANA', 'GAIN_MANA_AND_DRAW', 'DRAW', 'GAIN_TAUNT']);
+
 function loadInitialRun(): RunState {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -59,6 +69,9 @@ export default function App() {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [hoveredStackId, setHoveredStackId] = useState<string | null>(null);
   const [droppingInstanceId, setDroppingInstanceId] = useState<string | null>(null);
+  const [playerFx, setPlayerFx] = useState<PlayerActionFx | null>(null);
+  const [enemyAnimQueue, setEnemyAnimQueue] = useState<EnemyIntent[] | null>(null);
+  const [enemyAnimIndex, setEnemyAnimIndex] = useState(0);
   const [appStage, setAppStage] = useState<AppStage>('title');
   const [menuOpen, setMenuOpen] = useState(false);
   const [titleSettingsOpen, setTitleSettingsOpen] = useState(false);
@@ -93,7 +106,51 @@ export default function App() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, []);
 
+  // Steps through the enemy's intents one at a time (highlighting the acting stack and its
+  // target) before actually dispatching END_TURN — the engine resolves the whole enemy turn
+  // atomically, so this is a pre-resolution "preview playback," not a true step-by-step sim.
+  useEffect(() => {
+    if (!enemyAnimQueue) return;
+    if (enemyAnimIndex >= enemyAnimQueue.length) {
+      dispatchCombat({ type: 'END_TURN' });
+      setEnemyAnimQueue(null);
+      setEnemyAnimIndex(0);
+      return;
+    }
+    const t = setTimeout(() => setEnemyAnimIndex((i) => i + 1), 700);
+    return () => clearTimeout(t);
+  }, [enemyAnimQueue, enemyAnimIndex]);
+
   const combat = run.combat;
+  const currentEnemyIntent = enemyAnimQueue ? enemyAnimQueue[enemyAnimIndex] : null;
+
+  function handleEndTurn() {
+    if (!combat) return;
+    if (combat.enemyIntents.length === 0) {
+      dispatchCombat({ type: 'END_TURN' });
+      return;
+    }
+    setEnemyAnimIndex(0);
+    setEnemyAnimQueue(combat.enemyIntents);
+  }
+
+  function stackFx(stackId: string | undefined): { acting: boolean; hit: boolean; block: boolean; buff: boolean; debuff: boolean } {
+    const result = { acting: false, hit: false, block: false, buff: false, debuff: false };
+    if (!stackId) return result;
+    if (currentEnemyIntent) {
+      if (currentEnemyIntent.stackId === stackId) result.acting = true;
+      if (currentEnemyIntent.kind === 'attack' && currentEnemyIntent.targetStackId === stackId) result.hit = true;
+      if (currentEnemyIntent.kind === 'buff' && currentEnemyIntent.targetStackId === stackId) result.buff = true;
+    }
+    if (playerFx) {
+      if (playerFx.attackFrom === stackId) result.acting = true;
+      if (playerFx.attackTo === stackId) result.hit = true;
+      if (playerFx.blockStacks?.includes(stackId)) result.block = true;
+      if (playerFx.buffStacks?.includes(stackId)) result.buff = true;
+      if (playerFx.debuffStacks?.includes(stackId)) result.debuff = true;
+    }
+    return result;
+  }
 
   const intentByStack = useMemo(() => {
     const map = new Map<string, EnemyIntent>();
@@ -187,11 +244,49 @@ export default function App() {
   }
 
   function finalize(extra: { actingStackId?: string; targetStackId?: string; toPosition?: Position }) {
-    if (!pending) return;
-    if (pending.kind === 'card') {
-      dispatchCombat({ type: 'PLAY_CARD', instanceId: pending.id, ...extra });
+    if (!pending || !combat) return;
+    const current = pending;
+
+    function dispatchNow() {
+      if (current.kind === 'card') {
+        dispatchCombat({ type: 'PLAY_CARD', instanceId: current.id, ...extra });
+      } else {
+        dispatchCombat({ type: 'USE_SKILL', skillId: current.id, ...extra });
+      }
+    }
+
+    const cardId = current.kind === 'card' ? combat.hand.find((c) => c.instanceId === current.id)?.cardId : undefined;
+    const def = current.kind === 'card' ? (cardId ? CARD_DEFINITIONS[cardId] : undefined) : HERO_SKILL_DEFINITIONS[current.id];
+    const effects = def?.effects ?? [];
+
+    const fx: PlayerActionFx = {};
+    if (effects.some((e) => e.kind === 'ATTACK' || e.kind === 'ATTACK_ALL_WITH_TAG')) {
+      if (extra.actingStackId) fx.attackFrom = extra.actingStackId;
+      if (extra.targetStackId) fx.attackTo = extra.targetStackId;
+    }
+    if (effects.some((e) => e.kind === 'GAIN_BLOCK_ALL_FRONT')) {
+      fx.blockStacks = combat.playerArmy.filter((s) => s.count > 0 && (s.position === 1 || s.position === 2 || s.position === 3)).map((s) => s.stackId);
+    } else if (effects.some((e) => e.kind === 'GAIN_BLOCK') && extra.actingStackId) {
+      fx.blockStacks = [extra.actingStackId];
+    }
+    if (effects.some((e) => e.kind === 'GAIN_MORALE_ALL')) {
+      fx.buffStacks = combat.playerArmy.filter((s) => s.count > 0).map((s) => s.stackId);
+    } else if (effects.some((e) => BUFF_EFFECT_KINDS.has(e.kind)) && extra.actingStackId) {
+      fx.buffStacks = [extra.actingStackId];
+    }
+    if (effects.some((e) => e.kind === 'APPLY_VULNERABLE') && extra.targetStackId) {
+      fx.debuffStacks = [extra.targetStackId];
+    }
+
+    const hasFx = fx.attackFrom || fx.attackTo || fx.blockStacks?.length || fx.buffStacks?.length || fx.debuffStacks?.length;
+    if (hasFx) {
+      setPlayerFx(fx);
+      setTimeout(() => {
+        setPlayerFx(null);
+        dispatchNow();
+      }, 420);
     } else {
-      dispatchCombat({ type: 'USE_SKILL', skillId: pending.id, ...extra });
+      dispatchNow();
     }
   }
 
@@ -279,6 +374,13 @@ export default function App() {
 
   function isDimmed(stack: ArmyStack | undefined, side: 'player' | 'enemy'): boolean {
     if (!stack) return false;
+    if (currentEnemyIntent) {
+      return stack.stackId !== currentEnemyIntent.stackId && stack.stackId !== currentEnemyIntent.targetStackId;
+    }
+    if (playerFx) {
+      const fx = stackFx(stack.stackId);
+      return !fx.acting && !fx.hit && !fx.block && !fx.buff && !fx.debuff;
+    }
     if (pending) {
       const selectable = isSelectable(stack, side);
       const chosen = stack.stackId === pending.actingStackId || stack.stackId === pending.targetStackId;
@@ -492,7 +594,7 @@ export default function App() {
   const back = [4, 5, 6] as const;
   const combatHistory = combat.log.map((e) => describeEvent(combat, e)).filter((line): line is string => line !== null);
   const manaPct = combat.hero.maxMana > 0 ? Math.min(100, (combat.hero.mana / combat.hero.maxMana) * 100) : 0;
-  const canAct = combat.phase === 'player' && combat.result === 'ongoing';
+  const canAct = combat.phase === 'player' && combat.result === 'ongoing' && !enemyAnimQueue && !playerFx;
   const handCount = combat.hand.length;
   const handMid = (handCount - 1) / 2;
 
@@ -580,6 +682,7 @@ export default function App() {
                   selectable={isSelectable(s, 'player')}
                   selected={isSelected(s)}
                   dimmed={isDimmed(s, 'player')}
+                  fx={stackFx(s?.stackId)}
                   threatened={isThreatened(s)}
                   previewDamage={previewDamageFor(s, 'player')}
                   onClick={() => handleStackClick(s, p, 'player')}
@@ -602,6 +705,7 @@ export default function App() {
                   selectable={isSelectable(s, 'player')}
                   selected={isSelected(s)}
                   dimmed={isDimmed(s, 'player')}
+                  fx={stackFx(s?.stackId)}
                   threatened={isThreatened(s)}
                   previewDamage={previewDamageFor(s, 'player')}
                   onClick={() => handleStackClick(s, p, 'player')}
@@ -628,6 +732,7 @@ export default function App() {
                   selectable={isSelectable(s, 'enemy')}
                   selected={isSelected(s)}
                   dimmed={isDimmed(s, 'enemy')}
+                  fx={stackFx(s?.stackId)}
                   previewDamage={previewDamageFor(s, 'enemy')}
                   onClick={() => handleStackClick(s, p, 'enemy')}
                   onHoverStart={() => s && setHoveredStackId(s.stackId)}
@@ -650,6 +755,7 @@ export default function App() {
                   selectable={isSelectable(s, 'enemy')}
                   selected={isSelected(s)}
                   dimmed={isDimmed(s, 'enemy')}
+                  fx={stackFx(s?.stackId)}
                   previewDamage={previewDamageFor(s, 'enemy')}
                   onClick={() => handleStackClick(s, p, 'enemy')}
                   onHoverStart={() => s && setHoveredStackId(s.stackId)}
@@ -710,7 +816,7 @@ export default function App() {
         </div>
       </div>
 
-      <button className="end-turn-fab" disabled={!canAct} onClick={() => dispatchCombat({ type: 'END_TURN' })}>
+      <button className="end-turn-fab" disabled={!canAct} onClick={handleEndTurn}>
         ⚔️ End Turn
       </button>
 

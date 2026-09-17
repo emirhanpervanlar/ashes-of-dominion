@@ -5,6 +5,14 @@ import { UNIT_ICONS } from './unitIcons.js';
 import { UNIT_ROLE_ICONS, UNIT_SHAPES } from './unitShapes.js';
 import type { CombatState } from '../engine/index.js';
 
+interface StackFx {
+  acting: boolean;
+  hit: boolean;
+  block: boolean;
+  buff: boolean;
+  debuff: boolean;
+}
+
 interface StackTileProps {
   state: CombatState;
   stack: ArmyStack | undefined;
@@ -16,6 +24,7 @@ interface StackTileProps {
   dimmed?: boolean;
   threatened?: boolean;
   previewDamage?: number;
+  fx?: StackFx;
   onClick: () => void;
   onHoverStart?: () => void;
   onHoverEnd?: () => void;
@@ -32,6 +41,7 @@ export function StackTile({
   dimmed,
   threatened,
   previewDamage,
+  fx,
   onClick,
   onHoverStart,
   onHoverEnd,
@@ -71,6 +81,11 @@ export function StackTile({
   if (selectable) classes.push('selectable');
   if (selected) classes.push('selected');
   if (threatened) classes.push('threatened');
+  if (fx?.acting) classes.push('fx-acting');
+  if (fx?.hit) classes.push('fx-hit');
+  if (fx?.block) classes.push('fx-block');
+  if (fx?.buff) classes.push('fx-buff');
+  if (fx?.debuff) classes.push('fx-debuff');
 
   const slotClasses = ['unit-slot'];
   if (dimmed) slotClasses.push('dimmed');
@@ -87,6 +102,7 @@ export function StackTile({
   return (
     <div className={slotClasses.join(' ')} onMouseEnter={onHoverStart} onMouseLeave={onHoverEnd}>
       <div className={classes.join(' ')} onClick={selectable ? onClick : undefined} title={def.name}>
+        {fx?.acting && intentText && <div className="acting-intent-bubble">{intentText}</div>}
         <span className="unit-icon">{UNIT_ICONS[stack.unitId]}</span>
         <span className="unit-role-badge">{UNIT_ROLE_ICONS[stack.unitId]}</span>
         {selected && <span className="unit-selected-badge">✓</span>}
