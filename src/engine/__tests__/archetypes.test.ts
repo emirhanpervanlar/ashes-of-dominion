@@ -99,6 +99,41 @@ describe('v3 §8 Guard passive / Protect card redirect', () => {
   });
 });
 
+describe('Divine Protection', () => {
+  it('a lethal hit leaves the shielded stack at 1 soldier instead of destroying it', () => {
+    // divine_protection is Priest-sourced — use Mage (has a Priest, and no Knight, so
+    // Guard's redirect passive can't move the hit to a different stack).
+    let { state } = createVerticalSliceScenario(504.5, 'mage');
+    state = withHand(state, ['divine_protection']);
+    const swordsman = state.playerArmy.find((s) => s.unitId === 'swordsman')!;
+    const shielded = applyPlayerAction(state, {
+      type: 'PLAY_CARD',
+      instanceId: handCard(state, 'divine_protection').instanceId,
+      actingStackId: swordsman.stackId,
+    }).state;
+    expect(shielded.playerArmy.find((s) => s.stackId === swordsman.stackId)!.flags.divineShield).toBe(true);
+
+    // Make the shielded stack trivially killable so a hit would normally destroy it. Only the
+    // first enemy targets it — Divine Protection absorbs one lethal blow, not the whole turn.
+    const archer = shielded.playerArmy.find((s) => s.unitId === 'archer')!;
+    const fatal: CombatState = {
+      ...shielded,
+      playerArmy: shielded.playerArmy.map((s) => (s.stackId === swordsman.stackId ? { ...s, count: 1, currentHp: 1 } : s)),
+      enemyIntents: shielded.enemyIntents.map((i, idx) => ({
+        ...i,
+        kind: 'attack',
+        targetStackId: idx === 0 ? swordsman.stackId : archer.stackId,
+        estimatedDamage: 1,
+      })),
+    };
+    const ended = applyPlayerAction(fatal, { type: 'END_TURN' });
+    expect(ended.events.some((e) => e.type === 'DIVINE_SHIELD_CONSUMED')).toBe(true);
+    const survivor = ended.state.playerArmy.find((s) => s.stackId === swordsman.stackId);
+    expect(survivor).toBeDefined();
+    expect(survivor!.count).toBe(1);
+  });
+});
+
 describe('Dodge (Hero Dexterity)', () => {
   it('a very high Dexterity Hero occasionally avoids damage entirely', () => {
     const { state } = createVerticalSliceScenario(505, 'rogue'); // Rogue has the highest base Dexterity (17)

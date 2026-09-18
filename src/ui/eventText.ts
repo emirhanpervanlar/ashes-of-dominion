@@ -37,6 +37,14 @@ export function describeEvent(state: CombatState, event: CombatEvent): string | 
       return `${stackLabel(state, event.stackId)} morale ${event.amount >= 0 ? '+' : ''}${event.amount}.`;
     case 'STATUS_APPLIED':
       return `${stackLabel(state, event.stackId)} gains ${event.status} (${event.amount}).`;
+    case 'STATUSES_REMOVED':
+      return `${stackLabel(state, event.stackId)} loses ${event.statuses.join(', ')}.`;
+    case 'STACK_HEALED':
+      return `${stackLabel(state, event.stackId)} heals ${event.amount}.`;
+    case 'COUNTERATTACK_TRIGGERED':
+      return `${stackLabel(state, event.stackId)} counterattacks ${stackLabel(state, event.targetStackId)}!`;
+    case 'DIVINE_SHIELD_CONSUMED':
+      return `${stackLabel(state, event.stackId)}'s Divine Protection absorbs a lethal blow!`;
     case 'STACK_MOVED':
       return `${stackLabel(state, event.stackId)} moves to position ${event.toPosition}.`;
     case 'MANA_GAINED':

@@ -102,6 +102,19 @@ function raiseSkeletons(_army: ArmyStack[], _count: number, _events: CombatEvent
   // documented no-op so old NECROMANCY relic effects don't crash if one is still active.
 }
 
+/**
+ * Card text expresses defense buffs as "+N% Defense". Base Defense stats are tiny (0-4), so a
+ * flat +N armor status (using N directly, e.g. 20) would dwarf any attacker's Attack stat (1-7)
+ * and make the target nearly unhittable. Scale N as a percentage of the unit's base Defense
+ * instead (with a floor of 2 so 0-Defense units still get a small, non-zero bonus).
+ */
+function defenseBuffAmount(unitId: ArmyStack['unitId'], percent: number): number {
+  if (percent === 0) return 0;
+  const baseDefense = Math.max(2, UNIT_DEFINITIONS[unitId].defense);
+  const raw = Math.round((baseDefense * percent) / 100);
+  return percent > 0 ? Math.max(1, raw) : Math.min(-1, raw);
+}
+
 /** v3 §8 Knight "Guard" passive / the Protect card's explicit redirect — first checks an explicit flag, then the passive. */
 function resolveRedirect(target: ArmyStack, army: ArmyStack[]): { toStackId: string; percent: number } | null {
   if (target.flags.redirectToStackId && target.flags.redirectPercent) {
@@ -176,7 +189,15 @@ function resolveAttack(
     multiplier: totalMultiplier,
     heroEffectiveness,
   });
-  const resolution = applyDamageToStack(actualTarget, targetDef.hpPerUnit, raw);
+  let resolution = applyDamageToStack(actualTarget, targetDef.hpPerUnit, raw);
+
+  // Divine Protection — a lethal blow instead leaves the stack at 1 soldier, once.
+  if (resolution.stack.count === 0 && actualTarget.flags.divineShield) {
+    const survivorHp = targetDef.hpPerUnit;
+    resolution = { ...resolution, stack: { ...actualTarget, count: 1, currentHp: survivorHp, flags: { ...actualTarget.flags, divineShield: false } }, unitsKilled: actualTarget.count - 1 };
+    events.push({ type: 'DIVINE_SHIELD_CONSUMED', stackId: actualTarget.stackId });
+  }
+
   replaceStack(army, resolution.stack);
 
   events.push({
@@ -372,7 +393,10 @@ function executeEffect(state: CombatState, effect: CardEffect, action: TargetedA
       const affected = effect.scope === 'self' ? [source] : adjacentAllies(state.playerArmy, source);
       for (const stack of affected) {
         const statusType: StatusType = effect.stat === 'defense' ? 'armor' : 'strength';
-        const amount = effect.stat === 'defense' ? effect.amount : Math.round((UNIT_DEFINITIONS[stack.unitId].attack * effect.amount) / 100);
+        const amount =
+          effect.stat === 'defense'
+            ? defenseBuffAmount(stack.unitId, effect.amount)
+            : Math.round((UNIT_DEFINITIONS[stack.unitId].attack * effect.amount) / 100);
         const updated = { ...stack, statuses: [...stack.statuses, { type: statusType, amount, duration: effect.duration }] };
         replaceStack(state.playerArmy, updated);
         events.push({ type: 'STATUS_APPLIED', stackId: stack.stackId, status: statusType, amount, duration: effect.duration });
@@ -382,9 +406,10 @@ function executeEffect(state: CombatState, effect: CardEffect, action: TargetedA
     case 'DEFENSE_BUFF_ALL_FRONTLINE': {
       for (const stack of state.playerArmy) {
         if (stack.count > 0 && stack.position <= 3) {
-          const updated = { ...stack, statuses: [...stack.statuses, { type: 'armor' as const, amount: effect.amount, duration: effect.duration }] };
+          const amount = defenseBuffAmount(stack.unitId, effect.amount);
+          const updated = { ...stack, statuses: [...stack.statuses, { type: 'armor' as const, amount, duration: effect.duration }] };
           replaceStack(state.playerArmy, updated);
-          events.push({ type: 'STATUS_APPLIED', stackId: stack.stackId, status: 'armor', amount: effect.amount, duration: effect.duration });
+          events.push({ type: 'STATUS_APPLIED', stackId: stack.stackId, status: 'armor', amount, duration: effect.duration });
         }
       }
       return;
@@ -393,9 +418,10 @@ function executeEffect(state: CombatState, effect: CardEffect, action: TargetedA
       const source = findStack(state.playerArmy, action.actingStackId)!;
       const affected = [source, ...adjacentAllies(state.playerArmy, source)].slice(0, 3);
       for (const stack of affected) {
-        const updated = { ...stack, statuses: [...stack.statuses, { type: 'armor' as const, amount: effect.amount, duration: effect.duration }] };
+        const amount = defenseBuffAmount(stack.unitId, effect.amount);
+        const updated = { ...stack, statuses: [...stack.statuses, { type: 'armor' as const, amount, duration: effect.duration }] };
         replaceStack(state.playerArmy, updated);
-        events.push({ type: 'STATUS_APPLIED', stackId: stack.stackId, status: 'armor', amount: effect.amount, duration: effect.duration });
+        events.push({ type: 'STATUS_APPLIED', stackId: stack.stackId, status: 'armor', amount, duration: effect.duration });
       }
       return;
     }
@@ -413,17 +439,18 @@ function executeEffect(state: CombatState, effect: CardEffect, action: TargetedA
     case 'DAMAGE_AND_DEFENSE_BUFF': {
       const target = findStack(state.playerArmy, action.targetStackId ?? action.actingStackId)!;
       const dmgAmount = Math.round((UNIT_DEFINITIONS[target.unitId].attack * effect.damageAmount) / 100);
+      const defAmount = defenseBuffAmount(target.unitId, effect.defenseAmount);
       const updated = {
         ...target,
         statuses: [
           ...target.statuses,
           { type: 'strength' as const, amount: dmgAmount, duration: effect.duration },
-          { type: 'armor' as const, amount: effect.defenseAmount, duration: effect.duration },
+          { type: 'armor' as const, amount: defAmount, duration: effect.duration },
         ],
       };
       replaceStack(state.playerArmy, updated);
       events.push({ type: 'STATUS_APPLIED', stackId: target.stackId, status: 'strength', amount: dmgAmount, duration: effect.duration });
-      events.push({ type: 'STATUS_APPLIED', stackId: target.stackId, status: 'armor', amount: effect.defenseAmount, duration: effect.duration });
+      events.push({ type: 'STATUS_APPLIED', stackId: target.stackId, status: 'armor', amount: defAmount, duration: effect.duration });
       return;
     }
     case 'APPLY_STATUS': {
