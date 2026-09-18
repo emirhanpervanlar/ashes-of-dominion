@@ -951,71 +951,124 @@ button.primary {
   overflow-y: auto;
 }
 
-.garrison-topbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 14px 60px 14px 22px;
-  flex-shrink: 0;
-}
-
-.garrison-title {
-  font-size: 16px;
-  font-weight: 800;
-  color: var(--accent);
-}
-
-.garrison-topbar-actions {
-  display: flex;
-  gap: 8px;
-}
-
-.garrison-body {
+.garrison-scene {
   flex: 1;
-  display: flex;
-  gap: 18px;
-  padding: 0 22px 22px;
   min-height: 0;
-}
-
-.garrison-panel {
-  width: 260px;
-  flex-shrink: 0;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  background: linear-gradient(180deg, #3a2318, #201209);
-  border: 3px solid #8a3a2a;
-  border-radius: 12px;
-  padding: 16px;
-  box-shadow: inset 0 0 20px #000a, 0 8px 20px #000a;
-  height: fit-content;
-}
-
-.garrison-hero-row {
-  display: flex;
   align-items: center;
-  gap: 10px;
-  padding-bottom: 10px;
-  border-bottom: 2px solid #6b3a2a;
+  padding: 40px 22px 20px;
 }
 
 .garrison-hero-info {
   min-width: 0;
 }
 
-.garrison-roster-label {
-  font-size: 11px;
-  color: #d9b98a;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  font-weight: 700;
+.garrison-bar {
+  flex-shrink: 0;
+  height: 104px;
+  display: flex;
+  align-items: stretch;
+  background: linear-gradient(180deg, #3a2318, #180f09);
+  border-top: 3px solid #8a3a2a;
+  padding: 0 16px;
+  gap: 16px;
 }
 
-.garrison-roster-row {
+.garrison-bar-col {
   display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.garrison-bar-resources {
+  width: 96px;
+  flex-shrink: 0;
+  gap: 4px;
+  border-right: 2px solid #6b3a2a;
+  padding-right: 16px;
+}
+
+.garrison-bar-stat {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.garrison-bar-hero {
+  flex-direction: row;
+  align-items: center;
+  gap: 10px;
+  width: 170px;
+  flex-shrink: 0;
+  border-right: 2px solid #6b3a2a;
+  padding-right: 16px;
+}
+
+.garrison-bar-main {
+  flex: 1;
+  min-width: 0;
+  gap: 6px;
+}
+
+.garrison-bar-relics {
+  display: flex;
+  gap: 5px;
   flex-wrap: wrap;
-  gap: 8px;
+  min-height: 18px;
+  max-height: 22px;
+  overflow: hidden;
+}
+
+.garrison-bar-army {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  overflow-x: auto;
+}
+
+.garrison-unit-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.garrison-slot-count-below {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--accent);
+}
+
+.garrison-bar-actions {
+  width: 44px;
+  flex-shrink: 0;
+  gap: 4px;
+  padding: 14px 0;
+}
+
+.garrison-bar-btn {
+  flex: 1;
+  background: linear-gradient(180deg, #4a2e1e, #1a0f08);
+  border: 2px solid #8a5a3a;
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 15px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.garrison-bar-btn:hover {
+  border-color: var(--accent);
 }
 
 .garrison-slot {
@@ -1065,29 +1118,6 @@ button.primary {
   color: var(--accent);
 }
 
-.garrison-relic-row {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
-.garrison-main {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding-top: 30px;
-}
-
-.garrison-resource-bar {
-  display: flex;
-  justify-content: center;
-  gap: 14px;
-  flex-shrink: 0;
-  padding: 10px 22px 18px;
-}
-
 .garrison-resource-chip {
   display: flex;
   align-items: center;
@@ -1098,13 +1128,6 @@ button.primary {
   border: 2px solid #8a3a2a;
   border-radius: 999px;
   padding: 6px 16px;
-}
-
-.garrison-history-btn {
-  position: fixed;
-  right: 18px;
-  bottom: 18px;
-  z-index: 41;
 }
 
 .path-progress {

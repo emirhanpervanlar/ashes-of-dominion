@@ -13,7 +13,7 @@ interface Props {
   run: RunState;
   onMoveTo: (nodeId: string) => void;
   onEnterCity: () => void;
-  onNewRun: () => void;
+  onOpenMenu: () => void;
   onSplitStack: (stackId: string, splitCount: number) => void;
   onMergeStacks: (stackIdA: string, stackIdB: string) => void;
 }
@@ -51,7 +51,7 @@ const NODE_ACCENTS: Record<MapNode['type'], string> = {
   boss: '#e0503c',
 };
 
-export function WorldMapScreen({ run, onMoveTo, onEnterCity, onNewRun, onSplitStack, onMergeStacks }: Props) {
+export function WorldMapScreen({ run, onMoveTo, onEnterCity, onOpenMenu, onSplitStack, onMergeStacks }: Props) {
   const [popupStackId, setPopupStackId] = useState<string | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const popupStack = popupStackId ? run.army.find((s) => s.stackId === popupStackId && s.count > 0) ?? null : null;
@@ -65,106 +65,98 @@ export function WorldMapScreen({ run, onMoveTo, onEnterCity, onNewRun, onSplitSt
 
   return (
     <div className="garrison-frame">
-      <div className="garrison-topbar">
-        <div className="garrison-title">Ashes of Dominion — The Road</div>
-        <div className="garrison-topbar-actions">
-          <button onClick={onNewRun}>New Run</button>
-          {current.type === 'city' && (
-            <button className="primary" onClick={onEnterCity}>
-              Enter City
-            </button>
-          )}
+      <div className="garrison-scene">
+        <div className="path-progress">
+          Layer {current.layer + 1} / {layerCount}
+        </div>
+        <div className="current-location-badge" style={{ '--pc-color': NODE_ACCENTS[current.type] } as React.CSSProperties}>
+          <span className="current-location-icon">{NODE_BADGES[current.type]}</span>
+          <span>You are here — {NODE_LABELS[current.type]}</span>
+        </div>
+        {current.type === 'city' && (
+          <button className="primary" style={{ marginTop: 10 }} onClick={onEnterCity}>
+            Enter City
+          </button>
+        )}
+
+        <div className="path-choice-heading">Choose Your Path</div>
+        <div className="path-choice-row">
+          {nextChoices.length === 0 && <div className="subtitle">This is the end of the road.</div>}
+          {nextChoices.map((node) => {
+            const known = node.visibility !== 'unknown';
+            return (
+              <div
+                key={node.id}
+                className="path-choice-card"
+                style={{ '--pc-color': NODE_ACCENTS[node.type] } as React.CSSProperties}
+                onClick={() => onMoveTo(node.id)}
+              >
+                <span className="path-choice-badge">{known ? NODE_BADGES[node.type] : '?'}</span>
+                <div className="path-choice-name">{known ? NODE_LABELS[node.type] : 'Unknown'}</div>
+              </div>
+            );
+          })}
         </div>
       </div>
 
-      <div className="garrison-body">
-        <div className="garrison-panel">
-          <div className="garrison-hero-row">
-            <div className="hero-portrait">🤴</div>
-            <div className="garrison-hero-info">
-              <strong>{run.hero.name}</strong>
-              <div className="bar" style={{ marginTop: 4 }}>
-                <div className={`bar-fill-hp${hpPct < 30 ? ' low' : ''}`} style={{ width: `${hpPct}%` }} />
-              </div>
-              <div className="subtitle" style={{ margin: 0 }}>
-                HP {run.hero.hp}/{run.hero.maxHp}
-              </div>
+      <div className="garrison-bar">
+        <div className="garrison-bar-col garrison-bar-resources">
+          <div className="garrison-bar-stat">
+            <span>💰</span> {run.gold}
+          </div>
+          <div className="garrison-bar-stat">
+            <span>🌾</span> {run.food}
+          </div>
+          <div className="garrison-bar-stat">
+            <span>⏳</span> Day {run.day}
+          </div>
+        </div>
+
+        <div className="garrison-bar-col garrison-bar-hero">
+          <div className="hero-portrait">🤴</div>
+          <div className="garrison-hero-info">
+            <strong>{run.hero.name}</strong>
+            <div className="bar" style={{ marginTop: 4 }}>
+              <div className={`bar-fill-hp${hpPct < 30 ? ' low' : ''}`} style={{ width: `${hpPct}%` }} />
+            </div>
+            <div className="subtitle" style={{ margin: 0 }}>
+              HP {run.hero.hp}/{run.hero.maxHp}
             </div>
           </div>
+        </div>
 
-          <div className="garrison-roster-label">Army</div>
-          <div className="garrison-roster-row">
+        <div className="garrison-bar-col garrison-bar-main">
+          <div className="garrison-bar-relics">
+            {run.relics.map((r) => (
+              <span key={r.id} className="relic-icon" title={`${r.name} — ${r.description}`}>
+                {relicIcon(r.id)}
+              </span>
+            ))}
+          </div>
+          <div className="garrison-bar-army">
             {run.army
               .filter((s) => s.count > 0)
               .map((s) => (
-                <div key={s.stackId} className="garrison-slot" onClick={() => setPopupStackId(s.stackId)} title={UNIT_DEFINITIONS[s.unitId].name}>
-                  <span className="garrison-slot-icon">{UNIT_ICONS[s.unitId]}</span>
-                  <span className="garrison-slot-role">{UNIT_ROLE_ICONS[s.unitId]}</span>
-                  <span className="garrison-slot-count">{s.count}</span>
+                <div key={s.stackId} className="garrison-unit-cell" onClick={() => setPopupStackId(s.stackId)} title={UNIT_DEFINITIONS[s.unitId].name}>
+                  <div className="garrison-slot">
+                    <span className="garrison-slot-icon">{UNIT_ICONS[s.unitId]}</span>
+                    <span className="garrison-slot-role">{UNIT_ROLE_ICONS[s.unitId]}</span>
+                  </div>
+                  <span className="garrison-slot-count-below">{s.count}</span>
                 </div>
               ))}
-            {run.army.filter((s) => s.count > 0).length === 0 && <div className="subtitle" style={{ margin: 0 }}>No units.</div>}
           </div>
-
-          {run.relics.length > 0 && (
-            <>
-              <div className="garrison-roster-label">Relics</div>
-              <div className="garrison-relic-row">
-                {run.relics.map((r) => (
-                  <span key={r.id} className="relic-icon" title={`${r.name} — ${r.description}`}>
-                    {relicIcon(r.id)}
-                  </span>
-                ))}
-              </div>
-            </>
-          )}
         </div>
 
-        <div className="garrison-main">
-          <div className="path-progress">
-            Layer {current.layer + 1} / {layerCount}
-          </div>
-          <div className="current-location-badge" style={{ '--pc-color': NODE_ACCENTS[current.type] } as React.CSSProperties}>
-            <span className="current-location-icon">{NODE_BADGES[current.type]}</span>
-            <span>You are here — {NODE_LABELS[current.type]}</span>
-          </div>
-
-          <div className="path-choice-heading">Choose Your Path</div>
-          <div className="path-choice-row">
-            {nextChoices.length === 0 && <div className="subtitle">This is the end of the road.</div>}
-            {nextChoices.map((node) => {
-              const known = node.visibility !== 'unknown';
-              return (
-                <div
-                  key={node.id}
-                  className="path-choice-card"
-                  style={{ '--pc-color': NODE_ACCENTS[node.type] } as React.CSSProperties}
-                  onClick={() => onMoveTo(node.id)}
-                >
-                  <span className="path-choice-badge">{known ? NODE_BADGES[node.type] : '?'}</span>
-                  <div className="path-choice-name">{known ? NODE_LABELS[node.type] : 'Unknown'}</div>
-                </div>
-              );
-            })}
-          </div>
+        <div className="garrison-bar-col garrison-bar-actions">
+          <button className="garrison-bar-btn" onClick={() => setHistoryOpen(true)} title="History">
+            📜
+          </button>
+          <button className="garrison-bar-btn" onClick={onOpenMenu} title="Menu">
+            ☰
+          </button>
         </div>
       </div>
-
-      <div className="garrison-resource-bar">
-        <div className="garrison-resource-chip">
-          <span>💰</span> {run.gold}
-        </div>
-        <div className="garrison-resource-chip">
-          <span>🌾</span> {run.food}
-        </div>
-        <div className="garrison-resource-chip">
-          <span>⏳</span> Day {run.day}
-        </div>
-      </div>
-
-      <button className="round-btn garrison-history-btn" onClick={() => setHistoryOpen(true)} title="History">
-        📜
-      </button>
 
       <HistoryDrawer open={historyOpen} onClose={() => setHistoryOpen(false)} title="History" lines={historyLines} />
 
