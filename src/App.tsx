@@ -71,6 +71,9 @@ export default function App() {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [hoveredStackId, setHoveredStackId] = useState<string | null>(null);
   const [droppingInstanceId, setDroppingInstanceId] = useState<string | null>(null);
+  const [discardingIds, setDiscardingIds] = useState<string[] | null>(null);
+  const [drawingIds, setDrawingIds] = useState<Set<string>>(new Set());
+  const prevHandIds = useRef<Set<string>>(new Set());
   const [playerFx, setPlayerFx] = useState<PlayerActionFx | null>(null);
   const [enemyAnimQueue, setEnemyAnimQueue] = useState<EnemyIntent[] | null>(null);
   const [enemyAnimIndex, setEnemyAnimIndex] = useState(0);
@@ -114,22 +117,51 @@ export default function App() {
   useEffect(() => {
     if (!enemyAnimQueue) return;
     if (enemyAnimIndex >= enemyAnimQueue.length) {
-      dispatchCombat({ type: 'END_TURN' });
+      dispatchEndTurn();
       setEnemyAnimQueue(null);
       setEnemyAnimIndex(0);
       return;
     }
     const t = setTimeout(() => setEnemyAnimIndex((i) => i + 1), 700);
     return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [enemyAnimQueue, enemyAnimIndex]);
 
   const combat = run.combat;
   const currentEnemyIntent = enemyAnimQueue ? enemyAnimQueue[enemyAnimIndex] : null;
 
+  // Cards newly present in hand (just drawn) play a slide-in-from-the-deck entrance once.
+  useEffect(() => {
+    if (!combat) return;
+    const currentIds = new Set(combat.hand.map((c) => c.instanceId));
+    const newIds = [...currentIds].filter((id) => !prevHandIds.current.has(id));
+    prevHandIds.current = currentIds;
+    if (newIds.length === 0) return;
+    setDrawingIds(new Set(newIds));
+    const t = setTimeout(() => setDrawingIds(new Set()), 420);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [combat?.hand]);
+
+  /** Plays the non-retained hand cards sliding out to the discard pile before END_TURN actually resolves. */
+  function dispatchEndTurn() {
+    if (!combat) return;
+    const leaving = combat.hand.filter((c) => !CARD_DEFINITIONS[c.cardId]?.retain).map((c) => c.instanceId);
+    if (leaving.length === 0) {
+      dispatchCombat({ type: 'END_TURN' });
+      return;
+    }
+    setDiscardingIds(leaving);
+    setTimeout(() => {
+      dispatchCombat({ type: 'END_TURN' });
+      setDiscardingIds(null);
+    }, 320);
+  }
+
   function handleEndTurn() {
     if (!combat) return;
     if (combat.enemyIntents.length === 0) {
-      dispatchCombat({ type: 'END_TURN' });
+      dispatchEndTurn();
       return;
     }
     setEnemyAnimIndex(0);
@@ -307,6 +339,17 @@ export default function App() {
     if (!pending) return;
     const alive = !!stack && stack.count > 0;
     const { targeting } = pending;
+
+    // Re-clicking an already-selected half of a two-step targeting choice deselects just
+    // that half, so the player can pick a different ally/target without restarting the card.
+    if (side === 'player' && stack && stack.stackId === pending.actingStackId) {
+      setPending({ ...pending, actingStackId: undefined });
+      return;
+    }
+    if (side === 'enemy' && stack && stack.stackId === pending.targetStackId) {
+      setPending({ ...pending, targetStackId: undefined });
+      return;
+    }
 
     if (targeting === 'basic-attack' && side === 'enemy' && alive) {
       finalize({ actingStackId: pending.actingStackId, targetStackId: stack!.stackId });
@@ -672,8 +715,6 @@ export default function App() {
   const combatHistory = combat.log.map((e) => describeEvent(combat, e)).filter((line): line is string => line !== null);
   const manaPct = combat.hero.maxMana > 0 ? Math.min(100, (combat.hero.mana / combat.hero.maxMana) * 100) : 0;
   const canAct = combat.phase === 'player' && combat.result === 'ongoing' && !enemyAnimQueue && !playerFx;
-  const handCount = combat.hand.length;
-  const handMid = (handCount - 1) / 2;
 
   return (
     <div className="disciples-frame">
@@ -831,17 +872,25 @@ export default function App() {
       </div>
 
       <div className="frame-bottombar">
+        <div className="frame-pile deck-pile" title={`Deck: ${combat.deck.length} cards`}>
+          <div className="pile-card-back">🂠</div>
+          <div className="pile-count">{combat.deck.length}</div>
+          <div className="pile-label">Deck</div>
+        </div>
+
         <div className="frame-hand-slots">
           {combat.hand.map((instance, i) => {
             const cardDef = CARD_DEFINITIONS[instance.cardId];
             if (!cardDef) return null;
-            const offset = i - handMid;
-            const rotate = Math.max(-11, Math.min(11, offset * 5));
-            const ty = Math.abs(offset) * 3;
-            const slotStyle = { '--rot': `${rotate}deg`, '--ty': `${ty}px` } as React.CSSProperties;
             const isDropping = droppingInstanceId === instance.instanceId;
+            const isDiscarding = discardingIds?.includes(instance.instanceId) ?? false;
+            const isDrawing = drawingIds.has(instance.instanceId);
+            const slotStyle = { '--stagger': `${i * 40}ms` } as React.CSSProperties;
+            const slotClass = ['hand-card-slot', isDropping && 'dropping', isDiscarding && 'discarding', isDrawing && 'drawing']
+              .filter(Boolean)
+              .join(' ');
             return (
-              <div key={instance.instanceId} className={`hand-card-slot${isDropping ? ' dropping' : ''}`} style={slotStyle}>
+              <div key={instance.instanceId} className={slotClass} style={slotStyle}>
                 <ActionCardTile
                   id={cardDef.id}
                   name={cardDef.name}
@@ -854,6 +903,12 @@ export default function App() {
               </div>
             );
           })}
+        </div>
+
+        <div className="frame-pile discard-pile" title={`Discard: ${combat.discard.length} cards`}>
+          <div className="pile-card-back discard">🂠</div>
+          <div className="pile-count">{combat.discard.length}</div>
+          <div className="pile-label">Discard</div>
         </div>
 
         <div className="frame-round-buttons">

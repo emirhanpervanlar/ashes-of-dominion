@@ -489,7 +489,7 @@ button.primary {
 
 @keyframes card-drop-fly {
   0% {
-    transform: rotate(var(--rot, 0deg)) translateY(var(--ty, 0px)) scale(1);
+    transform: translateY(0) scale(1);
     opacity: 1;
   }
   70% {
@@ -1917,11 +1917,65 @@ button.primary {
 .frame-hand-slots {
   display: flex;
   align-items: flex-end;
+  gap: 10px;
   flex: 1;
   min-width: 0;
   overflow-x: auto;
+  overflow-y: hidden;
   justify-content: center;
-  padding: 2px 0 18px;
+  /* Generous top padding so a hovered/lifted card has room before overflow clips it. */
+  padding: 34px 4px 4px;
+}
+
+.frame-pile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  width: 60px;
+  padding-bottom: 4px;
+}
+
+.pile-card-back {
+  width: 50px;
+  height: 70px;
+  border-radius: 6px;
+  background: linear-gradient(160deg, #3a3020, #1a140c);
+  border: 2px solid #6b5a3a;
+  box-shadow: 0 2px 6px #000a, inset 0 0 8px #0008;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  color: var(--accent);
+  position: relative;
+}
+
+.pile-card-back::after {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border: 1px solid #6b5a3a88;
+  border-radius: 4px;
+}
+
+.pile-card-back.discard {
+  color: var(--text-dim);
+  filter: grayscale(0.4);
+}
+
+.pile-count {
+  font-size: 12px;
+  font-weight: 800;
+  color: #fff;
+}
+
+.pile-label {
+  font-size: 9px;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .frame-round-buttons {
@@ -1966,16 +2020,48 @@ button.primary {
 }
 
 .hand-card-slot {
-  transform: rotate(var(--rot, 0deg)) translateY(var(--ty, 0px));
-  transform-origin: bottom center;
+  flex-shrink: 0;
   transition: transform 0.15s ease;
-  margin: 0 -16px;
 }
 
 .hand-card-slot:hover,
 .hand-card-slot:has(.action-card.pending) {
-  transform: translateY(-26px) rotate(0deg) scale(1.06);
+  transform: translateY(-14px) scale(1.06);
   z-index: 50;
+}
+
+@keyframes card-draw-in {
+  0% {
+    transform: translateX(-160px) scale(0.5);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(0) scale(1);
+    opacity: 1;
+  }
+}
+
+.hand-card-slot.drawing {
+  animation: card-draw-in 0.38s ease-out both;
+  animation-delay: var(--stagger, 0ms);
+}
+
+@keyframes card-discard-out {
+  0% {
+    transform: translateX(0) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(220px) scale(0.5);
+    opacity: 0;
+  }
+}
+
+.hand-card-slot.discarding {
+  animation: card-discard-out 0.3s ease-in forwards;
+  animation-delay: var(--stagger, 0ms);
+  pointer-events: none;
+  z-index: 40;
 }
 
 /* ============ Title screen ============ */
