@@ -17,10 +17,11 @@ export const HERO_DEFINITIONS: Record<HeroId, HeroDefinition> = {
     name: 'Warlord',
     stats: { strength: 16, dexterity: 10, intelligence: 8, vitality: 14, wisdom: 8 },
     baseMana: 3,
+    // v3 balance pass — small, fragile starting rosters (only the unit types the starting
+    // deck actually needs); the run grows the army from the City, not from a day-1 horde.
     startingArmy: [
-      { unitId: 'swordsman', count: 60 },
-      { unitId: 'knight', count: 20 },
-      { unitId: 'archer', count: 10 },
+      { unitId: 'swordsman', count: 6 },
+      { unitId: 'knight', count: 2 },
     ],
     startingDeck: [
       'shield_bash',
@@ -51,9 +52,8 @@ export const HERO_DEFINITIONS: Record<HeroId, HeroDefinition> = {
     stats: { strength: 9, dexterity: 17, intelligence: 10, vitality: 9, wisdom: 13 },
     baseMana: 5,
     startingArmy: [
-      { unitId: 'archer', count: 40 },
-      { unitId: 'swordsman', count: 30 },
-      { unitId: 'knight', count: 10 },
+      { unitId: 'archer', count: 6 },
+      { unitId: 'knight', count: 2 },
     ],
     startingDeck: [
       'focus_shot',
@@ -84,9 +84,8 @@ export const HERO_DEFINITIONS: Record<HeroId, HeroDefinition> = {
     stats: { strength: 7, dexterity: 9, intelligence: 18, vitality: 8, wisdom: 16 },
     baseMana: 7,
     startingArmy: [
-      { unitId: 'archer', count: 20 },
-      { unitId: 'priest', count: 20 },
-      { unitId: 'swordsman', count: 30 },
+      { unitId: 'archer', count: 4 },
+      { unitId: 'priest', count: 4 },
     ],
     startingDeck: [
       'focus_shot',

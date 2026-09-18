@@ -160,12 +160,24 @@ export default function App() {
 
   function handleEndTurn() {
     if (!combat) return;
-    if (combat.enemyIntents.length === 0) {
+    // Intents are captured at the start of the turn — drop any whose actor (or, for a buff,
+    // its target) died to the player's own actions since then, so a dead stack doesn't still
+    // appear to "act" in the end-of-turn playback.
+    const liveIntents = combat.enemyIntents.filter((i) => {
+      const actor = combat.enemyArmy.find((s) => s.stackId === i.stackId);
+      if (!actor || actor.count <= 0) return false;
+      if (i.kind === 'buff') {
+        const target = combat.enemyArmy.find((s) => s.stackId === i.targetStackId);
+        return !!target && target.count > 0;
+      }
+      return true;
+    });
+    if (liveIntents.length === 0) {
       dispatchEndTurn();
       return;
     }
     setEnemyAnimIndex(0);
-    setEnemyAnimQueue(combat.enemyIntents);
+    setEnemyAnimQueue(liveIntents);
   }
 
   function stackFx(stackId: string | undefined): { acting: boolean; hit: boolean; block: boolean; buff: boolean; debuff: boolean } {
@@ -185,12 +197,6 @@ export default function App() {
     }
     return result;
   }
-
-  const intentByStack = useMemo(() => {
-    const map = new Map<string, EnemyIntent>();
-    for (const intent of combat?.enemyIntents ?? []) map.set(intent.stackId, intent);
-    return map;
-  }, [combat?.enemyIntents]);
 
   function pushToast(icon: string, text: string) {
     setToasts((t) => [...t, { id: nextToastId.current++, icon, text }]);
@@ -508,11 +514,6 @@ export default function App() {
     return highlight !== null && !highlight.has(stack.stackId);
   }
 
-  function isThreatened(stack: ArmyStack | undefined): boolean {
-    if (!combat || !stack) return false;
-    return combat.enemyIntents.some((i) => i.kind === 'attack' && i.targetStackId === stack.stackId);
-  }
-
   function findPendingAttackEffect(): Extract<CardEffect, { kind: 'ATTACK' }> | undefined {
     if (!combat || !pending) return undefined;
     if (pending.kind === 'basic') {
@@ -624,7 +625,6 @@ export default function App() {
         {gameChrome}
         <RewardScreen
           reward={run.pendingReward}
-          onClaimRelic={(relicId) => dispatchRun({ type: 'CLAIM_RELIC', relicId })}
           onClaimCard={(cardId) => dispatchRun({ type: 'CLAIM_CARD', cardId })}
           onClaimUpgrade={(instanceId) => dispatchRun({ type: 'CLAIM_UPGRADE', instanceId })}
           onConfirm={() => dispatchRun({ type: 'CONFIRM_REWARD' })}
@@ -770,7 +770,6 @@ export default function App() {
               return (
                 <StackTile
                   key={`p-${p}`}
-                  state={combat}
                   stack={s}
                   position={p}
                   side="player"
@@ -778,7 +777,6 @@ export default function App() {
                   selected={isSelected(s)}
                   dimmed={isDimmed(s, 'player')}
                   fx={stackFx(s?.stackId)}
-                  threatened={isThreatened(s)}
                   previewDamage={previewDamageFor(s, 'player')}
                   onClick={() => onArmyStackClick(s, p, 'player')}
                   onHoverStart={() => s && setHoveredStackId(s.stackId)}
@@ -793,7 +791,6 @@ export default function App() {
               return (
                 <StackTile
                   key={`p-${p}`}
-                  state={combat}
                   stack={s}
                   position={p}
                   side="player"
@@ -801,7 +798,6 @@ export default function App() {
                   selected={isSelected(s)}
                   dimmed={isDimmed(s, 'player')}
                   fx={stackFx(s?.stackId)}
-                  threatened={isThreatened(s)}
                   previewDamage={previewDamageFor(s, 'player')}
                   onClick={() => onArmyStackClick(s, p, 'player')}
                   onHoverStart={() => s && setHoveredStackId(s.stackId)}
@@ -828,11 +824,9 @@ export default function App() {
               return (
                 <StackTile
                   key={`e-${p}`}
-                  state={combat}
                   stack={s}
                   position={p}
                   side="enemy"
-                  intent={s ? intentByStack.get(s.stackId) : undefined}
                   selectable={isSelectable(s, 'enemy')}
                   selected={isSelected(s)}
                   dimmed={isDimmed(s, 'enemy')}
@@ -851,11 +845,9 @@ export default function App() {
               return (
                 <StackTile
                   key={`e-${p}`}
-                  state={combat}
                   stack={s}
                   position={p}
                   side="enemy"
-                  intent={s ? intentByStack.get(s.stackId) : undefined}
                   selectable={isSelectable(s, 'enemy')}
                   selected={isSelected(s)}
                   dimmed={isDimmed(s, 'enemy')}

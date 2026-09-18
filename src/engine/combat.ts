@@ -725,18 +725,20 @@ function tickStatuses(army: ArmyStack[], events: CombatEvent[]): void {
 function resolveEnemyTurn(state: CombatState, events: CombatEvent[]): void {
   for (const intent of state.enemyIntents) {
     const actor = findStack(state.enemyArmy, intent.stackId);
-    if (!actor) continue;
+    // Intents are captured at the start of the player's turn — if the player kills this
+    // stack (or its buff target) mid-turn, its stale intent must not still resolve.
+    if (!actor || actor.count <= 0) continue;
 
     if (intent.kind === 'buff') {
       const target = findStack(state.enemyArmy, intent.targetStackId ?? undefined);
-      if (!target || !intent.buffStatus || intent.buffAmount === undefined) continue;
+      if (!target || target.count <= 0 || !intent.buffStatus || intent.buffAmount === undefined) continue;
       target.statuses.push({ type: intent.buffStatus, amount: intent.buffAmount, duration: 1 });
       events.push({ type: 'STATUS_APPLIED', stackId: target.stackId, status: intent.buffStatus, amount: intent.buffAmount, duration: 1 });
       continue;
     }
 
     let target = findStack(state.playerArmy, intent.targetStackId ?? undefined);
-    if (!target) {
+    if (!target || target.count <= 0) {
       target = state.playerArmy.find((s) => s.count > 0);
     }
     if (!target) continue;

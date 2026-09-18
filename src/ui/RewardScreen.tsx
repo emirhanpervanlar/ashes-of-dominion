@@ -1,96 +1,57 @@
 import { CARD_DEFINITIONS } from '../engine/index.js';
-import { RELIC_DEFINITIONS } from '../engine/run/index.js';
 import type { PendingReward } from '../engine/run/index.js';
 import { CARD_DESCRIPTIONS } from './cardText.js';
-import { relicIcon } from './relicIcons.js';
+import { cardVisual } from './cardVisuals.js';
 
 interface Props {
   reward: PendingReward;
-  onClaimRelic: (relicId: string) => void;
   onClaimCard: (cardId: string) => void;
   onClaimUpgrade: (instanceId: string) => void;
   onConfirm: () => void;
 }
 
-export function RewardScreen({ reward, onClaimRelic, onClaimCard, onClaimUpgrade, onConfirm }: Props) {
+type RewardSlot =
+  | { kind: 'card'; key: string; cardId: string }
+  | { kind: 'upgrade'; key: string; instanceId: string; cardId: string; upgradedCardId: string };
+
+export function RewardScreen({ reward, onClaimCard, onClaimUpgrade, onConfirm }: Props) {
+  const slots: RewardSlot[] = [
+    ...reward.cardOptions.map((cardId): RewardSlot => ({ kind: 'card', key: cardId, cardId })),
+    ...reward.upgradeOptions.map(
+      (o): RewardSlot => ({ kind: 'upgrade', key: o.instanceId, instanceId: o.instanceId, cardId: o.cardId, upgradedCardId: o.upgradedCardId })
+    ),
+  ];
+  const hasChoice = !!reward.chosenCardId || !!reward.chosenUpgradeInstanceId;
+
   return (
-    <div>
-      <h1>Victory!</h1>
-      <div className="subtitle">Pick up to one relic and up to one card/upgrade, then confirm. Either can be skipped.</div>
+    <div className="reward-overlay">
+      <div className="reward-banner">Victory! Choose a Card</div>
 
-      {reward.relicOptions.length > 0 && (
-        <>
-          <h2 style={{ fontSize: 14 }}>Relic (optional)</h2>
-          <div className="hand" style={{ flexWrap: 'wrap' }}>
-            {reward.relicOptions.map((relicId) => {
-              const relic = RELIC_DEFINITIONS[relicId];
-              if (!relic) return null;
-              const selected = reward.chosenRelicId === relicId;
-              return (
-                <div
-                  key={relicId}
-                  className={`card-tile${selected ? ' pending' : ''}`}
-                  style={{ minWidth: 200 }}
-                  onClick={() => onClaimRelic(relicId)}
-                >
-                  <div className="card-name">
-                    <span>
-                      {relicIcon(relicId)} {relic.name}
-                    </span>
-                  </div>
-                  <div className="card-text">{relic.description}</div>
-                </div>
-              );
-            })}
-          </div>
-        </>
-      )}
-
-      <h2 style={{ fontSize: 14 }}>Card or Upgrade (optional)</h2>
-      <div className="hand" style={{ flexWrap: 'wrap' }}>
-        {reward.cardOptions.map((cardId) => {
-          const cardDef = CARD_DEFINITIONS[cardId];
-          if (!cardDef) return null;
-          const selected = reward.chosenCardId === cardId;
+      <div className="reward-card-row">
+        {slots.length === 0 && <div className="reward-empty">No cards available.</div>}
+        {slots.map((slot) => {
+          const isUpgrade = slot.kind === 'upgrade';
+          const displayCardId = isUpgrade ? slot.upgradedCardId : slot.cardId;
+          const def = CARD_DEFINITIONS[displayCardId];
+          if (!def) return null;
+          const visual = cardVisual(slot.cardId);
+          const selected = isUpgrade ? reward.chosenUpgradeInstanceId === slot.instanceId : reward.chosenCardId === slot.cardId;
+          const onClick = isUpgrade ? () => onClaimUpgrade(slot.instanceId) : () => onClaimCard(slot.cardId);
           return (
-            <div
-              key={cardId}
-              className={`card-tile${selected ? ' pending' : ''}`}
-              style={{ minWidth: 160 }}
-              onClick={() => onClaimCard(cardId)}
-            >
-              <div className="card-name">
-                <span>{cardDef.name}</span>
-                <span className="card-cost">{cardDef.manaCost} Mana</span>
-              </div>
-              <div className="card-text">{CARD_DESCRIPTIONS[cardId] ?? cardId}</div>
-            </div>
-          );
-        })}
-        {reward.upgradeOptions.map((opt) => {
-          const upgradedDef = CARD_DEFINITIONS[opt.upgradedCardId];
-          const selected = reward.chosenUpgradeInstanceId === opt.instanceId;
-          return (
-            <div
-              key={opt.instanceId}
-              className={`card-tile${selected ? ' pending' : ''}`}
-              style={{ minWidth: 160, borderStyle: 'dashed' }}
-              onClick={() => onClaimUpgrade(opt.instanceId)}
-            >
-              <div className="card-name">
-                <span>Upgrade: {upgradedDef?.name ?? opt.upgradedCardId}</span>
-              </div>
-              <div className="card-text">{CARD_DESCRIPTIONS[opt.upgradedCardId] ?? opt.upgradedCardId}</div>
+            <div key={slot.key} className={`reward-card${selected ? ' selected' : ''}`} onClick={onClick}>
+              <div className="reward-card-cost">{def.manaCost}</div>
+              <div className={`reward-card-icon polarity-${visual.polarity}`}>{visual.icon}</div>
+              <div className="reward-card-name">{def.name}</div>
+              {isUpgrade && <div className="reward-card-tag">Upgrade</div>}
+              <div className="reward-card-desc">{CARD_DESCRIPTIONS[displayCardId] ?? displayCardId}</div>
             </div>
           );
         })}
       </div>
 
-      <div className="toolbar">
-        <button className="primary" onClick={onConfirm}>
-          Confirm &amp; Continue
-        </button>
-      </div>
+      <button className="reward-skip-btn" onClick={onConfirm}>
+        {hasChoice ? 'Confirm & Continue' : 'Skip'}
+      </button>
     </div>
   );
 }

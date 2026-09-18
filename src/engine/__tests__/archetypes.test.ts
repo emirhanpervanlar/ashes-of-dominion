@@ -50,7 +50,9 @@ describe('Taunt overrides normal enemy targeting', () => {
     // Intents are locked in at the start of a turn — this tests generateEnemyIntents
     // directly rather than going through an END_TURN that would still be executing
     // the turn's original (pre-Taunt) intents.
-    const { state } = createVerticalSliceScenario(502);
+    // Warlord's reduced starting roster (v3 balance pass) has no Archer — use Rogue, whose
+    // Archer stack still lands at the same player_archer_4 id (ranged units are backline).
+    const { state } = createVerticalSliceScenario(502, 'rogue');
     const taunting: CombatState = {
       ...state,
       playerArmy: state.playerArmy.map((s) => (s.stackId === 'player_archer_4' ? { ...s, statuses: [{ type: 'taunt' as const, amount: 1, duration: 2 }] } : s)),
@@ -102,33 +104,36 @@ describe('v3 §8 Guard passive / Protect card redirect', () => {
 describe('Divine Protection', () => {
   it('a lethal hit leaves the shielded stack at 1 soldier instead of destroying it', () => {
     // divine_protection is Priest-sourced — use Mage (has a Priest, and no Knight, so
-    // Guard's redirect passive can't move the hit to a different stack).
+    // Guard's redirect passive can't move the hit to a different stack). Shield the Archer
+    // stack (Mage's reduced v3 roster has no Swordsman).
     let { state } = createVerticalSliceScenario(504.5, 'mage');
     state = withHand(state, ['divine_protection']);
-    const swordsman = state.playerArmy.find((s) => s.unitId === 'swordsman')!;
+    const archer = state.playerArmy.find((s) => s.unitId === 'archer')!;
     const shielded = applyPlayerAction(state, {
       type: 'PLAY_CARD',
       instanceId: handCard(state, 'divine_protection').instanceId,
-      actingStackId: swordsman.stackId,
+      actingStackId: archer.stackId,
     }).state;
-    expect(shielded.playerArmy.find((s) => s.stackId === swordsman.stackId)!.flags.divineShield).toBe(true);
+    expect(shielded.playerArmy.find((s) => s.stackId === archer.stackId)!.flags.divineShield).toBe(true);
 
     // Make the shielded stack trivially killable so a hit would normally destroy it. Only the
-    // first enemy targets it — Divine Protection absorbs one lethal blow, not the whole turn.
-    const archer = shielded.playerArmy.find((s) => s.unitId === 'archer')!;
+    // first enemy attacks it — Divine Protection absorbs one lethal blow, not the whole turn.
+    // The rest are turned into harmless self-buffs (rather than redirected at another living
+    // stack) so none of them can die mid-turn and trigger the "retarget to any survivor"
+    // fallback in resolveEnemyTurn, which would otherwise bounce a second hit back onto the
+    // now-unshielded archer.
     const fatal: CombatState = {
       ...shielded,
-      playerArmy: shielded.playerArmy.map((s) => (s.stackId === swordsman.stackId ? { ...s, count: 1, currentHp: 1 } : s)),
-      enemyIntents: shielded.enemyIntents.map((i, idx) => ({
-        ...i,
-        kind: 'attack',
-        targetStackId: idx === 0 ? swordsman.stackId : archer.stackId,
-        estimatedDamage: 1,
-      })),
+      playerArmy: shielded.playerArmy.map((s) => (s.stackId === archer.stackId ? { ...s, count: 1, currentHp: 1 } : s)),
+      enemyIntents: shielded.enemyIntents.map((i, idx) =>
+        idx === 0
+          ? { ...i, kind: 'attack', targetStackId: archer.stackId, estimatedDamage: 1 }
+          : { ...i, kind: 'buff', targetStackId: i.stackId, buffStatus: 'strength', buffAmount: 1 }
+      ),
     };
     const ended = applyPlayerAction(fatal, { type: 'END_TURN' });
     expect(ended.events.some((e) => e.type === 'DIVINE_SHIELD_CONSUMED')).toBe(true);
-    const survivor = ended.state.playerArmy.find((s) => s.stackId === swordsman.stackId);
+    const survivor = ended.state.playerArmy.find((s) => s.stackId === archer.stackId);
     expect(survivor).toBeDefined();
     expect(survivor!.count).toBe(1);
   });
@@ -138,17 +143,24 @@ describe('Dodge (Hero Dexterity)', () => {
   it('a very high Dexterity Hero occasionally avoids damage entirely', () => {
     const { state } = createVerticalSliceScenario(505, 'rogue'); // Rogue has the highest base Dexterity (17)
     const highDex: CombatState = { ...state, hero: { ...state.hero, stats: { ...state.hero.stats, dexterity: 40 } } };
+    const originalArcher = state.playerArmy.find((s) => s.unitId === 'archer')!;
     let sawDodge = false;
     let current = highDex;
     for (let i = 0; i < 40; i++) {
-      const swordsman = current.playerArmy.find((s) => s.unitId === 'swordsman' && s.count > 0);
-      if (!swordsman) break;
+      const archer = current.playerArmy.find((s) => s.unitId === 'archer');
+      if (!archer) break;
       const forced: CombatState = {
         ...current,
-        enemyIntents: current.enemyIntents.map((it) => ({ ...it, kind: 'attack', targetStackId: swordsman.stackId, estimatedDamage: 1 })),
+        // v3 balance pass shrank starting rosters — reset the target to full strength each
+        // iteration so it survives the whole enemy formation's concentrated fire and the loop
+        // gets a fair number of dodge rolls instead of dying out after one or two turns.
+        playerArmy: current.playerArmy.map((s) =>
+          s.stackId === archer.stackId ? { ...s, count: originalArcher.count, currentHp: originalArcher.maxHp } : s
+        ),
+        enemyIntents: current.enemyIntents.map((it) => ({ ...it, kind: 'attack', targetStackId: archer.stackId, estimatedDamage: 1 })),
       };
       const ended = applyPlayerAction(forced, { type: 'END_TURN' });
-      const hits = ended.events.filter((e) => e.type === 'STACK_ATTACKED' && e.targetStackId === swordsman.stackId);
+      const hits = ended.events.filter((e) => e.type === 'STACK_ATTACKED' && e.targetStackId === archer.stackId);
       if (hits.some((e) => e.type === 'STACK_ATTACKED' && e.rawDamage === 0)) sawDodge = true;
       current = ended.state;
       if (ended.state.result !== 'ongoing') break;
@@ -222,7 +234,8 @@ describe('Rally and unit passives', () => {
   });
 
   it("Archer's High Ground passive boosts damage while in the backline", () => {
-    const { state } = createVerticalSliceScenario(509);
+    // Warlord's reduced starting roster (v3 balance pass) has no Archer — use Rogue.
+    const { state } = createVerticalSliceScenario(509, 'rogue');
     const archer = state.playerArmy.find((s) => s.unitId === 'archer')!;
     expect(archer.position).toBeGreaterThan(3); // placed in the backline by buildHeroStartingArmy
     const frontClone: CombatState = {

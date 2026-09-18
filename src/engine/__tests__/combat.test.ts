@@ -29,7 +29,7 @@ describe('vertical slice scenario setup (Warlord vs Guarded Shaman)', () => {
     expect(state.hero.heroType).toBe('warlord');
     expect(state.hero.hp).toBe(100);
     expect(state.hero.mana).toBeGreaterThan(0);
-    expect(state.playerArmy.map((s) => s.count)).toEqual([60, 20, 10]);
+    expect(state.playerArmy.map((s) => s.count)).toEqual([6, 2]);
     expect(state.enemyArmy.map((s) => s.count)).toEqual([10, 10, 10, 10, 8, 10]);
     expect(state.hand.length).toBe(5); // v3 §10 "Initial draw 5"
     expect(state.enemyIntents.length).toBeGreaterThan(0);
@@ -62,17 +62,17 @@ describe('v3 §4 free basic action', () => {
 
   it("Priest's basic action heals a friendly stack instead of attacking", () => {
     const { state: baseState } = createVerticalSliceScenario(5, 'mage');
-    // Mage's army: Archer(front? no — ranged, so back), Priest(back), Swordsman(front).
+    // Mage's v3-reduced army: Archer (back, ranged) and Priest (back).
     const damaged: CombatState = {
       ...baseState,
-      playerArmy: baseState.playerArmy.map((s) => (s.unitId === 'swordsman' ? { ...s, currentHp: s.maxHp - 20 } : s)),
+      playerArmy: baseState.playerArmy.map((s) => (s.unitId === 'archer' ? { ...s, currentHp: Math.max(1, s.maxHp - 10) } : s)),
     };
-    const swordsman = damaged.playerArmy.find((s) => s.unitId === 'swordsman')!;
+    const archer = damaged.playerArmy.find((s) => s.unitId === 'archer')!;
     const priest = damaged.playerArmy.find((s) => s.unitId === 'priest')!;
-    const result = applyPlayerAction(damaged, { type: 'BASIC_ACTION', stackId: priest.stackId, targetStackId: swordsman.stackId });
+    const result = applyPlayerAction(damaged, { type: 'BASIC_ACTION', stackId: priest.stackId, targetStackId: archer.stackId });
     expect(result.events.some((e) => e.type === 'STACK_HEALED')).toBe(true);
-    const healed = result.state.playerArmy.find((s) => s.stackId === swordsman.stackId)!;
-    expect(healed.currentHp).toBeGreaterThan(swordsman.currentHp);
+    const healed = result.state.playerArmy.find((s) => s.stackId === archer.stackId)!;
+    expect(healed.currentHp).toBeGreaterThan(archer.currentHp);
   });
 });
 

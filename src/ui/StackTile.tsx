@@ -1,9 +1,7 @@
 import { applyDamageToStack, UNIT_DEFINITIONS } from '../engine/index.js';
-import type { ArmyStack, EnemyIntent, Position } from '../engine/index.js';
-import { stackLabel } from './eventText.js';
+import type { ArmyStack, Position } from '../engine/index.js';
 import { UNIT_ICONS } from './unitIcons.js';
 import { UNIT_ROLE_ICONS } from './unitShapes.js';
-import type { CombatState } from '../engine/index.js';
 
 interface StackFx {
   acting: boolean;
@@ -14,15 +12,12 @@ interface StackFx {
 }
 
 interface StackTileProps {
-  state: CombatState;
   stack: ArmyStack | undefined;
   position: Position;
   side: 'player' | 'enemy';
-  intent?: EnemyIntent;
   selectable: boolean;
   selected: boolean;
   dimmed?: boolean;
-  threatened?: boolean;
   previewDamage?: number;
   fx?: StackFx;
   onClick: () => void;
@@ -32,15 +27,12 @@ interface StackTileProps {
 
 /** Disciples-style portrait slot: a bordered portrait square with HP printed below it. */
 export function StackTile({
-  state,
   stack,
   position,
   side,
-  intent,
   selectable,
   selected,
   dimmed,
-  threatened,
   previewDamage,
   fx,
   onClick,
@@ -82,7 +74,6 @@ export function StackTile({
   const classes = ['portrait-slot', side];
   if (selectable) classes.push('selectable');
   if (selected) classes.push('selected');
-  if (threatened) classes.push('threatened');
   if (acted) classes.push('acted');
   if (dimmed) classes.push('dimmed');
 
@@ -93,19 +84,9 @@ export function StackTile({
   if (fx?.buff) frameClasses.push('fx-buff');
   if (fx?.debuff) frameClasses.push('fx-debuff');
 
-  let intentText: string | null = null;
-  if (intent) {
-    if (intent.kind === 'attack') {
-      intentText = `⚡ ${stackLabel(state, intent.targetStackId)} (~${intent.estimatedDamage ?? '?'})`;
-    } else {
-      intentText = `✦ ${stackLabel(state, intent.targetStackId)} (+${intent.buffAmount} ${intent.buffStatus})`;
-    }
-  }
-
   return (
     <div className={classes.join(' ')} onMouseEnter={onHoverStart} onMouseLeave={onHoverEnd}>
       <div className={frameClasses.join(' ')} onClick={selectable ? onClick : undefined} title={def.name}>
-        {fx?.acting && intentText && <div className="acting-intent-bubble">{intentText}</div>}
         <span className="portrait-art">{UNIT_ICONS[stack.unitId]}</span>
         <span className="portrait-role-badge">{UNIT_ROLE_ICONS[stack.unitId]}</span>
         {selected && <span className="portrait-select-badge">✓</span>}
@@ -142,7 +123,6 @@ export function StackTile({
           ))}
           <span className="badge">pos {position}</span>
         </div>
-        {intentText && <div className="intent">{intentText}</div>}
       </div>
     </div>
   );
