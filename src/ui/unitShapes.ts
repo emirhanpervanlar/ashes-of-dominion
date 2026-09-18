@@ -8,15 +8,11 @@ export type UnitShape = 'triangle' | 'square' | 'octagon' | 'circle';
 
 export const UNIT_SHAPES: Record<UnitId, UnitShape> = {
   archer: 'triangle',
-  mage: 'octagon',
   shaman: 'octagon',
   knight: 'circle',
   wolf: 'circle',
-  cavalier: 'circle',
-  warlord: 'circle',
   swordsman: 'square',
   priest: 'square',
-  skeleton: 'square',
   goblin: 'square',
   orc: 'square',
 };
@@ -27,12 +23,8 @@ export const UNIT_ROLE_ICONS: Record<UnitId, string> = {
   archer: '🏹',
   knight: '🗡️',
   priest: '➕',
-  mage: '🪄',
-  cavalier: '🐴',
-  skeleton: '🦴',
   goblin: '🔪',
   orc: '🪓',
   shaman: '🔮',
   wolf: '🐾',
-  warlord: '🔱',
 };

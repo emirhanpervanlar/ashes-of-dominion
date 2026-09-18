@@ -1,44 +1,59 @@
-import type { ArmyStack, RelicEffect, StatusType, UnitDefinition } from './types.js';
+import { dodgeChancePercent, statEffectiveness } from './heroStats.js';
+import { nextInt } from './rng.js';
+import type { ArmyStack, Hero, RelicEffect, StatusType, UnitDefinition } from './types.js';
+import type { RngState } from './rng.js';
 
 /**
- * Diminishing returns on raw stack count — AGENT.md §11.
+ * Diminishing returns on raw stack count — v3 §10 "Count scaling".
  * Flat-bracket lookup (not marginal/tax-bracket) per the literal table.
- * PROTOTYPE: coefficients are explicitly not locked (AGENT.md §70).
+ * PROTOTYPE: coefficients are explicitly not locked (v3 §44).
  */
 const EFFECTIVE_COUNT_BRACKETS: ReadonlyArray<{ max: number; multiplier: number }> = [
-  { max: 50, multiplier: 1.0 },
-  { max: 100, multiplier: 0.9 },
-  { max: 200, multiplier: 0.75 },
-  { max: 400, multiplier: 0.6 },
-  { max: Infinity, multiplier: 0.45 },
+  { max: 20, multiplier: 1.0 },
+  { max: 50, multiplier: 0.9 },
+  { max: 100, multiplier: 0.75 },
+  { max: 200, multiplier: 0.6 },
+  { max: 400, multiplier: 0.45 },
+  { max: Infinity, multiplier: 0.35 },
 ];
 
 export function effectiveCount(count: number): number {
   const bracket = EFFECTIVE_COUNT_BRACKETS.find((b) => count <= b.max);
-  return count * (bracket ? bracket.multiplier : 0.45);
+  return count * (bracket ? bracket.multiplier : 0.35);
 }
 
 export function statusAmount(stack: ArmyStack, type: StatusType): number {
   return stack.statuses.filter((s) => s.type === type).reduce((sum, s) => sum + s.amount, 0);
 }
 
-/** Morale (AGENT.md §46 Horde/§48 archetypes) — ±5% damage dealt per point, soft-capped at ±50%. */
+/** v3 §9 — Morale 0-100, starts at 100. PROTOTYPE curve: x0.7 at 0 morale up to x1.0 at 100. */
 export function moraleDamageMultiplier(morale: number): number {
-  const clamped = Math.max(-10, Math.min(10, morale));
-  return 1 + clamped * 0.05;
+  const clamped = Math.max(0, Math.min(100, morale));
+  return 0.7 + (clamped / 100) * 0.3;
 }
 
-/** Veterancy (AGENT.md §30 stack merging, §48 Immortal Knights) — a flat per-unit Attack bonus. */
-export function veterancyFlatBonus(veterancy: number): number {
-  return Math.floor(veterancy / 3);
+export function moraleDefenseMultiplier(morale: number): number {
+  const clamped = Math.max(0, Math.min(100, morale));
+  return 0.85 + (clamped / 100) * 0.15;
 }
 
-/** Focus Fire's Vulnerable status — a target-side damage-taken multiplier (`amount` is percentage points). */
-export function vulnerableDamageMultiplier(target: ArmyStack): number {
-  return 1 + statusAmount(target, 'vulnerable') / 100;
+/** v3 §8 — flat veterancy tiers (0/3/5/8%), not an unbounded stat. */
+const VETERANCY_DAMAGE_BONUS: Record<0 | 1 | 2 | 3, number> = { 0: 0, 1: 0.03, 2: 0.05, 3: 0.08 };
+
+export function veterancyDamageMultiplier(veterancy: 0 | 1 | 2 | 3): number {
+  return 1 + VETERANCY_DAMAGE_BONUS[veterancy];
 }
 
-/** Immortal Knights relics (e.g. Bulwark Standard) — reduces incoming damage to player stacks. */
+/** Fear — PROTOTYPE: reduces the afflicted attacker's own damage output while active. */
+export function fearDamageMultiplier(attacker: ArmyStack): number {
+  return 1 - Math.min(75, statusAmount(attacker, 'fear')) / 100;
+}
+
+/** Armor status — flat per-attack damage reduction, applied like extra Defense. */
+export function armorReduction(target: ArmyStack): number {
+  return statusAmount(target, 'armor');
+}
+
 export function relicDamageTakenMultiplier(relics: RelicEffect[]): number {
   let mult = 1;
   for (const effect of relics) {
@@ -47,7 +62,6 @@ export function relicDamageTakenMultiplier(relics: RelicEffect[]): number {
   return mult;
 }
 
-/** Necromantic Doctrine / Grave Crown — fraction of player casualties raised as Skeletons. */
 export function necromancyRatio(relics: RelicEffect[]): number {
   let ratio = 0;
   for (const effect of relics) {
@@ -56,35 +70,53 @@ export function necromancyRatio(relics: RelicEffect[]): number {
   return ratio;
 }
 
-/**
- * Per-unit attack after Strength/Weak, floored at 0.
- */
+/** Per-unit attack after Strength/Weak, floored at 0. */
 export function effectiveAttack(stack: ArmyStack, baseAttack: number): number {
   const strength = statusAmount(stack, 'strength');
   const weak = statusAmount(stack, 'weak');
   return Math.max(0, baseAttack + strength - weak);
 }
 
+export interface RawDamageParams {
+  attackerStack: ArmyStack;
+  attackerBaseAttack: number;
+  targetDefense: number;
+  multiplier: number;
+  /** v3 §5 — the acting Hero's relevant stat effectiveness (STR for melee, DEX for ranged, INT for Mage magic cards). */
+  heroEffectiveness?: number;
+}
+
 /**
- * ASSUMPTION (documented, AGENT.md §72): defense mitigates damage per
+ * ASSUMPTION (documented): Defense (plus Armor status) mitigates damage per
  * attacking unit before the count multiplier is applied, rather than as a
  * flat subtraction from the final (already-scaled) damage total. A flat
  * subtraction makes single-digit Defense values meaningless once Raw
- * Damage reaches the hundreds. This is a PROTOTYPE formula, not locked.
+ * Damage reaches the hundreds. PROTOTYPE formula, not locked (v3 §44).
  */
-export function computeRawDamage(
-  attackerStack: ArmyStack,
-  attackerBaseAttack: number,
-  targetDefense: number,
-  multiplier: number
-): number {
-  const perUnitAttack = effectiveAttack(attackerStack, attackerBaseAttack);
+export function computeRawDamage(params: RawDamageParams): number {
+  const { attackerStack, attackerBaseAttack, targetDefense, multiplier, heroEffectiveness = 1 } = params;
+  const perUnitAttack = effectiveAttack(attackerStack, attackerBaseAttack) * heroEffectiveness;
   const perUnitNet = Math.max(0, perUnitAttack - targetDefense);
   const raw = perUnitNet * effectiveCount(attackerStack.count) * multiplier;
   return Math.round(raw);
 }
 
-/** Combat-modifier relic effects, read fresh on every attack (AGENT.md §16). */
+export function relicDodgeBonusPercent(relics: RelicEffect[]): number {
+  let bonus = 0;
+  for (const effect of relics) {
+    if (effect.kind === 'DODGE_BONUS_PERCENT') bonus += effect.amount;
+  }
+  return bonus;
+}
+
+/** Rolls the Hero's Dexterity-derived Dodge for an attack landing on a player stack. Mutates rng state. */
+export function rollDodge(rng: RngState, hero: Hero, targetSide: 'player' | 'enemy', dodgeMultiplier = 1, flatBonus = 0): boolean {
+  if (targetSide !== 'player') return false;
+  const chance = Math.min(100, dodgeChancePercent(hero.stats.dexterity) * dodgeMultiplier + flatBonus);
+  if (chance <= 0) return false;
+  return nextInt(rng, 100) < chance;
+}
+
 export function relicDamageMultiplier(relics: RelicEffect[], attackerCount: number, attackerTags: string[]): number {
   let mult = 1;
   for (const effect of relics) {
@@ -103,11 +135,12 @@ export function relicFlatAttackBonus(relics: RelicEffect[], attackerCount: numbe
   return bonus;
 }
 
-/** AGENT.md §42 Warlord mechanic — computed fresh each attack, never stored as a status (see UnitDefinition doc comment). */
-export function bossScalingAttackBonus(attackerDef: UnitDefinition, playerArmy: ArmyStack[]): number {
-  if (!attackerDef.scalesWithPlayerArmy) return 0;
-  const totalPlayerCount = playerArmy.reduce((sum, s) => sum + s.count, 0);
-  return Math.floor(totalPlayerCount / attackerDef.scalesWithPlayerArmy.divisor);
+export function relicHealingMultiplier(relics: RelicEffect[]): number {
+  let mult = 1;
+  for (const effect of relics) {
+    if (effect.kind === 'HEALING_MULT') mult *= effect.multiplier;
+  }
+  return mult;
 }
 
 export interface DamageResolution {
@@ -115,21 +148,7 @@ export interface DamageResolution {
   blocked: number;
   finalDamage: number;
   unitsKilled: number;
-}
-
-export interface HealResolution {
-  stack: ArmyStack;
-  healedAmount: number;
-}
-
-/** v2_list.md §7/§9 Priest basic action — heals up to maxHp, no revival of dead units. */
-export function computeHealAmount(healer: ArmyStack, healPower: number): number {
-  return Math.round(effectiveCount(healer.count) * healPower);
-}
-
-export function applyHealToStack(target: ArmyStack, amount: number): HealResolution {
-  const newHp = Math.min(target.maxHp, target.currentHp + amount);
-  return { stack: { ...target, currentHp: newHp }, healedAmount: newHp - target.currentHp };
+  dodged: boolean;
 }
 
 /** Applies damage to a target stack: Block absorbs first, then HP/casualties. */
@@ -146,5 +165,44 @@ export function applyDamageToStack(target: ArmyStack, hpPerUnit: number, rawDama
     blocked,
     finalDamage: remaining,
     unitsKilled,
+    dodged: false,
   };
+}
+
+export interface HealResolution {
+  stack: ArmyStack;
+  healedAmount: number;
+}
+
+/** v3 §9/§11 heal cards/actions — heals up to `preBattleMaxCount` soldiers, never beyond it. */
+export function computeHealAmount(healer: ArmyStack, healPower: number, wisdomEffectiveness = 1, healingMult = 1): number {
+  return Math.round(effectiveCount(healer.count) * healPower * wisdomEffectiveness * healingMult);
+}
+
+export function applyHealToStack(target: ArmyStack, amount: number, hpPerUnit: number): HealResolution {
+  const capHp = target.preBattleMaxCount * hpPerUnit;
+  const newHp = Math.min(capHp, target.currentHp + amount);
+  const newCount = Math.max(target.count, Math.ceil(newHp / hpPerUnit));
+  return { stack: { ...target, currentHp: newHp, count: newCount }, healedAmount: newHp - target.currentHp };
+}
+
+/** v3 §8 unit passives — resolved by id so damage.ts stays the single source of truth for combat math. */
+export function passiveDamageBonusMultiplier(attacker: ArmyStack, attackerDef: UnitDefinition, targetSide: 'player' | 'enemy', allies: ArmyStack[], target?: ArmyStack): number {
+  let mult = 1;
+  if (attackerDef.passiveId === 'high_ground' && attacker.position > 3) mult *= 1.25; // Archer backline
+  if (attackerDef.passiveId === 'mob_tactics') {
+    const adjacentGoblin = allies.some((s) => s.count > 0 && s.unitId === 'goblin' && s.stackId !== attacker.stackId && Math.abs(s.position - attacker.position) === 1);
+    if (adjacentGoblin) mult *= 1.1;
+  }
+  if (attackerDef.passiveId === 'brutal' && target && target.count > 0 && target.count / target.preBattleMaxCount < 0.5) mult *= 1.2;
+  if (attackerDef.passiveId === 'pounce' && target && target.position > 3) mult *= 1.5; // Wolf vs backline
+  return mult;
+}
+
+export function passiveDefenseBonus(target: ArmyStack, targetDef: UnitDefinition, allies: ArmyStack[]): number {
+  if (targetDef.passiveId !== 'formation_discipline') return 0;
+  const adjacentFriendlyFront = allies.some(
+    (s) => s.count > 0 && s.position <= 3 && s.stackId !== target.stackId && Math.abs(s.position - target.position) === 1
+  );
+  return adjacentFriendlyFront && target.position <= 3 ? targetDef.defense * 0.1 : 0;
 }

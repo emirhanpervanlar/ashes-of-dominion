@@ -124,17 +124,13 @@ export const RECRUIT_COSTS: Partial<Record<UnitId, { gold: number; food: number 
   archer: { gold: 10, food: 1 },
   knight: { gold: 15, food: 2 },
   priest: { gold: 12, food: 1 },
-  mage: { gold: 14, food: 1 },
-  cavalier: { gold: 16, food: 2 },
 };
 
 export function createInitialCityState(): CityState {
   return { level: 1, buildings: [], garrison: [], doctrine: null };
 }
 
-export function canRecruitUnit(city: CityState, unitId: UnitId): boolean {
-  if (unitId === 'mage') return city.buildings.includes('mage_tower');
-  if (unitId === 'cavalier') return city.buildings.includes('stable');
+export function canRecruitUnit(_city: CityState, unitId: UnitId): boolean {
   return unitId in RECRUIT_COSTS;
 }
 
@@ -169,13 +165,15 @@ export function addUnitsToArmy(army: ArmyStack[], unitId: UnitId, count: number)
   if (existingIdx >= 0) {
     const existing = army[existingIdx]!;
     const newCount = existing.count + count;
-    const newVeterancy = Math.round((existing.count * existing.veterancy + count * 0) / newCount);
+    // v3 §8 "retain the lower veterancy" when merging — fresh recruits are veterancy 0.
+    const newVeterancy = Math.min(existing.veterancy, 0) as 0 | 1 | 2 | 3;
     const updated: ArmyStack = {
       ...existing,
       count: newCount,
       currentHp: existing.currentHp + count * hpPerUnit,
       maxHp: existing.maxHp + count * hpPerUnit,
       startingCount: existing.startingCount + count,
+      preBattleMaxCount: existing.preBattleMaxCount + count,
       veterancy: newVeterancy,
     };
     return army.map((s, i) => (i === existingIdx ? updated : s));
@@ -194,10 +192,12 @@ export function addUnitsToArmy(army: ArmyStack[], unitId: UnitId, count: number)
     currentHp: maxHp,
     maxHp,
     startingCount: count,
-    morale: 0,
+    preBattleMaxCount: count,
+    morale: 100,
     veterancy: 0,
     block: 0,
     statuses: [],
+    flags: {},
     actedThisTurn: false,
   };
   return [...army, newStack];
@@ -219,6 +219,7 @@ export function addUnitsToGarrison(garrison: ArmyStack[], unitId: UnitId, count:
             currentHp: s.currentHp + count * hpPerUnit,
             maxHp: s.maxHp + count * hpPerUnit,
             startingCount: s.startingCount + count,
+            preBattleMaxCount: s.preBattleMaxCount + count,
           }
         : s
     );
@@ -234,10 +235,12 @@ export function addUnitsToGarrison(garrison: ArmyStack[], unitId: UnitId, count:
     currentHp: maxHp,
     maxHp,
     startingCount: count,
-    morale: 0,
+    preBattleMaxCount: count,
+    morale: 100,
     veterancy: 0,
     block: 0,
     statuses: [],
+    flags: {},
     actedThisTurn: false,
   };
   return [...garrison, newStack];

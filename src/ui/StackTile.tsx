@@ -131,12 +131,7 @@ export function StackTile({
         </div>
         <div className="badges">
           {stack.block > 0 && <span className="badge">Block {stack.block}</span>}
-          {stack.morale !== 0 && (
-            <span className="badge">
-              Morale {stack.morale > 0 ? '+' : ''}
-              {stack.morale}
-            </span>
-          )}
+          {stack.morale !== 100 && <span className="badge">Morale {stack.morale}</span>}
           {stack.statuses.map((s, i) => (
             <span className="badge" key={i}>
               {s.type} {s.amount}

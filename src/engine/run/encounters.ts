@@ -50,16 +50,16 @@ export function generateBattleEncounter(layer: number, elite: boolean): ArmyStac
 }
 
 /**
- * AGENT.md §42 — the single MVP boss (§55: Boss count = 1). Warlord's
- * "gains strength based on player's army size" is implemented in
- * damage.ts's bossScalingAttackBonus, applied automatically in combat
- * whenever a unit has UnitDefinition.scalesWithPlayerArmy set.
+ * PLACEHOLDER boss encounter — v3 §22 "The Ashen Warlord" (a named 3-phase boss
+ * entity with its own HP/behavior, not a stack of a roster unit) is Phase 6
+ * content per v3 §43 and not implemented yet. This stands in with an
+ * oversized elite formation so the run's final battle still exists end-to-end.
  */
 export function generateBossEncounter(): ArmyStack[] {
   const positions: Array<[UnitId, Position, number]> = [
-    ['orc', 1, 50],
-    ['warlord', 2, 1],
-    ['orc', 3, 50],
+    ['orc', 1, 60],
+    ['orc', 2, 60],
+    ['orc', 3, 60],
     ['wolf', 4, 30],
     ['shaman', 5, 18],
     ['wolf', 6, 30],

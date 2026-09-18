@@ -1,11 +1,12 @@
-import { buildStartingPlayerArmy, mergeArmyStacks, splitArmyStack } from '../army.js';
+import { mergeArmyStacks, splitArmyStack } from '../army.js';
 import { CARD_DEFINITIONS } from '../data/cards.js';
-import { DEFAULT_HERO_SKILL_LOADOUT } from '../data/heroSkills.js';
+import { HERO_DEFINITIONS } from '../data/heroes.js';
 import { RELIC_DEFINITIONS, STARTING_RELIC_DEFINITIONS } from '../data/relics.js';
 import { UNIT_DEFINITIONS } from '../data/units.js';
 import { applyPlayerAction, startBattle } from '../combat.js';
+import { buildHeroStartingArmy, createHero } from '../scenario.js';
 import { createRng, nextInt, shuffle } from '../rng.js';
-import type { ArmyStack, CardInstance, CombatState, Hero, PlayerAction, RelicDefinition, RelicEffect, UnitId } from '../types.js';
+import type { ArmyStack, CardInstance, CombatState, Hero, HeroId, PlayerAction, RelicDefinition, RelicEffect, UnitId } from '../types.js';
 import { CARD_UPGRADES } from './cardUpgrades.js';
 import {
   BUILDING_DEFINITIONS,
@@ -33,43 +34,20 @@ function cloneRun(run: RunState): RunState {
   return JSON.parse(JSON.stringify(run)) as RunState;
 }
 
-function buildStartingDeck(): CardInstance[] {
-  const ids = [
-    'command_strike',
-    'command_strike',
-    'charge',
-    'volley',
-    'defend',
-    'defend',
-    'shield_wall',
-    'reposition',
-    'rally',
-    'arcane_focus',
-    'battle_meditation',
-    'tactical_insight',
-  ];
-  return ids.map((cardId, i) => ({ instanceId: `${cardId}#${i}`, cardId }));
+function buildStartingDeck(heroId: HeroId): CardInstance[] {
+  return HERO_DEFINITIONS[heroId].startingDeck.map((cardId, i) => ({ instanceId: `${cardId}#${i}`, cardId }));
 }
 
-export function createRun(seed: number, heroName?: string): RunState {
+export function createRun(seed: number, heroId: HeroId = 'warlord', heroName?: string): RunState {
   const rng = createRng(seed);
-  const hero: Hero = {
-    id: 'commander',
-    name: heroName && heroName.trim().length > 0 ? heroName.trim().slice(0, 24) : 'Commander',
-    hp: 100,
-    maxHp: 100,
-    mana: 5,
-    maxMana: 8,
-    energy: 3,
-    maxEnergy: 3,
-  };
+  const hero: Hero = createHero(heroId, heroName);
 
   return {
     seed,
     rng,
     hero,
-    army: buildStartingPlayerArmy(),
-    masterDeck: buildStartingDeck(),
+    army: buildHeroStartingArmy(heroId),
+    masterDeck: buildStartingDeck(heroId),
     relics: [],
     gold: STARTING_GOLD,
     food: STARTING_FOOD,
@@ -119,10 +97,6 @@ function applyRelicStatEffectsOnce(run: RunState, def: RelicDefinition): void {
         run.hero.maxMana += effect.amount;
         run.hero.mana += effect.amount;
         break;
-      case 'HERO_MAX_ENERGY':
-        run.hero.maxEnergy += effect.amount;
-        run.hero.energy += effect.amount;
-        break;
       case 'ARMY_SIZE_MULT':
         run.army = run.army.map((s) => rescaleStack(s, effect.multiplier));
         break;
@@ -152,7 +126,6 @@ function startBattleForRun(run: RunState, encounterArmy: ArmyStack[]): CombatSta
     enemyArmy: encounterArmy,
     deck: run.masterDeck,
     activeRelicEffects: relicEffects,
-    heroSkillIds: DEFAULT_HERO_SKILL_LOADOUT,
   });
   return state;
 }
@@ -597,11 +570,7 @@ function buildBuilding(run: RunState, buildingId: string, events: RunEvent[]): R
   run.city.buildings.push(buildingId);
 
   if (buildingId === 'gold_mine') run.gold += 100;
-  if (buildingId === 'training_hall') {
-    run.hero.maxEnergy += 2;
-    run.hero.energy += 2;
-  }
-  if (buildingId === 'forge') {
+  if (buildingId === 'training_hall' || buildingId === 'forge') {
     run.hero.maxMana += 2;
     run.hero.mana += 2;
   }

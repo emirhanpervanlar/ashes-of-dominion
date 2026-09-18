@@ -77,13 +77,6 @@ describe('recruitment', () => {
     expect(result.run.food).toBe(200 - 1 * 10);
   });
 
-  it('rejects recruiting Mage before Mage Tower is built', () => {
-    let run = reachCity(4);
-    run = { ...run, gold: 200, food: 200 };
-    const result = applyRunAction(run, { type: 'RECRUIT', unitId: 'mage', count: 1, destination: 'army' });
-    expect(result.events.some((e) => e.type === 'ACTION_REJECTED')).toBe(true);
-  });
-
   it('rejects recruiting without enough Gold', () => {
     let run = reachCity(5);
     run = { ...run, gold: 0, food: 200 };
@@ -101,14 +94,12 @@ describe('recruitment', () => {
 });
 
 describe('buildings', () => {
-  it('building Mage Tower unlocks Mage recruitment', () => {
+  it('building Mage Tower is constructible and takes a slot', () => {
     let run = reachCity(7);
     run = { ...run, gold: 500, food: 200 };
     const built = applyRunAction(run, { type: 'BUILD_BUILDING', buildingId: 'mage_tower' });
     expect(built.events.some((e) => e.type === 'BUILDING_BUILT')).toBe(true);
-
-    const recruited = applyRunAction(built.run, { type: 'RECRUIT', unitId: 'mage', count: 3, destination: 'garrison' });
-    expect(recruited.events.some((e) => e.type === 'ACTION_REJECTED')).toBe(false);
+    expect(built.run.city.buildings).toContain('mage_tower');
   });
 
   it('rejects building past the level-1 slot cap (3 slots)', () => {
@@ -135,11 +126,12 @@ describe('buildings', () => {
     expect(result.run.gold).toBe(100 - 80 + 100);
   });
 
-  it('Training Hall permanently raises Hero max Energy', () => {
+  it('Training Hall permanently raises Hero max Mana', () => {
     let run = reachCity(10);
     run = { ...run, gold: 200, food: 200 };
+    const before = run.hero.maxMana;
     const result = applyRunAction(run, { type: 'BUILD_BUILDING', buildingId: 'training_hall' });
-    expect(result.run.hero.maxEnergy).toBe(5);
+    expect(result.run.hero.maxMana).toBe(before + 2);
   });
 });
 
@@ -241,33 +233,7 @@ describe('doctrines', () => {
     }
   });
 
-  it('Necromantic Doctrine raises Skeletons from player casualties in battle', () => {
-    const run = reachCity(18);
-    const withDoctrine = applyRunAction(run, { type: 'CHOOSE_DOCTRINE', doctrineId: 'necromantic' }).run;
-    const left = applyRunAction(withDoctrine, { type: 'LEAVE_CITY' }).run;
-    const { run: onBattlePath, nodeId } = (() => {
-      const current = left.worldMap.nodes.find((n) => n.id === left.worldMap.currentNodeId)!;
-      const nextId = current.connectsTo[0]!;
-      const worldMap = { ...left.worldMap, nodes: left.worldMap.nodes.map((n) => (n.id === nextId ? { ...n, type: 'battle' as const } : n)) };
-      return { run: { ...left, worldMap }, nodeId: nextId };
-    })();
-    const started = applyRunAction(onBattlePath, { type: 'MOVE_TO', nodeId });
-    // Force a guaranteed player casualty this turn (the starting army is small and the
-    // early encounter is now deliberately weak, so a normal turn may not kill anything).
-    const combat = started.run.combat!;
-    const targetStackId = combat.playerArmy[0]!.stackId;
-    const forcedKill: CombatState = {
-      ...combat,
-      playerArmy: combat.playerArmy.map((s) => ({ ...s, count: 8, currentHp: 8 })),
-      enemyIntents: combat.enemyIntents.map((intent) => ({
-        ...intent,
-        kind: 'attack',
-        targetStackId,
-        estimatedDamage: 9999,
-      })),
-    };
-    const result = applyRunAction({ ...started.run, combat: forcedKill }, { type: 'COMBAT_ACTION', action: { type: 'END_TURN' } });
-    const combatEvents = result.run.combat?.log ?? [];
-    expect(combatEvents.some((e) => e.type === 'SKELETONS_RAISED')).toBe(true);
-  });
+  // Necromantic Doctrine's Skeleton-raising is deferred with the rest of the Undying
+  // Legion archetype — there is no Skeleton unit in the v3 MVP roster (§3 "explicitly
+  // excluded"), so combat.ts's raiseSkeletons is currently a documented no-op.
 });

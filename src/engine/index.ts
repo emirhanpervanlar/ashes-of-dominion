@@ -1,11 +1,12 @@
 export * from './types.js';
 export * from './rng.js';
 export * from './damage.js';
+export * from './heroStats.js';
 export * from './intents.js';
 export * from './targeting.js';
 export * from './combat.js';
 export * from './scenario.js';
 export { UNIT_DEFINITIONS } from './data/units.js';
 export { CARD_DEFINITIONS } from './data/cards.js';
-export { HERO_SKILL_DEFINITIONS, DEFAULT_HERO_SKILL_LOADOUT } from './data/heroSkills.js';
+export { HERO_DEFINITIONS } from './data/heroes.js';
 export * from './army.js';

@@ -1,43 +1,51 @@
 import { CARD_DEFINITIONS } from './data/cards.js';
-import { HERO_SKILL_DEFINITIONS } from './data/heroSkills.js';
 import { UNIT_DEFINITIONS } from './data/units.js';
+import { damageStatFor, statEffectiveness } from './heroStats.js';
 import {
   applyDamageToStack,
   applyHealToStack,
-  bossScalingAttackBonus,
+  armorReduction,
   computeHealAmount,
   computeRawDamage,
+  effectiveCount,
+  fearDamageMultiplier,
   moraleDamageMultiplier,
+  moraleDefenseMultiplier,
   necromancyRatio,
+  passiveDamageBonusMultiplier,
+  passiveDefenseBonus,
   relicDamageMultiplier,
   relicDamageTakenMultiplier,
+  relicDodgeBonusPercent,
   relicFlatAttackBonus,
-  veterancyFlatBonus,
-  vulnerableDamageMultiplier,
+  relicHealingMultiplier,
+  rollDodge,
+  statusAmount,
+  veterancyDamageMultiplier,
 } from './damage.js';
+import { computeValidHealTargets, computeValidTargets, laneOf } from './targeting.js';
 import { generateEnemyIntents } from './intents.js';
-import { computeValidHealTargets, computeValidTargets } from './targeting.js';
 import { shuffle } from './rng.js';
 import type {
   ApplyResult,
   ArmyStack,
-  CardCostType,
   CardEffect,
   CardInstance,
   CardTargeting,
   CombatEvent,
   CombatState,
   Hero,
-  HeroSkillState,
   PlayerAction,
   Position,
   RelicEffect,
+  StatusType,
+  UnitDefinition,
 } from './types.js';
 
-/** Shape shared by PLAY_CARD and USE_SKILL — all executeEffect/validateTargeting need. */
-type TargetedAction = { actingStackId?: string; targetStackId?: string; toPosition?: Position };
+type TargetedAction = { actingStackId?: string; targetStackId?: string; secondTargetStackId?: string; toPosition?: Position };
 
-const HAND_SIZE = 5;
+const HAND_SIZE_FIRST_TURN = 5;
+const HAND_SIZE_PER_TURN = 3;
 const MAX_HAND = 10;
 
 function cloneState(state: CombatState): CombatState {
@@ -55,26 +63,6 @@ function replaceStack(army: ArmyStack[], updated: ArmyStack): void {
 
 function reject(events: CombatEvent[], reason: string): void {
   events.push({ type: 'ACTION_REJECTED', reason });
-}
-
-function getHeroResource(hero: Hero, type: CardCostType): number {
-  switch (type) {
-    case 'ENERGY':
-      return hero.energy;
-    case 'MANA':
-      return hero.mana;
-  }
-}
-
-function spendHeroResource(hero: Hero, type: CardCostType, amount: number): void {
-  switch (type) {
-    case 'ENERGY':
-      hero.energy -= amount;
-      return;
-    case 'MANA':
-      hero.mana -= amount;
-      return;
-  }
 }
 
 export function checkBattleResult(state: CombatState): 'ongoing' | 'victory' | 'defeat' {
@@ -109,44 +97,26 @@ function findFreePlayerPosition(army: ArmyStack[]): Position | null {
   return null;
 }
 
-/** Necromantic Doctrine / Grave Crown — merges into an existing player Skeleton stack or creates one in a free slot. */
-function raiseSkeletons(army: ArmyStack[], count: number, events: CombatEvent[]): void {
-  const hpPerUnit = UNIT_DEFINITIONS.skeleton.hpPerUnit;
-  const existingIdx = army.findIndex((s) => s.unitId === 'skeleton' && s.count > 0);
-  if (existingIdx >= 0) {
-    const existing = army[existingIdx]!;
-    army[existingIdx] = {
-      ...existing,
-      count: existing.count + count,
-      currentHp: existing.currentHp + count * hpPerUnit,
-      maxHp: existing.maxHp + count * hpPerUnit,
-      startingCount: existing.startingCount + count,
-    };
-    events.push({ type: 'SKELETONS_RAISED', count });
-    return;
+function raiseSkeletons(_army: ArmyStack[], _count: number, _events: CombatEvent[]): void {
+  // Necromancy relics are not part of the v3 MVP roster (no Skeleton unit) — kept as a
+  // documented no-op so old NECROMANCY relic effects don't crash if one is still active.
+}
+
+/** v3 §8 Knight "Guard" passive / the Protect card's explicit redirect — first checks an explicit flag, then the passive. */
+function resolveRedirect(target: ArmyStack, army: ArmyStack[]): { toStackId: string; percent: number } | null {
+  if (target.flags.redirectToStackId && target.flags.redirectPercent) {
+    const guardian = army.find((s) => s.stackId === target.flags.redirectToStackId && s.count > 0);
+    if (guardian) return { toStackId: guardian.stackId, percent: target.flags.redirectPercent };
   }
-  const position = findFreePlayerPosition(army);
-  if (position === null) return; // no room this battle — the casualties simply aren't raised (documented limitation)
-  const maxHp = count * hpPerUnit;
-  army.push({
-    stackId: `player_skeleton_${position}`,
-    unitId: 'skeleton',
-    side: 'player',
-    position,
-    count,
-    currentHp: maxHp,
-    maxHp,
-    startingCount: count,
-    morale: 0,
-    veterancy: 0,
-    block: 0,
-    statuses: [],
-    actedThisTurn: false,
-  });
-  events.push({ type: 'SKELETONS_RAISED', count });
+  const adjacentKnight = army.find(
+    (s) => s.count > 0 && s.unitId === 'knight' && s.stackId !== target.stackId && s.position <= 3 && Math.abs(s.position - target.position) === 1
+  );
+  if (adjacentKnight && target.position <= 3) return { toStackId: adjacentKnight.stackId, percent: 25 };
+  return null;
 }
 
 function resolveAttack(
+  state: CombatState,
   attacker: ArmyStack,
   target: ArmyStack,
   army: ArmyStack[],
@@ -156,69 +126,319 @@ function resolveAttack(
   conditionalBonus?: { targetHpBelowPercent: number; multiplier: number }
 ): void {
   const attackerDef = UNIT_DEFINITIONS[attacker.unitId];
-  const targetDef = UNIT_DEFINITIONS[target.unitId];
+  let targetDef = UNIT_DEFINITIONS[target.unitId];
 
-  // Relics belong to the player's Hero — only ever modify player-side attacks / player-side damage taken.
+  // Guard/Protect redirect — the damage lands on the guardian instead, using the guardian's own defense.
+  const redirect = resolveRedirect(target, army);
+  let actualTarget = target;
+  if (redirect && !attacker.flags.nextAttackCannotBeRedirected) {
+    const guardian = findStack(army, redirect.toStackId);
+    if (guardian) actualTarget = guardian;
+  }
+  targetDef = UNIT_DEFINITIONS[actualTarget.unitId];
+
+  // Dodge (Hero Dexterity + relics, player side only).
+  const dodgeMult = actualTarget.flags.dodgeMultiplier ?? 1;
+  const dodged = rollDodge(state.rng, state.hero, actualTarget.side, dodgeMult, relicDodgeBonusPercent(relics));
+  if (dodged) {
+    events.push({ type: 'STACK_ATTACKED', attackerStackId: attacker.stackId, targetStackId: actualTarget.stackId, rawDamage: 0, finalDamage: 0, blocked: 0 });
+    return;
+  }
+
   const relicMult = attacker.side === 'player' ? relicDamageMultiplier(relics, attacker.count, attackerDef.tags) : 1;
   const relicFlat = attacker.side === 'player' ? relicFlatAttackBonus(relics, attacker.count) : 0;
-  const damageTakenMult = target.side === 'player' ? relicDamageTakenMultiplier(relics) : 1;
-  // `army` is the TARGET's army — for an enemy attacker that's the player's army, exactly what the Warlord mechanic needs.
-  const bossFlat = attacker.side === 'enemy' ? bossScalingAttackBonus(attackerDef, army) : 0;
-  // Morale/Veterancy apply to both sides — they're intrinsic stack properties, not Hero-exclusive relics.
+  const damageTakenMult = actualTarget.side === 'player' ? relicDamageTakenMultiplier(relics) : 1;
   const moraleMult = moraleDamageMultiplier(attacker.morale);
-  const veterancyFlat = veterancyFlatBonus(attacker.veterancy);
-  const vulnerableMult = vulnerableDamageMultiplier(target);
+  const targetMoraleDefMult = moraleDefenseMultiplier(actualTarget.morale);
+  const veterancyMult = veterancyDamageMultiplier(attacker.veterancy);
+  const fearMult = fearDamageMultiplier(attacker);
+  const passiveMult = passiveDamageBonusMultiplier(attacker, attackerDef, actualTarget.side, army, actualTarget);
+  const heroEffectiveness = attacker.side === 'player' ? statEffectiveness(state.hero.stats[damageStatFor(attackerDef.tags)]) : 1;
+
+  const nextAttackBonus = attacker.flags.nextAttackDamageBonusPercent ? 1 + attacker.flags.nextAttackDamageBonusPercent / 100 : 1;
+  const ignoresArmor = !!attacker.flags.nextAttackIgnoresArmor;
 
   let execMult = 1;
-  if (conditionalBonus && target.maxHp > 0 && (target.currentHp / target.maxHp) * 100 < conditionalBonus.targetHpBelowPercent) {
+  if (conditionalBonus && actualTarget.maxHp > 0 && (actualTarget.currentHp / actualTarget.maxHp) * 100 < conditionalBonus.targetHpBelowPercent) {
     execMult = conditionalBonus.multiplier;
   }
 
-  const totalMultiplier = multiplier * relicMult * moraleMult * vulnerableMult * damageTakenMult * execMult;
-  const raw = computeRawDamage(attacker, attackerDef.attack + relicFlat + bossFlat + veterancyFlat, targetDef.defense, totalMultiplier);
-  const resolution = applyDamageToStack(target, targetDef.hpPerUnit, raw);
+  const incomingReduction = actualTarget.flags.incomingDamageReductionPercent ? 1 - actualTarget.flags.incomingDamageReductionPercent / 100 : 1;
+  const passiveDefBonus = passiveDefenseBonus(actualTarget, targetDef, army);
+  const armor = ignoresArmor ? 0 : armorReduction(actualTarget);
+  const effectiveTargetDefense = (targetDef.defense + passiveDefBonus + armor) / targetMoraleDefMult;
+
+  const totalMultiplier = multiplier * relicMult * moraleMult * fearMult * passiveMult * damageTakenMult * execMult * nextAttackBonus * veterancyMult * incomingReduction;
+  const raw = computeRawDamage({
+    attackerStack: attacker,
+    attackerBaseAttack: attackerDef.attack + relicFlat,
+    targetDefense: effectiveTargetDefense,
+    multiplier: totalMultiplier,
+    heroEffectiveness,
+  });
+  const resolution = applyDamageToStack(actualTarget, targetDef.hpPerUnit, raw);
   replaceStack(army, resolution.stack);
 
   events.push({
     type: 'STACK_ATTACKED',
     attackerStackId: attacker.stackId,
-    targetStackId: target.stackId,
+    targetStackId: actualTarget.stackId,
     rawDamage: raw,
     finalDamage: resolution.finalDamage,
     blocked: resolution.blocked,
   });
   if (resolution.unitsKilled > 0) {
-    events.push({ type: 'UNITS_KILLED', stackId: target.stackId, count: resolution.unitsKilled });
-    if (target.side === 'player') {
+    events.push({ type: 'UNITS_KILLED', stackId: actualTarget.stackId, count: resolution.unitsKilled });
+    if (actualTarget.side === 'player') {
       const ratio = necromancyRatio(relics);
       const raised = Math.floor(resolution.unitsKilled * ratio);
       if (raised > 0) raiseSkeletons(army, raised, events);
     }
   }
   if (resolution.stack.count === 0) {
-    events.push({ type: 'STACK_DESTROYED', stackId: target.stackId });
+    events.push({ type: 'STACK_DESTROYED', stackId: actualTarget.stackId });
+  }
+
+  // "next attack applies status" (Poison Arrow-style buffs) resolve after a successful hit.
+  if (attacker.flags.nextAttackAppliesStatus && resolution.stack.count > 0) {
+    const { status, amount, duration } = attacker.flags.nextAttackAppliesStatus;
+    const withStatus = { ...resolution.stack, statuses: [...resolution.stack.statuses, { type: status, amount, duration }] };
+    replaceStack(army, withStatus);
+    events.push({ type: 'STATUS_APPLIED', stackId: withStatus.stackId, status, amount, duration });
+  }
+
+  // Blood Rage-style self cost, paid once the buffed attack lands.
+  if (attacker.flags.selfCasualtyPercentAfterAttack) {
+    const attackerArmy = attacker.side === 'player' ? state.playerArmy : state.enemyArmy;
+    const current = findStack(attackerArmy, attacker.stackId);
+    if (current && current.count > 1) {
+      const loss = Math.min(current.count - 1, Math.max(1, Math.ceil((current.count * attacker.flags.selfCasualtyPercentAfterAttack) / 100)));
+      const newCount = current.count - loss;
+      const hpPerUnit = UNIT_DEFINITIONS[current.unitId].hpPerUnit;
+      const updated: ArmyStack = { ...current, count: newCount, currentHp: Math.min(current.currentHp, newCount * hpPerUnit) };
+      replaceStack(attackerArmy, updated);
+      events.push({ type: 'UNITS_KILLED', stackId: updated.stackId, count: loss });
+    }
+  }
+
+  // Counterattack — the defender (if it still lives and hasn't used its window) strikes back.
+  if (resolution.stack.count > 0 && resolution.stack.flags.counterattackPercent && (resolution.stack.flags.counterattackUsesLeft ?? 0) > 0) {
+    const counterArmy = actualTarget.side === 'player' ? state.playerArmy : state.enemyArmy;
+    const counterStack = findStack(counterArmy, resolution.stack.stackId);
+    if (counterStack) {
+      const withUsed: ArmyStack = {
+        ...counterStack,
+        flags: { ...counterStack.flags, counterattackUsesLeft: (counterStack.flags.counterattackUsesLeft ?? 1) - 1 },
+      };
+      replaceStack(counterArmy, withUsed);
+      const attackerArmy = attacker.side === 'player' ? state.playerArmy : state.enemyArmy;
+      const stillAttacker = findStack(attackerArmy, attacker.stackId);
+      if (stillAttacker) {
+        events.push({ type: 'COUNTERATTACK_TRIGGERED', stackId: withUsed.stackId, targetStackId: attacker.stackId });
+        resolveAttack(state, withUsed, stillAttacker, attackerArmy, (counterStack.flags.counterattackPercent ?? 0) / 100, events, relics);
+      }
+    }
+  }
+
+  // Clear one-shot "next attack" flags on the attacker after it has acted.
+  const attackerArmy = attacker.side === 'player' ? state.playerArmy : state.enemyArmy;
+  const stillLive = findStack(attackerArmy, attacker.stackId);
+  if (stillLive) {
+    const {
+      nextAttackDamageBonusPercent,
+      nextAttackAccuracyBonusPercent,
+      nextAttackIgnoresArmor,
+      nextAttackCannotBeRedirected,
+      nextAttackAppliesStatus,
+      ...restFlags
+    } = stillLive.flags;
+    void nextAttackDamageBonusPercent;
+    void nextAttackAccuracyBonusPercent;
+    void nextAttackIgnoresArmor;
+    void nextAttackCannotBeRedirected;
+    void nextAttackAppliesStatus;
+    replaceStack(attackerArmy, { ...stillLive, flags: restFlags });
   }
 }
 
+function resolveHeal(state: CombatState, healer: ArmyStack, target: ArmyStack, army: ArmyStack[], multiplier: number, events: CombatEvent[]): void {
+  const healerDef = UNIT_DEFINITIONS[healer.unitId];
+  const healPower = healerDef.healPower ?? 3;
+  const wisdomEff = healer.side === 'player' ? statEffectiveness(state.hero.stats.wisdom) : 1;
+  const healingMult = healer.side === 'player' ? relicHealingMultiplier(state.activeRelicEffects) : 1;
+  const passiveMult = healerDef.passiveId === 'devotion' ? 1.1 : 1;
+  const amount = Math.round(computeHealAmount(healer, healPower, wisdomEff, healingMult * passiveMult) * multiplier);
+  const targetDef = UNIT_DEFINITIONS[target.unitId];
+  const resolution = applyHealToStack(target, amount, targetDef.hpPerUnit);
+  replaceStack(army, resolution.stack);
+  events.push({ type: 'STACK_HEALED', stackId: target.stackId, amount: resolution.healedAmount });
+}
+
+function adjacentAllies(army: ArmyStack[], stack: ArmyStack): ArmyStack[] {
+  return army.filter((s) => s.count > 0 && s.stackId !== stack.stackId && s.position <= 3 && Math.abs(s.position - stack.position) === 1);
+}
+
 function executeEffect(state: CombatState, effect: CardEffect, action: TargetedAction, events: CombatEvent[]): void {
+  const actor = findStack(state.playerArmy, action.actingStackId);
   switch (effect.kind) {
     case 'ATTACK': {
-      const attacker = findStack(state.playerArmy, action.actingStackId)!;
+      const attacker = actor!;
       const target = findStack(state.enemyArmy, action.targetStackId)!;
-      resolveAttack(attacker, target, state.enemyArmy, effect.multiplier, events, state.activeRelicEffects, effect.conditionalBonus);
+      resolveAttack(state, attacker, target, state.enemyArmy, effect.multiplier, events, state.activeRelicEffects, effect.conditionalBonus);
       return;
     }
     case 'ATTACK_ALL_WITH_TAG': {
-      const target0 = findStack(state.enemyArmy, action.targetStackId);
-      if (!target0) return;
-      const attackers = state.playerArmy.filter(
-        (s) => s.count > 0 && UNIT_DEFINITIONS[s.unitId].tags.includes(effect.tag)
-      );
+      const attackers = state.playerArmy.filter((s) => s.count > 0 && UNIT_DEFINITIONS[s.unitId].tags.includes(effect.tag));
       for (const attacker of attackers) {
         const target = findStack(state.enemyArmy, action.targetStackId);
         if (!target) break;
-        resolveAttack(attacker, target, state.enemyArmy, effect.multiplier, events, state.activeRelicEffects);
+        resolveAttack(state, attacker, target, state.enemyArmy, effect.multiplier, events, state.activeRelicEffects);
       }
+      return;
+    }
+    case 'ATTACK_SPLASH': {
+      const attacker = actor!;
+      const primary = findStack(state.enemyArmy, action.targetStackId)!;
+      resolveAttack(state, attacker, primary, state.enemyArmy, effect.primaryMultiplier, events, state.activeRelicEffects);
+      const others = state.enemyArmy.filter((s) => s.count > 0 && s.stackId !== primary.stackId).slice(0, effect.maxSecondaryTargets);
+      for (const other of others) {
+        resolveAttack(state, attacker, other, state.enemyArmy, effect.secondaryMultiplier, events, state.activeRelicEffects);
+      }
+      return;
+    }
+    case 'ATTACK_PRIMARY_AND_BEHIND': {
+      const attacker = actor!;
+      const primary = findStack(state.enemyArmy, action.targetStackId)!;
+      resolveAttack(state, attacker, primary, state.enemyArmy, effect.primaryMultiplier, events, state.activeRelicEffects);
+      const lane = laneOf(primary.position);
+      const behindPos = primary.position <= 3 ? (({ left: 4, center: 5, right: 6 } as const)[lane]) : (({ left: 1, center: 2, right: 3 } as const)[lane]);
+      const behind = state.enemyArmy.find((s) => s.count > 0 && s.position === behindPos);
+      if (behind) resolveAttack(state, attacker, behind, state.enemyArmy, effect.behindMultiplier, events, state.activeRelicEffects);
+      return;
+    }
+    case 'ATTACK_TWICE': {
+      const attacker = actor!;
+      const target0 = findStack(state.enemyArmy, action.targetStackId)!;
+      resolveAttack(state, attacker, target0, state.enemyArmy, effect.firstMultiplier, events, state.activeRelicEffects);
+      const target1 = findStack(state.enemyArmy, action.targetStackId);
+      if (target1) resolveAttack(state, attacker, target1, state.enemyArmy, effect.secondMultiplier, events, state.activeRelicEffects);
+      return;
+    }
+    case 'DAMAGE_UP_TO_N_ENEMIES': {
+      const attacker = actor!;
+      const targets = state.enemyArmy.filter((s) => s.count > 0).slice(0, effect.maxTargets);
+      for (const target of targets) {
+        const live = findStack(state.enemyArmy, target.stackId);
+        if (live) resolveAttack(state, attacker, live, state.enemyArmy, effect.multiplier, events, state.activeRelicEffects);
+      }
+      return;
+    }
+    case 'DAMAGE_ALL_ENEMIES': {
+      const attacker = actor!;
+      const targets = state.enemyArmy.filter((s) => s.count > 0);
+      targets.forEach((target, i) => {
+        const live = findStack(state.enemyArmy, target.stackId);
+        if (live) resolveAttack(state, attacker, live, state.enemyArmy, i === 0 ? effect.multiplier + effect.primaryBonusMultiplier : effect.multiplier, events, state.activeRelicEffects);
+      });
+      return;
+    }
+    case 'CHAIN_DAMAGE': {
+      const attacker = actor!;
+      const primary = findStack(state.enemyArmy, action.targetStackId)!;
+      resolveAttack(state, attacker, primary, state.enemyArmy, effect.primaryMultiplier, events, state.activeRelicEffects);
+      const others = state.enemyArmy.filter((s) => s.count > 0 && s.stackId !== primary.stackId).slice(0, effect.maxSecondaryTargets);
+      for (const other of others) {
+        resolveAttack(state, attacker, other, state.enemyArmy, effect.secondaryMultiplier, events, state.activeRelicEffects);
+      }
+      return;
+    }
+    case 'HEAL': {
+      const healer = actor!;
+      const target = findStack(state.playerArmy, action.secondTargetStackId ?? action.targetStackId)!;
+      resolveHeal(state, healer, target, state.playerArmy, effect.multiplier, events);
+      return;
+    }
+    case 'RESTORE_SOLDIERS_PERCENT': {
+      const stack = findStack(state.playerArmy, action.actingStackId)!;
+      const def = UNIT_DEFINITIONS[stack.unitId];
+      const amount = Math.round(stack.preBattleMaxCount * (effect.percent / 100)) * def.hpPerUnit;
+      const resolution = applyHealToStack(stack, amount, def.hpPerUnit);
+      replaceStack(state.playerArmy, resolution.stack);
+      events.push({ type: 'STACK_HEALED', stackId: stack.stackId, amount: resolution.healedAmount });
+      return;
+    }
+    case 'MODIFY_STAT': {
+      const source = findStack(state.playerArmy, action.actingStackId ?? action.targetStackId)!;
+      const affected = effect.scope === 'self' ? [source] : adjacentAllies(state.playerArmy, source);
+      for (const stack of affected) {
+        const statusType: StatusType = effect.stat === 'defense' ? 'armor' : 'strength';
+        const amount = effect.stat === 'defense' ? effect.amount : Math.round((UNIT_DEFINITIONS[stack.unitId].attack * effect.amount) / 100);
+        const updated = { ...stack, statuses: [...stack.statuses, { type: statusType, amount, duration: effect.duration }] };
+        replaceStack(state.playerArmy, updated);
+        events.push({ type: 'STATUS_APPLIED', stackId: stack.stackId, status: statusType, amount, duration: effect.duration });
+      }
+      return;
+    }
+    case 'DEFENSE_BUFF_ALL_FRONTLINE': {
+      for (const stack of state.playerArmy) {
+        if (stack.count > 0 && stack.position <= 3) {
+          const updated = { ...stack, statuses: [...stack.statuses, { type: 'armor' as const, amount: effect.amount, duration: effect.duration }] };
+          replaceStack(state.playerArmy, updated);
+          events.push({ type: 'STATUS_APPLIED', stackId: stack.stackId, status: 'armor', amount: effect.amount, duration: effect.duration });
+        }
+      }
+      return;
+    }
+    case 'DEFENSE_BUFF_ADJACENT_THREE': {
+      const source = findStack(state.playerArmy, action.actingStackId)!;
+      const affected = [source, ...adjacentAllies(state.playerArmy, source)].slice(0, 3);
+      for (const stack of affected) {
+        const updated = { ...stack, statuses: [...stack.statuses, { type: 'armor' as const, amount: effect.amount, duration: effect.duration }] };
+        replaceStack(state.playerArmy, updated);
+        events.push({ type: 'STATUS_APPLIED', stackId: stack.stackId, status: 'armor', amount: effect.amount, duration: effect.duration });
+      }
+      return;
+    }
+    case 'DAMAGE_BUFF_ALL_WITH_TAG': {
+      for (const stack of state.playerArmy) {
+        if (stack.count > 0 && UNIT_DEFINITIONS[stack.unitId].tags.includes(effect.tag)) {
+          const amount = Math.round((UNIT_DEFINITIONS[stack.unitId].attack * effect.amount) / 100);
+          const updated = { ...stack, statuses: [...stack.statuses, { type: 'strength' as const, amount, duration: effect.duration }] };
+          replaceStack(state.playerArmy, updated);
+          events.push({ type: 'STATUS_APPLIED', stackId: stack.stackId, status: 'strength', amount, duration: effect.duration });
+        }
+      }
+      return;
+    }
+    case 'DAMAGE_AND_DEFENSE_BUFF': {
+      const target = findStack(state.playerArmy, action.targetStackId ?? action.actingStackId)!;
+      const dmgAmount = Math.round((UNIT_DEFINITIONS[target.unitId].attack * effect.damageAmount) / 100);
+      const updated = {
+        ...target,
+        statuses: [
+          ...target.statuses,
+          { type: 'strength' as const, amount: dmgAmount, duration: effect.duration },
+          { type: 'armor' as const, amount: effect.defenseAmount, duration: effect.duration },
+        ],
+      };
+      replaceStack(state.playerArmy, updated);
+      events.push({ type: 'STATUS_APPLIED', stackId: target.stackId, status: 'strength', amount: dmgAmount, duration: effect.duration });
+      events.push({ type: 'STATUS_APPLIED', stackId: target.stackId, status: 'armor', amount: effect.defenseAmount, duration: effect.duration });
+      return;
+    }
+    case 'APPLY_STATUS': {
+      const target = findStack(state.enemyArmy, action.targetStackId) ?? findStack(state.playerArmy, action.targetStackId ?? action.actingStackId)!;
+      const targetArmy = target.side === 'player' ? state.playerArmy : state.enemyArmy;
+      const updated = { ...target, statuses: [...target.statuses, { type: effect.status, amount: effect.amount, duration: effect.duration }] };
+      replaceStack(targetArmy, updated);
+      events.push({ type: 'STATUS_APPLIED', stackId: target.stackId, status: effect.status, amount: effect.amount, duration: effect.duration });
+      return;
+    }
+    case 'REMOVE_STATUSES': {
+      const target = findStack(state.playerArmy, action.actingStackId ?? action.targetStackId)!;
+      const updated = { ...target, statuses: target.statuses.filter((s) => !effect.statuses.includes(s.type)) };
+      replaceStack(state.playerArmy, updated);
+      events.push({ type: 'STATUSES_REMOVED', stackId: target.stackId, statuses: effect.statuses });
       return;
     }
     case 'GAIN_BLOCK': {
@@ -247,14 +467,14 @@ function executeEffect(state: CombatState, effect: CardEffect, action: TargetedA
     }
     case 'GAIN_MORALE': {
       const stack = findStack(state.playerArmy, action.actingStackId)!;
-      stack.morale += effect.amount;
+      stack.morale = Math.min(100, stack.morale + effect.amount);
       events.push({ type: 'MORALE_CHANGED', stackId: stack.stackId, amount: effect.amount });
       return;
     }
     case 'GAIN_MORALE_ALL': {
       for (const stack of state.playerArmy) {
         if (stack.count > 0) {
-          stack.morale += effect.amount;
+          stack.morale = Math.min(100, stack.morale + effect.amount);
           events.push({ type: 'MORALE_CHANGED', stackId: stack.stackId, amount: effect.amount });
         }
       }
@@ -263,12 +483,6 @@ function executeEffect(state: CombatState, effect: CardEffect, action: TargetedA
     case 'GAIN_MANA': {
       state.hero.mana = Math.min(state.hero.maxMana, state.hero.mana + effect.amount);
       events.push({ type: 'MANA_GAINED', amount: effect.amount });
-      return;
-    }
-    case 'GAIN_MANA_AND_DRAW': {
-      state.hero.mana = Math.min(state.hero.maxMana, state.hero.mana + effect.mana);
-      events.push({ type: 'MANA_GAINED', amount: effect.mana });
-      drawCards(state, effect.draw, events);
       return;
     }
     case 'DRAW': {
@@ -281,50 +495,46 @@ function executeEffect(state: CombatState, effect: CardEffect, action: TargetedA
       events.push({ type: 'STATUS_APPLIED', stackId: stack.stackId, status: 'taunt', amount: 1, duration: effect.duration });
       return;
     }
-    case 'APPLY_VULNERABLE': {
-      const target = findStack(state.enemyArmy, action.targetStackId)!;
-      target.statuses.push({ type: 'vulnerable', amount: effect.amount, duration: effect.duration });
-      events.push({ type: 'STATUS_APPLIED', stackId: target.stackId, status: 'vulnerable', amount: effect.amount, duration: effect.duration });
+    case 'SET_FLAGS': {
+      const primary = findStack(state.playerArmy, action.actingStackId);
+      const secondary = findStack(state.playerArmy, action.secondTargetStackId ?? action.targetStackId) ?? findStack(state.enemyArmy, action.targetStackId);
+      const stack = effect.target === 'self' ? primary : secondary ?? primary;
+      if (!stack) return;
+      const army = stack.side === 'player' ? state.playerArmy : state.enemyArmy;
+      const resolvedFlags = { ...effect.flags };
+      if (resolvedFlags.redirectToStackId === '$ACTING' && primary) resolvedFlags.redirectToStackId = primary.stackId;
+      const updated = { ...stack, flags: { ...stack.flags, ...resolvedFlags } };
+      replaceStack(army, updated);
       return;
     }
-    case 'SACRIFICE_FOR_SKELETONS': {
-      const stack = findStack(state.playerArmy, action.actingStackId)!;
-      const def = UNIT_DEFINITIONS[stack.unitId];
-      const sacrificeCount = Math.min(stack.count, Math.max(1, Math.floor(stack.count * (effect.sacrificePercent / 100))));
-      const newCount = stack.count - sacrificeCount;
-      const newMaxHp = newCount * def.hpPerUnit;
-      const updated: ArmyStack = { ...stack, count: newCount, currentHp: Math.min(stack.currentHp, newMaxHp), maxHp: newMaxHp };
-      replaceStack(state.playerArmy, updated);
-      events.push({ type: 'UNITS_KILLED', stackId: stack.stackId, count: sacrificeCount });
-      if (updated.count === 0) events.push({ type: 'STACK_DESTROYED', stackId: stack.stackId });
-      const skeletonsToRaise = sacrificeCount * effect.skeletonsPerSacrificed;
-      if (skeletonsToRaise > 0) raiseSkeletons(state.playerArmy, skeletonsToRaise, events);
+    case 'SET_FLAGS_ALL_WITH_TAG': {
+      for (const stack of state.playerArmy) {
+        if (stack.count > 0 && UNIT_DEFINITIONS[stack.unitId].tags.includes(effect.tag)) {
+          replaceStack(state.playerArmy, { ...stack, flags: { ...stack.flags, ...effect.flags } });
+        }
+      }
       return;
     }
   }
 }
 
-function validateTargeting(
-  state: CombatState,
-  def: { id: string; targeting: CardTargeting },
-  action: TargetedAction
-): string | null {
-  const needsAlly = def.targeting === 'ally-stack' || def.targeting === 'ally-stack+enemy-stack' || def.targeting === 'ally-stack+position';
+function validateTargeting(state: CombatState, def: { id: string; targeting: CardTargeting }, action: TargetedAction): string | null {
+  const needsAlly =
+    def.targeting === 'ally-stack' ||
+    def.targeting === 'ally-stack+enemy-stack' ||
+    def.targeting === 'ally-stack+position' ||
+    def.targeting === 'ally-stack+ally-stack';
   const needsEnemy = def.targeting === 'enemy-stack' || def.targeting === 'ally-stack+enemy-stack';
+  const needsSecondAlly = def.targeting === 'ally-stack+ally-stack';
   const needsPosition = def.targeting === 'ally-stack+position';
 
   if (needsAlly) {
     const stack = findStack(state.playerArmy, action.actingStackId);
     if (!stack) return 'Invalid or dead friendly stack.';
-    if (def.id === 'charge' && !UNIT_DEFINITIONS[stack.unitId].tags.includes('cavalry')) {
-      return 'Charge requires a friendly Cavalry stack.';
-    }
   }
   if (needsEnemy) {
     const stack = findStack(state.enemyArmy, action.targetStackId);
     if (!stack) return 'Invalid or dead enemy stack.';
-    // v2_list.md §5 — a card tied to one acting stack (e.g. Charge, Command: Strike)
-    // still respects that stack's lane geometry, same as its free basic attack.
     if (def.targeting === 'ally-stack+enemy-stack') {
       const actor = findStack(state.playerArmy, action.actingStackId)!;
       const validTargets = computeValidTargets(actor, state.enemyArmy, UNIT_DEFINITIONS[actor.unitId]);
@@ -333,7 +543,13 @@ function validateTargeting(
       }
     }
   }
+  if (needsSecondAlly) {
+    const stack = findStack(state.playerArmy, action.secondTargetStackId ?? action.targetStackId);
+    if (!stack) return 'Invalid or dead friendly stack.';
+  }
   if (needsPosition) {
+    const mover = findStack(state.playerArmy, action.actingStackId);
+    if (mover?.flags.cannotMove) return `${UNIT_DEFINITIONS[mover.unitId].name} cannot move this turn.`;
     if (!action.toPosition || action.toPosition < 1 || action.toPosition > 6) {
       return 'Invalid destination position.';
     }
@@ -343,60 +559,13 @@ function validateTargeting(
   return null;
 }
 
-/**
- * v2_list.md §4.2/§7 — every stack's free, card-less normal action. Melee/ranged
- * attacks reuse resolveAttack (multiplier 1); Priest's basic action heals a
- * friendly stack instead. Once per stack per player turn (ArmyStack.actedThisTurn).
- */
-function basicAction(state: CombatState, action: Extract<PlayerAction, { type: 'BASIC_ACTION' }>, events: CombatEvent[]): ApplyResult {
-  const actor = findStack(state.playerArmy, action.stackId);
-  if (!actor) {
-    reject(events, 'Invalid or dead friendly stack.');
-    return { state, events };
-  }
-  if (actor.actedThisTurn) {
-    reject(events, 'That stack has already acted this turn.');
-    return { state, events };
-  }
-
-  const def = UNIT_DEFINITIONS[actor.unitId];
-  const kind = def.basicAction ?? 'attack';
-
-  if (kind === 'heal') {
-    const target = findStack(state.playerArmy, action.targetStackId);
-    if (!target) {
-      reject(events, 'Invalid or dead friendly stack to heal.');
-      return { state, events };
-    }
-    const amount = computeHealAmount(actor, def.healPower ?? 1);
-    const resolution = applyHealToStack(target, amount);
-    replaceStack(state.playerArmy, resolution.stack);
-    events.push({ type: 'STACK_HEALED', stackId: target.stackId, amount: resolution.healedAmount });
-  } else {
-    const target = findStack(state.enemyArmy, action.targetStackId);
-    if (!target) {
-      reject(events, 'Invalid or dead enemy stack.');
-      return { state, events };
-    }
-    const validTargets = computeValidTargets(actor, state.enemyArmy, def);
-    if (!validTargets.some((t) => t.stackId === target.stackId)) {
-      reject(events, `${def.name} cannot reach that target from its position.`);
-      return { state, events };
-    }
-    resolveAttack(actor, target, state.enemyArmy, 1, events, state.activeRelicEffects);
-  }
-
-  actor.actedThisTurn = true;
-  replaceStack(state.playerArmy, actor);
-
-  const result = checkBattleResult(state);
-  if (result !== 'ongoing') {
-    state.result = result;
-    state.phase = 'ended';
-    events.push({ type: 'BATTLE_ENDED', result });
-  }
-
-  return { state, events };
+/** v3 §10 "Unit card active if source unit count >0" — Hero/Neutral cards are always active. */
+function isCardActive(state: CombatState, cardId: string): boolean {
+  const def = CARD_DEFINITIONS[cardId];
+  if (!def) return false;
+  if (def.source.type !== 'unit') return true;
+  const sourceUnitId = def.source.unitId;
+  return state.playerArmy.some((s) => s.count > 0 && s.unitId === sourceUnitId);
 }
 
 function playCard(state: CombatState, action: Extract<PlayerAction, { type: 'PLAY_CARD' }>, events: CombatEvent[]): ApplyResult {
@@ -411,9 +580,12 @@ function playCard(state: CombatState, action: Extract<PlayerAction, { type: 'PLA
     reject(events, 'Unknown card definition.');
     return { state, events };
   }
-
-  if (getHeroResource(state.hero, cardDef.cost.type) < cardDef.cost.amount) {
-    reject(events, `Not enough ${cardDef.cost.type}.`);
+  if (!isCardActive(state, instance.cardId)) {
+    reject(events, `${cardDef.name} is inactive — you have no living ${cardDef.source.type === 'unit' ? cardDef.source.unitId : ''} stack.`);
+    return { state, events };
+  }
+  if (state.hero.mana < cardDef.manaCost) {
+    reject(events, 'Not enough Mana.');
     return { state, events };
   }
 
@@ -423,7 +595,7 @@ function playCard(state: CombatState, action: Extract<PlayerAction, { type: 'PLA
     return { state, events };
   }
 
-  spendHeroResource(state.hero, cardDef.cost.type, cardDef.cost.amount);
+  state.hero.mana -= cardDef.manaCost;
   state.hand.splice(cardIndex, 1);
   events.push({ type: 'CARD_PLAYED', instanceId: instance.instanceId, cardId: instance.cardId });
 
@@ -449,8 +621,76 @@ function playCard(state: CombatState, action: Extract<PlayerAction, { type: 'PLA
   return { state, events };
 }
 
-function tickStatuses(army: ArmyStack[]): void {
+/** v3 §4/§7 — every stack's free, card-less basic action (attack, ranged attack, or Priest's heal). */
+function basicAction(state: CombatState, action: Extract<PlayerAction, { type: 'BASIC_ACTION' }>, events: CombatEvent[]): ApplyResult {
+  const actor = findStack(state.playerArmy, action.stackId);
+  if (!actor) {
+    reject(events, 'Invalid or dead friendly stack.');
+    return { state, events };
+  }
+  if (actor.actedThisTurn) {
+    reject(events, 'That stack has already acted this turn.');
+    return { state, events };
+  }
+  if (actor.flags.cannotAttack || statusAmount(actor, 'freeze') > 0) {
+    reject(events, 'That stack cannot act this turn.');
+    return { state, events };
+  }
+
+  const def = UNIT_DEFINITIONS[actor.unitId];
+  const kind = def.basicAction ?? 'attack';
+
+  if (kind === 'heal') {
+    const target = findStack(state.playerArmy, action.targetStackId);
+    if (!target) {
+      reject(events, 'Invalid or dead friendly stack to heal.');
+      return { state, events };
+    }
+    resolveHeal(state, actor, target, state.playerArmy, 1, events);
+  } else {
+    const target = findStack(state.enemyArmy, action.targetStackId);
+    if (!target) {
+      reject(events, 'Invalid or dead enemy stack.');
+      return { state, events };
+    }
+    const validTargets = computeValidTargets(actor, state.enemyArmy, def);
+    if (!validTargets.some((t) => t.stackId === target.stackId)) {
+      reject(events, `${def.name} cannot reach that target from its position.`);
+      return { state, events };
+    }
+    resolveAttack(state, actor, target, state.enemyArmy, 1, events, state.activeRelicEffects);
+  }
+
+  const stillActor = findStack(state.playerArmy, actor.stackId) ?? actor;
+  replaceStack(state.playerArmy, { ...stillActor, actedThisTurn: true });
+
+  const result = checkBattleResult(state);
+  if (result !== 'ongoing') {
+    state.result = result;
+    state.phase = 'ended';
+    events.push({ type: 'BATTLE_ENDED', result });
+  }
+
+  return { state, events };
+}
+
+/** Poison/Bleed/Burn DoT + status duration tick, run at the start of the owning side's turn. */
+function tickStatuses(army: ArmyStack[], events: CombatEvent[]): void {
+  const dotTypes: StatusType[] = ['poison', 'bleed', 'burn'];
   for (const stack of army) {
+    if (stack.count === 0) continue;
+    let dot = 0;
+    for (const s of stack.statuses) {
+      if (dotTypes.includes(s.type)) dot += s.amount;
+    }
+    if (dot > 0) {
+      const def = UNIT_DEFINITIONS[stack.unitId];
+      const resolution = applyDamageToStack(stack, def.hpPerUnit, dot);
+      Object.assign(stack, resolution.stack);
+      events.push({ type: 'STACK_ATTACKED', attackerStackId: stack.stackId, targetStackId: stack.stackId, rawDamage: dot, finalDamage: resolution.finalDamage, blocked: resolution.blocked });
+      if (resolution.unitsKilled > 0) events.push({ type: 'UNITS_KILLED', stackId: stack.stackId, count: resolution.unitsKilled });
+      if (resolution.stack.count === 0) events.push({ type: 'STACK_DESTROYED', stackId: stack.stackId });
+    }
     stack.statuses = stack.statuses.map((s) => ({ ...s, duration: s.duration - 1 })).filter((s) => s.duration > 0);
   }
 }
@@ -474,79 +714,23 @@ function resolveEnemyTurn(state: CombatState, events: CombatEvent[]): void {
     }
     if (!target) continue;
 
-    resolveAttack(actor, target, state.playerArmy, 1, events, state.activeRelicEffects);
+    resolveAttack(state, actor, target, state.playerArmy, 1, events, state.activeRelicEffects);
   }
   events.push({ type: 'ENEMY_TURN_RESOLVED' });
 }
 
-function useSkill(state: CombatState, action: Extract<PlayerAction, { type: 'USE_SKILL' }>, events: CombatEvent[]): ApplyResult {
-  const skillDef = HERO_SKILL_DEFINITIONS[action.skillId];
-  if (!skillDef) {
-    reject(events, 'Unknown skill.');
-    return { state, events };
-  }
-  const skillState = state.heroSkills.find((s) => s.skillId === action.skillId);
-  if (!skillState) {
-    reject(events, 'Skill is not equipped.');
-    return { state, events };
-  }
-  if (skillState.cooldownRemaining > 0) {
-    reject(events, `${skillDef.name} is on cooldown for ${skillState.cooldownRemaining} more turn(s).`);
-    return { state, events };
-  }
-  if (getHeroResource(state.hero, skillDef.cost.type) < skillDef.cost.amount) {
-    reject(events, `Not enough ${skillDef.cost.type}.`);
-    return { state, events };
-  }
-  const targetingError = validateTargeting(state, skillDef, action);
-  if (targetingError) {
-    reject(events, targetingError);
-    return { state, events };
-  }
-
-  spendHeroResource(state.hero, skillDef.cost.type, skillDef.cost.amount);
-  skillState.cooldownRemaining = skillDef.cooldownTurns;
-  events.push({ type: 'SKILL_USED', skillId: skillDef.id });
-
-  for (const effect of skillDef.effects) {
-    executeEffect(state, effect, action, events);
-  }
-
-  const result = checkBattleResult(state);
-  if (result !== 'ongoing') {
-    state.result = result;
-    state.phase = 'ended';
-    events.push({ type: 'BATTLE_ENDED', result });
-  }
-
-  return { state, events };
-}
-
-/**
- * Turn 1 starts with the Hero's configured starting resources (e.g. Mana
- * 5/8 is an intentional partial start, AGENT.md §5) — it must NOT also
- * receive the "restored each turn" bonus. Every subsequent turn restores
- * Energy to full, regenerates Mana, resets Block, and ticks statuses.
- * Every stack's free basic action (v2_list.md §7) resets every turn,
- * including the first.
- */
 function startPlayerTurn(state: CombatState, events: CombatEvent[], isFirstTurn: boolean): void {
   state.turnNumber += 1;
 
   if (!isFirstTurn) {
-    state.hero.energy = state.hero.maxEnergy;
-    state.hero.mana = Math.min(state.hero.maxMana, state.hero.mana + 2);
+    state.hero.mana = state.hero.maxMana;
 
     for (const stack of state.playerArmy) {
       stack.block = 0;
     }
 
-    tickStatuses(state.playerArmy);
-    tickStatuses(state.enemyArmy);
-
-    for (const skill of state.heroSkills) {
-      if (skill.cooldownRemaining > 0) skill.cooldownRemaining -= 1;
-    }
+    tickStatuses(state.playerArmy, events);
+    tickStatuses(state.enemyArmy, events);
   }
 
   for (const stack of state.playerArmy) {
@@ -559,15 +743,21 @@ function startPlayerTurn(state: CombatState, events: CombatEvent[], isFirstTurn:
   state.phase = 'player';
   events.push({ type: 'TURN_STARTED', side: 'player', turnNumber: state.turnNumber });
 
-  drawCards(state, HAND_SIZE, events);
+  drawCards(state, isFirstTurn ? HAND_SIZE_FIRST_TURN : HAND_SIZE_PER_TURN, events);
 }
 
 function endPlayerTurn(state: CombatState, events: CombatEvent[]): ApplyResult {
+  const kept: CardInstance[] = [];
   for (const card of state.hand) {
+    const def = CARD_DEFINITIONS[card.cardId];
+    if (def?.retain) {
+      kept.push(card);
+      continue;
+    }
     state.discard.push(card);
     events.push({ type: 'CARD_DISCARDED', instanceId: card.instanceId, cardId: card.cardId });
   }
-  state.hand = [];
+  state.hand = kept;
 
   state.phase = 'enemy';
   events.push({ type: 'TURN_STARTED', side: 'enemy', turnNumber: state.turnNumber });
@@ -599,8 +789,6 @@ export function applyPlayerAction(state: CombatState, action: PlayerAction): App
   let result: ApplyResult;
   if (action.type === 'END_TURN') {
     result = endPlayerTurn(working, events);
-  } else if (action.type === 'USE_SKILL') {
-    result = useSkill(working, action, events);
   } else if (action.type === 'BASIC_ACTION') {
     result = basicAction(working, action, events);
   } else {
@@ -617,25 +805,17 @@ export interface StartBattleParams {
   playerArmy: ArmyStack[];
   enemyArmy: ArmyStack[];
   deck: CardInstance[];
-  /** Passive relics carried over from the run (AGENT.md §16); [] outside a run. */
   activeRelicEffects?: RelicEffect[];
-  /** Hero skill loadout for this battle (AGENT.md §5); defaults to none. */
-  heroSkillIds?: string[];
 }
 
 export function startBattle(params: StartBattleParams): ApplyResult {
   const events: CombatEvent[] = [{ type: 'BATTLE_STARTED' }];
 
-  const heroSkills: HeroSkillState[] = (params.heroSkillIds ?? []).map((skillId) => ({
-    skillId,
-    cooldownRemaining: 0,
-  }));
-
   const state: CombatState = {
     seed: params.seed,
     rng: params.rng,
     turnNumber: 0,
-    phase: 'enemy', // placeholder so startPlayerTurn below performs a clean transition
+    phase: 'enemy',
     result: 'ongoing',
     hero: params.hero,
     playerArmy: params.playerArmy,
@@ -646,7 +826,6 @@ export function startBattle(params: StartBattleParams): ApplyResult {
     exhausted: [],
     enemyIntents: [],
     activeRelicEffects: params.activeRelicEffects ?? [],
-    heroSkills,
     log: [],
   };
 

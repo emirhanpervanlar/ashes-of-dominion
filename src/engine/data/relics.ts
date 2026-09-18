@@ -49,11 +49,11 @@ export const RELIC_DEFINITIONS: Record<string, RelicDefinition> = {
     description: 'Army takes -15% damage.',
     effects: [{ kind: 'PLAYER_DAMAGE_TAKEN_MULT', multiplier: 0.85 }],
   },
-  grave_crown: {
-    id: 'grave_crown',
-    name: 'Grave Crown',
-    description: '30% of your casualties rise again as Skeletons.',
-    effects: [{ kind: 'NECROMANCY', ratio: 0.3 }],
+  shadow_ring: {
+    id: 'shadow_ring',
+    name: 'Shadow Ring',
+    description: 'Dodge +8%.',
+    effects: [{ kind: 'DODGE_BONUS_PERCENT', amount: 8 }],
   },
 };
 

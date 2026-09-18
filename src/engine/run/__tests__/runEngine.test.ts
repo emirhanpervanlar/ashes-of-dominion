@@ -50,10 +50,10 @@ function reachBattle(seed: number): RunState {
 }
 
 describe('run creation', () => {
-  it('starts in choosing_starting_relic with the small starting army/deck/map/resources', () => {
+  it('starts in choosing_starting_relic with the default Hero (Warlord) army/deck/map/resources', () => {
     const run = createRun(1);
     expect(run.phase).toBe('choosing_starting_relic');
-    expect(run.army.map((s) => s.count)).toEqual([6, 4]);
+    expect(run.army.map((s) => s.count)).toEqual([60, 20, 10]);
     expect(run.masterDeck.length).toBe(12);
     expect(run.combat).toBeNull();
     expect(run.gold).toBe(100);
@@ -70,7 +70,7 @@ describe('starting relic', () => {
     const run = createRun(2);
     const result = applyRunAction(run, { type: 'CHOOSE_STARTING_RELIC', relicId: 'royal_banner' });
     const swordsman = result.run.army.find((s) => s.unitId === 'swordsman')!;
-    expect(swordsman.count).toBe(26); // 6 (starting) + 20
+    expect(swordsman.count).toBe(80); // 60 (Warlord's largest starting stack) + 20
     expect(result.run.phase).toBe('on_map');
     expect(result.run.combat).toBeNull();
   });
@@ -78,9 +78,9 @@ describe('starting relic', () => {
   it('Arcane Crystal boosts max Mana and shrinks the whole army by 10%', () => {
     const run = createRun(3);
     const result = applyRunAction(run, { type: 'CHOOSE_STARTING_RELIC', relicId: 'arcane_crystal' });
-    expect(result.run.hero.maxMana).toBe(10);
-    expect(result.run.hero.mana).toBe(7);
-    expect(result.run.army.find((s) => s.unitId === 'swordsman')!.count).toBe(5); // floor(6*0.9)
+    expect(result.run.hero.maxMana).toBe(5); // Warlord base 3 + 2
+    expect(result.run.hero.mana).toBe(5);
+    expect(result.run.army.find((s) => s.unitId === 'swordsman')!.count).toBe(54); // floor(60*0.9)
   });
 
   it('rejects choosing a starting relic twice', () => {
@@ -136,7 +136,8 @@ describe('movement', () => {
     const result = applyRunAction(run, { type: 'MOVE_TO', nodeId });
     expect(result.run.phase).toBe('in_battle');
     expect(result.run.finalBattle).toBe(true);
-    expect(result.run.combat!.enemyArmy.some((s) => s.unitId === 'warlord')).toBe(true);
+    const total = result.run.combat!.enemyArmy.reduce((sum, s) => sum + s.count, 0);
+    expect(total).toBeGreaterThan(150);
   });
 });
 
@@ -157,16 +158,13 @@ describe('battle -> reward -> back to map loop', () => {
     expect(confirmed.run.masterDeck.length).toBe(13);
   });
 
-  it('claiming an upgrade replaces the card id in the master deck instead of adding a new one', () => {
+  // The v3 canonical doc's upgrade model (§15) modifies a card's own state rather than
+  // swapping to a "_plus" card id — that system isn't implemented yet (Phase 3 "Deck /
+  // Build"), so the id-swap CARD_UPGRADES map is intentionally empty for now and no
+  // upgrade options are offered.
+  it('offers no upgrade options while CARD_UPGRADES is empty (pending the v3 upgrade system)', () => {
     const won = forceVictory(reachBattle(21));
-    const upgrade = won.pendingReward!.upgradeOptions.find((o) => o.cardId === 'command_strike');
-    expect(upgrade).toBeDefined();
-
-    const claimed = applyRunAction(won, { type: 'CLAIM_UPGRADE', instanceId: upgrade!.instanceId });
-    const confirmed = applyRunAction(claimed.run, { type: 'CONFIRM_REWARD' });
-
-    expect(confirmed.run.masterDeck.length).toBe(12);
-    expect(confirmed.run.masterDeck.find((c) => c.instanceId === upgrade!.instanceId)?.cardId).toBe('command_strike_plus');
+    expect(won.pendingReward!.upgradeOptions).toHaveLength(0);
   });
 
   it('losing a battle moves to defeat, not run_complete', () => {

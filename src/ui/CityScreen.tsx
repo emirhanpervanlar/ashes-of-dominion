@@ -19,7 +19,7 @@ interface Props {
   onLeave: () => void;
 }
 
-const RECRUITABLE: UnitId[] = ['swordsman', 'archer', 'knight', 'priest', 'mage', 'cavalier'];
+const RECRUITABLE: UnitId[] = ['swordsman', 'archer', 'knight', 'priest'];
 
 type Panel = 'townhall' | 'barracks' | 'garrison' | 'temple' | string | null;
 
@@ -189,7 +189,7 @@ export function CityScreen({
                           </span>
                         </div>
                         {!unlocked ? (
-                          <div className="card-text">Requires {unitId === 'mage' ? 'Mage Tower' : 'Stable'}.</div>
+                          <div className="card-text">Not recruitable yet.</div>
                         ) : (
                           <>
                             <div className="card-text">

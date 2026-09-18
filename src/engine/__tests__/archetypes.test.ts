@@ -20,83 +20,40 @@ function attackEvent(events: ReturnType<typeof applyPlayerAction>['events']) {
   return e;
 }
 
-describe('Morale affects damage (Horde archetype)', () => {
-  it('positive morale increases damage, negative morale decreases it', () => {
+describe('v3 §9 Morale (0-100) affects damage and defense', () => {
+  it('higher morale deals more damage', () => {
     const { state } = createVerticalSliceScenario(500);
-    const withHandState = withHand(state, ['command_strike']);
+    const buffed: CombatState = { ...state, playerArmy: state.playerArmy.map((s) => (s.stackId === 'player_swordsman_1' ? { ...s, morale: 100 } : s)) };
+    const debuffed: CombatState = { ...state, playerArmy: state.playerArmy.map((s) => (s.stackId === 'player_swordsman_1' ? { ...s, morale: 0 } : s)) };
 
-    const buffed: CombatState = {
-      ...withHandState,
-      playerArmy: withHandState.playerArmy.map((s) => (s.stackId === 'player_knight_1' ? { ...s, morale: 5 } : s)),
-    };
-    const debuffed: CombatState = {
-      ...withHandState,
-      playerArmy: withHandState.playerArmy.map((s) => (s.stackId === 'player_knight_1' ? { ...s, morale: -5 } : s)),
-    };
-
-    const buffedDmg = attackEvent(
-      applyPlayerAction(buffed, {
-        type: 'PLAY_CARD',
-        instanceId: handCard(buffed, 'command_strike').instanceId,
-        actingStackId: 'player_knight_1',
-        targetStackId: 'enemy_orc_1',
-      }).events
-    ).rawDamage;
-    const debuffedDmg = attackEvent(
-      applyPlayerAction(debuffed, {
-        type: 'PLAY_CARD',
-        instanceId: handCard(debuffed, 'command_strike').instanceId,
-        actingStackId: 'player_knight_1',
-        targetStackId: 'enemy_orc_1',
-      }).events
-    ).rawDamage;
+    const buffedDmg = attackEvent(applyPlayerAction(buffed, { type: 'BASIC_ACTION', stackId: 'player_swordsman_1', targetStackId: 'enemy_orc_1' }).events).rawDamage;
+    const debuffedDmg = attackEvent(applyPlayerAction(debuffed, { type: 'BASIC_ACTION', stackId: 'player_swordsman_1', targetStackId: 'enemy_orc_1' }).events).rawDamage;
 
     expect(buffedDmg).toBeGreaterThan(debuffedDmg);
   });
 });
 
-describe('Veterancy affects damage (Immortal Knights archetype)', () => {
+describe('v3 §8 Veterancy (flat tiers 0/3/5/8%)', () => {
   it('higher veterancy deals more damage', () => {
     const { state } = createVerticalSliceScenario(501);
-    const withHandState = withHand(state, ['command_strike']);
-    const veteran: CombatState = {
-      ...withHandState,
-      playerArmy: withHandState.playerArmy.map((s) => (s.stackId === 'player_knight_1' ? { ...s, veterancy: 9 } : s)),
-    };
+    const veteran: CombatState = { ...state, playerArmy: state.playerArmy.map((s) => (s.stackId === 'player_swordsman_1' ? { ...s, veterancy: 3 } : s)) };
 
-    const baseDmg = attackEvent(
-      applyPlayerAction(withHandState, {
-        type: 'PLAY_CARD',
-        instanceId: handCard(withHandState, 'command_strike').instanceId,
-        actingStackId: 'player_knight_1',
-        targetStackId: 'enemy_orc_1',
-      }).events
-    ).rawDamage;
-    const veteranDmg = attackEvent(
-      applyPlayerAction(veteran, {
-        type: 'PLAY_CARD',
-        instanceId: handCard(veteran, 'command_strike').instanceId,
-        actingStackId: 'player_knight_1',
-        targetStackId: 'enemy_orc_1',
-      }).events
-    ).rawDamage;
+    const baseDmg = attackEvent(applyPlayerAction(state, { type: 'BASIC_ACTION', stackId: 'player_swordsman_1', targetStackId: 'enemy_orc_1' }).events).rawDamage;
+    const veteranDmg = attackEvent(applyPlayerAction(veteran, { type: 'BASIC_ACTION', stackId: 'player_swordsman_1', targetStackId: 'enemy_orc_1' }).events).rawDamage;
 
     expect(veteranDmg).toBeGreaterThan(baseDmg);
   });
 });
 
-describe('Guard Stance / Taunt (Immortal Knights archetype)', () => {
-  it('a taunting stack overrides normal enemy row targeting in freshly-generated intents', () => {
-    // Intents are locked in at the start of a turn (AGENT.md §8) — Taunt
-    // applied mid-turn protects starting next turn, not retroactively, so
-    // this tests generateEnemyIntents directly rather than going through
-    // an END_TURN that would still be executing the turn's original intents.
+describe('Taunt overrides normal enemy targeting', () => {
+  it('a taunting stack pulls every attack intent regardless of lane/row', () => {
+    // Intents are locked in at the start of a turn — this tests generateEnemyIntents
+    // directly rather than going through an END_TURN that would still be executing
+    // the turn's original (pre-Taunt) intents.
     const { state } = createVerticalSliceScenario(502);
     const taunting: CombatState = {
       ...state,
-      playerArmy: state.playerArmy.map((s) =>
-        s.stackId === 'player_archer_4' ? { ...s, statuses: [{ type: 'taunt' as const, amount: 1, duration: 2 }] } : s
-      ),
+      playerArmy: state.playerArmy.map((s) => (s.stackId === 'player_archer_4' ? { ...s, statuses: [{ type: 'taunt' as const, amount: 1, duration: 2 }] } : s)),
     };
     const intents = generateEnemyIntents(taunting);
     const attackIntents = intents.filter((i) => i.kind === 'attack');
@@ -105,78 +62,104 @@ describe('Guard Stance / Taunt (Immortal Knights archetype)', () => {
       expect(intent.targetStackId).toBe('player_archer_4');
     }
   });
+});
 
-  it('Guard Stance grants Taunt and Block to the target stack', () => {
-    let { state } = createVerticalSliceScenario(503);
-    state = withHand(state, ['guard_stance']);
+describe('v3 §8 Guard passive / Protect card redirect', () => {
+  it("Knight's Guard passive redirects damage aimed at an adjacent frontline ally", () => {
+    const { state } = createVerticalSliceScenario(503);
+    // Warlord army: Swordsman(pos1), Knight(pos2), Archer(pos4) — Swordsman is adjacent to the Knight.
+    const swordsmanBefore = state.playerArmy.find((s) => s.unitId === 'swordsman')!;
+    const knightBefore = state.playerArmy.find((s) => s.unitId === 'knight')!;
+    // Force an enemy intent to target the Swordsman directly and resolve the enemy turn —
+    // Guard should redirect the hit to the adjacent Knight.
+    const forced: CombatState = {
+      ...state,
+      enemyIntents: state.enemyIntents.map((i) => ({ ...i, kind: 'attack', targetStackId: swordsmanBefore.stackId, estimatedDamage: 9999 })),
+    };
+    const ended = applyPlayerAction(forced, { type: 'END_TURN' });
+    const attacked = ended.events.filter((e) => e.type === 'STACK_ATTACKED');
+    // At least one attack should have landed on the Knight (redirect target) rather than the Swordsman.
+    expect(attacked.some((e) => e.type === 'STACK_ATTACKED' && e.targetStackId === knightBefore.stackId)).toBe(true);
+  });
+
+  it('the Protect card redirects a percentage of damage to the acting Knight', () => {
+    let { state } = createVerticalSliceScenario(504);
+    state = withHand(state, ['protect']);
+    const knight = state.playerArmy.find((s) => s.unitId === 'knight')!;
+    const swordsman = state.playerArmy.find((s) => s.unitId === 'swordsman')!;
     const result = applyPlayerAction(state, {
       type: 'PLAY_CARD',
-      instanceId: handCard(state, 'guard_stance').instanceId,
-      actingStackId: 'player_swordsman_2',
+      instanceId: handCard(state, 'protect').instanceId,
+      actingStackId: knight.stackId,
+      targetStackId: swordsman.stackId,
     });
-    const stack = result.state.playerArmy.find((s) => s.stackId === 'player_swordsman_2')!;
-    expect(stack.statuses.some((s) => s.type === 'taunt')).toBe(true);
-    expect(stack.block).toBe(15);
+    const protectedStack = result.state.playerArmy.find((s) => s.stackId === swordsman.stackId)!;
+    expect(protectedStack.flags.redirectPercent).toBe(40);
+    expect(protectedStack.flags.redirectToStackId).toBe(knight.stackId);
   });
 });
 
-describe('Focus Fire / Vulnerable', () => {
-  it('a vulnerable target takes increased damage', () => {
-    let { state } = createVerticalSliceScenario(504);
-    state = withHand(state, ['focus_fire']);
-    const applied = applyPlayerAction(state, {
-      type: 'PLAY_CARD',
-      instanceId: handCard(state, 'focus_fire').instanceId,
-      targetStackId: 'enemy_orc_1',
-    });
-
-    const strikeBase = withHand(state, ['command_strike']);
-    const baseDmg = attackEvent(
-      applyPlayerAction(strikeBase, {
-        type: 'PLAY_CARD',
-        instanceId: handCard(strikeBase, 'command_strike').instanceId,
-        actingStackId: 'player_knight_1',
-        targetStackId: 'enemy_orc_1',
-      }).events
-    ).rawDamage;
-
-    const strikeVulnerable = withHand(applied.state, ['command_strike']);
-    const vulnDmg = attackEvent(
-      applyPlayerAction(strikeVulnerable, {
-        type: 'PLAY_CARD',
-        instanceId: handCard(strikeVulnerable, 'command_strike').instanceId,
-        actingStackId: 'player_knight_1',
-        targetStackId: 'enemy_orc_1',
-      }).events
-    ).rawDamage;
-
-    expect(vulnDmg).toBeGreaterThan(baseDmg);
+describe('Dodge (Hero Dexterity)', () => {
+  it('a very high Dexterity Hero occasionally avoids damage entirely', () => {
+    const { state } = createVerticalSliceScenario(505, 'rogue'); // Rogue has the highest base Dexterity (17)
+    const highDex: CombatState = { ...state, hero: { ...state.hero, stats: { ...state.hero.stats, dexterity: 40 } } };
+    let sawDodge = false;
+    let current = highDex;
+    for (let i = 0; i < 40; i++) {
+      const swordsman = current.playerArmy.find((s) => s.unitId === 'swordsman' && s.count > 0);
+      if (!swordsman) break;
+      const forced: CombatState = {
+        ...current,
+        enemyIntents: current.enemyIntents.map((it) => ({ ...it, kind: 'attack', targetStackId: swordsman.stackId, estimatedDamage: 1 })),
+      };
+      const ended = applyPlayerAction(forced, { type: 'END_TURN' });
+      const hits = ended.events.filter((e) => e.type === 'STACK_ATTACKED' && e.targetStackId === swordsman.stackId);
+      if (hits.some((e) => e.type === 'STACK_ATTACKED' && e.rawDamage === 0)) sawDodge = true;
+      current = ended.state;
+      if (ended.state.result !== 'ongoing') break;
+    }
+    expect(sawDodge).toBe(true);
   });
 });
 
-describe('Execute', () => {
+describe('Poison/Bleed/Burn tick as damage-over-time', () => {
+  it('a poisoned stack loses soldiers at the start of its side\'s next turn', () => {
+    const { state } = createVerticalSliceScenario(506);
+    const poisoned: CombatState = {
+      ...state,
+      enemyArmy: state.enemyArmy.map((s) => (s.stackId === 'enemy_orc_1' ? { ...s, statuses: [{ type: 'poison' as const, amount: 9999, duration: 3 }] } : s)),
+    };
+    const result = applyPlayerAction(poisoned, { type: 'END_TURN' });
+    // The enemy turn starts are not explicitly ticked in this engine (only the player
+    // side's upcoming turn ticks both armies) — after one END_TURN the next player turn
+    // has started, which ticks statuses for both sides.
+    const orc = result.state.enemyArmy.find((s) => s.stackId === 'enemy_orc_1');
+    expect(orc === undefined || orc.count === 0 || orc.currentHp < poisoned.enemyArmy.find((e) => e.stackId === 'enemy_orc_1')!.currentHp).toBe(true);
+  });
+});
+
+describe('Execution Order / Execute — conditional bonus vs low-HP targets', () => {
   it('deals bonus damage against a target below the HP threshold', () => {
-    let { state } = createVerticalSliceScenario(505);
+    let { state } = createVerticalSliceScenario(507);
+    state = withHand(state, ['execution_order']);
     const woundedTarget: CombatState = {
       ...state,
       enemyArmy: state.enemyArmy.map((s) => (s.stackId === 'enemy_orc_1' ? { ...s, currentHp: Math.round(s.maxHp * 0.2) } : s)),
     };
-    const healthyState = withHand(state, ['execute']);
-    const woundedState = withHand(woundedTarget, ['execute']);
 
     const healthyDmg = attackEvent(
-      applyPlayerAction(healthyState, {
+      applyPlayerAction(state, {
         type: 'PLAY_CARD',
-        instanceId: handCard(healthyState, 'execute').instanceId,
-        actingStackId: 'player_knight_1',
+        instanceId: handCard(state, 'execution_order').instanceId,
+        actingStackId: 'player_swordsman_1',
         targetStackId: 'enemy_orc_1',
       }).events
     ).rawDamage;
     const woundedDmg = attackEvent(
-      applyPlayerAction(woundedState, {
+      applyPlayerAction(withHand(woundedTarget, ['execution_order']), {
         type: 'PLAY_CARD',
-        instanceId: handCard(woundedState, 'execute').instanceId,
-        actingStackId: 'player_knight_1',
+        instanceId: handCard(withHand(woundedTarget, ['execution_order']), 'execution_order').instanceId,
+        actingStackId: 'player_swordsman_1',
         targetStackId: 'enemy_orc_1',
       }).events
     ).rawDamage;
@@ -185,85 +168,34 @@ describe('Execute', () => {
   });
 });
 
-describe('Necromancy / Skeletons (Undying Legion archetype)', () => {
-  it('Grave Crown raises a fraction of player casualties as Skeletons', () => {
-    const { state } = createVerticalSliceScenario(506);
-    // The vertical-slice army fills all 6 stack slots — free position 6 so raiseSkeletons has somewhere to go.
-    const withRelic: CombatState = {
-      ...state,
-      playerArmy: state.playerArmy.map((s) => (s.stackId === 'player_priest_6' ? { ...s, count: 0, currentHp: 0 } : s)),
-      activeRelicEffects: [{ kind: 'NECROMANCY', ratio: 1 }],
-    };
-    const result = applyPlayerAction(withRelic, { type: 'END_TURN' });
-    expect(result.events.some((e) => e.type === 'SKELETONS_RAISED')).toBe(true);
-    expect(result.state.playerArmy.some((s) => s.unitId === 'skeleton' && s.count > 0)).toBe(true);
-  });
-
-  it('without Necromancy, casualties never raise Skeletons', () => {
-    const { state } = createVerticalSliceScenario(507);
-    const freeSlot: CombatState = {
-      ...state,
-      playerArmy: state.playerArmy.map((s) => (s.stackId === 'player_priest_6' ? { ...s, count: 0, currentHp: 0 } : s)),
-    };
-    const result = applyPlayerAction(freeSlot, { type: 'END_TURN' });
-    expect(result.events.some((e) => e.type === 'SKELETONS_RAISED')).toBe(false);
-  });
-
-  it('Raise Dead sacrifices part of a stack to summon Skeletons directly', () => {
+describe('Rally and unit passives', () => {
+  it('Rally raises morale and draws a card', () => {
     let { state } = createVerticalSliceScenario(508);
-    state = {
+    state = withHand(state, ['rally']);
+    state = { ...state, playerArmy: state.playerArmy.map((s) => (s.unitId === 'swordsman' ? { ...s, morale: 50 } : s)) };
+    const swordsman = state.playerArmy.find((s) => s.unitId === 'swordsman')!;
+    const handBefore = state.hand.length;
+    const result = applyPlayerAction(state, {
+      type: 'PLAY_CARD',
+      instanceId: handCard(state, 'rally').instanceId,
+      actingStackId: swordsman.stackId,
+    });
+    const updated = result.state.playerArmy.find((s) => s.stackId === swordsman.stackId)!;
+    expect(updated.morale).toBeGreaterThan(swordsman.morale);
+    // Rally's own card leaves the hand, then draws 1 back — hand size is unchanged.
+    expect(result.state.hand.length).toBe(handBefore - 1 + 1);
+  });
+
+  it("Archer's High Ground passive boosts damage while in the backline", () => {
+    const { state } = createVerticalSliceScenario(509);
+    const archer = state.playerArmy.find((s) => s.unitId === 'archer')!;
+    expect(archer.position).toBeGreaterThan(3); // placed in the backline by buildHeroStartingArmy
+    const frontClone: CombatState = {
       ...state,
-      playerArmy: state.playerArmy.map((s) => (s.stackId === 'player_priest_6' ? { ...s, count: 0, currentHp: 0 } : s)),
+      playerArmy: state.playerArmy.map((s) => (s.stackId === archer.stackId ? { ...s, position: 1 as const } : s)),
     };
-    state = withHand(state, ['raise_dead']);
-    const swordsmanBefore = state.playerArmy.find((s) => s.stackId === 'player_swordsman_2')!.count;
-
-    const result = applyPlayerAction(state, {
-      type: 'PLAY_CARD',
-      instanceId: handCard(state, 'raise_dead').instanceId,
-      actingStackId: 'player_swordsman_2',
-    });
-
-    const swordsmanAfter = result.state.playerArmy.find((s) => s.stackId === 'player_swordsman_2')!.count;
-    expect(swordsmanAfter).toBeLessThan(swordsmanBefore);
-    expect(result.state.playerArmy.some((s) => s.unitId === 'skeleton' && s.count > 0)).toBe(true);
-  });
-});
-
-describe("Veteran's Resolve and Commander's Presence", () => {
-  it("Veteran's Resolve deals more damage than a plain strike (1.3x multiplier)", () => {
-    let { state } = createVerticalSliceScenario(509);
-    const plain = withHand(state, ['command_strike']);
-    const resolve = withHand(state, ['veterans_resolve']);
-
-    const plainDmg = attackEvent(
-      applyPlayerAction(plain, {
-        type: 'PLAY_CARD',
-        instanceId: handCard(plain, 'command_strike').instanceId,
-        actingStackId: 'player_knight_1',
-        targetStackId: 'enemy_orc_1',
-      }).events
-    ).rawDamage;
-    const resolveDmg = attackEvent(
-      applyPlayerAction(resolve, {
-        type: 'PLAY_CARD',
-        instanceId: handCard(resolve, 'veterans_resolve').instanceId,
-        actingStackId: 'player_knight_1',
-        targetStackId: 'enemy_orc_1',
-      }).events
-    ).rawDamage;
-
-    expect(resolveDmg).toBeGreaterThan(plainDmg);
-  });
-
-  it("Commander's Presence raises every friendly stack's Morale", () => {
-    let { state } = createVerticalSliceScenario(510);
-    state = withHand(state, ['commanders_presence']);
-    const result = applyPlayerAction(state, {
-      type: 'PLAY_CARD',
-      instanceId: handCard(state, 'commanders_presence').instanceId,
-    });
-    const alive = result.state.playerArmy.filter((s) => s.count > 0);
-    expect(alive.every((s) => s.morale === 1)).toBe(true);
+    const backDmg = attackEvent(applyPlayerAction(state, { type: 'BASIC_ACTION', stackId: archer.stackId, targetStackId: 'enemy_orc_1' }).events).rawDamage;
+    const frontDmg = attackEvent(applyPlayerAction(frontClone, { type: 'BASIC_ACTION', stackId: archer.stackId, targetStackId: 'enemy_orc_1' }).events).rawDamage;
+    expect(backDmg).toBeGreaterThan(frontDmg);
   });
 });

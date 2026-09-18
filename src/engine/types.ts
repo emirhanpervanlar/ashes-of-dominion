@@ -2,32 +2,28 @@ import type { RngState } from './rng.js';
 
 export type Side = 'player' | 'enemy';
 
-/** 1-3 = front row, 4-6 = back row (AGENT.md §7). */
+/** 1-3 = front row, 4-6 = back row (v3 canonical doc §4). */
 export type Position = 1 | 2 | 3 | 4 | 5 | 6;
 
-export type UnitId =
-  | 'swordsman'
-  | 'archer'
-  | 'knight'
-  | 'priest'
-  | 'mage'
-  | 'cavalier'
-  | 'goblin'
-  | 'orc'
-  | 'shaman'
-  | 'wolf'
-  | 'warlord'
-  | 'skeleton';
+export type UnitId = 'swordsman' | 'archer' | 'knight' | 'priest' | 'goblin' | 'orc' | 'shaman' | 'wolf';
 
-export type EnemyTargetPreference = 'frontline' | 'backline' | 'buff-weakest-ally';
+export type HeroId = 'warlord' | 'rogue' | 'mage';
 
-/**
- * v2 (Disciples-style combat, v2_list.md §7) — every stack has one free
- * "basic action" it can perform once per player turn without a card:
- * `attack`/`ranged_attack` follow the lane targeting geometry (targeting.ts),
- * `heal` targets a friendly stack instead of an enemy.
- */
+export type EnemyTargetPreference = 'frontline' | 'backline' | 'buff-weakest-ally' | 'weakest' | 'ranged-priority';
+
+/** v3 §5/§7 — every stack's free, card-less normal action. */
 export type BasicActionKind = 'attack' | 'ranged_attack' | 'heal';
+
+/** v3 §8 unit passives — resolved by id in damage.ts, not hard-coded per unit elsewhere. */
+export type UnitPassiveId =
+  | 'formation_discipline' // Swordsman: adjacent friendly frontline +10% Defense
+  | 'high_ground' // Archer: backline +25% Attack
+  | 'guard' // Knight: absorbs ~25% direct damage aimed at adjacent allies
+  | 'devotion' // Priest: healing/support +10%
+  | 'mob_tactics' // Goblin: adjacent Goblin +10% damage
+  | 'brutal' // Orc: +20% damage vs targets below 50% count
+  | 'shaman_support' // Shaman: buffs weakest allied enemy stack at intent time
+  | 'pounce'; // Wolf: +50% damage vs backline targets
 
 export interface UnitDefinition {
   id: UnitId;
@@ -37,44 +33,63 @@ export interface UnitDefinition {
   attack: number;
   defense: number;
   tags: string[];
-  /** Only used for enemy units to drive intent generation (AGENT.md §8/§9). */
-  targetPreference?: EnemyTargetPreference;
-  /**
-   * AGENT.md §42 "Warlord: gains strength based on player's army size" —
-   * +1 flat Attack per `divisor` total player units, computed fresh each
-   * attack (see damage.ts's bossScalingAttackBonus), never stored as a
-   * status so it can't accidentally stack.
-   */
-  scalesWithPlayerArmy?: { divisor: number };
-  /** v2_list.md §7 — the unit's free normal action. Defaults to 'attack' if omitted. */
-  basicAction?: BasicActionKind;
-  /**
-   * v2_list.md §5 "ranged backline units such as Archers can target all
-   * relevant enemy positions" — bypasses the lane geometry entirely.
-   */
+  basicAction: BasicActionKind;
+  /** v3 §5 — ranged/support units may bypass lane geometry entirely. */
   rangedAllAccess?: boolean;
   /** Heal strength per effective unit of count, for `basicAction: 'heal'` stacks. */
   healPower?: number;
+  passiveId?: UnitPassiveId;
+  /** Only used for enemy units to drive intent generation. */
+  targetPreference?: EnemyTargetPreference;
 }
 
-export type StatusType =
-  | 'strength'
-  | 'weak'
-  | 'armor'
-  | 'bleed'
-  | 'poison'
-  | 'burn'
-  | 'fear'
-  | 'taunt'
-  | 'haste'
-  /** +`amount`% damage taken this status's duration (Focus Fire, AGENT.md §15). */
-  | 'vulnerable';
+/** v3 §17 — the MVP visible status vocabulary. Deliberately small. */
+export type StatusType = 'strength' | 'weak' | 'armor' | 'bleed' | 'poison' | 'burn' | 'fear' | 'taunt' | 'freeze';
 
 export interface StatusEffect {
   type: StatusType;
   amount: number;
-  /** Turns remaining, ticked down at the end of the owning side's turn. */
+  /** Turns remaining, ticked down (and DoT/control resolved) at the start of the owning side's turn. */
   duration: number;
+}
+
+/**
+ * One-off mechanical flags used by specific cards (Brace, Protect, Counterattack,
+ * Divine Protection, Mark Target, Emergency Retreat, "next attack" buffs, etc.) —
+ * deliberately kept OUT of the visible StatusType list per v3 §17 ("do not add a
+ * large status library"); these are internal combat-resolution hooks, not badges.
+ * All fields are transient and cleared at the start of the owning stack's next turn
+ * unless documented otherwise.
+ */
+export interface StackFlags {
+  cannotAttack?: boolean;
+  cannotMove?: boolean;
+  /** Percent reduction applied to incoming damage this turn (Brace, Shield Wall, Arcane Shield). */
+  incomingDamageReductionPercent?: number;
+  /** Counterattack card — retaliates for `counterattackPercent`% on the first melee hit received. */
+  counterattackPercent?: number;
+  counterattackUsesLeft?: number;
+  /** Protect card — redirects `redirectPercent`% of the first direct damage this stack takes to `redirectToStackId`. */
+  redirectPercent?: number;
+  redirectToStackId?: string;
+  /** Divine Protection — the next lethal hit instead leaves the stack at 1 soldier. */
+  divineShield?: boolean;
+  /** Mark Target — ranged damage taken +percent for `duration` turns (ticked like a status but not player-facing as one). */
+  markedRangedBonusPercent?: number;
+  markedDuration?: number;
+  /** Emergency Retreat — cannot be targeted and cannot attack this turn. */
+  untargetable?: boolean;
+  /** Generic "next basic attack" buffs (Focus Shot, Blood Rage, Brutal Command, Execution Order, Ambush, Last Stand). */
+  nextAttackDamageBonusPercent?: number;
+  nextAttackAccuracyBonusPercent?: number;
+  nextAttackIgnoresArmor?: boolean;
+  nextAttackCannotBeRedirected?: boolean;
+  /** Poison Arrow-style "next attack applies X" cards. */
+  nextAttackAppliesStatus?: { status: StatusType; amount: number; duration: number };
+  /** Evasion — relative multiplier on this stack's Hero-derived Dodge chance while it lasts. */
+  dodgeMultiplier?: number;
+  /** Blood Rage-style self-cost paid immediately after the buffed attack lands. */
+  selfCasualtyPercentAfterAttack?: number;
 }
 
 export interface ArmyStack {
@@ -86,129 +101,145 @@ export interface ArmyStack {
   currentHp: number;
   maxHp: number;
   startingCount: number;
+  /** The stack's largest count reached this battle — Greater Heal/Heal cannot restore past this. */
+  preBattleMaxCount: number;
+  /** v3 §9 — 0-100, starts at 100. */
   morale: number;
-  veterancy: number;
+  /** v3 §8 — flat tier 0-3, not an unbounded stat. Resets to 0 if the stack is wiped. */
+  veterancy: 0 | 1 | 2 | 3;
+  /** Defensive buffer some effects grant; absorbs damage before HP, same role as v2's Block. */
   block: number;
   statuses: StatusEffect[];
-  /** v2_list.md §7 — reset to false at the start of every player turn. */
+  flags: StackFlags;
   actedThisTurn: boolean;
+}
+
+export interface HeroStats {
+  strength: number;
+  dexterity: number;
+  intelligence: number;
+  vitality: number;
+  wisdom: number;
 }
 
 export interface Hero {
   id: string;
+  heroType: HeroId;
   name: string;
   hp: number;
   maxHp: number;
   mana: number;
   maxMana: number;
-  /** v2_list.md §11/§16 — replaces the old AC/DC pair; the single resource that pays for cards. */
-  energy: number;
-  maxEnergy: number;
+  baseMana: number;
+  level: number;
+  xp: number;
+  stats: HeroStats;
+  traits: string[];
 }
 
-export type CardCostType = 'ENERGY' | 'MANA';
+export type Rarity = 'common' | 'uncommon' | 'rare' | 'legendary';
 
-export interface CardCost {
-  type: CardCostType;
-  amount: number;
-}
+export type CardSource = { type: 'unit'; unitId: UnitId } | { type: 'hero'; heroId: HeroId } | { type: 'neutral' };
 
 export type CardTargeting =
   | 'none'
   | 'ally-stack'
   | 'enemy-stack'
   | 'ally-stack+enemy-stack'
-  | 'ally-stack+position';
+  | 'ally-stack+position'
+  /** Protect/Greater Heal/Heal — an acting ally stack plus a second ally it affects. */
+  | 'ally-stack+ally-stack';
 
+/**
+ * Composable card effects (v3 §39). Cards compose these rather than each being a
+ * bespoke switch-case; a handful of very specific mechanics (Protect's redirect,
+ * Counterattack's retaliation window, Divine Protection's death-prevention, Mark
+ * Target's ranged-damage-taken bonus, Emergency Retreat's untargetability) are
+ * modeled as SET_FLAGS entries consumed by combat.ts/damage.ts rather than as new
+ * top-level effect kinds, keeping this union from exploding per-card.
+ */
 export type CardEffect =
-  | {
-      kind: 'ATTACK';
-      multiplier: number;
-      /** Execute, AGENT.md §15: extra multiplier when the target is below a HP% threshold. */
-      conditionalBonus?: { targetHpBelowPercent: number; multiplier: number };
-    }
+  | { kind: 'ATTACK'; multiplier: number; conditionalBonus?: { targetHpBelowPercent: number; multiplier: number } }
   | { kind: 'ATTACK_ALL_WITH_TAG'; tag: string; multiplier: number }
-  | { kind: 'GAIN_BLOCK'; amount: number }
-  | { kind: 'GAIN_BLOCK_ALL_FRONT'; amount: number }
-  | { kind: 'MOVE_STACK' }
+  | { kind: 'ATTACK_SPLASH'; primaryMultiplier: number; secondaryMultiplier: number; maxSecondaryTargets: number }
+  /** Piercing Arrow — primary target plus whatever is directly behind it (same lane, opposite row). */
+  | { kind: 'ATTACK_PRIMARY_AND_BEHIND'; primaryMultiplier: number; behindMultiplier: number }
+  | { kind: 'ATTACK_TWICE'; firstMultiplier: number; secondMultiplier: number }
+  /** Scales off the ACTING stack's own healPower (falls back to 3 if the unit has none) x Wisdom effectiveness. */
+  | { kind: 'HEAL'; multiplier: number }
+  | { kind: 'RESTORE_SOLDIERS_PERCENT'; percent: number }
+  | { kind: 'MODIFY_STAT'; stat: 'attack' | 'defense'; amount: number; duration: number; scope: 'self' | 'adjacent-allies' }
+  | { kind: 'APPLY_STATUS'; status: StatusType; amount: number; duration: number }
+  | { kind: 'REMOVE_STATUSES'; statuses: StatusType[] }
   | { kind: 'GAIN_MORALE'; amount: number }
   | { kind: 'GAIN_MORALE_ALL'; amount: number }
   | { kind: 'GAIN_MANA'; amount: number }
-  | { kind: 'GAIN_MANA_AND_DRAW'; mana: number; draw: number }
   | { kind: 'DRAW'; amount: number }
-  /** Guard Stance (Immortal Knights, AGENT.md §48) — see intents.ts's taunt-aware targeting. */
+  | { kind: 'MOVE_STACK' }
   | { kind: 'GAIN_TAUNT'; duration: number }
-  /** Focus Fire, AGENT.md §15. */
-  | { kind: 'APPLY_VULNERABLE'; amount: number; duration: number }
-  /** Raise Dead (Undying Legion, AGENT.md §48) — sacrifice part of a stack to summon Skeletons. */
-  | { kind: 'SACRIFICE_FOR_SKELETONS'; sacrificePercent: number; skeletonsPerSacrificed: number };
+  | { kind: 'GAIN_BLOCK'; amount: number }
+  | { kind: 'GAIN_BLOCK_ALL_FRONT'; amount: number }
+  | { kind: 'DEFENSE_BUFF_ALL_FRONTLINE'; amount: number; duration: number }
+  | { kind: 'DEFENSE_BUFF_ADJACENT_THREE'; amount: number; duration: number }
+  | { kind: 'DAMAGE_BUFF_ALL_WITH_TAG'; tag: string; amount: number; duration: number }
+  | { kind: 'DAMAGE_AND_DEFENSE_BUFF'; damageAmount: number; defenseAmount: number; duration: number }
+  | { kind: 'SET_FLAGS'; target: 'self' | 'other'; flags: Partial<StackFlags> }
+  /** Venomous Army — applies the flags to every living friendly stack carrying `tag` (e.g. all ranged stacks). */
+  | { kind: 'SET_FLAGS_ALL_WITH_TAG'; tag: string; flags: Partial<StackFlags> }
+  | { kind: 'DAMAGE_ALL_ENEMIES'; multiplier: number; primaryBonusMultiplier: number }
+  | { kind: 'DAMAGE_UP_TO_N_ENEMIES'; multiplier: number; maxTargets: number }
+  | { kind: 'CHAIN_DAMAGE'; primaryMultiplier: number; secondaryMultiplier: number; maxSecondaryTargets: number };
+
+export interface CardRequirement {
+  minCount?: number;
+}
+
+export interface CardUpgradeDefinition {
+  description: string;
+  effects: CardEffect[];
+}
 
 export interface CardDefinition {
   id: string;
   name: string;
-  cost: CardCost;
+  source: CardSource;
+  rarity: Rarity;
+  manaCost: number;
+  tags: string[];
   targeting: CardTargeting;
   effects: CardEffect[];
-  exhaust: boolean;
-  tags: string[];
+  unique?: boolean;
+  exhaust?: boolean;
+  retain?: boolean;
+  upgrade?: CardUpgradeDefinition;
 }
 
 export interface CardInstance {
   instanceId: string;
   cardId: string;
+  upgraded?: boolean;
 }
 
-/**
- * Passive relic modifiers (AGENT.md §16/§17). "Stat-boost" kinds are applied
- * once, permanently, at the moment a relic is granted (see run/relics.ts).
- * "Combat-modifier" kinds are read fresh from the currently-held relics on
- * every player-side attack — see combat.ts's resolveAttack.
- */
 export type RelicEffect =
   | { kind: 'HERO_MAX_MANA'; amount: number }
-  | { kind: 'HERO_MAX_ENERGY'; amount: number }
   | { kind: 'ARMY_SIZE_MULT'; multiplier: number }
   | { kind: 'ARMY_SIZE_FLAT_LARGEST'; amount: number }
   | { kind: 'PLAYER_DAMAGE_MULT'; multiplier: number }
   | { kind: 'TAG_DAMAGE_MULT'; tag: string; multiplier: number }
   | { kind: 'LARGE_STACK_STRENGTH'; threshold: number; amount: number }
   | { kind: 'SMALL_STACK_DAMAGE_MULT'; threshold: number; multiplier: number }
-  /** Reduces incoming damage to player stacks — Immortal Knights (AGENT.md §48). */
   | { kind: 'PLAYER_DAMAGE_TAKEN_MULT'; multiplier: number }
-  /**
-   * Necromantic Doctrine / Grave Crown (AGENT.md §27/§48): when a player
-   * stack takes casualties, a fraction of the units lost are raised as
-   * Skeletons. Combat-modifier kind, read fresh in combat.ts — see the
-   * "Necromancy" section of resolveAttack.
-   */
-  | { kind: 'NECROMANCY'; ratio: number };
+  | { kind: 'NECROMANCY'; ratio: number }
+  | { kind: 'DODGE_BONUS_PERCENT'; amount: number }
+  | { kind: 'HEALING_MULT'; multiplier: number }
+  | { kind: 'FIRST_CARD_DISCOUNT'; amount: number };
 
 export interface RelicDefinition {
   id: string;
   name: string;
   description: string;
   effects: RelicEffect[];
-}
-
-/**
- * Hero skills (AGENT.md §5 "Active skill slots: 4") — always available
- * during combat (not drawn/discarded like cards), gated by Mana cost and a
- * per-battle cooldown instead of a hand/deck. Reuses CardEffect so the same
- * executor in combat.ts handles both.
- */
-export interface HeroSkillDefinition {
-  id: string;
-  name: string;
-  description: string;
-  cost: CardCost;
-  targeting: CardTargeting;
-  effects: CardEffect[];
-  cooldownTurns: number;
-}
-
-export interface HeroSkillState {
-  skillId: string;
-  cooldownRemaining: number;
+  unique?: boolean;
 }
 
 export interface EnemyIntent {
@@ -242,13 +273,14 @@ export type CombatEvent =
   | { type: 'BLOCK_GAINED'; stackId: string; amount: number }
   | { type: 'MORALE_CHANGED'; stackId: string; amount: number }
   | { type: 'STATUS_APPLIED'; stackId: string; status: StatusType; amount: number; duration: number }
+  | { type: 'STATUSES_REMOVED'; stackId: string; statuses: StatusType[] }
   | { type: 'STACK_MOVED'; stackId: string; fromPosition: Position; toPosition: Position }
   | { type: 'MANA_GAINED'; amount: number }
   | { type: 'INTENTS_GENERATED'; intents: EnemyIntent[] }
   | { type: 'ENEMY_TURN_RESOLVED' }
   | { type: 'ACTION_REJECTED'; reason: string }
-  | { type: 'SKILL_USED'; skillId: string }
-  | { type: 'SKELETONS_RAISED'; count: number }
+  | { type: 'COUNTERATTACK_TRIGGERED'; stackId: string; targetStackId: string }
+  | { type: 'DIVINE_SHIELD_CONSUMED'; stackId: string }
   | { type: 'BATTLE_ENDED'; result: 'victory' | 'defeat' };
 
 export type PlayerAction =
@@ -259,14 +291,6 @@ export type PlayerAction =
       targetStackId?: string;
       toPosition?: Position;
     }
-  | {
-      type: 'USE_SKILL';
-      skillId: string;
-      actingStackId?: string;
-      targetStackId?: string;
-      toPosition?: Position;
-    }
-  /** v2_list.md §4.2/§7 — the free, card-less normal action every stack has. */
   | { type: 'BASIC_ACTION'; stackId: string; targetStackId?: string }
   | { type: 'END_TURN' };
 
@@ -284,9 +308,7 @@ export interface CombatState {
   discard: CardInstance[];
   exhausted: CardInstance[];
   enemyIntents: EnemyIntent[];
-  /** Passive relic effects active for this battle — see RunState.relics. */
   activeRelicEffects: RelicEffect[];
-  heroSkills: HeroSkillState[];
   log: CombatEvent[];
 }
 

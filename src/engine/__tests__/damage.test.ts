@@ -12,22 +12,25 @@ function stack(overrides: Partial<ArmyStack> = {}): ArmyStack {
     currentHp: 800,
     maxHp: 800,
     startingCount: 80,
-    morale: 0,
+    preBattleMaxCount: 80,
+    morale: 100,
     veterancy: 0,
     block: 0,
     statuses: [],
+    flags: {},
     actedThisTurn: false,
     ...overrides,
   };
 }
 
 describe('effectiveCount', () => {
-  it('applies the correct bracket multiplier', () => {
-    expect(effectiveCount(50)).toBe(50);
-    expect(effectiveCount(100)).toBeCloseTo(90);
-    expect(effectiveCount(200)).toBeCloseTo(150);
-    expect(effectiveCount(400)).toBeCloseTo(240);
-    expect(effectiveCount(1000)).toBeCloseTo(450);
+  it('applies the correct bracket multiplier (v3 §10: 1-20/21-50/51-100/101-200/201-400/400+)', () => {
+    expect(effectiveCount(20)).toBe(20);
+    expect(effectiveCount(50)).toBeCloseTo(45);
+    expect(effectiveCount(100)).toBeCloseTo(75);
+    expect(effectiveCount(200)).toBeCloseTo(120);
+    expect(effectiveCount(400)).toBeCloseTo(180);
+    expect(effectiveCount(1000)).toBeCloseTo(350);
   });
 
   it('500 soldiers are stronger than 100 but not 5x stronger', () => {
@@ -40,22 +43,30 @@ describe('effectiveCount', () => {
 describe('computeRawDamage', () => {
   it('is deterministic for identical inputs', () => {
     const attacker = stack({ count: 80 });
-    const a = computeRawDamage(attacker, 3, 2, 1);
-    const b = computeRawDamage(attacker, 3, 2, 1);
+    const params = { attackerStack: attacker, attackerBaseAttack: 3, targetDefense: 2, multiplier: 1 };
+    const a = computeRawDamage(params);
+    const b = computeRawDamage(params);
     expect(a).toBe(b);
   });
 
   it('applies Strength as a flat per-unit attack bonus', () => {
     const base = stack({ count: 10 });
     const buffed = stack({ count: 10, statuses: [{ type: 'strength', amount: 2, duration: 1 }] });
-    const baseDmg = computeRawDamage(base, 3, 0, 1);
-    const buffedDmg = computeRawDamage(buffed, 3, 0, 1);
+    const baseDmg = computeRawDamage({ attackerStack: base, attackerBaseAttack: 3, targetDefense: 0, multiplier: 1 });
+    const buffedDmg = computeRawDamage({ attackerStack: buffed, attackerBaseAttack: 3, targetDefense: 0, multiplier: 1 });
     expect(buffedDmg).toBeGreaterThan(baseDmg);
   });
 
   it('floors per-unit damage at 0 when defense exceeds attack', () => {
     const attacker = stack({ count: 10 });
-    expect(computeRawDamage(attacker, 3, 99, 1)).toBe(0);
+    expect(computeRawDamage({ attackerStack: attacker, attackerBaseAttack: 3, targetDefense: 99, multiplier: 1 })).toBe(0);
+  });
+
+  it('applies Hero stat effectiveness as a multiplier', () => {
+    const attacker = stack({ count: 10 });
+    const base = computeRawDamage({ attackerStack: attacker, attackerBaseAttack: 3, targetDefense: 0, multiplier: 1 });
+    const boosted = computeRawDamage({ attackerStack: attacker, attackerBaseAttack: 3, targetDefense: 0, multiplier: 1, heroEffectiveness: 1.2 });
+    expect(boosted).toBeGreaterThan(base);
   });
 });
 

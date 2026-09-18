@@ -13,33 +13,60 @@ export function createStack(unitId: UnitId, side: Side, position: Position, coun
     currentHp: maxHp,
     maxHp,
     startingCount: count,
-    morale: 0,
+    preBattleMaxCount: count,
+    morale: 100,
     veterancy: 0,
     block: 0,
     statuses: [],
+    flags: {},
     actedThisTurn: false,
   };
 }
 
-/** The vertical-slice player army from AGENT.md §73 — kept as a rich test fixture. */
-export function buildVerticalSlicePlayerArmy(): ArmyStack[] {
+/** v3 §19 enemy formations. */
+export function buildHordeFormation(): ArmyStack[] {
   return [
-    createStack('knight', 'player', 1, 18),
-    createStack('swordsman', 'player', 2, 80),
-    createStack('knight', 'player', 3, 8),
-    createStack('archer', 'player', 4, 30),
-    createStack('mage', 'player', 5, 10),
-    createStack('priest', 'player', 6, 15),
+    createStack('goblin', 'enemy', 1, 12),
+    createStack('goblin', 'enemy', 2, 12),
+    createStack('goblin', 'enemy', 3, 12),
+    createStack('goblin', 'enemy', 4, 10),
+    createStack('goblin', 'enemy', 5, 10),
+    createStack('orc', 'enemy', 6, 8),
   ];
 }
 
-/**
- * A small starting garrison rather than a full 6-stack army — the player is meant to
- * grow their force through recruiting and battle rewards, not start at full strength.
- */
-export function buildStartingPlayerArmy(): ArmyStack[] {
-  return [createStack('swordsman', 'player', 2, 6), createStack('archer', 'player', 4, 4)];
+export function buildGuardedShamanFormation(): ArmyStack[] {
+  return [
+    createStack('orc', 'enemy', 1, 10),
+    createStack('orc', 'enemy', 2, 10),
+    createStack('orc', 'enemy', 3, 10),
+    createStack('goblin', 'enemy', 4, 10),
+    createStack('shaman', 'enemy', 5, 8),
+    createStack('goblin', 'enemy', 6, 10),
+  ];
 }
+
+export function buildWolfPackFormation(): ArmyStack[] {
+  return [createStack('wolf', 'enemy', 1, 8), createStack('wolf', 'enemy', 2, 8), createStack('wolf', 'enemy', 4, 8), createStack('goblin', 'enemy', 5, 10)];
+}
+
+export function buildEliteGuardFormation(): ArmyStack[] {
+  return [
+    createStack('orc', 'enemy', 1, 14),
+    createStack('orc', 'enemy', 2, 14),
+    createStack('orc', 'enemy', 3, 14),
+    createStack('wolf', 'enemy', 4, 10),
+    createStack('shaman', 'enemy', 5, 10),
+    createStack('wolf', 'enemy', 6, 10),
+  ];
+}
+
+export const ENEMY_FORMATIONS = {
+  horde: buildHordeFormation,
+  guarded_shaman: buildGuardedShamanFormation,
+  wolf_pack: buildWolfPackFormation,
+  elite_guard: buildEliteGuardFormation,
+} as const;
 
 function findFreeArmyPosition(army: ArmyStack[]): Position | null {
   const taken = new Set(army.filter((s) => s.count > 0).map((s) => s.position));
@@ -53,7 +80,8 @@ function findFreeArmyPosition(army: ArmyStack[]): Position | null {
  * Splits `splitCount` units off of `stackId` into a new stack in a free army slot,
  * preserving the source stack's wound ratio proportionally across both halves.
  * Returns null if the stack doesn't exist, the split count is out of range, or the
- * army is already at its 6-stack cap.
+ * army is already at its 6-stack cap. v3 §8 — merging retains the LOWER veterancy,
+ * so a split simply copies the source's veterancy tier to both halves.
  */
 export function splitArmyStack(army: ArmyStack[], stackId: string, splitCount: number): ArmyStack[] | null {
   const idx = army.findIndex((s) => s.stackId === stackId);
@@ -73,6 +101,7 @@ export function splitArmyStack(army: ArmyStack[], stackId: string, splitCount: n
     maxHp: remainCount * hpPerUnit,
     currentHp: Math.max(0, Math.round(remainCount * hpPerUnit * woundRatio)),
     startingCount: remainCount,
+    preBattleMaxCount: remainCount,
   };
   const newStack: ArmyStack = {
     ...source,
@@ -82,14 +111,15 @@ export function splitArmyStack(army: ArmyStack[], stackId: string, splitCount: n
     maxHp: splitCount * hpPerUnit,
     currentHp: Math.max(0, Math.round(splitCount * hpPerUnit * woundRatio)),
     startingCount: splitCount,
+    preBattleMaxCount: splitCount,
   };
   return [...army.map((s, i) => (i === idx ? updatedSource : s)), newStack];
 }
 
 /**
  * Merges two same-unit stacks into one (at the first stack's position), summing
- * counts/HP and blending veterancy by a weighted average. Returns null if the
- * stacks don't match, don't exist, or are the same stack.
+ * counts/HP and retaining the LOWER veterancy tier (v3 §8 "retain the lower
+ * veterancy" when merging outside combat).
  */
 export function mergeArmyStacks(army: ArmyStack[], stackIdA: string, stackIdB: string): ArmyStack[] | null {
   if (stackIdA === stackIdB) return null;
@@ -104,19 +134,8 @@ export function mergeArmyStacks(army: ArmyStack[], stackIdA: string, stackIdB: s
     maxHp: a.maxHp + b.maxHp,
     currentHp: a.currentHp + b.currentHp,
     startingCount: a.startingCount + b.startingCount,
-    veterancy: newCount > 0 ? Math.round((a.count * a.veterancy + b.count * b.veterancy) / newCount) : 0,
+    preBattleMaxCount: a.preBattleMaxCount + b.preBattleMaxCount,
+    veterancy: Math.min(a.veterancy, b.veterancy) as 0 | 1 | 2 | 3,
   };
   return [...army.filter((s) => s.stackId !== a.stackId && s.stackId !== b.stackId), merged];
-}
-
-/** The vertical-slice enemy encounter from AGENT.md §73. */
-export function buildVerticalSliceEnemyArmy(): ArmyStack[] {
-  return [
-    createStack('orc', 'enemy', 1, 42),
-    createStack('orc', 'enemy', 2, 30),
-    createStack('wolf', 'enemy', 3, 20),
-    createStack('shaman', 'enemy', 4, 12),
-    createStack('goblin', 'enemy', 5, 45),
-    createStack('goblin', 'enemy', 6, 45),
-  ];
 }

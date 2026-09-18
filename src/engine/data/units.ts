@@ -1,7 +1,9 @@
 import type { UnitDefinition, UnitId } from '../types.js';
 
 /**
- * MVP unit stats — AGENT.md §10. All values PROTOTYPE, not balanced.
+ * v3 canonical doc §8/§18 — MVP roster is exactly 4 friendly + 4 enemy units.
+ * All values PROTOTYPE (v3 §44) except the base stats, which are locked as
+ * written in the doc.
  */
 export const UNIT_DEFINITIONS: Record<UnitId, UnitDefinition> = {
   swordsman: {
@@ -13,6 +15,7 @@ export const UNIT_DEFINITIONS: Record<UnitId, UnitDefinition> = {
     defense: 2,
     tags: ['infantry', 'melee'],
     basicAction: 'attack',
+    passiveId: 'formation_discipline',
   },
   archer: {
     id: 'archer',
@@ -24,6 +27,7 @@ export const UNIT_DEFINITIONS: Record<UnitId, UnitDefinition> = {
     tags: ['ranged', 'archer'],
     basicAction: 'ranged_attack',
     rangedAllAccess: true,
+    passiveId: 'high_ground',
   },
   knight: {
     id: 'knight',
@@ -34,6 +38,7 @@ export const UNIT_DEFINITIONS: Record<UnitId, UnitDefinition> = {
     defense: 4,
     tags: ['infantry', 'heavy'],
     basicAction: 'attack',
+    passiveId: 'guard',
   },
   priest: {
     id: 'priest',
@@ -45,43 +50,7 @@ export const UNIT_DEFINITIONS: Record<UnitId, UnitDefinition> = {
     tags: ['support', 'healer'],
     basicAction: 'heal',
     healPower: 4,
-  },
-  mage: {
-    id: 'mage',
-    name: 'Mage',
-    side: 'player',
-    hpPerUnit: 6,
-    attack: 5,
-    defense: 0,
-    // Not part of the v2 MVP roster (v2_list.md §61 "do not silently add
-    // Mage") — kept defined but unused by the default scenario/army.
-    tags: ['ranged', 'caster', 'spell'],
-    basicAction: 'ranged_attack',
-    rangedAllAccess: true,
-  },
-  cavalier: {
-    id: 'cavalier',
-    name: 'Cavalier',
-    side: 'player',
-    hpPerUnit: 11,
-    attack: 6,
-    defense: 2,
-    // Not part of the v2 MVP roster — kept for the "Charge" card's cavalry tag.
-    tags: ['cavalry', 'melee', 'fast'],
-    basicAction: 'attack',
-  },
-  skeleton: {
-    id: 'skeleton',
-    name: 'Skeleton',
-    side: 'player',
-    // Undying Legion (AGENT.md §46/§48) — cheap, expendable, raised from
-    // player casualties via the Necromantic Doctrine or Grave Crown relic
-    // (NECROMANCY effect) or the Raise Dead card, never recruited directly.
-    hpPerUnit: 6,
-    attack: 3,
-    defense: 0,
-    tags: ['undead', 'infantry'],
-    basicAction: 'attack',
+    passiveId: 'devotion',
   },
   goblin: {
     id: 'goblin',
@@ -91,10 +60,9 @@ export const UNIT_DEFINITIONS: Record<UnitId, UnitDefinition> = {
     attack: 2,
     defense: 0,
     tags: ['infantry'],
-    // AGENT.md §9 only defines targeting for Orc/Wolf/Shaman/Assassin.
-    // ASSUMPTION: Goblin behaves like a basic grunt and targets the frontline.
-    targetPreference: 'frontline',
     basicAction: 'attack',
+    passiveId: 'mob_tactics',
+    targetPreference: 'frontline',
   },
   orc: {
     id: 'orc',
@@ -102,10 +70,11 @@ export const UNIT_DEFINITIONS: Record<UnitId, UnitDefinition> = {
     side: 'enemy',
     hpPerUnit: 12,
     attack: 5,
-    defense: 0,
+    defense: 2,
     tags: ['infantry', 'brute'],
-    targetPreference: 'frontline',
     basicAction: 'attack',
+    passiveId: 'brutal',
+    targetPreference: 'weakest',
   },
   shaman: {
     id: 'shaman',
@@ -113,10 +82,11 @@ export const UNIT_DEFINITIONS: Record<UnitId, UnitDefinition> = {
     side: 'enemy',
     hpPerUnit: 8,
     attack: 2,
-    defense: 0,
+    defense: 1,
     tags: ['support', 'caster'],
-    targetPreference: 'buff-weakest-ally',
     basicAction: 'attack',
+    passiveId: 'shaman_support',
+    targetPreference: 'buff-weakest-ally',
   },
   wolf: {
     id: 'wolf',
@@ -124,23 +94,10 @@ export const UNIT_DEFINITIONS: Record<UnitId, UnitDefinition> = {
     side: 'enemy',
     hpPerUnit: 7,
     attack: 4,
-    defense: 0,
+    defense: 1,
     tags: ['beast', 'fast'],
-    targetPreference: 'backline',
     basicAction: 'attack',
-  },
-  warlord: {
-    id: 'warlord',
-    name: 'Warlord',
-    side: 'enemy',
-    // AGENT.md §42 boss list — Warlord: "gains strength based on player's
-    // army size." A single powerful entity (count 1), not a unit stack.
-    hpPerUnit: 500,
-    attack: 20,
-    defense: 6,
-    tags: ['boss', 'brute'],
-    targetPreference: 'frontline',
-    scalesWithPlayerArmy: { divisor: 15 },
-    basicAction: 'attack',
+    passiveId: 'pounce',
+    targetPreference: 'ranged-priority',
   },
 };

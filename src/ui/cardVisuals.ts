@@ -5,35 +5,63 @@ export interface CardVisual {
   polarity: CardPolarity;
 }
 
-/** Central icon + color-glow per card/skill id — purely cosmetic, no gameplay meaning. */
+/** Central icon + color-glow per card id — purely cosmetic, no gameplay meaning. */
 export const CARD_VISUALS: Record<string, CardVisual> = {
-  command_strike: { icon: '⚔️', polarity: 'attack' },
-  command_strike_plus: { icon: '⚔️', polarity: 'attack' },
+  // Unit Skill Cards
+  shield_bash: { icon: '🛡️', polarity: 'attack' },
+  hold_formation: { icon: '🪖', polarity: 'defense' },
+  counterattack: { icon: '🔁', polarity: 'defense' },
+  brace: { icon: '🧱', polarity: 'defense' },
+  focus_shot: { icon: '🎯', polarity: 'buff' },
+  piercing_arrow: { icon: '🏹', polarity: 'attack' },
+  arrow_rain: { icon: '🌧️', polarity: 'attack' },
+  covering_fire: { icon: '🏹', polarity: 'attack' },
   charge: { icon: '🐎', polarity: 'attack' },
-  volley: { icon: '🏹', polarity: 'attack' },
-  volley_plus: { icon: '🏹', polarity: 'attack' },
-  execute: { icon: '🗡️', polarity: 'attack' },
-  veterans_resolve: { icon: '⚔️', polarity: 'attack' },
-
-  defend: { icon: '🛡️', polarity: 'defense' },
-  defend_plus: { icon: '🛡️', polarity: 'defense' },
   shield_wall: { icon: '🛡️', polarity: 'defense' },
-  shield_wall_plus: { icon: '🛡️', polarity: 'defense' },
-  guard_stance: { icon: '🪖', polarity: 'defense' },
-  reposition: { icon: '🔀', polarity: 'defense' },
+  protect: { icon: '🤝', polarity: 'defense' },
+  lance_breaker: { icon: '🗡️', polarity: 'attack' },
+  greater_heal: { icon: '💚', polarity: 'utility' },
+  bless: { icon: '✨', polarity: 'buff' },
+  purify: { icon: '🧼', polarity: 'utility' },
+  divine_protection: { icon: '😇', polarity: 'defense' },
 
+  // Hero Cards — Warlord
+  blood_rage: { icon: '🩸', polarity: 'attack' },
+  mass_charge: { icon: '🐎', polarity: 'buff' },
+  hold_the_line: { icon: '🛡️', polarity: 'defense' },
+  brutal_command: { icon: '⚔️', polarity: 'attack' },
   rally: { icon: '🚩', polarity: 'buff' },
-  commanders_presence: { icon: '📯', polarity: 'buff' },
+  last_stand: { icon: '🔥', polarity: 'buff' },
+  formation: { icon: '🪖', polarity: 'defense' },
+  execution_order: { icon: '☠️', polarity: 'attack' },
 
-  focus_fire: { icon: '🎯', polarity: 'debuff' },
-  raise_dead: { icon: '☠️', polarity: 'debuff' },
+  // Hero Cards — Rogue
+  poison_arrow: { icon: '☠️', polarity: 'debuff' },
+  double_shot: { icon: '🏹', polarity: 'attack' },
+  evasion: { icon: '💨', polarity: 'defense' },
+  ambush: { icon: '🗡️', polarity: 'attack' },
+  mark_target: { icon: '🎯', polarity: 'debuff' },
+  shadowstep: { icon: '🌀', polarity: 'utility' },
+  venomous_army: { icon: '☠️', polarity: 'debuff' },
+  execute: { icon: '🗡️', polarity: 'attack' },
 
-  arcane_focus: { icon: '✨', polarity: 'utility' },
-  battle_meditation: { icon: '🧘', polarity: 'utility' },
+  // Hero Cards — Mage
+  fireball: { icon: '🔥', polarity: 'attack' },
+  frost: { icon: '❄️', polarity: 'attack' },
+  arcane_storm: { icon: '⚡', polarity: 'attack' },
+  arcane_shield: { icon: '🔷', polarity: 'defense' },
+  heal: { icon: '💚', polarity: 'utility' },
+  mana_surge: { icon: '🔮', polarity: 'utility' },
+  chain_lightning: { icon: '⚡', polarity: 'attack' },
+  arcane_overload: { icon: '🌟', polarity: 'utility' },
+
+  // Neutral Cards
+  focus_fire: { icon: '🎯', polarity: 'buff' },
+  reposition: { icon: '🔀', polarity: 'utility' },
   tactical_insight: { icon: '📜', polarity: 'utility' },
-
-  second_wind: { icon: '🛡️', polarity: 'defense' },
-  inspire: { icon: '📯', polarity: 'buff' },
+  emergency_retreat: { icon: '🏳️', polarity: 'defense' },
+  second_wind: { icon: '🌬️', polarity: 'utility' },
+  battle_hardened: { icon: '📯', polarity: 'buff' },
 };
 
 const FALLBACKS: Record<CardPolarity, string> = {

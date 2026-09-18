@@ -61,9 +61,7 @@ export function RewardScreen({ reward, onClaimRelic, onClaimCard, onClaimUpgrade
             >
               <div className="card-name">
                 <span>{cardDef.name}</span>
-                <span className="card-cost">
-                  {cardDef.cost.amount} {cardDef.cost.type}
-                </span>
+                <span className="card-cost">{cardDef.manaCost} Mana</span>
               </div>
               <div className="card-text">{CARD_DESCRIPTIONS[cardId] ?? cardId}</div>
             </div>

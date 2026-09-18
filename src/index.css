@@ -2268,6 +2268,13 @@ button.primary {
   line-height: 1.5;
 }
 
+.hero-stat-line {
+  margin-top: 10px;
+  font-size: 11px;
+  color: var(--accent);
+  letter-spacing: 0.3px;
+}
+
 .commander-selected-badge {
   margin-top: 14px;
   display: inline-block;

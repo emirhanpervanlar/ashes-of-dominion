@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { CARD_DEFINITIONS, HERO_SKILL_DEFINITIONS, UNIT_DEFINITIONS, computeValidHealTargets, computeValidTargets } from './engine/index.js';
+import { CARD_DEFINITIONS, UNIT_DEFINITIONS, computeValidHealTargets, computeValidTargets } from './engine/index.js';
 import type { ArmyStack, CardEffect, CardTargeting, EnemyIntent, PlayerAction, Position } from './engine/index.js';
 import { applyRunAction, createRun } from './engine/run/index.js';
 import type { RunEvent, RunState } from './engine/run/index.js';
@@ -48,7 +48,7 @@ interface PlayerActionFx {
   debuffStacks?: string[];
 }
 
-const BUFF_EFFECT_KINDS = new Set(['GAIN_MORALE', 'GAIN_MORALE_ALL', 'GAIN_MANA', 'GAIN_MANA_AND_DRAW', 'DRAW', 'GAIN_TAUNT']);
+const BUFF_EFFECT_KINDS = new Set(['GAIN_MORALE', 'GAIN_MORALE_ALL', 'GAIN_MANA', 'DRAW', 'GAIN_TAUNT']);
 
 function loadInitialRun(): RunState {
   try {
@@ -211,12 +211,11 @@ export default function App() {
     setPending(null);
   }
 
-  function hasResource(kind: 'card' | 'skill', id: string): boolean {
+  function hasResource(cardId: string): boolean {
     if (!combat) return false;
-    const cost = kind === 'card' ? CARD_DEFINITIONS[id]?.cost : HERO_SKILL_DEFINITIONS[id]?.cost;
-    if (!cost) return false;
-    const have = cost.type === 'ENERGY' ? combat.hero.energy : combat.hero.mana;
-    return have >= cost.amount;
+    const cardDef = CARD_DEFINITIONS[cardId];
+    if (!cardDef) return false;
+    return combat.hero.mana >= cardDef.manaCost;
   }
 
   function handleCardClick(instanceId: string, cardId: string) {
@@ -226,23 +225,10 @@ export default function App() {
       return;
     }
     const cardDef = CARD_DEFINITIONS[cardId];
-    if (!cardDef || !hasResource('card', cardId)) return;
+    if (!cardDef || !hasResource(cardId)) return;
     // No-target cards no longer play instantly — they require a Drop Card confirmation
     // in the middle of the battlefield, same as any other pending selection.
     setPending({ kind: 'card', id: instanceId, name: cardDef.name, targeting: cardDef.targeting });
-  }
-
-  function handleSkillClick(skillId: string) {
-    if (!combat || combat.phase !== 'player' || combat.result !== 'ongoing') return;
-    const skillState = combat.heroSkills.find((s) => s.skillId === skillId);
-    if (!skillState || skillState.cooldownRemaining > 0) return;
-    if (pending?.kind === 'skill' && pending.id === skillId) {
-      setPending(null);
-      return;
-    }
-    const skillDef = HERO_SKILL_DEFINITIONS[skillId];
-    if (!skillDef || !hasResource('skill', skillId)) return;
-    setPending({ kind: 'skill', id: skillId, name: skillDef.name, targeting: skillDef.targeting });
   }
 
   function finalize(extra: { actingStackId?: string; targetStackId?: string; toPosition?: Position }) {
@@ -252,8 +238,6 @@ export default function App() {
     function dispatchNow() {
       if (current.kind === 'card') {
         dispatchCombat({ type: 'PLAY_CARD', instanceId: current.id, ...extra });
-      } else if (current.kind === 'skill') {
-        dispatchCombat({ type: 'USE_SKILL', skillId: current.id, ...extra });
       } else {
         dispatchCombat({ type: 'BASIC_ACTION', stackId: current.id, targetStackId: extra.targetStackId });
       }
@@ -271,8 +255,8 @@ export default function App() {
         if (extra.targetStackId) fx.attackTo = extra.targetStackId;
       }
     } else {
-      const cardId = current.kind === 'card' ? combat.hand.find((c) => c.instanceId === current.id)?.cardId : undefined;
-      const def = current.kind === 'card' ? (cardId ? CARD_DEFINITIONS[cardId] : undefined) : HERO_SKILL_DEFINITIONS[current.id];
+      const cardId = combat.hand.find((c) => c.instanceId === current.id)?.cardId;
+      const def = cardId ? CARD_DEFINITIONS[cardId] : undefined;
       const effects = def?.effects ?? [];
 
       if (effects.some((e) => e.kind === 'ATTACK' || e.kind === 'ATTACK_ALL_WITH_TAG')) {
@@ -289,7 +273,7 @@ export default function App() {
       } else if (effects.some((e) => BUFF_EFFECT_KINDS.has(e.kind)) && extra.actingStackId) {
         fx.buffStacks = [extra.actingStackId];
       }
-      if (effects.some((e) => e.kind === 'APPLY_VULNERABLE') && extra.targetStackId) {
+      if (effects.some((e) => e.kind === 'APPLY_STATUS' && (e.status === 'weak' || e.status === 'freeze')) && extra.targetStackId) {
         fx.debuffStacks = [extra.targetStackId];
       }
     }
@@ -362,6 +346,15 @@ export default function App() {
       } else {
         setPending({ ...pending, actingStackId: stack!.stackId });
       }
+      return;
+    }
+    if (targeting === 'ally-stack+ally-stack' && side === 'player' && alive) {
+      if (!pending.actingStackId) {
+        setPending({ ...pending, actingStackId: stack!.stackId });
+        return;
+      }
+      if (stack!.stackId === pending.actingStackId) return;
+      finalize({ actingStackId: pending.actingStackId, targetStackId: stack!.stackId });
     }
   }
 
@@ -430,6 +423,10 @@ export default function App() {
       if (side !== 'player') return false;
       return !pending.actingStackId ? alive : true;
     }
+    if (t === 'ally-stack+ally-stack') {
+      if (side !== 'player' || !alive) return false;
+      return !pending.actingStackId || stack!.stackId !== pending.actingStackId;
+    }
     return false;
   }
 
@@ -475,10 +472,12 @@ export default function App() {
 
   function findPendingAttackEffect(): Extract<CardEffect, { kind: 'ATTACK' }> | undefined {
     if (!combat || !pending) return undefined;
-    const def =
-      pending.kind === 'card'
-        ? CARD_DEFINITIONS[combat.hand.find((c) => c.instanceId === pending.id)?.cardId ?? '']
-        : HERO_SKILL_DEFINITIONS[pending.id];
+    if (pending.kind === 'basic') {
+      // A free basic attack behaves like a plain 1x ATTACK effect for preview purposes.
+      return pending.targeting === 'basic-attack' ? { kind: 'ATTACK', multiplier: 1 } : undefined;
+    }
+    const cardId = combat.hand.find((c) => c.instanceId === pending.id)?.cardId;
+    const def = cardId ? CARD_DEFINITIONS[cardId] : undefined;
     return def?.effects.find((e): e is Extract<CardEffect, { kind: 'ATTACK' }> => e.kind === 'ATTACK');
   }
 
@@ -528,8 +527,8 @@ export default function App() {
     return (
       <CommanderSetupScreen
         onBack={() => setAppStage('title')}
-        onBegin={(heroName, relicId) => {
-          const freshRun = createRun(Date.now() & 0xffffffff, heroName);
+        onBegin={(heroId, heroName, relicId) => {
+          const freshRun = createRun(Date.now() & 0xffffffff, heroId, heroName);
           const result = applyRunAction(freshRun, { type: 'CHOOSE_STARTING_RELIC', relicId });
           setRun(result.run);
           setHasSave(true);
@@ -724,27 +723,6 @@ export default function App() {
         </div>
       </div>
 
-      <div className="skills-row-standalone">
-        {combat.heroSkills.map((skillState) => {
-          const skillDef = HERO_SKILL_DEFINITIONS[skillState.skillId];
-          if (!skillDef) return null;
-          const onCooldown = skillState.cooldownRemaining > 0;
-          return (
-            <ActionCardTile
-              key={skillDef.id}
-              id={skillDef.id}
-              name={skillDef.name}
-              description={skillDef.description}
-              cost={skillDef.cost}
-              affordable={canAct && hasResource('skill', skillDef.id) && !onCooldown}
-              pending={pending?.kind === 'skill' && pending.id === skillDef.id}
-              footer={onCooldown ? `Cooldown: ${skillState.cooldownRemaining}` : 'Hero Skill'}
-              onClick={() => handleSkillClick(skillDef.id)}
-            />
-          );
-        })}
-      </div>
-
       <div className="battlefield-v2">
         <div className="side-columns player-side">
           <div className="unit-column">
@@ -868,23 +846,14 @@ export default function App() {
                   id={cardDef.id}
                   name={cardDef.name}
                   description={CARD_DESCRIPTIONS[cardDef.id] ?? cardDef.id}
-                  cost={cardDef.cost}
-                  affordable={canAct && hasResource('card', cardDef.id)}
+                  manaCost={cardDef.manaCost}
+                  affordable={canAct && hasResource(cardDef.id)}
                   pending={pending?.kind === 'card' && pending.id === instance.instanceId}
                   onClick={() => handleCardClick(instance.instanceId, instance.cardId)}
                 />
               </div>
             );
           })}
-        </div>
-      </div>
-
-      <div className="orb-row">
-        <div className="resource-orb energy" title="Energy — spent on cards">
-          <span className="orb-value">
-            {combat.hero.energy}/{combat.hero.maxEnergy}
-          </span>
-          <span className="orb-name">Energy</span>
         </div>
       </div>
 

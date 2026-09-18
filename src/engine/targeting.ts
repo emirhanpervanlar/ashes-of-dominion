@@ -42,7 +42,7 @@ const MELEE_LANE_TARGETS: Record<Lane, Lane[]> = {
  */
 export function computeValidTargets(attacker: ArmyStack, enemyArmy: ArmyStack[], attackerDef?: UnitDefinition): ArmyStack[] {
   const def = attackerDef ?? UNIT_DEFINITIONS[attacker.unitId];
-  const alive = enemyArmy.filter((s) => s.count > 0);
+  const alive = enemyArmy.filter((s) => s.count > 0 && !s.flags.untargetable);
   const byPosition = new Map(alive.map((s) => [s.position, s]));
 
   if (def.rangedAllAccess) {

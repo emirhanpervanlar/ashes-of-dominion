@@ -6,12 +6,8 @@ export const UNIT_ICONS: Record<UnitId, string> = {
   archer: '🏹',
   knight: '🛡️',
   priest: '✚',
-  mage: '🔮',
-  cavalier: '🐎',
-  skeleton: '☠️',
   goblin: '👺',
   orc: '👹',
   shaman: '🪄',
   wolf: '🐺',
-  warlord: '💀',
 };
