@@ -8,6 +8,10 @@ import { relicIcon } from './relicIcons.js';
 import { UNIT_ICONS } from './unitIcons.js';
 import { UNIT_ROLE_ICONS } from './unitShapes.js';
 import { UnitPopup } from './UnitPopup.js';
+import { HERO_PORTRAITS } from './heroIcons.js';
+
+const MAX_ARMY_SLOTS = 6;
+const RELIC_GRID_SLOTS = 15;
 
 interface Props {
   run: RunState;
@@ -61,7 +65,7 @@ export function WorldMapScreen({ run, onMoveTo, onEnterCity, onOpenMenu, onSplit
     .map((id) => run.worldMap.nodes.find((n) => n.id === id))
     .filter((n): n is MapNode => !!n && n.visibility !== 'unknown');
   const historyLines = run.log.map(describeRunEvent).filter((line): line is string => line !== null);
-  const hpPct = Math.max(0, Math.min(100, (run.hero.hp / run.hero.maxHp) * 100));
+  const armySlots = run.army.filter((s) => s.count > 0);
 
   return (
     <div className="garrison-frame">
@@ -113,30 +117,34 @@ export function WorldMapScreen({ run, onMoveTo, onEnterCity, onOpenMenu, onSplit
         </div>
 
         <div className="garrison-bar-col garrison-bar-hero">
-          <div className="hero-portrait">🤴</div>
-          <div className="garrison-hero-info">
-            <strong>{run.hero.name}</strong>
-            <div className="bar" style={{ marginTop: 4 }}>
-              <div className={`bar-fill-hp${hpPct < 30 ? ' low' : ''}`} style={{ width: `${hpPct}%` }} />
-            </div>
-            <div className="subtitle" style={{ margin: 0 }}>
-              HP {run.hero.hp}/{run.hero.maxHp}
-            </div>
+          <div className="garrison-hero-plaque">{run.hero.name}</div>
+          <div className="garrison-hero-portrait-rect">{HERO_PORTRAITS[run.hero.heroType]}</div>
+          <div className="garrison-relic-grid">
+            {Array.from({ length: RELIC_GRID_SLOTS }).map((_, i) => {
+              const r = run.relics[i];
+              return r ? (
+                <span key={r.id} className="garrison-relic-cell" title={`${r.name} — ${r.description}`}>
+                  {relicIcon(r.id)}
+                </span>
+              ) : (
+                <span key={`empty-relic-${i}`} className="garrison-relic-cell empty" />
+              );
+            })}
           </div>
         </div>
 
         <div className="garrison-bar-col garrison-bar-main">
-          <div className="garrison-bar-relics">
-            {run.relics.map((r) => (
-              <span key={r.id} className="relic-icon" title={`${r.name} — ${r.description}`}>
-                {relicIcon(r.id)}
-              </span>
-            ))}
-          </div>
           <div className="garrison-bar-army">
-            {run.army
-              .filter((s) => s.count > 0)
-              .map((s) => (
+            {Array.from({ length: MAX_ARMY_SLOTS }).map((_, i) => {
+              const s = armySlots[i];
+              if (!s) {
+                return (
+                  <div key={`empty-unit-${i}`} className="garrison-unit-cell empty">
+                    <div className="garrison-slot garrison-slot-empty">Empty</div>
+                  </div>
+                );
+              }
+              return (
                 <div key={s.stackId} className="garrison-unit-cell" onClick={() => setPopupStackId(s.stackId)} title={UNIT_DEFINITIONS[s.unitId].name}>
                   <div className="garrison-slot">
                     <span className="garrison-slot-icon">{UNIT_ICONS[s.unitId]}</span>
@@ -144,7 +152,8 @@ export function WorldMapScreen({ run, onMoveTo, onEnterCity, onOpenMenu, onSplit
                   </div>
                   <span className="garrison-slot-count-below">{s.count}</span>
                 </div>
-              ))}
+              );
+            })}
           </div>
         </div>
 

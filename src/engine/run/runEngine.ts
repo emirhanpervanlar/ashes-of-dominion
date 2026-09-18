@@ -14,7 +14,6 @@ import {
   LEVEL_SLOTS,
   LEVEL_UP_COST,
   addUnitsToArmy,
-  addUnitsToGarrison,
   canRecruitUnit,
   createInitialCityState,
   recruitCost,
@@ -474,13 +473,7 @@ function leaveMerchant(run: RunState, events: RunEvent[]): RunApplyResult {
   return { run, events };
 }
 
-function recruit(
-  run: RunState,
-  unitId: UnitId,
-  count: number,
-  destination: 'army' | 'garrison',
-  events: RunEvent[]
-): RunApplyResult {
+function recruit(run: RunState, unitId: UnitId, count: number, events: RunEvent[]): RunApplyResult {
   if (run.phase !== 'city') {
     reject(events, 'Not at the city.');
     return { run, events };
@@ -503,23 +496,15 @@ function recruit(
     return { run, events };
   }
 
-  if (destination === 'garrison') {
-    run.gold -= cost.gold;
-    run.food -= cost.food;
-    run.city.garrison = addUnitsToGarrison(run.city.garrison, unitId, count);
-    events.push({ type: 'UNITS_RECRUITED', unitId, count, destination: 'garrison' });
-    return { run, events };
-  }
-
   const updatedArmy = addUnitsToArmy(run.army, unitId, count);
   if (!updatedArmy) {
-    reject(events, 'Field army is full (6 stacks) and has no matching stack — recruit to the garrison instead.');
+    reject(events, 'Field army is full (6 stacks) and has no matching stack to merge into.');
     return { run, events };
   }
   run.gold -= cost.gold;
   run.food -= cost.food;
   run.army = updatedArmy;
-  events.push({ type: 'UNITS_RECRUITED', unitId, count, destination: 'army' });
+  events.push({ type: 'UNITS_RECRUITED', unitId, count });
   return { run, events };
 }
 
@@ -618,28 +603,6 @@ function chooseDoctrine(run: RunState, doctrineId: string, events: RunEvent[]): 
   return { run, events };
 }
 
-function transferGarrisonToArmy(run: RunState, stackId: string, events: RunEvent[]): RunApplyResult {
-  if (run.phase !== 'city') {
-    reject(events, 'Not at the city.');
-    return { run, events };
-  }
-  const idx = run.city.garrison.findIndex((s) => s.stackId === stackId && s.count > 0);
-  if (idx === -1) {
-    reject(events, 'That garrison stack does not exist.');
-    return { run, events };
-  }
-  const stack = run.city.garrison[idx]!;
-  const updatedArmy = addUnitsToArmy(run.army, stack.unitId, stack.count);
-  if (!updatedArmy) {
-    reject(events, 'Field army is full (6 stacks) and has no matching stack to merge into.');
-    return { run, events };
-  }
-  run.army = updatedArmy;
-  run.city.garrison = run.city.garrison.filter((_, i) => i !== idx);
-  events.push({ type: 'GARRISON_TRANSFERRED', unitId: stack.unitId, count: stack.count });
-  return { run, events };
-}
-
 function leaveCity(run: RunState, events: RunEvent[]): RunApplyResult {
   if (run.phase !== 'city') {
     reject(events, 'Not at the city.');
@@ -692,7 +655,7 @@ export function applyRunAction(run: RunState, action: RunAction): RunApplyResult
       result = enterCity(working, events);
       break;
     case 'RECRUIT':
-      result = recruit(working, action.unitId, action.count, action.destination, events);
+      result = recruit(working, action.unitId, action.count, events);
       break;
     case 'BUILD_BUILDING':
       result = buildBuilding(working, action.buildingId, events);
@@ -702,9 +665,6 @@ export function applyRunAction(run: RunState, action: RunAction): RunApplyResult
       break;
     case 'CHOOSE_DOCTRINE':
       result = chooseDoctrine(working, action.doctrineId, events);
-      break;
-    case 'TRANSFER_GARRISON_TO_ARMY':
-      result = transferGarrisonToArmy(working, action.stackId, events);
       break;
     case 'LEAVE_CITY':
       result = leaveCity(working, events);

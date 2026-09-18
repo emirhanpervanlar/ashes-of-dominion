@@ -69,7 +69,7 @@ describe('recruitment', () => {
     run = { ...run, gold: 200, food: 200 };
     const swordsmanBefore = run.army.find((s) => s.unitId === 'swordsman')!.count;
 
-    const result = applyRunAction(run, { type: 'RECRUIT', unitId: 'swordsman', count: 10, destination: 'army' });
+    const result = applyRunAction(run, { type: 'RECRUIT', unitId: 'swordsman', count: 10 });
     expect(result.events.some((e) => e.type === 'ACTION_REJECTED')).toBe(false);
     const swordsmanAfter = result.run.army.find((s) => s.unitId === 'swordsman')!.count;
     expect(swordsmanAfter).toBe(swordsmanBefore + 10);
@@ -80,16 +80,17 @@ describe('recruitment', () => {
   it('rejects recruiting without enough Gold', () => {
     let run = reachCity(5);
     run = { ...run, gold: 0, food: 200 };
-    const result = applyRunAction(run, { type: 'RECRUIT', unitId: 'swordsman', count: 5, destination: 'army' });
+    const result = applyRunAction(run, { type: 'RECRUIT', unitId: 'swordsman', count: 5 });
     expect(result.events.some((e) => e.type === 'ACTION_REJECTED')).toBe(true);
   });
 
-  it('routes recruits to the garrison when requested, never touching the field army', () => {
+  it('recruiting a unit type not already in the army adds a new stack', () => {
     let run = reachCity(6);
     run = { ...run, gold: 200, food: 200 };
-    const result = applyRunAction(run, { type: 'RECRUIT', unitId: 'swordsman', count: 5, destination: 'garrison' });
-    expect(result.run.city.garrison.some((s) => s.unitId === 'swordsman' && s.count === 5)).toBe(true);
-    expect(result.run.army.find((s) => s.unitId === 'swordsman')!.count).toBe(run.army.find((s) => s.unitId === 'swordsman')!.count);
+    expect(run.army.some((s) => s.unitId === 'priest')).toBe(false);
+    const result = applyRunAction(run, { type: 'RECRUIT', unitId: 'priest', count: 5 });
+    expect(result.events.some((e) => e.type === 'ACTION_REJECTED')).toBe(false);
+    expect(result.run.army.find((s) => s.unitId === 'priest')?.count).toBe(5);
   });
 });
 
@@ -149,20 +150,6 @@ describe('city leveling', () => {
     run = { ...run, gold: 0, food: 200 };
     const result = applyRunAction(run, { type: 'UPGRADE_CITY' });
     expect(result.events.some((e) => e.type === 'ACTION_REJECTED')).toBe(true);
-  });
-});
-
-describe('garrison transfer', () => {
-  it('transfers a garrison stack into the field army', () => {
-    let run = reachCity(13);
-    run = { ...run, gold: 200, food: 200 };
-    const recruited = applyRunAction(run, { type: 'RECRUIT', unitId: 'priest', count: 4, destination: 'garrison' });
-    const stack = recruited.run.city.garrison[0]!;
-
-    const transferred = applyRunAction(recruited.run, { type: 'TRANSFER_GARRISON_TO_ARMY', stackId: stack.stackId });
-    expect(transferred.run.city.garrison).toHaveLength(0);
-    const priestStack = transferred.run.army.find((s) => s.unitId === 'priest')!;
-    expect(priestStack.count).toBeGreaterThanOrEqual(4);
   });
 });
 

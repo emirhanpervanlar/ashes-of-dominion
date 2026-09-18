@@ -1,34 +1,41 @@
 import { useEffect, useState } from 'react';
 import { BUILDING_DEFINITIONS, DOCTRINE_DEFINITIONS, LEVEL_SLOTS, LEVEL_UP_COST, canRecruitUnit, recruitCost } from '../engine/run/index.js';
-import type { CityState } from '../engine/run/index.js';
+import type { CityState, RunEvent } from '../engine/run/index.js';
 import { UNIT_DEFINITIONS } from '../engine/index.js';
-import type { ArmyStack, UnitId } from '../engine/index.js';
+import type { ArmyStack, HeroId, RelicDefinition, UnitId } from '../engine/index.js';
 import { UNIT_ICONS } from './unitIcons.js';
 import { UNIT_ROLE_ICONS } from './unitShapes.js';
+import { HERO_PORTRAITS } from './heroIcons.js';
+import { relicIcon } from './relicIcons.js';
+import { HistoryDrawer } from './HistoryDrawer.js';
+import { describeRunEvent } from './runEventText.js';
 
 interface Props {
   city: CityState;
   gold: number;
   food: number;
-  hero: { name: string; hp: number; maxHp: number };
+  hero: { name: string; heroType: HeroId; hp: number; maxHp: number };
   army: ArmyStack[];
-  onRecruit: (unitId: UnitId, count: number, destination: 'army' | 'garrison') => void;
+  relics: RelicDefinition[];
+  log: RunEvent[];
+  onRecruit: (unitId: UnitId, count: number) => void;
   onBuild: (buildingId: string) => void;
   onUpgradeCity: () => void;
   onChooseDoctrine: (doctrineId: string) => void;
-  onTransferToArmy: (stackId: string) => void;
+  onOpenMenu: () => void;
   onLeave: () => void;
 }
 
 const RECRUITABLE: UnitId[] = ['swordsman', 'archer', 'knight', 'priest'];
+const MAX_ARMY_SLOTS = 6;
+const RELIC_GRID_SLOTS = 15;
 
-type Panel = 'townhall' | 'barracks' | 'garrison' | 'temple' | string | null;
+type Panel = 'townhall' | 'barracks' | 'temple' | string | null;
 
 /** Hand-placed scatter coordinates for the town-scene hotspots. */
 const HOTSPOTS: Record<string, { top: string; left: string }> = {
   townhall: { top: '18%', left: '50%' },
   barracks: { top: '38%', left: '18%' },
-  garrison: { top: '34%', left: '80%' },
   temple: { top: '55%', left: '50%' },
   market: { top: '58%', left: '15%' },
   gold_mine: { top: '60%', left: '85%' },
@@ -39,27 +46,17 @@ const HOTSPOTS: Record<string, { top: string; left: string }> = {
   shrine: { top: '72%', left: '50%' },
 };
 
-export function CityScreen({
-  city,
-  gold,
-  food,
-  hero,
-  army,
-  onRecruit,
-  onBuild,
-  onUpgradeCity,
-  onChooseDoctrine,
-  onTransferToArmy,
-  onLeave,
-}: Props) {
+export function CityScreen({ city, gold, food, hero, army, relics, log, onRecruit, onBuild, onUpgradeCity, onChooseDoctrine, onOpenMenu, onLeave }: Props) {
   const [panel, setPanel] = useState<Panel>(null);
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [recentRecruit, setRecentRecruit] = useState<{ unitId: UnitId; amount: number } | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const armyFull = army.filter((s) => s.count > 0).length >= 6;
   const nextLevel = city.level < 3 ? ((city.level + 1) as 2 | 3) : null;
   const slotsUsed = city.buildings.length;
   const slotsMax = LEVEL_SLOTS[city.level];
-  const garrisonAlive = city.garrison.filter((s) => s.count > 0);
+  const armySlots = army.filter((s) => s.count > 0);
+  const historyLines = log.map(describeRunEvent).filter((line): line is string => line !== null);
 
   useEffect(() => {
     if (!recentRecruit) return;
@@ -71,8 +68,8 @@ export function CityScreen({
     setPanel((p) => (p === id ? null : id));
   }
 
-  function recruitToArmy(unitId: UnitId, count: number) {
-    onRecruit(unitId, count, 'army');
+  function recruit(unitId: UnitId, count: number) {
+    onRecruit(unitId, count);
     setRecentRecruit({ unitId, amount: count });
   }
 
@@ -82,19 +79,18 @@ export function CityScreen({
         <div className="th-skyline" />
         <div className="th-scene-label">Ironhold</div>
 
-        {(['townhall', 'barracks', 'garrison', 'temple'] as const).map((id) => (
+        {(['townhall', 'barracks', 'temple'] as const).map((id) => (
           <div
             key={id}
             className={`th-hotspot${panel === id ? ' active' : ''}`}
             style={HOTSPOTS[id]}
             onClick={() => togglePanel(id)}
           >
-            <span className="th-hotspot-icon">{id === 'townhall' ? '🏛️' : id === 'barracks' ? '⚔️' : id === 'garrison' ? '🏯' : '⛩️'}</span>
-            <span className="th-hotspot-name">{id === 'townhall' ? 'Town Hall' : id === 'barracks' ? 'Barracks' : id === 'garrison' ? 'Fort' : 'Temple'}</span>
+            <span className="th-hotspot-icon">{id === 'townhall' ? '🏛️' : id === 'barracks' ? '⚔️' : '⛩️'}</span>
+            <span className="th-hotspot-name">{id === 'townhall' ? 'Town Hall' : id === 'barracks' ? 'Barracks' : 'Temple'}</span>
             <span className="th-hotspot-sub">
               {id === 'townhall' && 'Level up'}
               {id === 'barracks' && 'Recruit'}
-              {id === 'garrison' && `Garrison (${garrisonAlive.length})`}
               {id === 'temple' && (city.doctrine ? DOCTRINE_DEFINITIONS[city.doctrine]?.name : 'Doctrine')}
             </span>
           </div>
@@ -174,11 +170,8 @@ export function CityScreen({
                               style={{ width: 50, marginTop: 4 }}
                             />
                             <div className="toolbar" style={{ marginTop: 4, marginBottom: 0 }}>
-                              <button disabled={!affordable || armyFull} onClick={() => recruitToArmy(unitId, count)}>
-                                To Army
-                              </button>
-                              <button disabled={!affordable} onClick={() => onRecruit(unitId, count, 'garrison')}>
-                                To Garrison
+                              <button disabled={!affordable || armyFull} onClick={() => recruit(unitId, count)}>
+                                Recruit
                               </button>
                             </div>
                           </>
@@ -186,27 +179,6 @@ export function CityScreen({
                       </div>
                     );
                   })}
-                </div>
-              </>
-            )}
-
-            {panel === 'garrison' && (
-              <>
-                <h3>🏯 Fort — Garrison</h3>
-                <div className="hand" style={{ flexWrap: 'wrap' }}>
-                  {garrisonAlive.length === 0 && <div className="subtitle">Empty.</div>}
-                  {garrisonAlive.map((stack) => (
-                    <div key={stack.stackId} className="card-tile" style={{ minWidth: 160 }}>
-                      <div className="card-name">
-                        <span>
-                          {UNIT_ICONS[stack.unitId]} {UNIT_DEFINITIONS[stack.unitId].name} ×{stack.count}
-                        </span>
-                      </div>
-                      <button disabled={armyFull} onClick={() => onTransferToArmy(stack.stackId)}>
-                        Move to Army
-                      </button>
-                    </div>
-                  ))}
                 </div>
               </>
             )}
@@ -261,45 +233,72 @@ export function CityScreen({
         </>
       )}
 
-      <div className="th-infobar">
-        <div className="th-hero-block">
-          <div className="hero-portrait">🤴</div>
-          <div className="garrison-hero-info">
-            <strong>{hero.name}</strong>
-            <div className="subtitle" style={{ margin: 0 }}>
-              HP {hero.hp}/{hero.maxHp}
-            </div>
-          </div>
-        </div>
-
-        <div className="th-army-row">
-          {army
-            .filter((s) => s.count > 0)
-            .map((s) => (
-              <div key={s.stackId} className="garrison-slot" title={UNIT_DEFINITIONS[s.unitId].name}>
-                <span className="garrison-slot-icon">{UNIT_ICONS[s.unitId]}</span>
-                <span className="garrison-slot-role">{UNIT_ROLE_ICONS[s.unitId]}</span>
-                <span className="garrison-slot-count">{s.count}</span>
-                {recentRecruit?.unitId === s.unitId && <span className="recruit-flourish">+{recentRecruit.amount}</span>}
-              </div>
-            ))}
-        </div>
-
-        <div className="th-resource-row">
-          <div className="garrison-resource-chip">
+      <div className="garrison-bar">
+        <div className="garrison-bar-col garrison-bar-resources">
+          <div className="garrison-bar-stat">
             <span>💰</span> {gold}
           </div>
-          <div className="garrison-resource-chip">
+          <div className="garrison-bar-stat">
             <span>🌾</span> {food}
           </div>
-          <div className="garrison-resource-chip">
+          <div className="garrison-bar-stat">
             <span>🏗️</span> {slotsUsed}/{slotsMax}
           </div>
-          <div className="garrison-resource-chip">
-            <span>👑</span> Lvl {city.level}
+        </div>
+
+        <div className="garrison-bar-col garrison-bar-hero">
+          <div className="garrison-hero-plaque">{hero.name}</div>
+          <div className="garrison-hero-portrait-rect">{HERO_PORTRAITS[hero.heroType]}</div>
+          <div className="garrison-relic-grid">
+            {Array.from({ length: RELIC_GRID_SLOTS }).map((_, i) => {
+              const r = relics[i];
+              return r ? (
+                <span key={r.id} className="garrison-relic-cell" title={`${r.name} — ${r.description}`}>
+                  {relicIcon(r.id)}
+                </span>
+              ) : (
+                <span key={`empty-relic-${i}`} className="garrison-relic-cell empty" />
+              );
+            })}
           </div>
         </div>
+
+        <div className="garrison-bar-col garrison-bar-main">
+          <div className="garrison-bar-army">
+            {Array.from({ length: MAX_ARMY_SLOTS }).map((_, i) => {
+              const s = armySlots[i];
+              if (!s) {
+                return (
+                  <div key={`empty-unit-${i}`} className="garrison-unit-cell empty">
+                    <div className="garrison-slot garrison-slot-empty">Empty</div>
+                  </div>
+                );
+              }
+              return (
+                <div key={s.stackId} className="garrison-unit-cell" title={UNIT_DEFINITIONS[s.unitId].name}>
+                  <div className="garrison-slot">
+                    <span className="garrison-slot-icon">{UNIT_ICONS[s.unitId]}</span>
+                    <span className="garrison-slot-role">{UNIT_ROLE_ICONS[s.unitId]}</span>
+                    {recentRecruit?.unitId === s.unitId && <span className="recruit-flourish">+{recentRecruit.amount}</span>}
+                  </div>
+                  <span className="garrison-slot-count-below">{s.count}</span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="garrison-bar-col garrison-bar-actions">
+          <button className="garrison-bar-btn" onClick={() => setHistoryOpen(true)} title="History">
+            📜
+          </button>
+          <button className="garrison-bar-btn" onClick={onOpenMenu} title="Menu">
+            ☰
+          </button>
+        </div>
       </div>
+
+      <HistoryDrawer open={historyOpen} onClose={() => setHistoryOpen(false)} title="History" lines={historyLines} />
 
       <div className="merchant-leave-ribbon" onClick={onLeave}>
         Leave

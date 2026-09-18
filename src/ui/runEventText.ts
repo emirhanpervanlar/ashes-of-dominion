@@ -48,15 +48,13 @@ export function describeRunEvent(event: RunEvent): string | null {
     case 'ITEM_PURCHASED':
       return `Bought ${cardName(event.itemId) !== event.itemId ? cardName(event.itemId) : relicName(event.itemId)} for ${event.price}g.`;
     case 'UNITS_RECRUITED':
-      return `Recruited ${event.count} ${unitName(event.unitId)} to the ${event.destination}.`;
+      return `Recruited ${event.count} ${unitName(event.unitId)} to the army.`;
     case 'BUILDING_BUILT':
       return `Built ${event.buildingId.replace(/_/g, ' ')}.`;
     case 'CITY_LEVELED_UP':
       return `City reached Level ${event.level}.`;
     case 'DOCTRINE_CHOSEN':
       return `Chose ${event.doctrineId.replace(/_/g, ' ')} Doctrine.`;
-    case 'GARRISON_TRANSFERRED':
-      return `Moved ${event.count} ${unitName(event.unitId)} from Garrison to the army.`;
     case 'RUN_COMPLETE':
       return 'Run complete — victory!';
     case 'ACTION_REJECTED':

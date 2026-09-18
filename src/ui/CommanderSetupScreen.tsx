@@ -3,17 +3,12 @@ import { HERO_DEFINITIONS } from '../engine/index.js';
 import type { HeroId } from '../engine/index.js';
 import { STARTING_RELIC_DEFINITIONS } from '../engine/run/index.js';
 import { relicIcon } from './relicIcons.js';
+import { HERO_PORTRAITS } from './heroIcons.js';
 
 interface Props {
   onBack: () => void;
   onBegin: (heroId: HeroId, heroName: string, relicId: string) => void;
 }
-
-const HERO_PORTRAITS: Record<HeroId, string> = {
-  warlord: '🤴',
-  rogue: '🗡️',
-  mage: '🧙',
-};
 
 const HERO_TAGLINES: Record<HeroId, string> = {
   warlord: 'Elite frontline army. Strength, defense, command.',

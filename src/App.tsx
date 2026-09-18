@@ -606,6 +606,13 @@ export default function App() {
       {pauseMenuOverlay}
     </>
   );
+  // Road and Battle have their own in-layout Menu button, so the floating corner one is redundant there.
+  const gameChromeNoMenuBtn = (
+    <>
+      {toastLayer}
+      {pauseMenuOverlay}
+    </>
+  );
 
   if (run.phase === 'choosing_starting_relic') {
     return (
@@ -645,7 +652,7 @@ export default function App() {
   if (run.phase === 'on_map') {
     return (
       <>
-        {gameChrome}
+        {gameChromeNoMenuBtn}
         <WorldMapScreen
           run={run}
           onMoveTo={(nodeId) => dispatchRun({ type: 'MOVE_TO', nodeId })}
@@ -661,18 +668,20 @@ export default function App() {
   if (run.phase === 'city') {
     return (
       <>
-        {gameChrome}
+        {gameChromeNoMenuBtn}
         <CityScreen
           city={run.city}
           gold={run.gold}
           food={run.food}
           hero={run.hero}
           army={run.army}
-          onRecruit={(unitId, count, destination) => dispatchRun({ type: 'RECRUIT', unitId, count, destination })}
+          relics={run.relics}
+          log={run.log}
+          onRecruit={(unitId, count) => dispatchRun({ type: 'RECRUIT', unitId, count })}
           onBuild={(buildingId) => dispatchRun({ type: 'BUILD_BUILDING', buildingId })}
           onUpgradeCity={() => dispatchRun({ type: 'UPGRADE_CITY' })}
           onChooseDoctrine={(doctrineId) => dispatchRun({ type: 'CHOOSE_DOCTRINE', doctrineId })}
-          onTransferToArmy={(stackId) => dispatchRun({ type: 'TRANSFER_GARRISON_TO_ARMY', stackId })}
+          onOpenMenu={() => setMenuOpen(true)}
           onLeave={() => dispatchRun({ type: 'LEAVE_CITY' })}
         />
       </>
@@ -718,7 +727,7 @@ export default function App() {
 
   return (
     <div className="disciples-frame">
-      {gameChrome}
+      {gameChromeNoMenuBtn}
 
       <span className="frame-ornament corner-tl" aria-hidden="true">
         🐉
@@ -904,11 +913,11 @@ export default function App() {
         </div>
 
         <div className="frame-round-buttons">
-          <button className="round-btn" onClick={() => setHistoryOpen(true)} title="Battle Log">
-            📜
-          </button>
           <button className="round-btn round-btn-main" disabled={!canAct} onClick={handleEndTurn} title="End Turn">
             ⚔️
+          </button>
+          <button className="round-btn" onClick={() => setHistoryOpen(true)} title="Battle Log">
+            📜
           </button>
           <button className="round-btn" onClick={() => setMenuOpen(true)} title="Menu">
             ⚙️

@@ -14,7 +14,6 @@ export interface CityBuildingDefinition {
 export interface CityState {
   level: 1 | 2 | 3;
   buildings: string[];
-  garrison: ArmyStack[];
   doctrine: string | null;
 }
 
@@ -127,7 +126,7 @@ export const RECRUIT_COSTS: Partial<Record<UnitId, { gold: number; food: number 
 };
 
 export function createInitialCityState(): CityState {
-  return { level: 1, buildings: [], garrison: [], doctrine: null };
+  return { level: 1, buildings: [], doctrine: null };
 }
 
 export function canRecruitUnit(_city: CityState, unitId: UnitId): boolean {
@@ -156,7 +155,7 @@ function findFreePosition(army: ArmyStack[]): Position | null {
  * Merges into an existing matching stack (blending veterancy by a weighted
  * average — deterministic per AGENT.md §30), or creates a new stack in a
  * free slot. Returns null if there's no matching stack AND no free slot
- * (caller should route the recruits to the garrison instead).
+ * (the field army is capped at 6 stacks).
  */
 export function addUnitsToArmy(army: ArmyStack[], unitId: UnitId, count: number): ArmyStack[] | null {
   const existingIdx = army.findIndex((s) => s.unitId === unitId && s.count > 0);
@@ -203,45 +202,3 @@ export function addUnitsToArmy(army: ArmyStack[], unitId: UnitId, count: number)
   return [...army, newStack];
 }
 
-/** Same merge rule as addUnitsToArmy, applied to the garrison instead (no 6-slot limit). */
-export function addUnitsToGarrison(garrison: ArmyStack[], unitId: UnitId, count: number): ArmyStack[] {
-  const existingIdx = garrison.findIndex((s) => s.unitId === unitId && s.count > 0);
-  const hpPerUnit = UNIT_DEFINITIONS[unitId].hpPerUnit;
-
-  if (existingIdx >= 0) {
-    const existing = garrison[existingIdx]!;
-    const newCount = existing.count + count;
-    return garrison.map((s, i) =>
-      i === existingIdx
-        ? {
-            ...s,
-            count: newCount,
-            currentHp: s.currentHp + count * hpPerUnit,
-            maxHp: s.maxHp + count * hpPerUnit,
-            startingCount: s.startingCount + count,
-            preBattleMaxCount: s.preBattleMaxCount + count,
-          }
-        : s
-    );
-  }
-
-  const maxHp = count * hpPerUnit;
-  const newStack: ArmyStack = {
-    stackId: `garrison_${unitId}_${garrison.length}`,
-    unitId,
-    side: 'player',
-    position: 1,
-    count,
-    currentHp: maxHp,
-    maxHp,
-    startingCount: count,
-    preBattleMaxCount: count,
-    morale: 100,
-    veterancy: 0,
-    block: 0,
-    statuses: [],
-    flags: {},
-    actedThisTurn: false,
-  };
-  return [...garrison, newStack];
-}

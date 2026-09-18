@@ -43,11 +43,10 @@ export type RunEvent =
   | { type: 'REWARD_SKIPPED' }
   | { type: 'EVENT_RESOLVED'; eventId: string; optionId: string; outcome: string }
   | { type: 'ITEM_PURCHASED'; itemId: string; price: number }
-  | { type: 'UNITS_RECRUITED'; unitId: string; count: number; destination: 'army' | 'garrison' }
+  | { type: 'UNITS_RECRUITED'; unitId: string; count: number }
   | { type: 'BUILDING_BUILT'; buildingId: string }
   | { type: 'CITY_LEVELED_UP'; level: number }
   | { type: 'DOCTRINE_CHOSEN'; doctrineId: string }
-  | { type: 'GARRISON_TRANSFERRED'; unitId: string; count: number }
   | { type: 'RUN_COMPLETE' }
   | { type: 'ACTION_REJECTED'; reason: string };
 
@@ -89,11 +88,10 @@ export type RunAction =
   | { type: 'BUY_RELIC'; relicId: string }
   | { type: 'LEAVE_MERCHANT' }
   | { type: 'ENTER_CITY' }
-  | { type: 'RECRUIT'; unitId: UnitId; count: number; destination: 'army' | 'garrison' }
+  | { type: 'RECRUIT'; unitId: UnitId; count: number }
   | { type: 'BUILD_BUILDING'; buildingId: string }
   | { type: 'UPGRADE_CITY' }
   | { type: 'CHOOSE_DOCTRINE'; doctrineId: string }
-  | { type: 'TRANSFER_GARRISON_TO_ARMY'; stackId: string }
   | { type: 'LEAVE_CITY' }
   | { type: 'SPLIT_STACK'; stackId: string; splitCount: number }
   | { type: 'MERGE_STACKS'; stackIdA: string; stackIdB: string };

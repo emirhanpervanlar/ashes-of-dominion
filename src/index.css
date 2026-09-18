@@ -903,17 +903,23 @@ button.primary {
 
 /* ============ Event screen ============ */
 
-.event-screen {
-  max-width: 560px;
-  margin: 30px auto 0;
-  text-align: center;
+.event-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 55;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 20px;
+  background: radial-gradient(circle at 50% 40%, #241f18 0%, #0f0d0a 75%);
 }
 
-.question-mark-badge {
+.event-badge {
   width: 64px;
   height: 64px;
   border-radius: 50%;
-  margin: 0 auto 14px;
   background: radial-gradient(circle at 35% 30%, #4a3a1a, #241e14);
   border: 3px solid var(--accent);
   display: flex;
@@ -924,18 +930,62 @@ button.primary {
   color: var(--accent);
 }
 
+.event-banner {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--accent);
+  letter-spacing: 0.5px;
+  text-align: center;
+  text-shadow: 0 2px 6px #000c;
+  padding: 8px 30px;
+  border: 2px solid #6b5a3a;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #2a2116, #1a140c);
+}
+
+.event-description {
+  max-width: 480px;
+  text-align: center;
+  color: var(--text-dim);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
 .event-options {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 10px;
-  margin-top: 20px;
+  margin-top: 10px;
+  width: 100%;
 }
 
-.event-options .card-tile {
-  width: 320px;
+.event-option-card {
+  width: 380px;
+  max-width: 90vw;
   cursor: pointer;
   text-align: center;
+  background: linear-gradient(160deg, #23262f, #14161c);
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 18px;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.event-option-card:hover {
+  border-color: var(--accent);
+  transform: translateY(-3px);
+}
+
+.event-option-label {
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.event-option-desc {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--text-dim);
 }
 
 /* ============ Road (world map) — Heroes 3-style garrison frame ============ */
@@ -961,18 +1011,14 @@ button.primary {
   padding: 40px 22px 20px;
 }
 
-.garrison-hero-info {
-  min-width: 0;
-}
-
 .garrison-bar {
   flex-shrink: 0;
-  height: 104px;
+  height: 200px;
   display: flex;
   align-items: stretch;
   background: linear-gradient(180deg, #3a2318, #180f09);
   border-top: 3px solid #8a3a2a;
-  padding: 0 16px;
+  padding: 10px 16px;
   gap: 16px;
 }
 
@@ -985,7 +1031,7 @@ button.primary {
 .garrison-bar-resources {
   width: 96px;
   flex-shrink: 0;
-  gap: 4px;
+  justify-content: space-evenly;
   border-right: 2px solid #6b3a2a;
   padding-right: 16px;
 }
@@ -1000,33 +1046,76 @@ button.primary {
 }
 
 .garrison-bar-hero {
-  flex-direction: row;
   align-items: center;
-  gap: 10px;
-  width: 170px;
+  justify-content: flex-start;
+  gap: 6px;
+  width: 176px;
   flex-shrink: 0;
   border-right: 2px solid #6b3a2a;
   padding-right: 16px;
 }
 
+.garrison-hero-plaque {
+  width: 100%;
+  text-align: center;
+  font-weight: 800;
+  font-size: 13px;
+  color: #fff;
+  background: linear-gradient(90deg, transparent, #8a3a2a, transparent);
+  padding: 4px 2px;
+  border-radius: 4px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.garrison-hero-portrait-rect {
+  width: 100%;
+  height: 56px;
+  border-radius: 8px;
+  background: radial-gradient(circle at 35% 30%, #4a2e1e, #1a0f08);
+  border: 2px solid #8a5a3a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 30px;
+  box-shadow: inset 0 0 10px #000a;
+  flex-shrink: 0;
+}
+
+.garrison-relic-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  gap: 3px;
+  width: 100%;
+}
+
+.garrison-relic-cell {
+  aspect-ratio: 1;
+  border-radius: 4px;
+  background: #1a0f08;
+  border: 1px solid #8a5a3a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+}
+
+.garrison-relic-cell.empty {
+  border-style: dashed;
+  opacity: 0.4;
+}
+
 .garrison-bar-main {
   flex: 1;
   min-width: 0;
-  gap: 6px;
-}
-
-.garrison-bar-relics {
-  display: flex;
-  gap: 5px;
-  flex-wrap: wrap;
-  min-height: 18px;
-  max-height: 22px;
-  overflow: hidden;
+  justify-content: center;
 }
 
 .garrison-bar-army {
   display: flex;
-  gap: 10px;
+  gap: 14px;
   align-items: flex-start;
   overflow-x: auto;
 }
@@ -1035,31 +1124,37 @@ button.primary {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 3px;
+  gap: 4px;
   cursor: pointer;
   flex-shrink: 0;
 }
 
+.garrison-unit-cell.empty {
+  cursor: default;
+}
+
 .garrison-slot-count-below {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 800;
   color: var(--accent);
 }
 
 .garrison-bar-actions {
-  width: 44px;
+  width: 70px;
   flex-shrink: 0;
-  gap: 4px;
-  padding: 14px 0;
+  gap: 8px;
+  align-items: center;
 }
 
 .garrison-bar-btn {
-  flex: 1;
+  width: 60px;
+  height: 46px;
+  flex: none;
   background: linear-gradient(180deg, #4a2e1e, #1a0f08);
   border: 2px solid #8a5a3a;
   border-radius: 6px;
   color: var(--text);
-  font-size: 15px;
+  font-size: 16px;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -1073,15 +1168,15 @@ button.primary {
 
 .garrison-slot {
   position: relative;
-  width: 52px;
-  height: 52px;
-  border-radius: 6px;
+  width: 150px;
+  height: 150px;
+  border-radius: 8px;
   background: radial-gradient(circle at 35% 30%, #4a2e1e, #1a0f08);
   border: 2px solid #8a5a3a;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 24px;
+  font-size: 64px;
   cursor: pointer;
   box-shadow: inset 0 0 6px #000a;
 }
@@ -1090,44 +1185,30 @@ button.primary {
   border-color: var(--accent);
 }
 
+.garrison-slot.garrison-slot-empty {
+  border-style: dashed;
+  background: transparent;
+  opacity: 0.55;
+  font-size: 14px;
+  font-weight: 700;
+  color: #d9b98a;
+  cursor: default;
+  box-shadow: none;
+}
+
 .garrison-slot-role {
   position: absolute;
-  top: -6px;
-  left: -6px;
-  font-size: 10px;
+  top: -8px;
+  left: -8px;
+  font-size: 13px;
   background: #1a0f08;
   border-radius: 50%;
   border: 1px solid #8a5a3a;
-  width: 16px;
-  height: 16px;
+  width: 24px;
+  height: 24px;
   display: flex;
   align-items: center;
   justify-content: center;
-}
-
-.garrison-slot-count {
-  position: absolute;
-  bottom: -6px;
-  right: -6px;
-  font-size: 10px;
-  font-weight: 800;
-  background: #1a0f08;
-  border: 1px solid #8a5a3a;
-  border-radius: 4px;
-  padding: 0 3px;
-  color: var(--accent);
-}
-
-.garrison-resource-chip {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 14px;
-  font-weight: 700;
-  background: linear-gradient(180deg, #3a2318, #201209);
-  border: 2px solid #8a3a2a;
-  border-radius: 999px;
-  padding: 6px 16px;
 }
 
 .path-progress {
@@ -1502,38 +1583,10 @@ button.primary {
   font-size: 16px;
 }
 
-.th-infobar {
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  gap: 24px;
-  /* Extra left padding keeps hero info clear of the fixed Leave ribbon. */
-  padding: 14px 30px 14px 150px;
-  background: linear-gradient(180deg, #3a2318, #180f09);
-  border-top: 3px solid #8a3a2a;
-}
-
-.th-hero-block {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-shrink: 0;
-  padding-right: 20px;
-  border-right: 2px solid #6b3a2a;
-}
-
-.th-army-row {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  flex: 1;
-}
-
-.th-resource-row {
-  display: flex;
-  gap: 10px;
-  flex-shrink: 0;
-  flex-wrap: wrap;
+/* City reuses .garrison-bar (see the Road screen's rules) but also has a fixed
+   Leave ribbon over the bottom-left corner, so its first column needs clearance. */
+.th-frame .garrison-bar {
+  padding-left: 150px;
 }
 
 .recruit-flourish {
@@ -1940,17 +1993,17 @@ button.primary {
 
 .frame-round-buttons {
   display: flex;
-  gap: 10px;
+  flex-direction: column;
+  gap: 6px;
   flex-shrink: 0;
-  padding-bottom: 6px;
 }
 
 .round-btn {
-  width: 46px;
-  height: 46px;
-  border-radius: 50%;
+  width: 64px;
+  height: 40px;
+  border-radius: 8px;
   background: radial-gradient(circle at 35% 30%, #8a7038, #4a3b20);
-  border: 3px solid #241c10;
+  border: 2px solid #241c10;
   box-shadow: 0 3px 8px #000a, inset 0 1px 2px #fff5;
   color: #fff;
   font-size: 18px;
@@ -1959,6 +2012,7 @@ button.primary {
   justify-content: center;
   cursor: pointer;
   padding: 0;
+  flex-shrink: 0;
 }
 
 .round-btn:hover:not(:disabled) {
@@ -1972,9 +2026,8 @@ button.primary {
 }
 
 .round-btn-main {
-  width: 58px;
-  height: 58px;
-  font-size: 22px;
+  height: 46px;
+  font-size: 20px;
   background: radial-gradient(circle at 35% 30%, var(--accent), #8a6a20);
   border-color: #2e2410;
 }
