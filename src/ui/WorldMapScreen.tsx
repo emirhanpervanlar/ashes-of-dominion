@@ -2,10 +2,11 @@ import { useState } from 'react';
 import { UNIT_DEFINITIONS } from '../engine/index.js';
 import type { RunState } from '../engine/run/index.js';
 import type { MapNode } from '../engine/run/index.js';
-import { HistoryPanel } from './HistoryPanel.js';
+import { HistoryDrawer } from './HistoryDrawer.js';
 import { describeRunEvent } from './runEventText.js';
 import { relicIcon } from './relicIcons.js';
 import { UNIT_ICONS } from './unitIcons.js';
+import { UNIT_ROLE_ICONS } from './unitShapes.js';
 import { UnitPopup } from './UnitPopup.js';
 
 interface Props {
@@ -28,7 +29,7 @@ const NODE_LABELS: Record<MapNode['type'], string> = {
   boss: 'Boss',
 };
 
-const NODE_ICONS: Record<MapNode['type'], string> = {
+const NODE_BADGES: Record<MapNode['type'], string> = {
   road: '·',
   battle: '⚔️',
   elite_battle: '☠️',
@@ -52,6 +53,7 @@ const NODE_ACCENTS: Record<MapNode['type'], string> = {
 
 export function WorldMapScreen({ run, onMoveTo, onEnterCity, onNewRun, onSplitStack, onMergeStacks }: Props) {
   const [popupStackId, setPopupStackId] = useState<string | null>(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const popupStack = popupStackId ? run.army.find((s) => s.stackId === popupStackId && s.count > 0) ?? null : null;
   const current = run.worldMap.nodes.find((n) => n.id === run.worldMap.currentNodeId)!;
   const layerCount = Math.max(...run.worldMap.nodes.map((n) => n.layer)) + 1;
@@ -62,93 +64,69 @@ export function WorldMapScreen({ run, onMoveTo, onEnterCity, onNewRun, onSplitSt
   const hpPct = Math.max(0, Math.min(100, (run.hero.hp / run.hero.maxHp) * 100));
 
   return (
-    <div>
-      <h1>Ashes of Dominion — World Map</h1>
-
-      <div className="toolbar">
-        <button onClick={onNewRun}>New Run</button>
-        {current.type === 'city' && (
-          <button className="primary" onClick={onEnterCity}>
-            Enter City
-          </button>
-        )}
+    <div className="garrison-frame">
+      <div className="garrison-topbar">
+        <div className="garrison-title">Ashes of Dominion — The Road</div>
+        <div className="garrison-topbar-actions">
+          <button onClick={onNewRun}>New Run</button>
+          {current.type === 'city' && (
+            <button className="primary" onClick={onEnterCity}>
+              Enter City
+            </button>
+          )}
+        </div>
       </div>
 
-      <div className="road-layout">
-        <div className="road-sidebar-left">
-          <div className="side-block">
-            <div className="side-hero-row">
-              <div className="hero-portrait">🤴</div>
-              <div>
-                <strong>{run.hero.name}</strong>
-                <div className="bar" style={{ width: 120, marginTop: 4 }}>
-                  <div className={`bar-fill-hp${hpPct < 30 ? ' low' : ''}`} style={{ width: `${hpPct}%` }} />
-                </div>
-                <div className="subtitle" style={{ margin: 0 }}>
-                  HP {run.hero.hp}/{run.hero.maxHp}
-                </div>
+      <div className="garrison-body">
+        <div className="garrison-panel">
+          <div className="garrison-hero-row">
+            <div className="hero-portrait">🤴</div>
+            <div className="garrison-hero-info">
+              <strong>{run.hero.name}</strong>
+              <div className="bar" style={{ marginTop: 4 }}>
+                <div className={`bar-fill-hp${hpPct < 30 ? ' low' : ''}`} style={{ width: `${hpPct}%` }} />
+              </div>
+              <div className="subtitle" style={{ margin: 0 }}>
+                HP {run.hero.hp}/{run.hero.maxHp}
               </div>
             </div>
           </div>
 
-          <div className="side-block">
-            <h4>Army</h4>
+          <div className="garrison-roster-label">Army</div>
+          <div className="garrison-roster-row">
             {run.army
               .filter((s) => s.count > 0)
               .map((s) => (
-                <div key={s.stackId} className="army-unit-card" onClick={() => setPopupStackId(s.stackId)}>
-                  <span className="army-unit-icon">{UNIT_ICONS[s.unitId]}</span>
-                  <span className="army-unit-name">{UNIT_DEFINITIONS[s.unitId].name}</span>
-                  <span className="army-unit-count">{s.count}</span>
+                <div key={s.stackId} className="garrison-slot" onClick={() => setPopupStackId(s.stackId)} title={UNIT_DEFINITIONS[s.unitId].name}>
+                  <span className="garrison-slot-icon">{UNIT_ICONS[s.unitId]}</span>
+                  <span className="garrison-slot-role">{UNIT_ROLE_ICONS[s.unitId]}</span>
+                  <span className="garrison-slot-count">{s.count}</span>
                 </div>
               ))}
+            {run.army.filter((s) => s.count > 0).length === 0 && <div className="subtitle" style={{ margin: 0 }}>No units.</div>}
           </div>
 
-          <div className="side-block">
-            <h4>Relics</h4>
-            {run.relics.length === 0 && <div className="subtitle" style={{ margin: 0 }}>None yet.</div>}
-            {run.relics.map((r) => (
-              <div key={r.id} className="side-relic-line">
-                <span className="relic-icon">{relicIcon(r.id)}</span>
-                <div className="side-relic-text">
-                  <span>{r.name}</span>
-                  <span className="relic-desc">{r.description}</span>
-                </div>
+          {run.relics.length > 0 && (
+            <>
+              <div className="garrison-roster-label">Relics</div>
+              <div className="garrison-relic-row">
+                {run.relics.map((r) => (
+                  <span key={r.id} className="relic-icon" title={`${r.name} — ${r.description}`}>
+                    {relicIcon(r.id)}
+                  </span>
+                ))}
               </div>
-            ))}
-          </div>
-
-          <div className="side-block">
-            <h4>Resources</h4>
-            <div className="resource-card-row">
-              <div className="resource-card">
-                <span className="resource-card-icon">💰</span>
-                <span className="resource-card-value">{run.gold}</span>
-                <span className="resource-card-label">Gold</span>
-              </div>
-              <div className="resource-card">
-                <span className="resource-card-icon">🌾</span>
-                <span className="resource-card-value">{run.food}</span>
-                <span className="resource-card-label">Food</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="day-block">
-            <span className="resource-card-icon">⏳</span>
-            <span className="resource-card-value">Day {run.day}</span>
-          </div>
+            </>
+          )}
         </div>
 
-        <div className="road-main">
+        <div className="garrison-main">
           <div className="path-progress">
             Layer {current.layer + 1} / {layerCount}
           </div>
           <div className="current-location-badge" style={{ '--pc-color': NODE_ACCENTS[current.type] } as React.CSSProperties}>
-            <span className="current-location-icon">{NODE_ICONS[current.type]}</span>
-            <span>
-              You are here — {NODE_LABELS[current.type]}
-            </span>
+            <span className="current-location-icon">{NODE_BADGES[current.type]}</span>
+            <span>You are here — {NODE_LABELS[current.type]}</span>
           </div>
 
           <div className="path-choice-heading">Choose Your Path</div>
@@ -163,16 +141,32 @@ export function WorldMapScreen({ run, onMoveTo, onEnterCity, onNewRun, onSplitSt
                   style={{ '--pc-color': NODE_ACCENTS[node.type] } as React.CSSProperties}
                   onClick={() => onMoveTo(node.id)}
                 >
-                  <div className="path-choice-icon">{known ? NODE_ICONS[node.type] : '?'}</div>
+                  <span className="path-choice-badge">{known ? NODE_BADGES[node.type] : '?'}</span>
                   <div className="path-choice-name">{known ? NODE_LABELS[node.type] : 'Unknown'}</div>
                 </div>
               );
             })}
           </div>
         </div>
-
-        <HistoryPanel title="History" lines={historyLines} />
       </div>
+
+      <div className="garrison-resource-bar">
+        <div className="garrison-resource-chip">
+          <span>💰</span> {run.gold}
+        </div>
+        <div className="garrison-resource-chip">
+          <span>🌾</span> {run.food}
+        </div>
+        <div className="garrison-resource-chip">
+          <span>⏳</span> Day {run.day}
+        </div>
+      </div>
+
+      <button className="round-btn garrison-history-btn" onClick={() => setHistoryOpen(true)} title="History">
+        📜
+      </button>
+
+      <HistoryDrawer open={historyOpen} onClose={() => setHistoryOpen(false)} title="History" lines={historyLines} />
 
       {popupStack && (
         <UnitPopup

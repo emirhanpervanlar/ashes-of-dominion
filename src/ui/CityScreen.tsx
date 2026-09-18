@@ -4,6 +4,7 @@ import type { CityState } from '../engine/run/index.js';
 import { UNIT_DEFINITIONS } from '../engine/index.js';
 import type { ArmyStack, UnitId } from '../engine/index.js';
 import { UNIT_ICONS } from './unitIcons.js';
+import { UNIT_ROLE_ICONS } from './unitShapes.js';
 
 interface Props {
   city: CityState;
@@ -25,17 +26,17 @@ type Panel = 'townhall' | 'barracks' | 'garrison' | 'temple' | string | null;
 
 /** Hand-placed scatter coordinates for the town-scene hotspots. */
 const HOTSPOTS: Record<string, { top: string; left: string }> = {
-  townhall: { top: '14%', left: '50%' },
-  barracks: { top: '34%', left: '18%' },
-  garrison: { top: '30%', left: '80%' },
-  temple: { top: '58%', left: '50%' },
-  market: { top: '62%', left: '15%' },
-  gold_mine: { top: '64%', left: '85%' },
-  mage_tower: { top: '78%', left: '33%' },
-  stable: { top: '80%', left: '67%' },
-  training_hall: { top: '42%', left: '42%' },
-  forge: { top: '44%', left: '62%' },
-  shrine: { top: '86%', left: '50%' },
+  townhall: { top: '18%', left: '50%' },
+  barracks: { top: '38%', left: '18%' },
+  garrison: { top: '34%', left: '80%' },
+  temple: { top: '55%', left: '50%' },
+  market: { top: '58%', left: '15%' },
+  gold_mine: { top: '60%', left: '85%' },
+  mage_tower: { top: '68%', left: '33%' },
+  stable: { top: '68%', left: '67%' },
+  training_hall: { top: '44%', left: '42%' },
+  forge: { top: '46%', left: '62%' },
+  shrine: { top: '72%', left: '50%' },
 };
 
 export function CityScreen({
@@ -76,52 +77,21 @@ export function CityScreen({
   }
 
   return (
-    <div>
-      <h1>Ironhold</h1>
+    <div className="th-frame">
+      <div className="th-scene">
+        <div className="th-skyline" />
+        <div className="th-scene-label">Ironhold</div>
 
-      <div className="city-resource-bar">
-        <div className="resource-chip">
-          <span className="resource-chip-icon">💰</span> {gold} Gold
-        </div>
-        <div className="resource-chip">
-          <span className="resource-chip-icon">🌾</span> {food} Food
-        </div>
-        <div className="resource-chip">
-          <span className="resource-chip-icon">🏗️</span> {slotsUsed}/{slotsMax} Slots
-        </div>
-        <div className="resource-chip">
-          <span className="resource-chip-icon">👑</span> Level {city.level}
-        </div>
-      </div>
-
-      <div className="side-block" style={{ marginBottom: 14 }}>
-        <h4>Your Army</h4>
-        <div className="army-unit-card-row">
-          {army
-            .filter((s) => s.count > 0)
-            .map((s) => (
-              <div key={s.stackId} className="army-unit-card city-army-card">
-                <span className="army-unit-icon">{UNIT_ICONS[s.unitId]}</span>
-                <span className="army-unit-name">{UNIT_DEFINITIONS[s.unitId].name}</span>
-                <span className="army-unit-count">{s.count}</span>
-                {recentRecruit?.unitId === s.unitId && <span className="recruit-flourish">+{recentRecruit.amount}</span>}
-              </div>
-            ))}
-        </div>
-      </div>
-
-      <div className="town-view">
-        <div className="town-scene-label">Ironhold</div>
         {(['townhall', 'barracks', 'garrison', 'temple'] as const).map((id) => (
           <div
             key={id}
-            className={`building-hotspot${panel === id ? ' active' : ''}`}
+            className={`th-hotspot${panel === id ? ' active' : ''}`}
             style={HOTSPOTS[id]}
             onClick={() => togglePanel(id)}
           >
-            <span className="building-tile-icon">{id === 'townhall' ? '🏛️' : id === 'barracks' ? '⚔️' : id === 'garrison' ? '🏯' : '⛩️'}</span>
-            <span className="building-tile-name">{id === 'townhall' ? 'Town Hall' : id === 'barracks' ? 'Barracks' : id === 'garrison' ? 'Fort' : 'Temple'}</span>
-            <span className="building-tile-sub">
+            <span className="th-hotspot-icon">{id === 'townhall' ? '🏛️' : id === 'barracks' ? '⚔️' : id === 'garrison' ? '🏯' : '⛩️'}</span>
+            <span className="th-hotspot-name">{id === 'townhall' ? 'Town Hall' : id === 'barracks' ? 'Barracks' : id === 'garrison' ? 'Fort' : 'Temple'}</span>
+            <span className="th-hotspot-sub">
               {id === 'townhall' && 'Level up'}
               {id === 'barracks' && 'Recruit'}
               {id === 'garrison' && `Garrison (${garrisonAlive.length})`}
@@ -136,13 +106,13 @@ export function CityScreen({
           return (
             <div
               key={building.id}
-              className={`building-hotspot${panel === building.id ? ' active' : ''}${built ? '' : ' locked'}`}
+              className={`th-hotspot${panel === building.id ? ' active' : ''}${built ? '' : ' locked'}`}
               style={pos}
               onClick={() => togglePanel(building.id)}
             >
-              <span className="building-tile-icon">{BUILDING_ICONS[building.id] ?? '🏚️'}</span>
-              <span className="building-tile-name">{building.name}</span>
-              <span className="building-tile-sub">{built ? 'Built' : `${building.cost}g`}</span>
+              <span className="th-hotspot-icon">{BUILDING_ICONS[building.id] ?? '🏚️'}</span>
+              <span className="th-hotspot-name">{building.name}</span>
+              <span className="th-hotspot-sub">{built ? 'Built' : `${building.cost}g`}</span>
             </div>
           );
         })}
@@ -291,21 +261,48 @@ export function CityScreen({
         </>
       )}
 
-      <div className="city-bottom-bar">
-        <div className="side-hero-row">
+      <div className="th-infobar">
+        <div className="th-hero-block">
           <div className="hero-portrait">🤴</div>
-          <div>
+          <div className="garrison-hero-info">
             <strong>{hero.name}</strong>
             <div className="subtitle" style={{ margin: 0 }}>
               HP {hero.hp}/{hero.maxHp}
             </div>
           </div>
         </div>
+
+        <div className="th-army-row">
+          {army
+            .filter((s) => s.count > 0)
+            .map((s) => (
+              <div key={s.stackId} className="garrison-slot" title={UNIT_DEFINITIONS[s.unitId].name}>
+                <span className="garrison-slot-icon">{UNIT_ICONS[s.unitId]}</span>
+                <span className="garrison-slot-role">{UNIT_ROLE_ICONS[s.unitId]}</span>
+                <span className="garrison-slot-count">{s.count}</span>
+                {recentRecruit?.unitId === s.unitId && <span className="recruit-flourish">+{recentRecruit.amount}</span>}
+              </div>
+            ))}
+        </div>
+
+        <div className="th-resource-row">
+          <div className="garrison-resource-chip">
+            <span>💰</span> {gold}
+          </div>
+          <div className="garrison-resource-chip">
+            <span>🌾</span> {food}
+          </div>
+          <div className="garrison-resource-chip">
+            <span>🏗️</span> {slotsUsed}/{slotsMax}
+          </div>
+          <div className="garrison-resource-chip">
+            <span>👑</span> Lvl {city.level}
+          </div>
+        </div>
       </div>
 
-      <div className="city-leave-gate" onClick={onLeave} title="Leave City">
-        <div className="city-leave-gate-icon">🚪</div>
-        <div className="city-leave-gate-label">Leave</div>
+      <div className="merchant-leave-ribbon" onClick={onLeave}>
+        Leave
       </div>
     </div>
   );
