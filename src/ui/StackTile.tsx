@@ -2,7 +2,7 @@ import { applyDamageToStack, UNIT_DEFINITIONS } from '../engine/index.js';
 import type { ArmyStack, EnemyIntent, Position } from '../engine/index.js';
 import { stackLabel } from './eventText.js';
 import { UNIT_ICONS } from './unitIcons.js';
-import { UNIT_ROLE_ICONS, UNIT_SHAPES } from './unitShapes.js';
+import { UNIT_ROLE_ICONS } from './unitShapes.js';
 import type { CombatState } from '../engine/index.js';
 
 interface StackFx {
@@ -30,6 +30,7 @@ interface StackTileProps {
   onHoverEnd?: () => void;
 }
 
+/** Disciples-style portrait slot: a bordered portrait square with HP printed below it. */
 export function StackTile({
   state,
   stack,
@@ -47,15 +48,14 @@ export function StackTile({
   onHoverEnd,
 }: StackTileProps) {
   if (!stack || stack.count === 0) {
-    const classes = ['unit-octagon', 'empty'];
-    if (stack) classes.push(`shape-${UNIT_SHAPES[stack.unitId]}`);
+    const classes = ['portrait-slot', side, 'empty'];
     if (stack?.count === 0) classes.push('dead');
     return (
-      <div className="unit-slot">
-        <div className={classes.join(' ')} onClick={selectable ? onClick : undefined}>
-          {stack && <span className="unit-icon">{UNIT_ICONS[stack.unitId]}</span>}
+      <div className={classes.join(' ')}>
+        <div className="portrait-frame" onClick={selectable ? onClick : undefined}>
+          {stack && <span className="portrait-art">{UNIT_ICONS[stack.unitId]}</span>}
         </div>
-        <div className="unit-label">
+        <div className="portrait-meta">
           <div className="unit-name">{stack ? `${UNIT_DEFINITIONS[stack.unitId].name} wiped` : 'Empty'}</div>
           <div className="badges">
             <span className="badge">pos {position}</span>
@@ -79,19 +79,19 @@ export function StackTile({
 
   const acted = side === 'player' && stack.actedThisTurn;
 
-  const classes = ['unit-octagon', side, `shape-${UNIT_SHAPES[stack.unitId]}`];
+  const classes = ['portrait-slot', side];
   if (selectable) classes.push('selectable');
   if (selected) classes.push('selected');
   if (threatened) classes.push('threatened');
   if (acted) classes.push('acted');
-  if (fx?.acting) classes.push('fx-acting');
-  if (fx?.hit) classes.push('fx-hit');
-  if (fx?.block) classes.push('fx-block');
-  if (fx?.buff) classes.push('fx-buff');
-  if (fx?.debuff) classes.push('fx-debuff');
+  if (dimmed) classes.push('dimmed');
 
-  const slotClasses = ['unit-slot'];
-  if (dimmed) slotClasses.push('dimmed');
+  const frameClasses = ['portrait-frame'];
+  if (fx?.acting) frameClasses.push('fx-acting');
+  if (fx?.hit) frameClasses.push('fx-hit');
+  if (fx?.block) frameClasses.push('fx-block');
+  if (fx?.buff) frameClasses.push('fx-buff');
+  if (fx?.debuff) frameClasses.push('fx-debuff');
 
   let intentText: string | null = null;
   if (intent) {
@@ -103,29 +103,32 @@ export function StackTile({
   }
 
   return (
-    <div className={slotClasses.join(' ')} onMouseEnter={onHoverStart} onMouseLeave={onHoverEnd}>
-      <div className={classes.join(' ')} onClick={selectable ? onClick : undefined} title={def.name}>
+    <div className={classes.join(' ')} onMouseEnter={onHoverStart} onMouseLeave={onHoverEnd}>
+      <div className={frameClasses.join(' ')} onClick={selectable ? onClick : undefined} title={def.name}>
         {fx?.acting && intentText && <div className="acting-intent-bubble">{intentText}</div>}
-        <span className="unit-icon">{UNIT_ICONS[stack.unitId]}</span>
-        <span className="unit-role-badge">{UNIT_ROLE_ICONS[stack.unitId]}</span>
-        {selected && <span className="unit-selected-badge">✓</span>}
-        {acted && !selected && <span className="unit-acted-badge" title="Already acted this turn">💤</span>}
-      </div>
-      <div className="unit-label">
-        <div className="bar">
+        <span className="portrait-art">{UNIT_ICONS[stack.unitId]}</span>
+        <span className="portrait-role-badge">{UNIT_ROLE_ICONS[stack.unitId]}</span>
+        {selected && <span className="portrait-select-badge">✓</span>}
+        {acted && !selected && <span className="portrait-acted-badge" title="Already acted this turn">💤</span>}
+        <div className="portrait-hp-strip">
           <div className={`bar-fill-hp${hpPct < 30 ? ' low' : ''}`} style={{ width: `${hpPct}%` }} />
           {previewHpLossPct > 0 && (
             <div className="bar-fill-preview" style={{ width: `${previewHpLossPct}%`, left: `${hpPct - previewHpLossPct}%` }} />
           )}
         </div>
         {(stack.block > 0 || previewBlockLossPct > 0) && (
-          <div className="bar">
+          <div className="portrait-block-strip">
             <div className="bar-fill-block" style={{ width: `${blockPct}%` }} />
             {previewBlockLossPct > 0 && (
               <div className="bar-fill-preview" style={{ width: `${previewBlockLossPct}%`, left: `${blockPct - previewBlockLossPct}%` }} />
             )}
           </div>
         )}
+      </div>
+      <div className="portrait-hp-text">
+        {stack.currentHp}/{stack.maxHp}
+      </div>
+      <div className="portrait-meta">
         <div className="unit-name">
           {def.name} <span className="unit-count">×{stack.count}</span>
         </div>

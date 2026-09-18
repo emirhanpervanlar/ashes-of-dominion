@@ -676,56 +676,54 @@ export default function App() {
   const handMid = (handCount - 1) / 2;
 
   return (
-    <div className="battle-viewport">
+    <div className="disciples-frame">
       {gameChrome}
 
-      <div className="battle-header">
-        <div className="hero-column">
-          <div className="hero-card">
-            <div className="hero-portrait">🤴</div>
-            <div className="hero-info">
-              <div className="hero-name-row">
-                <span>{combat.hero.name}</span>
-                <div className="relic-icons">
-                  {run.relics.map((r) => (
-                    <span key={r.id} className="relic-icon" title={`${r.name} — ${r.description}`}>
-                      {relicIcon(r.id)}
-                    </span>
-                  ))}
-                </div>
+      <span className="frame-ornament corner-tl" aria-hidden="true">
+        🐉
+      </span>
+      <span className="frame-ornament corner-tr" aria-hidden="true">
+        🐉
+      </span>
+
+      <div className="frame-topbar">
+        <div className="frame-hero-chip">
+          <div className="hero-portrait">🤴</div>
+          <div className="hero-info">
+            <div className="hero-name-row">
+              <span>{combat.hero.name}</span>
+              <div className="relic-icons">
+                {run.relics.map((r) => (
+                  <span key={r.id} className="relic-icon" title={`${r.name} — ${r.description}`}>
+                    {relicIcon(r.id)}
+                  </span>
+                ))}
               </div>
-              <div className="mana-row">
-                <span className="mana-label">Mana</span>
-                <div className="mana-bar-track">
-                  <div className="mana-bar-fill" style={{ width: `${manaPct}%` }} />
-                </div>
-                <span>
-                  {combat.hero.mana}/{combat.hero.maxMana}
-                </span>
+            </div>
+            <div className="mana-row">
+              <span className="mana-label">Mana</span>
+              <div className="mana-bar-track">
+                <div className="mana-bar-fill" style={{ width: `${manaPct}%` }} />
               </div>
+              <span>
+                {combat.hero.mana}/{combat.hero.maxMana}
+              </span>
             </div>
           </div>
         </div>
 
-        <div className="turn-info">
-          <div className="turn-badge-inline">
-            <div>
-              <strong>Turn {combat.turnNumber}</strong>
-            </div>
-            <div>{combat.phase === 'player' ? 'Your turn' : combat.phase === 'enemy' ? 'Enemy turn' : 'Battle over'}</div>
-            <div>
-              Hero HP {combat.hero.hp}/{combat.hero.maxHp}
-            </div>
-          </div>
-          <button className="history-toggle-btn" onClick={() => setHistoryOpen(true)}>
-            📜 Log
-          </button>
+        <div className="frame-turn-chip">
+          <strong>Turn {combat.turnNumber}</strong>
+          <span>{combat.phase === 'player' ? 'Your turn' : combat.phase === 'enemy' ? 'Enemy turn' : 'Battle over'}</span>
+          <span>
+            Hero HP {combat.hero.hp}/{combat.hero.maxHp}
+          </span>
         </div>
       </div>
 
-      <div className="battlefield-v2">
-        <div className="side-columns player-side">
-          <div className="unit-column">
+      <div className="frame-body">
+        <div className="portrait-rail player-rail">
+          <div className="portrait-col">
             {back.map((p) => {
               const s = stackAt(combat.playerArmy, p);
               return (
@@ -748,7 +746,7 @@ export default function App() {
               );
             })}
           </div>
-          <div className="unit-column">
+          <div className="portrait-col">
             {front.map((p) => {
               const s = stackAt(combat.playerArmy, p);
               return (
@@ -773,8 +771,17 @@ export default function App() {
           </div>
         </div>
 
-        <div className="side-columns enemy-side">
-          <div className="unit-column">
+        <div className="frame-scene">
+          {pending?.targeting === 'none' && (
+            <div className="drop-zone" onClick={handleDropZoneConfirm}>
+              <div className="drop-zone-icon">🃏</div>
+              <div className="drop-zone-label">{pending.kind === 'card' ? 'Drop Card' : 'Confirm'}</div>
+            </div>
+          )}
+        </div>
+
+        <div className="portrait-rail enemy-rail">
+          <div className="portrait-col">
             {front.map((p) => {
               const s = stackAt(combat.enemyArmy, p);
               return (
@@ -797,7 +804,7 @@ export default function App() {
               );
             })}
           </div>
-          <div className="unit-column">
+          <div className="portrait-col">
             {back.map((p) => {
               const s = stackAt(combat.enemyArmy, p);
               return (
@@ -821,17 +828,10 @@ export default function App() {
             })}
           </div>
         </div>
-
-        {pending?.targeting === 'none' && (
-          <div className="drop-zone" onClick={handleDropZoneConfirm}>
-            <div className="drop-zone-icon">🃏</div>
-            <div className="drop-zone-label">{pending.kind === 'card' ? 'Drop Card' : 'Confirm'}</div>
-          </div>
-        )}
       </div>
 
-      <div className="hand-fan-wrap">
-        <div className="hand-fan">
+      <div className="frame-bottombar">
+        <div className="frame-hand-slots">
           {combat.hand.map((instance, i) => {
             const cardDef = CARD_DEFINITIONS[instance.cardId];
             if (!cardDef) return null;
@@ -855,11 +855,19 @@ export default function App() {
             );
           })}
         </div>
-      </div>
 
-      <button className="end-turn-fab" disabled={!canAct} onClick={handleEndTurn}>
-        ⚔️ End Turn
-      </button>
+        <div className="frame-round-buttons">
+          <button className="round-btn" onClick={() => setHistoryOpen(true)} title="Battle Log">
+            📜
+          </button>
+          <button className="round-btn round-btn-main" disabled={!canAct} onClick={handleEndTurn} title="End Turn">
+            ⚔️
+          </button>
+          <button className="round-btn" onClick={() => setMenuOpen(true)} title="Menu">
+            ⚙️
+          </button>
+        </div>
+      </div>
 
       <HistoryDrawer
         open={historyOpen}
