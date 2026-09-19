@@ -163,6 +163,9 @@ function applyRelicStatEffectsOnce(run: RunState, def: RelicDefinition): void {
       case 'ARMY_SIZE_FLAT_LARGEST':
         run.army = addFlatToLargestStack(run.army, effect.amount);
         break;
+      case 'GOLD_FLAT':
+        run.gold += effect.amount; // a one-time gift, not income: skips changeGold so goldGathered stays honest
+        break;
       default:
         break; // combat-modifier kinds are read dynamically from run.relics each attack — nothing to bake in here
     }

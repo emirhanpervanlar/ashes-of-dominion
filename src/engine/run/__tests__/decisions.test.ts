@@ -12,6 +12,15 @@ import type { RunState } from '../types.js';
 
 const HEROES: HeroId[] = ['warlord', 'rogue', 'mage'];
 
+function withFoundRelic(run: RunState, relicId: string): RunState {
+  const shop: RunState = { ...run, phase: 'merchant', gold: 1000, pendingMerchant: { cardOffers: [], relicOffer: { relicId, price: 100 } } };
+  return applyRunAction(shop, { type: 'BUY_RELIC', relicId }).run;
+}
+
+function startedRun(seed: number, relicId: string): RunState {
+  return applyRunAction(createRun(seed), { type: 'CHOOSE_STARTING_RELIC', relicId }).run;
+}
+
 function inCity(run: RunState, army: ArmyStack[]): RunState {
   return { ...run, phase: 'city', army, gold: 1000, food: 1000 };
 }
@@ -208,7 +217,7 @@ describe('recruited units are fully usable in battle (healer-cannot-heal-Swordsm
 
 describe('Royal Banner / Arcane Crystal keep the heal cap consistent (AO-D004)', () => {
   function healed(relicId: string, wound: number) {
-    const boosted = applyRunAction(createRun(51), { type: 'CHOOSE_STARTING_RELIC', relicId }).run.army;
+    const boosted = (relicId === 'arcane_crystal' ? withFoundRelic(startedRun(51, 'royal_banner'), relicId) : startedRun(51, relicId)).army;
     const sword = boosted.find((s) => s.unitId === 'swordsman')!;
     const priest = createStack('priest', 'player', 5, 4);
     const army = [...boosted, priest].map((s) => (s.stackId === sword.stackId ? { ...s, currentHp: s.maxHp - wound } : s));
@@ -227,7 +236,7 @@ describe('Royal Banner / Arcane Crystal keep the heal cap consistent (AO-D004)',
 
   it('relic-boosted stacks have every count field in step', () => {
     for (const relicId of ['royal_banner', 'arcane_crystal']) {
-      const sword = applyRunAction(createRun(50), { type: 'CHOOSE_STARTING_RELIC', relicId }).run.army.find((s) => s.unitId === 'swordsman')!;
+      const sword = (relicId === 'arcane_crystal' ? withFoundRelic(startedRun(50, 'whetstone'), relicId) : startedRun(50, relicId)).army.find((s) => s.unitId === 'swordsman')!;
       expect(sword.startingCount).toBe(sword.count);
       expect(sword.preBattleMaxCount).toBe(sword.count);
       expect(sword.currentHp).toBe(sword.maxHp);

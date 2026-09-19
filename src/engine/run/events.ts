@@ -31,7 +31,7 @@ export const EVENT_DEFINITIONS: Record<string, EventDefinition> = {
         id: 'search',
         label: 'Search',
         description: 'Chance for a random relic; risk of a trap.',
-        effect: { kind: 'RISKY_SEARCH', successChance: 0.6, trapGoldLoss: 15 },
+        effect: { kind: 'RISKY_SEARCH', successChance: 0.25, trapGoldLoss: 15 },
       },
       {
         id: 'rest',

@@ -97,6 +97,16 @@ export const RELIC_DEFINITIONS: Record<string, RelicDefinition> = {
       { kind: 'TAG_DAMAGE_MULT', tag: 'ranged', multiplier: 0.9 },
     ],
   },
+  arcane_crystal: {
+    id: 'arcane_crystal',
+    name: 'Arcane Crystal',
+    description: 'Hero max Mana +2. Army size -10%.',
+    rarity: 'rare',
+    effects: [
+      { kind: 'HERO_MAX_MANA', amount: 2 },
+      { kind: 'ARMY_SIZE_MULT', multiplier: 0.9 },
+    ],
+  },
   misers_ledger: {
     id: 'misers_ledger',
     name: "Miser's Ledger",
@@ -131,7 +141,7 @@ export const RELIC_DEFINITIONS: Record<string, RelicDefinition> = {
 
 /**
  * Starting relics (AO-D037): a separate pool of exactly 5, all offered on the hero-choice screen,
- * chosen once before the first battle. Simple; Arcane Crystal is the only one with a (small) drawback.
+ * chosen once before the first battle. Simple and pure-benefit (AO-D043).
  */
 export const STARTING_RELIC_DEFINITIONS: Record<string, RelicDefinition> = {
   royal_banner: {
@@ -140,16 +150,6 @@ export const STARTING_RELIC_DEFINITIONS: Record<string, RelicDefinition> = {
     description: "Army size +6 (added to the run's largest starting stack).",
     rarity: 'common',
     effects: [{ kind: 'ARMY_SIZE_FLAT_LARGEST', amount: 6 }],
-  },
-  arcane_crystal: {
-    id: 'arcane_crystal',
-    name: 'Arcane Crystal',
-    description: 'Hero max Mana +2. Army size -10%.',
-    rarity: 'common',
-    effects: [
-      { kind: 'HERO_MAX_MANA', amount: 2 },
-      { kind: 'ARMY_SIZE_MULT', multiplier: 0.9 },
-    ],
   },
   whetstone: {
     id: 'whetstone',
@@ -171,5 +171,12 @@ export const STARTING_RELIC_DEFINITIONS: Record<string, RelicDefinition> = {
     description: 'Dodge +5%.',
     rarity: 'common',
     effects: [{ kind: 'DODGE_BONUS_PERCENT', amount: 5 }],
+  },
+  travelers_purse: {
+    id: 'travelers_purse',
+    name: "Traveler's Purse",
+    description: '+50 Gold at the start of the run.',
+    rarity: 'common',
+    effects: [{ kind: 'GOLD_FLAT', amount: 50 }],
   },
 };

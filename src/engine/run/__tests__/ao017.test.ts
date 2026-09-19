@@ -52,6 +52,34 @@ describe('AO-D037: starting relic pool', () => {
   });
 });
 
+describe('AO-D043: relic tweaks', () => {
+  it('the starting five are Royal Banner, Whetstone, Padded Vest, Lucky Charm, Traveler Purse', () => {
+    expect(Object.keys(STARTING_RELIC_DEFINITIONS).sort()).toEqual(['lucky_charm', 'padded_vest', 'royal_banner', 'travelers_purse', 'whetstone']);
+  });
+
+  it('Arcane Crystal is a rare found relic (rarity price) with unchanged effects', () => {
+    const def = RELIC_DEFINITIONS.arcane_crystal!;
+    expect(def.rarity).toBe('rare');
+    expect('arcane_crystal' in STARTING_RELIC_DEFINITIONS).toBe(false);
+    const bought = buyOffer(onMap(5), 'arcane_crystal');
+    expect(bought.hero.maxMana).toBe(onMap(5).hero.maxMana + 2);
+    expect(bought.gold).toBe(1000 - RELIC_PRICE_BY_RARITY.rare);
+    expect(bought.army.find((s) => s.unitId === 'swordsman')!.count).toBe(Math.floor(12 * 0.9));
+  });
+
+  it('Abandoned Camp Search finds a relic about 25% of the time', () => {
+    let relics = 0;
+    const trials = 400;
+    for (let seed = 1; seed <= trials; seed++) {
+      const run: RunState = { ...onMap(seed), phase: 'event', pendingEvent: { eventId: 'abandoned_camp' } };
+      const result = applyRunAction(run, { type: 'CHOOSE_EVENT_OPTION', optionId: 'search' });
+      if (result.events.some((e) => e.type === 'EVENT_RESOLVED' && e.outcome === 'search_relic')) relics++;
+    }
+    expect(relics / trials).toBeGreaterThan(0.18);
+    expect(relics / trials).toBeLessThan(0.32);
+  });
+});
+
 describe('AO-D037: rarity and drawbacks', () => {
   const all = [...Object.values(RELIC_DEFINITIONS), ...Object.values(STARTING_RELIC_DEFINITIONS)];
 
