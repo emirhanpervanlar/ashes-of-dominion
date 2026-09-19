@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Ashes of Dominion - Style Proof</title>
+<meta name="viewport" content="width=1366">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=MedievalSharp&family=Silkscreen:wght@400;700&family=Alegreya+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  color-scheme: dark;
+  --stone-950:#0e0d0c; --stone-900:#171512; --stone-800:#221f1b; --stone-700:#2e2a24; --stone-600:#3d3830;
+  --stone-500:#544d42; --stone-400:#746b5c; --stone-300:#9a907d; --stone-200:#c4baa4; --stone-100:#e6dcc3;
+  --wood-900:#1c130c; --wood-800:#2b1d11; --wood-700:#3c2916; --wood-600:#523821; --wood-500:#6b4a2b;
+  --parch-100:#e3d3a8; --parch-200:#d2bf8e; --parch-300:#b9a271; --parch-400:#8f7a50; --ink-900:#211a10; --ink-700:#3e3222;
+  --iron-900:#16181b; --iron-800:#23272b; --iron-700:#33393e; --iron-600:#4a5259; --iron-500:#66707a; --iron-300:#9aa4ad;
+  --gold-900:#3d2f0d; --gold-700:#7a5f1c; --gold-500:#b08d2e; --gold-400:#cfa93f; --gold-200:#ecd082;
+  --blood-900:#2a0f0d; --blood-700:#6e1f1a; --blood-500:#9c2f26; --blood-300:#cf6a58;
+  --moss-900:#131f12; --moss-700:#2f4a26; --moss-500:#4f7a3a; --moss-300:#8fb56b;
+  --steel-900:#0f1a24; --steel-700:#21405a; --steel-500:#3f6f95; --steel-300:#86b0cf;
+  --frost-500:#7fb7c4; --frost-200:#cfe8ec; --venom-500:#6f8a2a; --ember-500:#b5651d; --arcane-500:#6d4f96;
+  --teal-700:#1f4a48; --teal-500:#2f7a72; --teal-300:#7fbdb2;
+  --text:var(--stone-200); --text-strong:var(--stone-100); --text-dim:var(--stone-300); --text-faint:var(--stone-400);
+  --focus:var(--gold-200); --selectable:var(--gold-400); --selected:var(--stone-100);
+  --rar-common:var(--stone-300); --rar-uncommon:var(--moss-500); --rar-rare:var(--steel-500); --rar-epic:var(--arcane-500);
+  --font-display:'MedievalSharp','Georgia',serif; --font-pixel:'Silkscreen','Courier New',monospace; --font-body:'Alegreya Sans','Segoe UI',sans-serif;
+  --shadow-1:0 2px 0 rgba(0,0,0,.6); --shadow-2:0 4px 0 rgba(0,0,0,.7);
+  --grain:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' shape-rendering='crispEdges'%3E%3Crect x='2' y='1' width='1' height='1' fill='%23000' fill-opacity='.18'/%3E%3Crect x='9' y='3' width='2' height='1' fill='%23fff' fill-opacity='.07'/%3E%3Crect x='5' y='7' width='1' height='2' fill='%23000' fill-opacity='.14'/%3E%3Crect x='13' y='6' width='1' height='1' fill='%23fff' fill-opacity='.08'/%3E%3Crect x='1' y='11' width='2' height='1' fill='%23fff' fill-opacity='.06'/%3E%3Crect x='10' y='12' width='1' height='2' fill='%23000' fill-opacity='.16'/%3E%3Crect x='14' y='14' width='1' height='1' fill='%23000' fill-opacity='.12'/%3E%3Crect x='6' y='14' width='2' height='1' fill='%23fff' fill-opacity='.05'/%3E%3C/svg%3E");
+}
+* { box-sizing:border-box; margin:0; padding:0; border-radius:0; }
+html { background:var(--stone-950); }
+body { width:1366px; margin:0 auto; padding:24px 24px 64px; background:radial-gradient(ellipse at 50% 0, #2a2010 0, transparent 55%), var(--stone-950); color:var(--text); font:400 16px/24px var(--font-body); -webkit-font-smoothing:none; }
+img.px, .px { image-rendering:pixelated; }
+canvas.px { image-rendering:pixelated; }
+
+/* ---- stepped corners / bevel ---- */
+.step { --c:4px; clip-path:polygon(0 var(--c),var(--c) var(--c),var(--c) 0,calc(100% - var(--c)) 0,calc(100% - var(--c)) var(--c),100% var(--c),100% calc(100% - var(--c)),calc(100% - var(--c)) calc(100% - var(--c)),calc(100% - var(--c)) 100%,var(--c) 100%,var(--c) calc(100% - var(--c)),0 calc(100% - var(--c))); }
+.step-8 { --c:8px; }
+.shadowed { filter:drop-shadow(0 4px 0 rgba(0,0,0,.7)); display:inline-block; }
+.shadowed-1 { filter:drop-shadow(0 2px 0 rgba(0,0,0,.6)); display:inline-block; }
+.bevel-2 { box-shadow:inset 2px 2px 0 var(--bev-light),inset -2px -2px 0 var(--bev-dark); }
+.bevel-4 { box-shadow:inset 4px 4px 0 var(--bev-light),inset -4px -4px 0 var(--bev-dark); }
+.bevel-in { box-shadow:inset 2px 2px 0 var(--bev-dark),inset -2px -2px 0 var(--bev-light); }
+.gem { clip-path:polygon(25% 0,75% 0,75% 12.5%,87.5% 12.5%,87.5% 25%,100% 25%,100% 75%,87.5% 75%,87.5% 87.5%,75% 87.5%,75% 100%,25% 100%,25% 87.5%,12.5% 87.5%,12.5% 75%,0 75%,0 25%,12.5% 25%,12.5% 12.5%,25% 12.5%); }
+
+/* ---- materials ---- */
+.mat-stone { --bev-light:var(--stone-500); --bev-dark:var(--stone-950);
+  background:var(--grain),linear-gradient(90deg,var(--stone-950) 0 2px,transparent 2px) 0 0/32px 16px,linear-gradient(90deg,var(--stone-950) 0 2px,transparent 2px) 16px 16px/32px 16px,linear-gradient(0deg,var(--stone-950) 0 2px,transparent 2px) 0 0/100% 16px,var(--stone-800); }
+.mat-stone-smooth { --bev-light:var(--stone-500); --bev-dark:var(--stone-950); background:var(--grain),var(--stone-800); }
+.mat-wood { --bev-light:var(--wood-500); --bev-dark:var(--wood-900);
+  background:var(--grain),repeating-linear-gradient(90deg,transparent 0 22px,var(--wood-900) 22px 24px),repeating-linear-gradient(0deg,transparent 0 6px,rgba(0,0,0,.10) 6px 8px),linear-gradient(90deg,var(--wood-700),var(--wood-600) 40%,var(--wood-700)); }
+.mat-wood-dark { --bev-light:var(--wood-600); --bev-dark:var(--wood-900); background:var(--grain),repeating-linear-gradient(90deg,transparent 0 22px,var(--wood-900) 22px 24px),var(--wood-800); }
+.mat-parch { --bev-light:var(--parch-100); --bev-dark:var(--parch-400); color:var(--ink-900);
+  background:var(--grain),radial-gradient(ellipse at 20% 15%,var(--parch-100) 0,transparent 45%),radial-gradient(ellipse at 85% 90%,var(--parch-300) 0,transparent 55%),linear-gradient(0deg,var(--parch-300) 0 8px,transparent 8px calc(100% - 8px),var(--parch-300) calc(100% - 8px)),var(--parch-200); }
+.mat-iron { --bev-light:var(--iron-500); --bev-dark:var(--iron-900);
+  background:var(--grain),linear-gradient(180deg,rgba(255,255,255,.05) 0 2px,transparent 2px),linear-gradient(180deg,var(--iron-700),var(--iron-800)); }
+.mat-gold { --bev-light:var(--gold-200); --bev-dark:var(--gold-900); color:var(--gold-900);
+  background:var(--grain),linear-gradient(180deg,rgba(255,255,255,.18) 0 2px,transparent 2px),linear-gradient(180deg,var(--gold-400),var(--gold-500) 55%,var(--gold-700)); }
+.trim-gold { box-shadow:inset 0 0 0 2px var(--gold-900),inset 0 0 0 4px var(--gold-500),inset 0 0 0 6px var(--gold-900); }
+.well { background:var(--grain),var(--stone-900); --bev-light:var(--stone-500); --bev-dark:var(--stone-950); }
+
+/* ---- type ---- */
+.t-title { font:400 64px/72px var(--font-display); }
+.t-h1 { font:400 40px/48px var(--font-display); }
+.t-h2 { font:400 24px/32px var(--font-display); }
+.t-h3 { font:400 20px/24px var(--font-display); }
+.t-label { font:400 8px/16px var(--font-pixel); text-transform:uppercase; letter-spacing:1px; }
+.t-btn { font:700 16px/24px var(--font-pixel); text-transform:uppercase; letter-spacing:1px; }
+.t-num { font:400 16px/16px var(--font-pixel); font-variant-numeric:tabular-nums; }
+.t-num32 { font:400 32px/32px var(--font-pixel); }
+.t-body { font:400 16px/24px var(--font-body); }
+.t-small { font:400 14px/16px var(--font-body); }
+
+/* ---- page structure ---- */
+h2.sec { font:400 32px/40px var(--font-display); color:var(--gold-200); text-shadow:0 2px 0 var(--stone-950); margin:48px 0 8px; }
+h2.sec small { font:400 8px/16px var(--font-pixel); color:var(--stone-400); letter-spacing:1px; text-transform:uppercase; margin-left:16px; text-shadow:none; }
+.divider { height:4px; background:linear-gradient(var(--stone-900) 0 2px,var(--stone-600) 2px 4px); margin:0 0 24px; }
+.sub { font:400 8px/16px var(--font-pixel); color:var(--stone-300); letter-spacing:1px; text-transform:uppercase; margin:16px 0 8px; }
+.row { display:flex; gap:16px; align-items:flex-start; flex-wrap:wrap; }
+.panel { padding:16px; position:relative; }
+
+/* ---- palette ---- */
+.pal-group { margin-bottom:16px; }
+.swatches { display:flex; gap:8px; flex-wrap:wrap; }
+.sw { width:96px; }
+.sw i { display:block; height:48px; box-shadow:inset 2px 2px 0 rgba(255,255,255,.14),inset -2px -2px 0 rgba(0,0,0,.4); }
+.sw b { display:block; font:400 8px/12px var(--font-pixel); color:var(--stone-200); margin-top:4px; letter-spacing:0; }
+.sw span { display:block; font:400 8px/12px var(--font-pixel); color:var(--stone-400); }
+
+/* ---- plaque ---- */
+.plaque { position:relative; display:inline-block; padding:0 40px; height:48px; font:400 24px/48px var(--font-display); text-transform:uppercase; color:var(--gold-900); text-shadow:0 2px 0 var(--gold-200); letter-spacing:1px; white-space:nowrap; }
+.plaque::before,.plaque::after { content:''; position:absolute; top:20px; width:8px; height:8px; background:var(--iron-300); box-shadow:2px 2px 0 var(--iron-900); }
+.plaque::before { left:16px; } .plaque::after { right:18px; }
+.plaque--ribbon { clip-path:polygon(0 0,100% 0,calc(100% - 16px) 50%,100% 100%,0 100%,16px 50%); padding:0 56px; }
+.plaque--ribbon::before { left:28px; } .plaque--ribbon::after { right:30px; }
+.plaque--wood { background:var(--grain),repeating-linear-gradient(90deg,transparent 0 22px,var(--wood-900) 22px 24px),var(--wood-800); --bev-light:var(--wood-600); --bev-dark:var(--wood-900); color:var(--gold-200); text-shadow:0 2px 0 var(--stone-950); }
+.plaque--iron { background:var(--grain),linear-gradient(180deg,var(--iron-700),var(--iron-800)); --bev-light:var(--iron-500); --bev-dark:var(--iron-900); color:var(--stone-100); text-shadow:0 2px 0 var(--stone-950); height:32px; font:400 16px/32px var(--font-display); padding:0 24px; }
+.plaque--iron::before,.plaque--iron::after { display:none; }
+.plaque--blood { background:var(--grain),linear-gradient(180deg,var(--blood-500),var(--blood-700) 60%,var(--blood-900)); --bev-light:var(--blood-300); --bev-dark:var(--blood-900); color:var(--gold-200); text-shadow:0 2px 0 var(--blood-900); }
+
+/* ---- buttons ---- */
+.btn { position:relative; display:inline-block; font:700 16px/24px var(--font-pixel); text-transform:uppercase; letter-spacing:1px; height:40px; padding:8px 24px; border:0; cursor:pointer; color:var(--stone-100); transition:none; white-space:nowrap;
+  --bev-light:var(--iron-500); --bev-dark:var(--iron-900);
+  background:var(--grain),linear-gradient(180deg,rgba(255,255,255,.05) 0 2px,transparent 2px),linear-gradient(180deg,var(--iron-700),var(--iron-800));
+  box-shadow:inset 4px 4px 0 var(--bev-light),inset -4px -4px 0 var(--bev-dark); text-shadow:0 2px 0 var(--stone-950); }
+.btn--primary { color:var(--gold-900); text-shadow:0 2px 0 var(--gold-200); --bev-light:var(--gold-200); --bev-dark:var(--gold-900);
+  background:var(--grain),linear-gradient(180deg,rgba(255,255,255,.18) 0 2px,transparent 2px),linear-gradient(180deg,var(--gold-400),var(--gold-500) 55%,var(--gold-700)); }
+.btn--danger { --bev-light:var(--blood-500); --bev-dark:var(--blood-900); background:var(--grain),linear-gradient(180deg,var(--blood-700),var(--blood-900)); }
+.btn.hover,.btn:hover:not(:disabled):not(.disabled) { transform:translateY(-2px); }
+.btn.hover { --bev-light:var(--gold-400); }
+.btn--primary.hover,.btn--primary:hover:not(:disabled) { --bev-light:var(--gold-200); background:var(--grain),linear-gradient(180deg,rgba(255,255,255,.18) 0 2px,transparent 2px),linear-gradient(180deg,var(--gold-200),var(--gold-400) 40%,var(--gold-500)); }
+.btn:not(.btn--primary):not(.btn--danger):hover:not(:disabled) { --bev-light:var(--gold-400); }
+.btn--danger.hover,.btn--danger:hover:not(:disabled) { --bev-light:var(--blood-300); }
+.btn.active,.btn:active:not(:disabled) { transform:translateY(2px); box-shadow:inset 4px 4px 0 var(--bev-dark),inset -4px -4px 0 var(--bev-light); }
+.btn.disabled,.btn:disabled { cursor:not-allowed; color:var(--stone-400); text-shadow:none; transform:none; background:repeating-linear-gradient(45deg,transparent 0 4px,rgba(0,0,0,.25) 4px 6px),var(--stone-700); box-shadow:inset 4px 4px 0 var(--stone-500),inset -4px -4px 0 var(--stone-900); }
+.btn.focus,.btn:focus-visible { outline:2px solid var(--focus); outline-offset:2px; }
+.btn--sq { width:40px; padding:0; text-align:center; }
+.btn--l { height:56px; padding:16px 32px; }
+.btn-grid { display:grid; grid-template-columns:120px repeat(5,180px); gap:16px 16px; align-items:center; }
+.btn-grid .t-label { color:var(--stone-300); }
+
+/* ---- pills / bar ---- */
+.pill { display:inline-flex; align-items:center; gap:8px; height:32px; padding:0 12px; color:var(--stone-100); font:400 16px/16px var(--font-pixel); background:var(--grain),linear-gradient(180deg,var(--iron-700),var(--iron-800)); --bev-light:var(--iron-500); --bev-dark:var(--iron-900); box-shadow:inset 2px 2px 0 var(--bev-light),inset -2px -2px 0 var(--bev-dark); }
+.pill.gold { color:var(--gold-200); } .pill.warn { color:var(--blood-300); }
+.pill img { width:16px; height:16px; }
+.bar { position:relative; height:24px; width:280px; background:var(--stone-900); box-shadow:inset 2px 2px 0 var(--stone-950),inset -2px -2px 0 var(--stone-500); padding:4px; display:flex; gap:2px; }
+.bar i { flex:1; background:var(--steel-500); box-shadow:inset 0 2px 0 var(--steel-300),inset 0 -2px 0 var(--steel-700); }
+.bar i.off { background:var(--stone-800); box-shadow:inset 0 2px 0 var(--stone-700); }
+.bar.gold i { background:var(--gold-500); box-shadow:inset 0 2px 0 var(--gold-200),inset 0 -2px 0 var(--gold-700); }
+.bar.moss i { background:var(--moss-500); box-shadow:inset 0 2px 0 var(--moss-300),inset 0 -2px 0 var(--moss-700); }
+
+/* ---- tooltip ---- */
+#tip { max-width:280px; padding:8px 12px; pointer-events:none; background:var(--grain),var(--stone-900); box-shadow:inset 0 0 0 2px var(--gold-700); }
+#tip-wrap { position:fixed; z-index:99; display:none; pointer-events:none; filter:drop-shadow(0 4px 0 rgba(0,0,0,.7)); }
+#tip b { display:block; font:400 16px/24px var(--font-display); color:var(--gold-200); }
+#tip span { display:block; font:400 16px/24px var(--font-body); color:var(--text); }
+#tip em { display:flex; gap:8px; align-items:center; font-style:normal; color:var(--blood-300); }
+
+/* ---- card ---- */
+.card { position:relative; width:144px; height:208px; flex:none; }
+.card__frame { position:absolute; inset:0; padding:4px; --bev-light:var(--iron-500); --bev-dark:var(--iron-900);
+  background:var(--grain),linear-gradient(180deg,rgba(255,255,255,.05) 0 2px,transparent 2px),linear-gradient(180deg,var(--iron-700),var(--iron-800));
+  box-shadow:inset 4px 4px 0 var(--bev-light),inset -4px -4px 0 var(--bev-dark); }
+.card__trim { position:absolute; inset:4px; box-shadow:inset 0 0 0 2px var(--trim); }
+.card--attack { --trim:var(--blood-700); --art:#2a1614; --art2:#150c0b; }
+.card--defense { --trim:var(--steel-700); --art:#162433; --art2:#0b141c; }
+.card--buff { --trim:var(--moss-700); --art:#1a2a17; --art2:#0d160c; }
+.card__title { position:absolute; left:8px; right:8px; top:8px; height:32px; padding:4px 8px 0 36px; font:400 16px/24px var(--font-display); color:var(--stone-100); text-shadow:0 2px 0 var(--stone-950); white-space:nowrap; background:var(--grain),repeating-linear-gradient(90deg,transparent 0 22px,var(--wood-900) 22px 24px),var(--wood-800); box-shadow:inset 2px 2px 0 var(--wood-600),inset -2px -2px 0 var(--wood-900); }
+.card__gem { position:absolute; left:-4px; top:-4px; width:32px; height:32px; background:var(--gold-500); z-index:3; }
+.card__gem::before { content:''; position:absolute; inset:2px; background:var(--steel-700); }
+.card__gem::after { content:''; position:absolute; left:8px; top:4px; width:4px; height:2px; background:var(--steel-300); }
+.card__gem span { position:absolute; inset:0; text-align:center; font:400 16px/32px var(--font-pixel); color:var(--stone-100); z-index:1; text-shadow:0 2px 0 var(--stone-950); }
+.card__art { position:absolute; left:8px; right:8px; top:44px; height:80px; background:radial-gradient(ellipse at 50% 55%,var(--art) 0,var(--art2) 100%); box-shadow:inset 2px 2px 0 var(--iron-900),inset -2px -2px 0 var(--iron-500); display:flex; align-items:center; justify-content:center; }
+.card__art > img { width:48px; height:48px; }
+.card__type { position:absolute; right:4px; top:4px; width:16px; height:16px; }
+.card__rar { position:absolute; left:64px; top:36px; width:16px; height:8px; z-index:2; }
+.card__text { position:absolute; left:8px; right:8px; top:128px; bottom:8px; padding:6px 8px; font:400 14px/16px var(--font-body); color:var(--ink-900); text-align:center; display:flex; align-items:center; justify-content:center; box-shadow:inset 2px 2px 0 var(--parch-400),inset -2px -2px 0 var(--parch-100); }
+.card__text b { font-weight:700; }
+.card--hover { transform:translateY(-8px); }
+.card--epic .card__frame { box-shadow:inset 4px 4px 0 var(--gold-200),inset -4px -4px 0 var(--gold-900); }
+.card--dim { filter:brightness(.55) saturate(.6); }
+.card--selected { transform:translateY(-16px); }
+.card--selected::after { content:''; position:absolute; inset:-4px; box-shadow:0 0 0 4px var(--gold-200); pointer-events:none; }
+
+/* ---- relic ---- */
+.relic { position:relative; flex:none; display:flex; align-items:center; justify-content:center; }
+.relic--32 { width:32px; height:32px; } .relic--48 { width:48px; height:48px; } .relic--64 { width:64px; height:64px; }
+.relic img { position:relative; z-index:1; }
+.relic--common { background:var(--stone-900); box-shadow:inset 0 0 0 2px var(--iron-500),inset 0 0 0 4px var(--iron-900); }
+.relic--rare { background:var(--steel-900); box-shadow:inset 0 0 0 2px var(--steel-500),inset 0 0 0 4px var(--steel-700); }
+.relic--epic { background:#1a1226; box-shadow:inset 0 0 0 2px var(--gold-900),inset 0 0 0 4px var(--gold-500),inset 0 0 0 6px var(--arcane-500); }
+.relic--rare::before,.relic--epic::before { content:''; position:absolute; left:2px; top:2px; width:4px; height:4px; background:var(--steel-300); box-shadow:calc(var(--rw) - 12px) 0 0 var(--steel-300),0 calc(var(--rw) - 12px) 0 var(--steel-300),calc(var(--rw) - 12px) calc(var(--rw) - 12px) 0 var(--steel-300); z-index:2; }
+.relic--epic::before { background:var(--gold-200); box-shadow:calc(var(--rw) - 12px) 0 0 var(--gold-200),0 calc(var(--rw) - 12px) 0 var(--gold-200),calc(var(--rw) - 12px) calc(var(--rw) - 12px) 0 var(--gold-200); }
+.relic--32 { --rw:32px; } .relic--48 { --rw:48px; } .relic--64 { --rw:64px; }
+.relic--empty { background:none; box-shadow:none; }
+.relic--empty::after { content:''; position:absolute; inset:2px; border:2px dashed var(--stone-600); }
+
+/* ---- modal mock ---- */
+.stage { position:relative; height:400px; overflow:hidden; background:radial-gradient(ellipse at 50% 0,var(--tint-glow,#10202c) 0,transparent 70%),var(--stone-950); }
+.stage .backdrop { position:absolute; inset:0; background:rgba(8,7,6,.78); }
+.modal { position:absolute; left:50%; top:64px; width:600px; margin-left:-300px; }
+.modal__win { padding:40px 24px 24px; --bev-light:var(--wood-600); --bev-dark:var(--wood-900); box-shadow:inset 4px 4px 0 var(--bev-light),inset -4px -4px 0 var(--bev-dark),inset 0 0 0 6px var(--gold-700); }
+.modal__plaque { position:absolute; left:50%; top:-24px; transform:translateX(-50%); z-index:2; }
+.modal__close { position:absolute; right:12px; top:12px; z-index:2; }
+.modal__foot { display:flex; justify-content:flex-end; gap:16px; margin-top:16px; }
+
+/* ---- sprites / units ---- */
+.spr { flex:none; image-rendering:pixelated; background-repeat:no-repeat; animation:idle 1s steps(1,end) infinite; }
+@keyframes idle { 0% { background-position:0 0; } 50% { background-position:var(--nx) 0; } }
+.flip { transform:scaleX(-1); }
+.unit-mover { position:relative; display:inline-block; }
+
+.field { position:relative; --bev-light:var(--stone-500); --bev-dark:var(--stone-950); overflow:hidden; }
+.field::before { content:''; position:absolute; left:0; top:0; bottom:0; width:50%; background:linear-gradient(90deg,rgba(29,26,23,.6),rgba(25,27,30,.5)); box-shadow:inset 0 4px 0 var(--steel-500); }
+.field::after { content:''; position:absolute; right:0; top:0; bottom:0; width:50%; background:linear-gradient(270deg,rgba(20,25,31,.66),rgba(23,27,32,.56)); box-shadow:inset 0 4px 0 var(--blood-700); }
+.field__grid { position:relative; z-index:1; display:grid; grid-template-columns:1fr 144px 144px minmax(48px,120px) 144px 144px 1fr; column-gap:8px; row-gap:8px; padding:32px 0 24px; }
+.field__label { position:absolute; z-index:2; top:8px; font:400 8px/16px var(--font-pixel); letter-spacing:1px; color:var(--stone-100); text-shadow:0 2px 0 var(--stone-950); }
+
+.tile { position:relative; width:144px; height:156px; padding:4px; --bev-light:var(--iron-500); --bev-dark:var(--iron-900); background:var(--grain),linear-gradient(180deg,var(--iron-700),var(--iron-800)); box-shadow:inset 2px 2px 0 var(--bev-light),inset -2px -2px 0 var(--bev-dark); }
+.tile--p { border-top:0; } .tile--p::before,.tile--e::before { content:''; position:absolute; left:2px; right:2px; top:2px; height:4px; z-index:3; }
+.tile--p::before { background:var(--steel-500); } .tile--e::before { background:var(--blood-500); }
+.tile__win { position:relative; width:136px; height:128px; overflow:hidden; background:var(--stone-900); box-shadow:inset 2px 2px 0 var(--iron-900),inset -2px -2px 0 var(--iron-500); display:flex; align-items:flex-end; justify-content:center; }
+.tile--p .tile__win { background:linear-gradient(180deg,#1f1a15,#2b231b); }
+.tile--e .tile__win { background:linear-gradient(180deg,#161b21,#1d252d); }
+.tile__win .fl { position:absolute; left:0; right:0; bottom:0; height:12px; background:rgba(0,0,0,.28); }
+.tile__name { position:absolute; left:4px; right:4px; bottom:4px; height:20px; text-align:center; font:400 8px/20px var(--font-pixel); letter-spacing:1px; color:var(--stone-200); text-transform:uppercase; }
+.tile__count { position:absolute; right:6px; bottom:26px; z-index:4; padding:4px 6px; background:var(--stone-950); font:400 16px/16px var(--font-pixel); color:var(--stone-100); }
+.tile__role { position:absolute; left:8px; top:14px; z-index:4; width:24px; height:24px; background:var(--iron-800); box-shadow:inset 2px 2px 0 var(--iron-500),inset -2px -2px 0 var(--iron-900); display:flex; align-items:center; justify-content:center; }
+.tile__role img { width:16px; height:16px; }
+.tile--acted { filter:saturate(.35) brightness(.6); }
+.tile--empty { background:none; box-shadow:none; }
+.tile--empty::after { content:'EMPTY'; position:absolute; inset:4px; border:2px dashed var(--stone-600); font:400 8px/148px var(--font-pixel); color:var(--stone-400); text-align:center; letter-spacing:1px; }
+.tile--empty > * { display:none; }
+.tile--frozen .spr { filter:saturate(.5); }
+.tile--chained .spr { filter:brightness(.75); }
+.ice { position:absolute; inset:0; z-index:3; background:rgba(127,183,196,.32); box-shadow:inset 0 0 0 4px var(--frost-200); pointer-events:none; }
+.ice::before { content:''; position:absolute; left:0; right:0; top:0; height:12px; background:var(--frost-200); clip-path:polygon(var(--teeth)); }
+.ice b { position:absolute; width:8px; height:8px; background:var(--frost-200); clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%); }
+.chains { position:absolute; inset:0; z-index:3; pointer-events:none; background-repeat:no-repeat; background-size:100% 100%; }
+
+/* fx */
+.fx-layer { position:absolute; inset:0; z-index:6; pointer-events:none; }
+.fx { position:absolute; }
+.fx-slash { width:120px; height:8px; margin:-4px 0 0 -60px; transform:rotate(-40deg); background:linear-gradient(90deg,transparent,var(--stone-100) 20%,var(--gold-200) 60%,var(--stone-100)); animation:slash 320ms steps(4,end) forwards; }
+@keyframes slash { 0% { clip-path:inset(0 100% 0 0); opacity:1; } 60% { clip-path:inset(0 0 0 0); opacity:1; } 100% { clip-path:inset(0 0 0 0); opacity:0; } }
+.fx-spark { width:4px; height:4px; background:var(--gold-200); animation:spark 320ms steps(4,end) forwards; }
+@keyframes spark { from { transform:translate(0,0); opacity:1; } to { transform:translate(var(--sx),var(--sy)); opacity:0; } }
+.fx-bolt { width:20px; height:4px; background:linear-gradient(90deg,var(--stone-100) 0 14px,var(--gold-400) 14px 20px); box-shadow:0 0 0 2px var(--stone-950); transition:left 240ms steps(8,end),top 240ms steps(8,end); }
+.fx-ring { width:120px; height:120px; margin:-60px 0 0 -60px; background:var(--steel-300); animation:ring 240ms steps(3,end) forwards;
+  clip-path:polygon(evenodd,30% 0,70% 0,100% 30%,100% 70%,70% 100%,30% 100%,0 70%,0 30%,30% 0,calc(30% + 4px) 4px,4px calc(30% + 4px),4px calc(70% - 4px),calc(30% + 4px) calc(100% - 4px),calc(70% - 4px) calc(100% - 4px),calc(100% - 4px) calc(70% - 4px),calc(100% - 4px) calc(30% + 4px),calc(70% - 4px) 4px,calc(30% + 4px) 4px); }
+@keyframes ring { 0% { transform:scale(1.25); opacity:1; } 70% { transform:scale(1); opacity:1; } 100% { transform:scale(1); opacity:0; } }
+.lunge { animation:lunge 280ms steps(2,end); }
+@keyframes lunge { 0% { transform:translateX(0); } 30% { transform:translateX(calc(var(--dir) * 16px)); } 60% { transform:translateX(calc(var(--dir) * 16px)); } 100% { transform:translateX(0); } }
+.hit { animation:hit 240ms steps(4,end); }
+@keyframes hit { 0% { transform:translateX(0); filter:brightness(3); } 25% { transform:translateX(-4px); filter:none; } 50% { transform:translateX(4px); } 75% { transform:translateX(-4px); } 100% { transform:translateX(0); } }
+.floater { position:absolute; z-index:7; font:400 16px/16px var(--font-pixel); color:var(--blood-300); text-shadow:0 2px 0 #000; animation:float 800ms steps(8,end) forwards; }
+@keyframes float { from { transform:translateY(0); opacity:1; } 75% { opacity:1; } to { transform:translateY(-32px); opacity:0; } }
+
+/* ---- battle mock ---- */
+.mock { position:relative; --bev-light:var(--iron-500); --bev-dark:var(--iron-900); background:var(--grain),linear-gradient(180deg,var(--iron-700),var(--iron-800)); padding:8px; box-shadow:inset 4px 4px 0 var(--bev-light),inset -4px -4px 0 var(--bev-dark); }
+.mock__top { display:flex; justify-content:space-between; align-items:center; padding:4px 8px 12px; }
+.mock__scene { position:relative; }
+.tray { position:relative; margin-top:8px; padding:16px 24px 8px; display:flex; align-items:flex-end; justify-content:center; gap:32px; height:248px; }
+.hand { display:flex; gap:16px; align-items:flex-end; }
+.pile { position:relative; width:96px; height:128px; flex:none; margin-bottom:24px; }
+.pile__back { position:absolute; inset:0; padding:6px; text-align:center; }
+.pile__back img { display:block; margin:24px auto 8px; width:32px; height:32px; }
+.pile .t-num { position:absolute; left:0; right:0; bottom:14px; text-align:center; color:var(--stone-100); text-shadow:0 2px 0 var(--stone-950); }
+.pile .t-label { position:absolute; left:0; right:0; bottom:-20px; text-align:center; color:var(--stone-300); }
+.pile--stack { box-shadow:4px 4px 0 var(--stone-950),8px 8px 0 var(--iron-700),8px 8px 0 1px var(--stone-950); }
+
+/* ---- road/city bar ---- */
+.gbar { position:relative; height:200px; display:grid; grid-template-columns:120px 176px 1fr 248px; gap:0; padding:12px 16px; border-top:4px solid var(--iron-600); }
+.gbar > div { padding:0 16px; position:relative; }
+.gbar > div + div::before { content:''; position:absolute; left:0; top:0; bottom:0; width:4px; background:linear-gradient(90deg,var(--wood-900) 0 2px,var(--wood-600) 2px 4px); }
+.gbar .res { display:flex; flex-direction:column; gap:8px; padding-left:0; }
+.gbar .res .pill { width:88px; }
+.gbar .hero { display:flex; flex-direction:column; align-items:center; gap:8px; }
+.portrait { position:relative; width:104px; height:104px; background:radial-gradient(ellipse at 50% 60%,#4a3826 0,#1b130d 100%); box-shadow:inset 2px 2px 0 var(--wood-900),inset -2px -2px 0 var(--wood-500),0 0 0 4px var(--gold-700); overflow:hidden; display:flex; align-items:flex-end; justify-content:center; }
+.relic-grid { display:grid; grid-template-columns:repeat(3,32px); gap:4px; }
+.army { display:grid; grid-template-columns:repeat(3,104px); grid-template-rows:repeat(2,86px); gap:8px; justify-content:center; }
+.slot { position:relative; width:104px; height:86px; padding:4px; background:var(--grain),linear-gradient(180deg,var(--iron-700),var(--iron-800)); box-shadow:inset 2px 2px 0 var(--iron-500),inset -2px -2px 0 var(--iron-900); }
+.slot::before { content:''; position:absolute; left:2px; right:2px; top:2px; height:4px; background:var(--steel-500); z-index:2; }
+.slot .win { width:96px; height:78px; background:linear-gradient(180deg,#1f1a15,#2b231b); box-shadow:inset 2px 2px 0 var(--iron-900),inset -2px -2px 0 var(--iron-500); display:flex; align-items:flex-end; justify-content:center; overflow:hidden; }
+.slot .win .spr { margin-bottom:-6px; }
+.slot .cnt { position:absolute; right:6px; bottom:6px; padding:2px 4px; background:var(--stone-950); font:400 16px/16px var(--font-pixel); color:var(--stone-100); }
+.slot.empty { background:none; box-shadow:none; }
+.slot.empty::before { display:none; }
+.slot.empty::after { content:'EMPTY'; position:absolute; inset:2px; border:2px dashed var(--stone-600); font:400 8px/78px var(--font-pixel); color:var(--stone-400); text-align:center; letter-spacing:1px; }
+.slot.empty > * { display:none; }
+.gbar .acts { display:flex; flex-direction:column; gap:8px; align-items:stretch; padding-right:0; }
+.gbar .acts .r { display:flex; gap:8px; }
+.gbar .acts .shadowed-1 { display:block; }
+.gbar .acts .btn { padding:12px 0; text-align:center; height:48px; }
+
+/* icon grid */
+.icons { display:grid; grid-template-columns:repeat(8,1fr); gap:16px 8px; }
+.icons figure { display:flex; flex-direction:column; align-items:center; gap:8px; padding:12px 0 8px; }
+.icons figcaption { font:400 8px/12px var(--font-pixel); color:var(--stone-300); text-transform:uppercase; letter-spacing:1px; }
+.icons img { width:48px; height:48px; }
+
+/* sprite lab */
+.lab { display:grid; grid-template-columns:repeat(5,1fr); gap:16px; }
+.lab figure { display:flex; flex-direction:column; align-items:center; gap:8px; padding:16px 8px 12px; }
+.lab .stagebox { position:relative; width:100%; height:216px; display:flex; align-items:flex-end; justify-content:center; padding-bottom:8px; }
+.lab .stagebox.p { background:linear-gradient(180deg,#2a2018,#1b1511); }
+.lab .stagebox.e { background:linear-gradient(180deg,#161c23,#0f1419); }
+.lab figcaption { font:400 8px/16px var(--font-pixel); color:var(--stone-200); text-transform:uppercase; letter-spacing:1px; text-align:center; }
+.lab .pair { display:flex; gap:8px; align-items:flex-end; }
+.demo-layout { display:grid; grid-template-columns:840px 1fr; gap:24px; align-items:start; }
+.legend li { list-style:none; margin-bottom:8px; }
+.legend { padding:0; }
+.note { color:var(--stone-300); font:400 14px/16px var(--font-body); max-width:56ch; margin-bottom:8px; }
+</style>
+</head>
+<body>
+
+<header style="text-align:center;margin:8px 0 24px">
+  <div class="shadowed"><div class="plaque plaque--ribbon mat-gold step-8" style="font-size:40px;height:64px;line-height:64px;padding:0 72px"><span>Ashes of Dominion</span></div></div>
+  <div class="t-label" style="margin-top:16px;color:var(--stone-300)">Style proof v1 &middot; 1366px &middot; CSS + code-drawn pixel art only &middot; hover anything with a tip</div>
+</header>
+
+<h2 class="sec">1. Colour palette <small>tokens from DESIGN_LANGUAGE section 2</small></h2><div class="divider"></div>
+<div id="palette"></div>
+
+<h2 class="sec">2. Typography <small>MedievalSharp / Silkscreen / Alegreya Sans</small></h2><div class="divider"></div>
+<div class="row" style="gap:24px">
+  <div class="panel mat-stone-smooth step-8 bevel-4" style="width:610px">
+    <div class="t-label" style="color:var(--stone-400)">Display &middot; title 64 / h1 40 / h2 24 / h3 20</div>
+    <div class="t-title" style="color:var(--gold-200);text-shadow:0 2px 0 var(--stone-950)">Ashes of Dominion</div>
+    <div class="t-h1" style="color:var(--stone-100)">The Road Ahead</div>
+    <div class="t-h2" style="color:var(--gold-200)">Barracks &middot; Iron Bulwark</div>
+    <div class="t-h3" style="color:var(--stone-100)">Shield Bash +</div>
+  </div>
+  <div class="panel mat-stone-smooth step-8 bevel-4" style="width:300px">
+    <div class="t-label" style="color:var(--stone-400)">Pixel &middot; label 8 / button 16 / number 16, 32</div>
+    <div class="t-label" style="margin-top:8px;color:var(--stone-300)">Front &middot; Back &middot; Empty</div>
+    <div class="t-btn" style="margin-top:8px;color:var(--stone-100)">End Turn</div>
+    <div class="t-num" style="margin-top:8px;color:var(--gold-200)">x12  1,250  9/10</div>
+    <div class="t-num32" style="margin-top:8px;color:var(--stone-100)">128</div>
+  </div>
+  <div class="panel mat-stone-smooth step-8 bevel-4" style="width:348px">
+    <div class="t-label" style="color:var(--stone-400)">Body &middot; 16/24 and small 14/16</div>
+    <p class="t-body" style="margin-top:8px"><b style="color:var(--stone-100)">Deal 8 damage</b> to the front enemy stack. Gain 4 block if it was frozen.</p>
+    <p class="t-small" style="margin-top:8px;color:var(--text-dim)">Turn 3: Orc Raiders lunge at the Swordsmen. 12 units killed.</p>
+    <p class="t-small" style="margin-top:8px;color:var(--blood-300)">Cannot be played: no valid target.</p>
+  </div>
+</div>
+
+<h2 class="sec">3. Materials <small>CSS + inline SVG grain only</small></h2><div class="divider"></div>
+<div class="row" style="gap:24px">
+  <div class="shadowed"><div class="mat-stone step-8 bevel-4" style="width:240px;height:144px;padding:16px"><div class="plaque plaque--iron step" style="height:24px;line-height:24px;font-size:16px">Stone</div><div class="t-small" style="margin-top:8px;color:var(--stone-200);position:relative;z-index:1">Dressed brick, scene surfaces only.</div></div></div>
+  <div class="shadowed"><div class="mat-wood step-8 bevel-4" style="width:240px;height:144px;padding:16px;color:var(--gold-200)"><div class="t-h3" style="text-shadow:0 2px 0 #000">Wood</div><div class="t-small" style="margin-top:8px;color:var(--stone-100);text-shadow:0 2px 0 #000">Planks, city signs and bars.</div></div></div>
+  <div class="shadowed"><div class="mat-parch step-8 bevel-4" style="width:240px;height:144px;padding:16px;box-shadow:inset 4px 4px 0 var(--parch-100),inset -4px -4px 0 var(--parch-400),inset 0 0 0 8px var(--parch-300)"><div class="t-h3" style="color:var(--wood-800)">Parchment</div><div class="t-small" style="margin-top:8px;color:var(--ink-900)">Road map, event scrolls, card text.</div></div></div>
+  <div class="shadowed"><div class="mat-iron step-8 bevel-4" style="width:240px;height:144px;padding:16px;position:relative"><div class="t-h3" style="color:var(--stone-100);text-shadow:0 2px 0 #000">Iron</div><div class="t-small" style="margin-top:8px;color:var(--stone-200)">Frames, buttons, unit tiles.</div><i style="position:absolute;left:6px;top:6px;width:4px;height:4px;background:var(--iron-300);box-shadow:2px 2px 0 var(--iron-900)"></i><i style="position:absolute;right:8px;top:6px;width:4px;height:4px;background:var(--iron-300);box-shadow:2px 2px 0 var(--iron-900)"></i><i style="position:absolute;left:6px;bottom:10px;width:4px;height:4px;background:var(--iron-300);box-shadow:2px 2px 0 var(--iron-900)"></i><i style="position:absolute;right:8px;bottom:10px;width:4px;height:4px;background:var(--iron-300);box-shadow:2px 2px 0 var(--iron-900)"></i></div></div>
+  <div class="shadowed"><div class="mat-gold step-8 bevel-4 trim-gold" style="width:240px;height:144px;padding:16px 20px"><div class="t-h3" style="text-shadow:0 2px 0 var(--gold-200)">Aged gold</div><div class="t-small" style="margin-top:8px;color:var(--gold-900);font-weight:500">Plaques, primary actions, rewards.</div></div></div>
+</div>
+
+<h2 class="sec">4. Components <small>plaque, buttons, cards, relics, pills, tooltip, bar, modal</small></h2><div class="divider"></div>
+<div class="sub">Plaque banners</div>
+<div class="row" style="gap:24px;align-items:center">
+  <div class="shadowed"><div class="plaque mat-gold step-8 bevel-2">Choose one</div></div>
+  <div class="shadowed"><div class="plaque plaque--ribbon mat-gold step-8">Victory</div></div>
+  <div class="shadowed"><div class="plaque plaque--ribbon plaque--blood step-8">Defeat</div></div>
+  <div class="shadowed"><div class="plaque plaque--wood step-8 bevel-2">Barracks</div></div>
+  <div class="shadowed-1"><div class="plaque plaque--iron step bevel-2">Lord Aldric</div></div>
+  <div class="shadowed-1"><div class="plaque plaque--iron step bevel-2">Turn 3</div></div>
+</div>
+
+<div class="sub">Buttons: default / hover / pressed / disabled / focus</div>
+<div class="btn-grid">
+  <div class="t-label">Primary</div>
+  <div class="shadowed-1"><button class="btn btn--primary step">Begin</button></div><div class="shadowed-1"><button class="btn btn--primary hover step">Begin</button></div><div class="shadowed-1"><button class="btn btn--primary active step">Begin</button></div><div class="shadowed-1"><button class="btn btn--primary disabled step" data-tip="Begin Journey|Choose a hero and a relic first.">Begin</button></div><div class="shadowed-1"><button class="btn btn--primary focus step">Begin</button></div>
+  <div class="t-label">Secondary</div>
+  <div class="shadowed-1"><button class="btn step">Recruit</button></div><div class="shadowed-1"><button class="btn hover step">Recruit</button></div><div class="shadowed-1"><button class="btn active step">Recruit</button></div><div class="shadowed-1"><button class="btn disabled step">Recruit</button></div><div class="shadowed-1"><button class="btn focus step">Recruit</button></div>
+  <div class="t-label">Danger</div>
+  <div class="shadowed-1"><button class="btn btn--danger step">Abandon</button></div><div class="shadowed-1"><button class="btn btn--danger hover step">Abandon</button></div><div class="shadowed-1"><button class="btn btn--danger active step">Abandon</button></div><div class="shadowed-1"><button class="btn btn--danger disabled step">Abandon</button></div><div class="shadowed-1"><button class="btn btn--danger focus step">Abandon</button></div>
+</div>
+<div class="note" style="margin-top:8px">Real hover and click also work on the first column. Forced-state copies sit beside it.</div>
+
+<div class="sub">Cards (144 x 208): attack / defense / buff, hover, epic, unplayable, selected</div>
+<div class="row" style="gap:32px;padding-top:24px" id="cards"></div>
+
+<div class="sub">Relic frames: common / rare / epic at 32, 48, 64, plus empty slot</div>
+<div class="row" style="gap:24px;align-items:flex-end" id="relics"></div>
+
+<div class="sub">Resource pills, bars and tooltip (hover the pills and the disabled button above)</div>
+<div class="row" style="gap:16px;align-items:center" id="pills"></div>
+<div class="row" style="gap:24px;margin-top:16px;align-items:center" id="bars"></div>
+
+<div class="sub">Modal popup (wood window, gold trim double frame, plaque overlapping top edge)</div>
+<div class="stage"><div class="backdrop"></div>
+  <div class="modal">
+    <div class="modal__plaque shadowed"><div class="plaque mat-gold step-8 bevel-2">Barracks</div></div>
+    <div class="shadowed" style="display:block"><div class="modal__win mat-wood step-8" style="padding-top:48px">
+      <div class="modal__close"><div class="shadowed-1"><button class="btn btn--sq step" style="height:32px;width:32px" data-tip="Close|Esc also closes."><span id="xicon"></span></button></div></div>
+      <div class="well bevel-in step" style="padding:16px;display:flex;gap:16px;align-items:center"><div id="modalsprite"></div>
+        <div><div class="t-h2" style="color:var(--gold-200)">Swordsman</div><div class="t-body">Front line infantry. 6 attack, 4 defense.</div><div class="t-small" style="color:var(--stone-300)">Cost 25 <span id="gicon" style="vertical-align:middle"></span> per unit</div></div></div>
+      <div class="modal__foot"><div class="shadowed-1"><button class="btn step">Cancel</button></div><div class="shadowed-1"><button class="btn btn--primary step">Recruit</button></div></div>
+    </div></div>
+  </div>
+</div>
+
+<h2 class="sec">5. Pixel icons <small>16x16 palette grids, one shared renderer, x3</small></h2><div class="divider"></div>
+<div class="panel mat-stone-smooth step-8 bevel-4"><div class="icons" id="icons"></div></div>
+
+<h2 class="sec">6. Unit sprites <small>32x32 palette grids, 2-frame idle, x6</small></h2><div class="divider"></div>
+<div class="lab" id="lab"></div>
+<div class="sub">Team swap proof: one grid, two palettes (team characters a / A / h), enemy mirrored</div>
+<div class="row" id="swap" style="gap:24px"></div>
+
+<h2 class="sec">6b. Battlefield mock <small>effects, states, no HP bars</small></h2><div class="divider"></div>
+<div class="demo-layout">
+  <div class="shadowed" style="display:block"><div class="field mat-stone step-8 bevel-4" id="field1" style="width:840px"></div></div>
+  <div>
+    <div class="sub" style="margin-top:0">Effect demos</div>
+    <div class="row" style="gap:16px">
+      <div class="shadowed-1"><button class="btn step" id="b-slash">Swordsman slash</button></div>
+      <div class="shadowed-1"><button class="btn step" id="b-arrow">Archer shot</button></div>
+      <div class="shadowed-1"><button class="btn step" id="b-block">Knight block</button></div>
+      <div class="shadowed-1"><button class="btn step" id="b-enemy">Orc smash</button></div>
+    </div>
+    <div class="sub">Legend</div>
+    <ul class="legend">
+      <li class="t-small">Player half warm, steel top line. Enemy half cold, blood top line.</li>
+      <li class="t-small">Knight (bottom left): acted, saturate .35 and dimmed.</li>
+      <li class="t-small">Goblin (top right): frozen, ice overlay with teeth and shards.</li>
+      <li class="t-small">Goblin (bottom right): chained, chain links corner to corner.</li>
+      <li class="t-small">Slash = wipe line plus 3 spark pixels. Arrow = 4x20 bolt in 8 steps. Block = stepped octagon ring.</li>
+      <li class="t-small">Lunge 16px in 2 steps. Hit shake 4 steps with a 1-frame flash. No HP bars anywhere.</li>
+    </ul>
+  </div>
+</div>
+
+<h2 class="sec">7. Screen mocks <small>Battle and Road / City bottom bar</small></h2><div class="divider"></div>
+<div class="sub" style="margin-top:0">Battle screen (cool dark stone, iron frame, wood hand tray)</div>
+<div class="shadowed" style="display:block"><div class="mock step-8" id="battle">
+  <div class="mock__top">
+    <div class="shadowed-1"><div class="plaque plaque--iron step bevel-2">Lord Aldric</div></div>
+    <div class="shadowed-1"><div class="plaque plaque--iron step bevel-2">Turn 3 &middot; Your move</div></div>
+    <div style="display:flex;gap:8px" id="mockpills"></div>
+  </div>
+  <div class="mock__scene"><div class="field mat-stone step" id="field2"></div></div>
+  <div class="tray mat-wood-dark step bevel-4" id="tray"></div>
+</div></div>
+
+<div class="sub" style="margin-top:32px">Road / City bottom bar: resources | hero | relics + 3x2 army | actions</div>
+<div class="shadowed" style="display:block"><div class="gbar mat-wood-dark step" id="gbar"></div></div>
+
+<div id="tip-wrap"><div id="tip" class="step"></div></div>
+
+<script>
+const PAL = {"k":"#100e0c","w":"#e6dcc3","W":"#faf3df","g":"#9a907d","d":"#544d42","s":"#66707a","S":"#33393e","l":"#aab5be","y":"#cfa93f","Y":"#7a5f1c","j":"#ecd082","t":"#6b4a2b","T":"#3c2916","u":"#94673a","f":"#dfae82","F":"#a9744c","a":"#c4622d","A":"#7a3416","h":"#e58f52","q":"#a3c452","Q":"#6a9433","O":"#3b561b","z":"#62804a","Z":"#33472a","x":"#8fac6c","b":"#3f6f95","B":"#21405a","n":"#4f7a3a","N":"#22381b","p":"#6d4f96","i":"#7fb7c4","I":"#cfe8ec","o":"#b5651d","r":"#9c2f26","R":"#4a1712","e":"#e8c93a"};
+const SPR = {"swordsman":[["........................kWk.....","........................klk.....","........................klk.....",".............kkk.......kWlsk....","............kWWWkkkk...kWlsk....","...........kllllssssk..kWlsk....","..........ksllllsssSSk.kWlsk....",".........kslsssssssSSskkWlsk....",".........ksssssssssSSskkWlsk....",".........ksssssssssSSskkWlsk....",".........ksllsssSssssskkWlsk....",".....kkkkkSSSSSSsSSSSSkkWlsk....","....klsssskksfffsfffkk.kWlsk....","...klsshhsskkfkfsfkkk..kWlsk....","..kllaahhaaskffffFffkk.kWlsk....","..kssaahhaassFFFFFFFhskkWlsk....","..ksaaahhaaasaajyaAAAlssWlskkk..",".kssaaahhaaassayyaAAAlssyyyyyyk.",".kssaaayyaaassayyaAAAlssYYYYYYk.",".kshhhyjyyhhhsayyaAAAlsfffffkk..",".kshhhyyyyhhhsayyaAAAlsFFFFFk...",".kssaaayyaaassayyaAAAskFFFFFk...",".kssaaahhaaassTyyTTTTTkkyyyk....","..ksaaahhaaasTTyyTTTTTkkyyyk....","..kssaahhaassssssssssk..kkk.....","...ksaahhaastttkkutttk..........","....ksshhssutttkkutttkk.........",".....kshhstTTTTTktTTTTTk........","......kkkkTTTTTTkTTTTTTk........",".........kTTTTTTkTTTTTTk........","..........kkkkkk.kkkkkk.........","................................"],
+[".........................k......","........................kWk.....","........................klk.....","........................klk.....",".............kkk.......kWlsk....","............kWWWkkkk...kWlsk....","...........kllllssssk..kWlsk....","..........ksllllsssSSk.kWlsk....",".........kslsssssssSSskkWlsk....",".........ksssssssssSSskkWlsk....",".........ksssssssssSSskkWlsk....",".........ksllsssSssssskkWlsk....",".....kkkkkSSSSSSsSSSSSkkWlsk....","....klsssskksfffsfffkk.kWlsk....","...klsshhsskkfkfsfkkk..kWlsk....","..kllaahhaaskffffFffkk.kWlsk....","..kssaahhaassFFFFFFFhskkWlsk....","..ksaaahhaaasaajyaAAAlssWlskkk..",".kssaaahhaaassayyaAAAlssyyyyyyk.",".kssaaayyaaassayyaAAAlssYYYYYYk.",".kshhhyjyyhhhsayyaAAAlsfffffkk..",".kshhhyyyyhhhsayyaAAAlsFFFFFk...",".kssaaayyaaassayyaAAAskFFFFFk...",".kssaaahhaaassTyyTTTTTkkyyyk....","..ksaaahhaaasTTyyTTTTTkkyyyk....","..kssaahhaassssssssssk..kkk.....","...ksaahhaastttkkutttkk.........","....ksshhssTTTTTktTTTTTk........",".....kshhsTTTTTTkTTTTTTk........","......kkkkTTTTTTkTTTTTTk........","..........kkkkkk.kkkkkk.........","................................"]],"archer":[["................................","..........................kk....",".........................kttk...",".............kkkkkk......kwttk..","............kaaaaaak.....kwttk..","...........khhhhhaaak....kwtttk.","..........kaaaaaaaaaak..kwkkttk.",".........kaaaaaaaaaaaak.kwkktttk","........kahaAAAAAAAAAak.kwk.kttk","........kwhaAAAAAAAAAak.kwk.kttk","........kwhafAAAAAAAfak.kwk.kttk","........kwaaffAfffAffak.kwk.kttk","........ktaaffkfffkffakkwk.kTTtk","........ktaaffffFffffk.kwkkkTTtk","........ktaaFFFrrrFFFkkfwfllTTtk","........ktaahaaaaaahhhhwwwllWTtk","........ktaaaauaattatttFwFllTTtk","........ktuuuuutttttttttwkkkkttk","........ktuuuuuttttttttkkwk.kttk","........ktuuuuuttttttttkkwk.kttk","........kuuuuuuttttttttkkwk.kttk","........kuuuuuTTTTTttttkkwk.kttk","........kuuuuuTyyTTttttkkwkktttk","........kuuuuuuyyttttttkkwkkttk.","........kAAAAAAAAAAAAAAk.kwkttk.",".........kkktTTkktTTkkk..kwtttk.","...........ktTTkktTTkk...kwttk..","..........kuuuuukuuuuuk..kwttk..","..........ktttttktttttk..kttk...","..........ktttttktttttk..kttk...","...........kkkkk.kkkkk....kk....","................................"],
+["................................","................................","..........................kk....",".........................kttk...",".............kkkkkk......kwttk..","............kaaaaaak.....kwttk..","...........khhhhhaaak....kwtttk.","..........kaaaaaaaaaak..kwkkttk.",".........kaaaaaaaaaaaak.kwkktttk","........kahaAAAAAAAAAak.kwk.kttk","........kwhaAAAAAAAAAak.kwk.kttk","........kwhafAAAAAAAfak.kwk.kttk","........kwaaffAfffAffak.kwk.kttk","........ktaaffkfffkffakkwk.kTTtk","........ktaaffffFffffk.kwkkkTTtk","........ktaaFFFrrrFFFkkfwfllTTtk","........ktaahaaaaaahhhhwwwllWTtk","........ktaaaauaattatttFwFllTTtk","........ktuuuuutttttttttwkkkkttk","........ktuuuuuttttttttkkwk.kttk","........ktuuuuuttttttttkkwk.kttk","........kuuuuuuttttttttkkwk.kttk","........kuuuuuTTTTTttttkkwk.kttk","........kuuuuuTyyTTttttkkwkktttk","........kuuuuuuyyttttttkkwkkttk.","........kAAAAAAAAAAAAAAk.kwkttk.",".........kkktTTkktTTkkk..kwtttk.","..........kuuuuukuuuuuk..kwttk..","..........ktttttktttttk..kwttk..","..........ktttttktttttk..kttk...","...........kkkkk.kkkkk...kttk...","..........................kk...."]],"knight":[["....................kkk..kllk...",".................kkkaaakkkllk...","...............kkhhhhhhaaallsk..","..............kaaaaaaaaaaallsk..","...........kkkkaaaaaaaaaalllsk..","..........kllllyyyyyAAAAAlllsk..","..........klsssssaaSSkkkkkuthhk.",".........klssssssssssSk..kutaak.",".........klssssssssssSk..kutaak.",".........klskekkkkkekSk..kutak..",".........klskkkkkkkkkSk..kutAAk.",".......kkklssssksssssSkkkkutkk..","..kkkkkssslssksksksksSsssjyyyk..",".klllllllllllssksssSSslllsyyyk..",".kssssssssssslllllllssssssutk...",".ksshhhhhhhssssllsssssssssutk...",".ksshaajyaAssssllsssssssssutk...",".ksshaayyaAssssllsssSsssSSSSk...",".ksshjyyyyyssSSSSSSSSSSsSllSk...",".ksshyyyyyyssssllsssSSSsSllSk...",".ksshaayyaAssssllsssSSSsSSSSk...",".kssaaayyaassssllsssSSSkkkutk...","..kssaayyassTTTyyTTTTTTk.kutk...","...kssayyssTTTTyyTTTTTTk.kutk...","...kssayyssaaAAAAAAAAAk..kutk...","....kssasslsssSkklsssSk..kutk...",".....kssskSSSSSkkSSSSSk..kutk...",".....ksssklsssSkklsssSkk.kutk...","......kskSSSSSSSkSSSSSSSkkutk...",".......kkSSSSSSSkSSSSSSSkkutk...",".........kkkkkkk.kkkkkkk..kk....","................................"],
+["..........................kk....","....................kkk..kllk...",".................kkkaaakkkllk...","...............kkhhhhhhaaallsk..","..............kaaaaaaaaaaallsk..","...........kkkkaaaaaaaaaalllsk..","..........kllllyyyyyAAAAAlllsk..","..........klsssssaaSSkkkkkuthhk.",".........klssssssssssSk..kutaak.",".........klssssssssssSk..kutaak.",".........klskekkkkkekSk..kutak..",".........klskkkkkkkkkSk..kutAAk.",".......kkklssssksssssSkkkkutkk..","..kkkkkssslssksksksksSsssjyyyk..",".klllllllllllssksssSSslllsyyyk..",".kssssssssssslllllllssssssutk...",".ksshhhhhhhssssllsssssssssutk...",".ksshaajyaAssssllsssssssssutk...",".ksshaayyaAssssllsssSsssSSSSk...",".ksshjyyyyyssSSSSSSSSSSsSllSk...",".ksshyyyyyyssssllsssSSSsSllSk...",".ksshaayyaAssssllsssSSSsSSSSk...",".kssaaayyaassssllsssSSSkkkutk...","..kssaayyassTTTyyTTTTTTk.kutk...","...kssayyssTTTTyyTTTTTTk.kutk...","...kssayyssaaAAAAAAAAAk..kutk...","....kssassSSSSSkkSSSSSk..kutk...",".....ksssklsssSkklsssSkk.kutk...",".....ksssSSSSSSSkSSSSSSSkkutk...","......kskSSSSSSSkSSSSSSSkkutk...",".......k.kkkkkkk.kkkkkkk.kutk...","..........................kk...."]],"goblin":[["................................","................................","................................","...............kk...............","..............kRrk..............",".............kRRRk..............",".k..........kRRRRRkk..........k.","kQkk.....kkkqrrrrrrqk.......kkQk","kQQQkk..kqqqqqqqqqqqqk....kkQQQk",".kQqQQkk.kqqqqqqqqqqqqk.kkQQOQk.",".kQqqQQQkqqqOOOOOqOOOOOkQQOOQQk.",".kQQFqqQQqqqOeeeqqqeeeOQQOOOQQk.","..kQQQQQQqqqeekkqQQekkeQQQQQQk..","..kQQQQQQqqqqqqqqQQqqqqQQQQQQk..","...kkkQQQqqqqqqqqQOqqqqQQQkkk...","......kkkQqqqqqqqqqqqqQQWsk.....",".........kqqkWkWkkWkWkQkWsk.....","..........kqkkWkkkkWkkkkWsk.....","........kkuuqqQQQQQQuukkWsk.....",".......kqQQttttttttTTQQQWsk.....",".......kqQQttttttttTTQQQWskk....",".......kqQQttttttttTTQoqqqqok...",".......kqQQTTTTyyTTTTTkqOOqk....","........kktttttttttTTTkqqqqk....",".........ktttttttttTTTkkttk.....",".........kttQQQttQQTTk..kk......",".........kkQQQQkkQQQQkkk........","........ktTTTTTTktTTTTTTk.......","........kTTTTTTTkTTTTTTTk.......","........kTTTTTTTkTTTTTTTk.......",".........kkkkkkk.kkkkkkk........","................................"],
+["................................","................................","................................","................................","...............kk...............","..............kRrk..............",".............kRRRk..............",".k..........kRRRRRkk..........k.","kQkk.....kkkqrrrrrrqk.......kkQk","kQQQkk..kqqqqqqqqqqqqk....kkQQQk",".kQqQQkk.kqqqqqqqqqqqqk.kkQQOQk.",".kQqqQQQkqqqOOOOOqOOOOOkQQOOQQk.",".kQQFqqQQqqqOeeeqqqeeeOQQOOOQQk.","..kQQQQQQqqqeekkqQQekkeQQQQQQk..","..kQQQQQQqqqqqqqqQQqqqqQQQQQQk..","...kkkQQQqqqqqqqqQOqqqqQQQkkk...","......kkkQqqqqqqqqqqqqQQWsk.....",".........kqqkWkWkkWkWkQkWsk.....","..........kqkkWkkkkWkkkkWsk.....","........kkuuqqQQQQQQuukkWsk.....",".......kqQQttttttttTTQQQWsk.....",".......kqQQttttttttTTQQQWskk....",".......kqQQttttttttTTQoqqqqok...",".......kqQQTTTTyyTTTTTkqOOqk....","........kktttttttttTTTkqqqqk....",".........ktttttttttTTTkkttk.....",".........kttQQQttQQTTkkkkk......","........ktTTTTTTktTTTTTTk.......","........kTTTTTTTkTTTTTTTk.......","........kTTTTTTTkTTTTTTTk.......",".........kkkkkkk.kkkkkkk........","................................"]],"orc":[["...........................kkksW","..............kkkkk......kkssslk",".............krrrrrk....ksllsslk",".............kRRRRRk...klltSsllk","...........kkkRRRRRkkk.klltSsllk","..........kxxxxxrxxxxxkklltSsllk","..........krxxxxrxxxxrkksstSsllk","......k..kxrxxxxxxxxxrxksstSsllk",".....klk.kxxZZZZxZZZZzzksltSsllk","....kklk.kxxxerZZxrezzzkSltSsllk","...ksssskkxxxWxxxxxwzzzssssSsllk","..ksssSsskxxxWwzzzWWzzzssSsssllk","..klllssskxzkWWrrrWWkzzlllsssslk","..kssssssxxzkWWkkkWWkzsssssskklk","..kssssssTtxxxxxxxxxxxssssssk.k.","...ksssszTTtzzZzzZzzZZZssssZk...","...kxzzzzzTTtzZzzZzzZZZzzzZZk...","...kxzzzzzzTTttzzZzzZZZzzzzzzk..","...kxzzzzzzzTTTtzzzzZZZzzzZZZk..","...kxzzzzzzzZZTTtZZZZZZzzzZZZk..","...kZZZZZzzzzzzTTtzzZZZTTTZZZk..","..kttttttzzzzzzzTTtzZZZTTTTTTk..","..kTTTTTTTTTTTyjjyTTTTTTTTTTTk..","..kTTTTTTTTTTTyyyyTTTTTTkkutk...","...kkkkkkzRRRRRRRRRRTTtk.kutk...","........kzRRRRRRRRRRRTTk.kutk...","........kzZZZZZkkzZZZZZkkkutk...",".......kttttttttkttttttttkutk...",".......kTTTTTTTTkTTTTTTTTkutk...",".......kTTTTTTTTkTTTTTTTTkutk...","........kkkkkkkk.kkkkkkkk.kk....","................................"],
+["..............................kk","...........................kkksW","..............kkkkk......kkssslk",".............krrrrrk....ksllsslk",".............kRRRRRk...klltSsllk","...........kkkRRRRRkkk.klltSsllk","..........kxxxxxrxxxxxkklltSsllk","..........krxxxxrxxxxrkksstSsllk","......k..kxrxxxxxxxxxrxksstSsllk",".....klk.kxxZZZZxZZZZzzksltSsllk","....kklk.kxxxerZZxrezzzkSltSsllk","...ksssskkxxxWxxxxxwzzzssssSsllk","..ksssSsskxxxWwzzzWWzzzssSsssllk","..klllssskxzkWWrrrWWkzzlllsssslk","..kssssssxxzkWWkkkWWkzsssssskklk","..kssssssTtxxxxxxxxxxxssssssk.k.","...ksssszTTtzzZzzZzzZZZssssZk...","...kxzzzzzTTtzZzzZzzZZZzzzZZk...","...kxzzzzzzTTttzzZzzZZZzzzzzzk..","...kxzzzzzzzTTTtzzzzZZZzzzZZZk..","...kxzzzzzzzZZTTtZZZZZZzzzZZZk..","...kZZZZZzzzzzzTTtzzZZZTTTZZZk..","..kttttttzzzzzzzTTtzZZZTTTTTTk..","..kTTTTTTTTTTTyjjyTTTTTTTTTTTk..","..kTTTTTTTTTTTyyyyTTTTTTkkutk...","...kkkkkkzRRRRRRRRRRTTtk.kutk...","........kzRRRRRRRRRRRTTkkkutk...",".......kttttttttkttttttttkutk...",".......kTTTTTTTTkTTTTTTTTkutk...",".......kTTTTTTTTkTTTTTTTTkutk...","........kkkkkkkk.kkkkkkkk.kk....","................................"]]};
+const ICO = {"sword":["..............k.",".............kwk","............kwww","...........kwwsk","..........kwwsk.",".........kwwsk..","...kk...kwwsk...","..kyyk.kwwsk....","..kyyykwwsk.....","...kyyywsk......","....kyyyk.......","....kttyyk......","...ktttyyyk.....",".kktttkkyyk.....","kytttk..kk......","kyytk..........."],"shield":["................","..kkkkkkkkkkkk..",".kssssssssssssk.",".kbwwwwyybbbbbk.",".kbwBBByybbbbbk.",".kbwBBByybbbbbk.",".kbyyyyYYyyyybk.",".kbyyyyYYyyyybk.",".kbbbbbyybbbbbk.","..kbbbbyybbbbk..","...kbbbyybbbk...","....kbbyybbk....",".....kbyybk.....","......kbbk......",".......kk.......","................"],"gold":["................","......kkkk......","....kkYyYYkk....","...kyyyyyyyYk...","..kywwwyyyyyYk..","..kywwwYYyyyYk..",".kYwyyYYYYyyYYk.",".kyyyyyYYyyyyYk.",".kYyyyyYYyyyYYk.",".kYyyyYYYYyyYYk.","..kyyyyYYyyyYk..","..kYyyyyyyyYYk..","...kYYYyYYYYk...","....kkYYYYkk....","......kkkk......","................"],"food":["................","................","....kkkkkk......","...kttttttk.....","..kwwwwoottk....",".kwooooooottk...","ktooooooootttk..","ktooToooootttk..","ktooooooootttkk.","kttoooTooTTTtwwk",".ktttttttTTwwwwk","..kttttttttwwwwk","...kttttttkwwwwk","....kkkkkk.kgggk","............kkk.","................"],"hourglass":["...kkkkkkkkkk...","..kwwwwwwwwwwk..","..kyyyyyyyyyyk..","...kwwwwwwwwk...","....kggggggk....",".....kyyyyk.....",".....kwyywk.....","......kyyk......","......kwwk......",".....kwwwwk.....",".....kwyywk.....","....kwyyyywk....","...kwYYYYYYwk...","..kyyyyyyyyyyk..","..kYYYYYYYYYYk..","...kkkkkkkkkk..."],"heart":["................","...kkkk..kkkk...","..krrrrkkrrrrk..",".krowwrrrrrrrrk.",".krwoorrrrrrrrk.","krrorrrrrrRRRRrk","krrrrrrrrrRRRRk.",".krrrrrrrrrRRrk.","..krrrrrrRRRrk..","...krrrrrRRRk...","....krrrrRRk....",".....krrRRk.....",".....krrRrk.....","......krRk......",".......kk.......","................"],"mana":[".......k........","......kik.......",".....kiibk......","....kiiwbbk.....","...kiiwibbbk....","..kiiiiibbbbk...","..kbwwwwwwwwBk..","...kbbbbBBBBk...","...kbbbbBBBBk...","....kbbbBBBk....","....kbbbBBk.....",".....kbbBBk.....","......kbBk......","......kbBk......",".......kBk......","........k......."],"chain":["................","...kkkkkk.......",".kkwwwwsskk.....","kssssssssssk....","kwskkkkkkssk....","swsk....ksssk...","ksskkkkkSSwSk...","kssssssgSSggdk..",".kksssswSSkggk..","...kkkgwkk.kggk.",".....kgwk..kggk.",".....kggk..kggk.","......kggkkggk..","......kggggggk..",".......kggggk...","........kkkk...."],"freeze":["........k.......","......kkik......","...k.kikwik.k...","..kik.kkwk.kik..","...kik.kwkkik...","..k.kikkwkik.k..",".kik.kikwik.kik.",".kkkkkkwwkkkkkk.","kiwwwwwwwiiiiiik",".kikkkikiikkkik.","..k.kikkikik.k..","...kik.kikkik...","..kik.kkik.kik..","...k.kikiik.k...","......kkik......","........k......."],"poison":["................",".......kk.......","......knnk......","......knnk......",".....knnnnk.....","....knnnnnnk....","....knnnnnnk....","...knnnnnnnnk...","...knwnnnNNNk...","...knwwnnNNNk...","...knwwnnNNNk...","...kniinnNNNk...","....kiinnNNNk...",".....knnnnkk....","......kkkk......","................"],"bow":["....kk..........","...kwtkk........","...kwtttkk......","...kwtttttk.....","...kwkkttttk....","...kwk.kkttk....","...kwkk.kuttk.k.","...kwrrkkkttkkgk","...kwwwwwwwwwwww","...kwrrkkkttkkgk","...kwkk.ktttk.k.","...kwk..kttk....","...kwk.ktttk....","...kwkkkttk.....","...kwkttttk.....","...kwttttk......"],"staff":["..........k...k.",".........kwk.kwk","..k.....kwwpk.k.",".kwk...kwwwppk..","..k....kpppppk..","........kpppBk..",".........kykk...","........kyytk..k",".......kuyytk.kw","......kutttk...k",".....kutttk.....","....kutttk......","...kutttk.......","..kutttk........","..ktttk.........","..kttk.........."],"banner":[".kyyyk..........",".kyyykkkkkkkkk..","..ktooooooooook.","..ktorrrrrrrrrk.","..ktorrryyrrrrk.","..ktorryyyyrrrk.","..ktorrryyrrrrk.","..ktorrrrrrRRRk.","..ktorrrkkRRRRk.","..ktokkk..kkkRk.","..ktk........k..","..ktk...........","..ktk...........","..ktk...........",".kYYYk..........",".kYYYk.........."],"tower":["...kkk.kk.kkk...","..kssskssksssk..","..kssskssksssk..","..kggggggggggk..","..kggggggggggk..","...klllllllSk...","...klsssssSSk...","...klsskksSSk...","...klsskksSSk...","...klSskksSSk...","...klsssssSSk...","...klssTTsSSk...","...klsTTyTSSk...","...klsTTTTSSk...","...klsTTTTSSk...","....kkkkkkkk...."],"skull":["................",".....kkkkkk.....","...kkwwwwwwkk...","..kWWwwwwwwwwk..","..kwwwwwwwwwwk..",".kWwwwwwwwwggwk.",".kwwrkkwwrkkgwk.",".kwwkkkwwkkkgwk.",".kwwkkkwwkkkgwk.","..kwwwwggwwggk..","..kwgwwggwwggk..","...kgwwwwwwggk..","...kgwwwwwwggk..","...kgkwkwkwwk...","....kkkkkkkk....",".....k.k.k......"],"scroll":["...kk.......kk..","..kyykkkkkkkYYk.",".kyjjyWWWWWYYYYk",".kyyYywwwwwYYYYk","..kyywwwwwwgYYk.","...kwddddddggk..","...kwwwwwwwggk..","...kwdddddwggk..","...kwwwwwwwggk..","...kwddddddggk..","...kwwwwwwwggk..","..kyydddwwwgYYk.",".kyyyywwwwwYYYYk",".kyyYywwwwwYYYYk","..kyykkkkkkkYYk.","...kk.......kk.."]};
+const ENEMY_TEAM = { a:'#4a6a8a', A:'#26384e', h:'#86a8c8' };
+
+const cache = {};
+function canvasURL(frames, pal) {
+  const w = frames[0][0].length, h = frames[0].length;
+  const c = document.createElement('canvas'); c.width = w * frames.length; c.height = h;
+  const x = c.getContext('2d');
+  frames.forEach((rows, f) => rows.forEach((r, y) => { for (let i = 0; i < r.length; i++) { const ch = r[i]; if (ch === '.') continue; x.fillStyle = pal[ch]; x.fillRect(f * w + i, y, 1, 1); } }));
+  return c.toDataURL();
+}
+function palFor(team) { return team === 'enemy' ? Object.assign({}, PAL, ENEMY_TEAM) : PAL; }
+function iconEl(name, scale = 1) {
+  const key = 'i:' + name; cache[key] = cache[key] || canvasURL([ICO[name]], PAL);
+  const im = document.createElement('img'); im.className = 'px'; im.src = cache[key]; im.width = im.height = 16 * scale; im.alt = name; return im;
+}
+function spriteEl(name, scale, opts = {}) {
+  const team = opts.team || 'player'; const key = 's:' + name + ':' + team;
+  cache[key] = cache[key] || canvasURL(SPR[name], palFor(team));
+  const d = document.createElement('div'); d.className = 'spr' + (opts.flip ? ' flip' : '');
+  const w = 32 * scale, h = 32 * scale;
+  d.style.cssText = 'width:' + w + 'px;height:' + h + 'px;background-image:url(' + cache[key] + ');background-size:' + (w * 2) + 'px ' + h + 'px;--nx:-' + w + 'px;animation-delay:-' + (opts.delay || 0) + 'ms';
+  return d;
+}
+const $ = (s, r = document) => r.querySelector(s);
+function h(tag, cls, html) { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; }
+
+/* ---------- palette ---------- */
+(function () {
+  const groups = {
+    'Stone': ['stone-950','stone-900','stone-800','stone-700','stone-600','stone-500','stone-400','stone-300','stone-200','stone-100'],
+    'Wood': ['wood-900','wood-800','wood-700','wood-600','wood-500'],
+    'Parchment / ink': ['parch-100','parch-200','parch-300','parch-400','ink-900','ink-700'],
+    'Iron': ['iron-900','iron-800','iron-700','iron-600','iron-500','iron-300'],
+    'Aged gold': ['gold-900','gold-700','gold-500','gold-400','gold-200'],
+    'Blood': ['blood-900','blood-700','blood-500','blood-300'],
+    'Moss': ['moss-900','moss-700','moss-500','moss-300'],
+    'Steel': ['steel-900','steel-700','steel-500','steel-300'],
+    'Specials / verdigris': ['frost-500','frost-200','venom-500','ember-500','arcane-500','teal-700','teal-500','teal-300'],
+  };
+  const root = $('#palette'); const cs = getComputedStyle(document.documentElement);
+  Object.entries(groups).forEach(([g, names]) => {
+    const wrap = h('div', 'pal-group'); wrap.appendChild(h('div', 'sub', g)); const sw = h('div', 'swatches');
+    names.forEach((n) => { const v = cs.getPropertyValue('--' + n).trim(); sw.appendChild(h('div', 'sw', '<i style="background:' + v + '"></i><b>--' + n + '</b><span>' + v + '</span>')); });
+    wrap.appendChild(sw); root.appendChild(wrap);
+  });
+})();
+
+/* ---------- cards ---------- */
+function cardEl(kind, o) {
+  const wrap = h('div', 'shadowed');
+  const c = h('div', 'card card--' + kind + (o.cls ? ' ' + o.cls : ''));
+  c.innerHTML = '<div class="card__frame step"></div><div class="card__trim"></div><div class="card__title step" style="clip-path:none">' + o.name + '</div>';
+  const frame = c.firstChild;
+  const art = h('div', 'card__art'); art.appendChild(iconEl(o.icon, 3)); c.appendChild(art);
+  const type = h('div', 'card__type'); type.appendChild(iconEl(o.icon, 1)); art.appendChild(type);
+  const text = h('div', 'card__text mat-parch', o.text); c.appendChild(text);
+  const gem = h('div', 'card__gem gem', '<span' + (o.cls && o.cls.includes('dim') ? ' style="color:var(--blood-300)"' : '') + '>' + o.cost + '</span>'); c.appendChild(gem);
+  if (o.rar) { const r = h('div', 'card__rar'); r.style.background = o.rar; r.style.clipPath = 'polygon(50% 0,100% 50%,50% 100%,0 50%)'; c.appendChild(r); }
+  wrap.appendChild(c); return wrap;
+}
+(function () {
+  const r = $('#cards');
+  r.appendChild(cardEl('attack', { name: 'Cleave', icon: 'sword', cost: 1, text: '<span><b>Deal 8</b> damage to the front enemy stack.</span>' }));
+  r.appendChild(cardEl('defense', { name: 'Shield Wall', icon: 'shield', cost: 1, text: '<span>Gain <b>12 block</b> on one allied stack.</span>', rar: 'var(--rar-rare)' }));
+  r.appendChild(cardEl('buff', { name: 'War Banner', icon: 'banner', cost: 2, text: '<span>Allies gain <b>+2 strength</b> this turn.</span>', rar: 'var(--rar-uncommon)' }));
+  r.appendChild(cardEl('attack', { name: 'Cleave', icon: 'sword', cost: 1, cls: 'card--hover', text: '<span><b>Deal 8</b> damage. (hover lift)</span>' }));
+  r.appendChild(cardEl('attack', { name: 'Doom Blade +', icon: 'sword', cost: 3, cls: 'card--epic', rar: 'var(--rar-epic)', text: '<span><b>Deal 20</b> damage. Epic trim.</span>' }));
+  r.appendChild(cardEl('defense', { name: 'Bulwark', icon: 'shield', cost: 4, cls: 'card--dim', text: '<span>Unplayable: not enough mana.</span>' }));
+  r.appendChild(cardEl('buff', { name: 'War Banner', icon: 'banner', cost: 2, cls: 'card--selected', text: '<span>Selected: awaiting a target.</span>' }));
+})();
+
+/* ---------- relics ---------- */
+(function () {
+  const r = $('#relics'); const names = ['banner', 'mana', 'skull'];
+  [['common', 'banner'], ['rare', 'mana'], ['epic', 'skull']].forEach(([rar, ic]) => {
+    [32, 48, 64].forEach((sz) => {
+      const w = h('div', 'shadowed-1'); const rel = h('div', 'relic step relic--' + sz + ' relic--' + rar); rel.setAttribute('data-tip', rar[0].toUpperCase() + rar.slice(1) + ' relic|Rarity frame at ' + sz + 'px.');
+      rel.appendChild(iconEl(ic, sz === 32 ? 1 : sz === 48 ? 2 : 3)); w.appendChild(rel); r.appendChild(w);
+    });
+    r.appendChild(h('div', '', '')).style.width = '16px';
+  });
+  const e = h('div', 'relic relic--32 relic--empty'); r.appendChild(e);
+  const e2 = h('div', 'relic relic--48 relic--empty'); r.appendChild(e2);
+})();
+
+/* ---------- pills, bars ---------- */
+(function () {
+  const p = $('#pills');
+  [['gold', '1,250', 'gold', 'Gold|Earned from battles and mines.'], ['food', '18', '', 'Food|Each day costs food.'], ['hourglass', 'Day 7', '', 'Day|Days pass as you travel.'], ['mana', '6/10', '', 'Mana|Spent to play cards.'], ['food', '2', 'warn', 'Food|Will run out before the next city.']].forEach(([ic, t, cl, tip]) => {
+    const w = h('div', 'shadowed-1'); const d = h('div', 'pill step ' + cl); d.setAttribute('data-tip', tip); d.appendChild(iconEl(ic, 1)); d.appendChild(document.createTextNode(t)); w.appendChild(d); p.appendChild(w);
+  });
+  const b = $('#bars');
+  const mk = (n, on, cls, label) => { const w = h('div', '', '<div class="t-label" style="margin-bottom:4px;color:var(--stone-300)">' + label + '</div>'); const bar = h('div', 'bar ' + cls); for (let i = 0; i < n; i++) bar.appendChild(h('i', i < on ? '' : 'off')); w.appendChild(bar); return w; };
+  b.appendChild(mk(10, 6, '', 'Mana 6 / 10'));
+  b.appendChild(mk(10, 8, 'gold', 'Gold reserve'));
+  b.appendChild(mk(10, 3, 'moss', 'Food stores'));
+  const tw = h('div'); tw.innerHTML = '<div class="t-label" style="margin-bottom:4px;color:var(--stone-300)">Tooltip (static copy)</div>';
+  const tt = h('div', 'shadowed'); const inner = h('div', 'step', '<b style="display:block;font:400 16px/24px var(--font-display);color:var(--gold-200)">Frozen</b><span style="display:block;color:var(--text)">Cannot act. Thaws at end of turn.</span><span style="display:flex;gap:8px;align-items:center;color:var(--blood-300)" id="tipwarn"></span>');
+  inner.style.cssText = 'padding:8px 12px;max-width:280px;background:var(--grain),var(--stone-900);box-shadow:inset 0 0 0 2px var(--gold-700)';
+  tt.appendChild(inner); tw.appendChild(tt); b.appendChild(tw);
+  inner.querySelector('#tipwarn').appendChild(iconEl('skull', 1)); inner.querySelector('#tipwarn').appendChild(document.createTextNode('Damage still applies.'));
+  $('#xicon').appendChild(iconEl('sword', 1)); $('#gicon').appendChild(iconEl('gold', 1));
+  $('#modalsprite').appendChild(spriteEl('swordsman', 3));
+  $('#modalsprite').style.cssText = 'width:96px;height:96px;background:#1f1a15;box-shadow:inset 2px 2px 0 var(--iron-900),inset -2px -2px 0 var(--iron-500);display:flex;align-items:flex-end;justify-content:center;flex:none';
+})();
+
+/* ---------- icons ---------- */
+(function () {
+  const g = $('#icons');
+  Object.keys(ICO).forEach((n) => { const f = h('figure'); f.appendChild(iconEl(n, 3)); f.appendChild(h('figcaption', '', n)); g.appendChild(f); });
+})();
+
+/* ---------- sprite lab ---------- */
+const UNITS = [['swordsman', 'Swordsman', 'player'], ['archer', 'Archer', 'player'], ['knight', 'Knight', 'player'], ['goblin', 'Goblin', 'enemy'], ['orc', 'Orc', 'enemy']];
+(function () {
+  const lab = $('#lab');
+  UNITS.forEach(([n, label, team], i) => {
+    const f = h('figure', 'mat-stone-smooth step-8 bevel-4');
+    const sb = h('div', 'stagebox ' + (team === 'player' ? 'p' : 'e'));
+    sb.appendChild(spriteEl(n, 6, { team, flip: team === 'enemy', delay: i * 170 }));
+    f.appendChild(sb); f.appendChild(h('figcaption', '', label + (team === 'enemy' ? ' &middot; enemy, mirrored' : ' &middot; player')));
+    lab.appendChild(f);
+  });
+  const sw = $('#swap');
+  [['swordsman', 'player', false], ['swordsman', 'enemy', true], ['knight', 'player', false], ['knight', 'enemy', true]].forEach(([n, t, fl]) => {
+    const f = h('figure', 'mat-stone-smooth step-8 bevel-4'); f.style.cssText = 'padding:16px 24px 8px;display:flex;flex-direction:column;align-items:center;gap:8px;background-color:var(--stone-900)';
+    f.appendChild(spriteEl(n, 4, { team: t, flip: fl }));
+    f.appendChild(h('div', 't-label', n + ' &middot; ' + t)); sw.appendChild(f);
+  });
+})();
+
+/* ---------- battlefield ---------- */
+function chainURL(w, hh) {
+  let s = '<svg xmlns="http://www.w3.org/2000/svg" width="' + w + '" height="' + hh + '" viewBox="0 0 ' + w + ' ' + hh + '" shape-rendering="crispEdges">';
+  const link = (x, y, ang, on) => '<g transform="translate(' + x + ' ' + y + ') rotate(' + ang + ')"><rect x="-6" y="-3" width="12" height="6" fill="#16181b"/><rect x="-5" y="-2" width="10" height="4" fill="' + (on ? '#66707a' : '#4a5259') + '"/>' + (on ? '<rect x="-3" y="-1" width="6" height="2" fill="#16181b"/>' : '') + '<rect x="-5" y="-2" width="10" height="1" fill="#9aa4ad"/></g>';
+  const ang = Math.atan2(hh, w) * 180 / Math.PI; const len = Math.hypot(w, hh); const n = Math.floor(len / 9);
+  for (let i = 0; i <= n; i++) { const t = i / n; s += link(Math.round(t * w), Math.round(t * hh), ang, i % 2 === 0); }
+  for (let i = 0; i <= n; i++) { const t = i / n; s += link(Math.round(w - t * w), Math.round(t * hh), -ang, i % 2 === 0); }
+  s += '</svg>'; return 'url("data:image/svg+xml,' + encodeURIComponent(s) + '")';
+}
+function teethPoly() { const pts = ['0 0']; for (let i = 0; i < 17; i++) { pts.push((i * 8) + 'px 0'); } const arr = []; arr.push('0 0'); for (let i = 0; i < 17; i++) { arr.push((i * 8) + 'px 0', (i * 8 + 4) + 'px ' + (i % 2 ? 12 : 8) + 'px'); } arr.push('136px 0'); return arr.join(','); }
+
+function tileEl(u) {
+  const t = h('div', 'tile step tile--' + (u.team === 'player' ? 'p' : 'e') + (u.cls ? ' ' + u.cls : ''));
+  if (u.empty) { t.className = 'tile step tile--empty'; return t; }
+  const win = h('div', 'tile__win'); win.appendChild(h('div', 'fl'));
+  const mover = h('div', 'unit-mover'); mover.dataset.unit = u.id;
+  mover.appendChild(spriteEl(u.sprite, 4, { team: u.team, flip: u.team === 'enemy', delay: u.delay }));
+  win.appendChild(mover); t.appendChild(win);
+  const role = h('div', 'tile__role step'); role.appendChild(iconEl(u.role, 1)); role.setAttribute('data-tip', u.name + '|' + u.tip); t.appendChild(role);
+  t.appendChild(h('div', 'tile__count step', 'x' + u.count));
+  t.appendChild(h('div', 'tile__name', u.name));
+  if (u.frozen) {
+    const ice = h('div', 'ice'); ice.style.setProperty('--teeth', teethPoly());
+    [[8, 16], [22, 28], [12, 40]].forEach(([x, y]) => { const b = h('b'); b.style.left = x + 'px'; b.style.top = y + 'px'; ice.appendChild(b); });
+    t.querySelector('.tile__win').appendChild(ice);
+  }
+  if (u.chained) { const c = h('div', 'chains'); c.style.backgroundImage = chainURL(136, 128); t.querySelector('.tile__win').appendChild(c); }
+  return t;
+}
+const FIELD = [
+  [ // row 1: p back, p front, e front, e back
+    { id: 'archer', sprite: 'archer', name: 'Archer', role: 'bow', count: 8, team: 'player', delay: 300, tip: 'Ranged. Shoots over the front line.' },
+    { id: 'sword', sprite: 'swordsman', name: 'Swordsman', role: 'sword', count: 12, team: 'player', delay: 0, tip: 'Melee. Strikes the front enemy.' },
+    { id: 'orc', sprite: 'orc', name: 'Orc', role: 'sword', count: 6, team: 'enemy', delay: 500, tip: 'Melee brute. Heavy hitter.' },
+    { id: 'gob1', sprite: 'goblin', name: 'Goblin', role: 'sword', count: 14, team: 'enemy', frozen: true, delay: 200, tip: 'Frozen. Cannot act this turn.' },
+  ],
+  [
+    { empty: true },
+    { id: 'knight', sprite: 'knight', name: 'Knight', role: 'shield', count: 4, team: 'player', cls: 'tile--acted', delay: 650, tip: 'Tank. Already acted this turn.' },
+    { id: 'gob2', sprite: 'goblin', name: 'Goblin', role: 'sword', count: 9, team: 'enemy', chained: true, cls: 'tile--chained', delay: 820, tip: 'Chained. Cannot attack.' },
+    { empty: true },
+  ],
+];
+function buildField(el, opts = {}) {
+  el.innerHTML = '';
+  const g = h('div', 'field__grid');
+  FIELD.forEach((row) => row.forEach((u, i) => { const t = tileEl(u); t.style.gridColumn = [2, 3, 5, 6][i]; g.appendChild(t); }));
+  const back = h('div', 'field__label', 'Your army'); back.style.left = '16px';
+  const back2 = h('div', 'field__label', 'Enemy'); back2.style.right = '16px';
+  el.appendChild(back); el.appendChild(back2); el.appendChild(g);
+  const fx = h('div', 'fx-layer'); el.appendChild(fx); el._fx = fx;
+  if (opts.width) el.style.width = opts.width;
+}
+function centre(el, layer) { const a = el.getBoundingClientRect(), b = layer.getBoundingClientRect(); return [a.left - b.left + a.width / 2, a.top - b.top + a.height / 2]; }
+function unit(root, id) { return root.querySelector('[data-unit="' + id + '"]'); }
+function replay(el, cls) { el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); setTimeout(() => el.classList.remove(cls), 900); }
+function floaterAt(root, x, y, txt) { const f = h('div', 'floater', txt); f.style.left = (x - 24) + 'px'; f.style.top = (y - 72) + 'px'; root._fx.appendChild(f); setTimeout(() => f.remove(), 850); }
+function hitTarget(root, tgt, txt) {
+  replay(tgt, 'hit'); const [x, y] = centre(tgt, root._fx); floaterAt(root, x, y, txt);
+}
+function slash(root, from, to) {
+  const a = unit(root, from), b = unit(root, to); a.style.setProperty('--dir', a.closest('.tile--p') ? 1 : -1); replay(a, 'lunge');
+  setTimeout(() => {
+    const [x, y] = centre(b, root._fx); const s = h('div', 'fx fx-slash'); s.style.left = x + 'px'; s.style.top = y + 'px'; root._fx.appendChild(s); setTimeout(() => s.remove(), 700);
+    [[-40, -36], [36, -28], [30, 34]].forEach(([sx, sy]) => { const p = h('div', 'fx fx-spark'); p.style.left = x + 'px'; p.style.top = y + 'px'; p.style.setProperty('--sx', sx + 'px'); p.style.setProperty('--sy', sy + 'px'); root._fx.appendChild(p); setTimeout(() => p.remove(), 500); });
+    hitTarget(root, b, '-' + (a.dataset.unit === 'orc' ? 12 : 8));
+  }, 110);
+}
+function arrow(root, from, to) {
+  const a = unit(root, from), b = unit(root, to); const [x0, y0] = centre(a, root._fx), [x1, y1] = centre(b, root._fx);
+  const bolt = h('div', 'fx fx-bolt'); bolt.style.left = x0 + 'px'; bolt.style.top = y0 + 'px'; root._fx.appendChild(bolt);
+  const ang = Math.atan2(y1 - y0, x1 - x0); bolt.style.transform = 'rotate(' + ang + 'rad)'; void bolt.offsetWidth;
+  bolt.style.left = x1 + 'px'; bolt.style.top = y1 + 'px';
+  setTimeout(() => { bolt.remove(); hitTarget(root, b, '-6'); }, 250);
+}
+function block(root, id) {
+  const a = unit(root, id); const [x, y] = centre(a, root._fx); const r = h('div', 'fx fx-ring'); r.style.left = x + 'px'; r.style.top = y + 'px'; root._fx.appendChild(r); setTimeout(() => r.remove(), 400);
+  const [fx, fy] = [x, y]; const f = h('div', 'floater', '+8'); f.style.color = 'var(--steel-300)'; f.style.left = (fx - 12) + 'px'; f.style.top = (fy - 72) + 'px'; root._fx.appendChild(f); setTimeout(() => f.remove(), 850);
+}
+buildField($('#field1')); const F1 = $('#field1');
+$('#b-slash').onclick = () => slash(F1, 'sword', 'orc');
+$('#b-arrow').onclick = () => arrow(F1, 'archer', 'orc');
+$('#b-block').onclick = () => block(F1, 'knight');
+$('#b-enemy').onclick = () => slash(F1, 'orc', 'sword');
+
+/* ---------- battle mock ---------- */
+(function () {
+  const f = $('#field2'); buildField(f);
+  const pills = $('#mockpills');
+  [['mana', '6/10', ''], ['gold', '1,250', 'gold']].forEach(([ic, t, cl]) => { const w = h('div', 'shadowed-1'); const d = h('div', 'pill step ' + cl); d.appendChild(iconEl(ic, 1)); d.appendChild(document.createTextNode(t)); w.appendChild(d); pills.appendChild(w); });
+  const et = h('div', 'endturn shadowed-1'); et.innerHTML = '<button class="btn btn--primary btn--l step" style="width:100%">End turn</button>';
+  f.parentNode.appendChild(et); et.style.cssText = 'position:absolute;z-index:5;right:8px;bottom:8px;display:block;width:calc(50% - 16px)';
+  f.style.paddingBottom = '72px';
+  const tray = $('#tray');
+  const pile = (label, n, ic, stack) => { const w = h('div', 'shadowed-1'); const p = h('div', 'pile' + (stack ? ' pile--stack' : '')); const b = h('div', 'pile__back mat-iron step bevel-4'); b.appendChild(iconEl(ic, 2)); p.appendChild(b); p.appendChild(h('div', 't-num', n)); p.appendChild(h('div', 't-label', label)); w.appendChild(p); return w; };
+  tray.appendChild(pile('Draw pile', 14, 'scroll', true));
+  const hand = h('div', 'hand');
+  hand.appendChild(cardEl('attack', { name: 'Cleave', icon: 'sword', cost: 1, text: '<span><b>Deal 8</b> damage to the front enemy.</span>' }));
+  hand.appendChild(cardEl('defense', { name: 'Shield Wall', icon: 'shield', cost: 1, text: '<span>Gain <b>12 block</b>.</span>', rar: 'var(--rar-rare)' }));
+  const sel = cardEl('buff', { name: 'War Banner', icon: 'banner', cost: 2, cls: 'card--hover', text: '<span>Allies gain <b>+2 strength</b>.</span>', rar: 'var(--rar-uncommon)' }); hand.appendChild(sel);
+  hand.appendChild(cardEl('attack', { name: 'Doom Blade', icon: 'sword', cost: 4, cls: 'card--dim', text: '<span>Unplayable: not enough mana.</span>' }));
+  tray.appendChild(hand);
+  tray.appendChild(pile('Discard', 3, 'skull', false));
+})();
+
+/* ---------- road/city bar ---------- */
+(function () {
+  const bar = $('#gbar');
+  const res = h('div', 'res');
+  [['gold', '1,250', 'gold'], ['food', '18', ''], ['hourglass', 'D7', ''], ['mana', '6', '']].forEach(([ic, t, cl]) => { const w = h('div', 'shadowed-1'); const d = h('div', 'pill step ' + cl); d.appendChild(iconEl(ic, 1)); d.appendChild(document.createTextNode(t)); w.appendChild(d); res.appendChild(w); });
+  bar.appendChild(res);
+  const hero = h('div', 'hero'); const pl = h('div', 'shadowed-1'); pl.innerHTML = '<div class="plaque plaque--iron step bevel-2" style="width:144px;padding:0 8px;text-align:center;font-size:16px">Aldric</div>'; hero.appendChild(pl);
+  const por = h('div', 'portrait step'); por.appendChild(spriteEl('knight', 3, { delay: 100 })); por.style.width = '104px'; por.style.height = '104px'; hero.appendChild(por);
+  bar.appendChild(hero);
+  const mid = h('div'); mid.style.cssText = 'display:flex;gap:16px;align-items:flex-start;padding-left:16px';
+  const rg = h('div', 'relic-grid'); rg.style.marginTop = '4px';
+  [['common', 'banner'], ['rare', 'mana'], ['epic', 'skull'], ['common', 'gold'], ['rare', 'bow'], null, null, null, null].forEach((r) => { const w = h('div', 'shadowed-1'); if (r) { const e = h('div', 'relic step relic--32 relic--' + r[0]); e.appendChild(iconEl(r[1], 1)); w.appendChild(e); } else w.appendChild(h('div', 'relic relic--32 relic--empty')); rg.appendChild(w); });
+  mid.appendChild(rg);
+  const army = h('div', 'army'); army.style.marginLeft = 'auto'; army.style.marginRight = 'auto';
+  [['swordsman', 12], ['archer', 8], ['knight', 4], ['swordsman', 5], null, ['archer', 3]].forEach((u, i) => {
+    const s = h('div', 'slot step' + (u ? '' : ' empty'));
+    if (u) { const w = h('div', 'win'); w.appendChild(spriteEl(u[0], 2, { delay: i * 130 })); s.appendChild(w); s.appendChild(h('div', 'cnt step', 'x' + u[1])); }
+    army.appendChild(s);
+  });
+  mid.appendChild(army); bar.appendChild(mid);
+  const acts = h('div', 'acts'); const mkb = (t, cls) => { const w = h('div', 'shadowed-1'); w.innerHTML = '<button class="btn ' + (cls || '') + ' step" style="width:100%">' + t + '</button>'; return w; };
+  const r1 = h('div', 'r'); ['Log', 'Deck', 'Menu'].forEach((t) => { const w = mkb(t); w.style.flex = '1'; r1.appendChild(w); }); acts.appendChild(r1);
+  const lv = mkb('Leave', 'btn--primary'); lv.querySelector('button').style.cssText = 'width:100%;height:56px;padding:16px 0'; acts.appendChild(lv);
+  bar.appendChild(acts);
+})();
+
+/* ---------- shared instant tooltip ---------- */
+(function () {
+  const wrap = $('#tip-wrap'), tip = $('#tip');
+  document.addEventListener('pointerover', (e) => {
+    const t = e.target.closest('[data-tip]'); if (!t) { wrap.style.display = 'none'; return; }
+    const [title, body] = t.getAttribute('data-tip').split('|');
+    tip.innerHTML = '<b>' + title + '</b><span>' + body + '</span>';
+    wrap.style.display = 'block';
+    const r = t.getBoundingClientRect(), w = wrap.offsetWidth, hh = wrap.offsetHeight;
+    let x = r.left + r.width / 2 - w / 2, y = r.top - hh - 8; if (y < 8) y = r.bottom + 8;
+    x = Math.max(8, Math.min(x, innerWidth - w - 8)); wrap.style.left = x + 'px'; wrap.style.top = y + 'px';
+  });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') wrap.style.display = 'none'; });
+})();
+</script>
+</body>
+</html>
