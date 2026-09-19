@@ -39,6 +39,13 @@ export function StackTile({
   onClick,
   onInspect,
 }: StackTileProps) {
+  // Rendered in the wiped branch too so a killing blow's floater still shows.
+  const floatersEl = floaters?.map((f) => (
+    <span key={f.id} className={`floater floater-${f.kind}`} style={{ animationDelay: `${f.delayMs}ms` }}>
+      {f.text}
+    </span>
+  ));
+
   if (!stack || stack.count === 0) {
     const classes = ['portrait-slot', side, 'empty'];
     if (stack?.count === 0) classes.push('dead');
@@ -50,6 +57,7 @@ export function StackTile({
         <div className="portrait-meta">
           <div className="unit-name">{stack ? `${UNIT_DEFINITIONS[stack.unitId].name} wiped` : 'Empty'}</div>
         </div>
+        {floatersEl}
       </div>
     );
   }
@@ -126,11 +134,7 @@ export function StackTile({
           </div>
         )}
       </div>
-      {floaters?.map((f) => (
-        <span key={f.id} className={`floater floater-${f.kind}`} style={{ animationDelay: `${f.delayMs}ms` }}>
-          {f.text}
-        </span>
-      ))}
+      {floatersEl}
       <div className="portrait-meta">
         <div className="unit-name">
           {def.name} <span className="unit-count">×{stack.count}</span>

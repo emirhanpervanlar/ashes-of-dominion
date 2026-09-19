@@ -337,7 +337,7 @@ export default function App() {
         setFlyingCard(null);
         setPlayedInstanceId(null);
         dispatchNow();
-      }, launched ? 520 : 420);
+      }, 420);
     } else {
       dispatchNow();
     }
@@ -730,7 +730,7 @@ export default function App() {
   const combatHistory = combat.log.map((e) => describeEvent(combat, e)).filter((line): line is string => line !== null);
   const manaPct = combat.hero.maxMana > 0 ? Math.min(100, (combat.hero.mana / combat.hero.maxMana) * 100) : 0;
   const inspectedStack = [...combat.playerArmy, ...combat.enemyArmy].find((s) => s.stackId === inspectStackId && s.count > 0);
-  const canAct =combat.phase === 'player' && combat.result === 'ongoing' && !enemyAnimQueue && !playerFx && !flyingCard;
+  const canAct = combat.phase === 'player' && combat.result === 'ongoing' && !enemyAnimQueue && !playerFx && !flyingCard;
 
   return (
     <div className="disciples-frame">
