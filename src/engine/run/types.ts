@@ -1,7 +1,9 @@
 import type { RngState } from '../rng.js';
 import type { ArmyStack, CardInstance, CombatState, Hero, PlayerAction, Position, RelicDefinition, UnitId } from '../types.js';
 import type { CityState } from './city.js';
+import type { CardRemovalState } from './cardRemoval.js';
 import type { MerchantInventory } from './merchant.js';
+import type { RunStats } from './stats.js';
 import type { WorldMapState } from './worldMap.js';
 
 export type RunPhase =
@@ -15,13 +17,10 @@ export type RunPhase =
   | 'run_complete'
   | 'defeat';
 
+/** One pick resolves the reward (AO-D026): a card, an upgrade, a removal or a skip. */
 export interface PendingReward {
-  relicOptions: string[];
   cardOptions: string[];
   upgradeOptions: { instanceId: string; cardId: string; upgradedCardId: string }[];
-  chosenRelicId: string | null;
-  chosenCardId: string | null;
-  chosenUpgradeInstanceId: string | null;
 }
 
 export interface PendingEvent {
@@ -41,11 +40,15 @@ export type RunEvent =
   | { type: 'CARD_REWARD_CLAIMED'; cardId: string }
   | { type: 'CARD_UPGRADED'; instanceId: string; fromCardId: string; toCardId: string }
   | { type: 'REWARD_SKIPPED' }
+  | { type: 'CARD_REMOVED'; instanceId: string; cardId: string; goldPaid: number }
+  | { type: 'UNITS_REVIVED'; count: number }
+  | { type: 'DAILY_INCOME'; gold: number }
   | { type: 'EVENT_RESOLVED'; eventId: string; optionId: string; outcome: string }
   | { type: 'ITEM_PURCHASED'; itemId: string; price: number }
   | { type: 'UNITS_RECRUITED'; unitId: string; count: number }
   | { type: 'BUILDING_BUILT'; buildingId: string }
   | { type: 'CITY_LEVELED_UP'; level: number }
+  | { type: 'MAGE_TOWER_UPGRADED'; tier: number }
   | { type: 'DOCTRINE_CHOSEN'; doctrineId: string }
   | { type: 'RUN_COMPLETE' }
   | { type: 'ACTION_REJECTED'; reason: string };
@@ -63,6 +66,8 @@ export interface RunState {
   food: number;
   day: number;
   battlesWon: number;
+  stats: RunStats;
+  cardRemoval: CardRemovalState;
   worldMap: WorldMapState;
   city: CityState;
   /** Set when the current battle was triggered by the map's Boss node — its reward routes to 'run_complete' instead of 'on_map'. */
@@ -79,10 +84,10 @@ export type RunAction =
   | { type: 'CHOOSE_STARTING_RELIC'; relicId: string }
   | { type: 'MOVE_TO'; nodeId: string }
   | { type: 'COMBAT_ACTION'; action: PlayerAction }
-  | { type: 'CLAIM_RELIC'; relicId: string }
   | { type: 'CLAIM_CARD'; cardId: string }
   | { type: 'CLAIM_UPGRADE'; instanceId: string }
-  | { type: 'CONFIRM_REWARD' }
+  | { type: 'SKIP_REWARD' }
+  | { type: 'REMOVE_CARD'; instanceId: string }
   | { type: 'CHOOSE_EVENT_OPTION'; optionId: string }
   | { type: 'BUY_CARD'; cardId: string }
   | { type: 'BUY_RELIC'; relicId: string }
@@ -91,6 +96,7 @@ export type RunAction =
   | { type: 'RECRUIT'; unitId: UnitId; count: number }
   | { type: 'BUILD_BUILDING'; buildingId: string }
   | { type: 'UPGRADE_CITY' }
+  | { type: 'UPGRADE_MAGE_TOWER' }
   | { type: 'CHOOSE_DOCTRINE'; doctrineId: string }
   | { type: 'LEAVE_CITY' }
   | { type: 'SPLIT_STACK'; stackId: string; splitCount: number }

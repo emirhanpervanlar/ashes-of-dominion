@@ -142,7 +142,7 @@ describe('movement', () => {
 });
 
 describe('battle -> reward -> back to map loop', () => {
-  it('winning a battle offers a reward, and confirming it returns to the map (not run_complete)', () => {
+  it('winning a battle offers a reward, and claiming it returns to the map at once (not run_complete)', () => {
     const won = forceVictory(reachBattle(20));
 
     expect(won.phase).toBe('reward');
@@ -151,11 +151,11 @@ describe('battle -> reward -> back to map loop', () => {
 
     const cardId = won.pendingReward!.cardOptions[0]!;
     const claimed = applyRunAction(won, { type: 'CLAIM_CARD', cardId });
-    const confirmed = applyRunAction(claimed.run, { type: 'CONFIRM_REWARD' });
 
-    expect(confirmed.run.phase).toBe('on_map');
-    expect(confirmed.run.masterDeck.some((c) => c.cardId === cardId)).toBe(true);
-    expect(confirmed.run.masterDeck.length).toBe(13);
+    expect(claimed.run.phase).toBe('on_map');
+    expect(claimed.run.pendingReward).toBeNull();
+    expect(claimed.run.masterDeck.some((c) => c.cardId === cardId)).toBe(true);
+    expect(claimed.run.masterDeck.length).toBe(13);
   });
 
   // The v3 canonical doc's upgrade model (§15) modifies a card's own state rather than
