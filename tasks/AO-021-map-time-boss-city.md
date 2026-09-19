@@ -23,3 +23,6 @@ UI, combat rules/damage, card data. If a numeric default proves obviously broken
 
 ## Acceptance criteria
 tsc and vitest green (UI compile errors caused by removed exports are listed exactly in the report; keep old exports if trivial), report lists new/removed exports and run actions for the UI task.
+
+## Status
+- 2026-09-19 ACCEPTED (engine; 287 tests). UI adaptation pending (ENTER_CITY, road/city/start node types, boss/threat display). Open: only 2 epic relics for boss choices; encounter depth untuned.
