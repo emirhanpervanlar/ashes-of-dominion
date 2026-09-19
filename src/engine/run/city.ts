@@ -27,8 +27,8 @@ export const MAGE_TOWER_TIERS: ReadonlyArray<{ cost: number; maxMana: number }> 
  * Like the Mage Tower it is one building slot at every tier.
  */
 export const FARM_TIERS: ReadonlyArray<{ cost: number; food: number }> = [
-  { cost: 60, food: 2 },
-  { cost: 140, food: 5 },
+  { cost: 60, food: 3 },
+  { cost: 140, food: 6 },
   { cost: 320, food: 9 },
 ];
 

@@ -50,12 +50,12 @@ describe('AO-D048: per-unit Food upkeep', () => {
     expect(f('goblin')).toBeLessThan(f('knight'));
   });
 
-  it('a stack eats count x foodPerUnit and the day costs the sum, rounded up', () => {
+  it('a stack eats count x foodPerUnit and the day costs the sum, rounded to the nearest Food', () => {
     const run = withArmy(onMap(1), [['swordsman', 10], ['knight', 3], ['priest', 1]]);
-    expect(stackUpkeep(run.army[0]!)).toBeCloseTo(4);
-    expect(stackUpkeep(run.army[1]!)).toBeCloseTo(3);
-    expect(stackUpkeep(run.army[2]!)).toBeCloseTo(0.5);
-    expect(dailyUpkeep(run)).toBe(8); // 4 + 3 + 0.5 = 7.5
+    expect(stackUpkeep(run.army[0]!)).toBeCloseTo(1);
+    expect(stackUpkeep(run.army[1]!)).toBeCloseTo(1.5);
+    expect(stackUpkeep(run.army[2]!)).toBeCloseTo(0.2);
+    expect(dailyUpkeep(run)).toBe(3); // 1 + 1.5 + 0.2 = 2.7
   });
 
   it('the same count eats more when the units are heavier, and more with count', () => {
@@ -66,16 +66,34 @@ describe('AO-D048: per-unit Food upkeep', () => {
     expect(dailyUpkeep(bigger)).toBeGreaterThan(dailyUpkeep(light));
   });
 
-  it('starting armies cost 3-6 Food per day and a 60-unit army 25-40', () => {
+  // Balance targets (director follow-up): Food stays pressure, and a Farm lets the player answer it.
+  const MID = [['swordsman', 13], ['archer', 9], ['knight', 8], ['priest', 8]] as Array<[UnitId, number]>; // 38 units
+  const BIG = [['swordsman', 20], ['archer', 14], ['knight', 14], ['priest', 12]] as Array<[UnitId, number]>; // 60 units
+  const net = (run: RunState, tier: 0 | 1 | 2 | 3) => dailyFoodNet(withFarm(run, tier));
+
+  it('(1) a starting army, with or without Royal Banner, lasts at least 15 days on the starting Food with no Farm and no loot', () => {
     for (const hero of ['warlord', 'rogue', 'mage'] as const) {
-      const upkeep = dailyUpkeep(createRun(2, hero)); // before any starting relic
-      expect(upkeep).toBeGreaterThanOrEqual(3);
-      expect(upkeep).toBeLessThanOrEqual(6);
+      const fresh = createRun(2, hero);
+      const bannered = onMap(2, hero);
+      expect(fresh.army.reduce((n, s) => n + s.count, 0)).toBe(8);
+      for (const run of [fresh, bannered]) expect(foodDaysLeft(run)).toBeGreaterThanOrEqual(15);
+      expect(foodDaysLeft(fresh)).toBeGreaterThanOrEqual(25);
     }
-    const big = withArmy(onMap(2), [['swordsman', 24], ['archer', 12], ['knight', 10], ['priest', 14]]);
+  });
+
+  it('(2) Farm tier I covers a starting-size army, including one with Royal Banner', () => {
+    for (const hero of ['warlord', 'rogue', 'mage'] as const) expect(net(onMap(2, hero), 1)).toBeGreaterThanOrEqual(0);
+  });
+
+  it('(3) Farm tier III balances a 38-unit army and leaves a 60-unit army within -8 Food a day', () => {
+    const mid = withArmy(onMap(2), MID);
+    const big = withArmy(onMap(2), BIG);
+    expect(mid.army.reduce((n, s) => n + s.count, 0)).toBe(38);
     expect(big.army.reduce((n, s) => n + s.count, 0)).toBe(60);
-    expect(dailyUpkeep(big)).toBeGreaterThanOrEqual(25);
-    expect(dailyUpkeep(big)).toBeLessThanOrEqual(40);
+    expect(net(mid, 3)).toBeGreaterThanOrEqual(0);
+    expect(net(mid, 2)).toBeLessThan(0);
+    expect(net(big, 3)).toBeGreaterThanOrEqual(-8);
+    expect(net(big, 3)).toBeLessThan(0);
   });
 
   it('a move costs exactly the daily upkeep', () => {
@@ -86,9 +104,11 @@ describe('AO-D048: per-unit Food upkeep', () => {
   });
 
   it('Stable still cuts the cost by 25%, rounded down, minimum 1', () => {
-    const run = withArmy(onMap(3), [['knight', 8]]);
+    const run = withArmy(onMap(3), [['knight', 16]]);
     expect(moveFoodCost(run.army)).toBe(8);
     expect(moveFoodCost(run.army, { ...run.city, buildings: ['stable'] })).toBe(6);
+    const big = withArmy(onMap(3), BIG);
+    expect(moveFoodCost(big.army, { ...big.city, buildings: ['stable'] })).toBeLessThan(moveFoodCost(big.army));
     const tiny = withArmy(onMap(3), [['swordsman', 1]]);
     expect(moveFoodCost(tiny.army, { ...tiny.city, buildings: ['stable'] })).toBe(1);
   });
@@ -97,18 +117,18 @@ describe('AO-D048: per-unit Food upkeep', () => {
 describe('AO-D048: Farm', () => {
   const atCity = (gold: number): RunState => ({ ...act(onMap(4), { type: 'TRAVEL_TO_CITY' }).run, gold });
 
-  it('tiers are cumulative +2/+5/+9 Food per day for 60/140/320 Gold in one slot', () => {
-    expect(FARM_TIERS.map((t) => t.food)).toEqual([2, 5, 9]);
+  it('tiers are cumulative +3/+6/+9 Food per day for 60/140/320 Gold in one slot', () => {
+    expect(FARM_TIERS.map((t) => t.food)).toEqual([3, 6, 9]);
     expect(FARM_TIERS.map((t) => t.cost)).toEqual([60, 140, 320]);
     let run = atCity(1000);
     run = act(run, { type: 'BUILD_BUILDING', buildingId: 'farm' }).run;
     expect(run.city.farmTier).toBe(1);
     expect(run.gold).toBe(940);
-    expect(dailyProduction(run)).toBe(2);
+    expect(dailyProduction(run)).toBe(3);
     run = act(run, { type: 'UPGRADE_FARM' }).run;
     expect(run.city.farmTier).toBe(2);
     expect(run.gold).toBe(800);
-    expect(dailyProduction(run)).toBe(5);
+    expect(dailyProduction(run)).toBe(6);
     const t3 = act(run, { type: 'UPGRADE_FARM' });
     expect(t3.events.some((e) => e.type === 'FARM_UPGRADED' && e.tier === 3)).toBe(true);
     run = t3.run;
@@ -128,7 +148,7 @@ describe('AO-D048: Farm', () => {
 
   it('descriptions state the real numbers', () => {
     expect(BUILDING_DEFINITIONS.farm!.cost).toBe(60);
-    expect(farmDescription(0)).toContain('+2 Food every day');
+    expect(farmDescription(0)).toContain('+3 Food every day');
     expect(farmDescription(0)).toContain('+9');
     expect(farmDescription(1)).toContain('Tier I');
     expect(farmDescription(1)).toContain('140 Gold');
@@ -140,9 +160,9 @@ describe('AO-D048: Farm', () => {
   it('produces Food on every move through the daily hook and reports it in DAILY_INCOME', () => {
     const run = withFarm(onMap(5), 2);
     const result = step(run);
-    expect(result.run.food).toBe(run.food + 5 - dailyUpkeep(run));
-    expect(result.events).toContainEqual({ type: 'DAILY_INCOME', gold: 0, food: 5 });
-    expect(result.run.stats.foodGathered).toBe(5);
+    expect(result.run.food).toBe(run.food + 6 - dailyUpkeep(run));
+    expect(result.events).toContainEqual({ type: 'DAILY_INCOME', gold: 0, food: 6 });
+    expect(result.run.stats.foodGathered).toBe(6);
   });
 
   it('production is added before the army eats, so a Farm can stop this day starving', () => {
@@ -155,7 +175,7 @@ describe('AO-D048: Farm', () => {
 
   it('Gold Mine and Farm both show up in one DAILY_INCOME event', () => {
     const run = withFarm({ ...onMap(5), city: { ...onMap(5).city, buildings: ['gold_mine'] } }, 1);
-    expect(step(run).events).toContainEqual({ type: 'DAILY_INCOME', gold: 10, food: 2 });
+    expect(step(run).events).toContainEqual({ type: 'DAILY_INCOME', gold: 10, food: 3 });
   });
 
   it('a save from before the Farm migrates to no Farm', () => {
@@ -180,7 +200,7 @@ describe('AO-D048: net Food and the warning', () => {
   });
 
   it('never warns while production covers the upkeep', () => {
-    const run = withArmy(onMap(7), [['swordsman', 5]]); // 2 Food a day
+    const run = withArmy(onMap(7), [['swordsman', 5]]); // 1 Food a day
     expect(foodWarning({ ...withFarm(run, 1), food: 0 })).toBe(false);
     expect(foodDaysLeft(withFarm(run, 1))).toBe(Infinity);
   });

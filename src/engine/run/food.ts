@@ -13,14 +13,15 @@ const STABLE_FOOD_DISCOUNT = 0.25;
 /** AO-D048 / AGENT.md §21: the warning shows when Food would run out within this many days at the current net. */
 export const FOOD_WARNING_DAYS = 3;
 
-/** What one stack eats per day: count x the unit's foodPerUnit (AO-D048). Fractional; the daily total is rounded up. */
+/** What one stack eats per day: count x the unit's foodPerUnit (AO-D048). Fractional; the daily total is rounded to the nearest whole Food. */
 export function stackUpkeep(stack: Pick<ArmyStack, 'unitId' | 'count'>): number {
-  return Math.round(stack.count * UNIT_DEFINITIONS[stack.unitId].foodPerUnit * 10) / 10;
+  return Math.round(stack.count * UNIT_DEFINITIONS[stack.unitId].foodPerUnit * 100) / 100;
 }
 
-/** Whole Food the army eats in one day (also what one map move costs): sum of the stacks, rounded up, Stable -25% (round down, min 1). */
+/** Whole Food the army eats in one day (also what one map move costs): sum of the stacks, rounded to nearest (at least 1 for a living army), Stable -25% (round down, min 1). */
 export function moveFoodCost(army: ArmyStack[], city?: CityState): number {
-  const raw = Math.ceil(army.reduce((sum, s) => sum + stackUpkeep(s), 0));
+  const sum = army.reduce((total, s) => total + stackUpkeep(s), 0);
+  const raw = totalArmyCount(army) === 0 ? 0 : Math.max(1, Math.round(Math.round(sum * 100) / 100));
   if (raw === 0 || !city?.buildings.includes('stable')) return raw;
   return Math.max(1, Math.floor(raw * (1 - STABLE_FOOD_DISCOUNT)));
 }
