@@ -26,3 +26,6 @@ src/engine/**, game logic, layout redesigns, new features.
 
 ## Verification
 puppeteer-core, 1366x900; also 1280 and 1600 for the bottom bar.
+
+## Status
+- 2026-09-19 ACCEPTED (tsc clean, 262 tests, border-radius count 0, screenshots reviewed). Leftovers belong to DL-2..DL-11.
