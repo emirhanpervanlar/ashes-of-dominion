@@ -38,3 +38,6 @@ src/ui/**, src/App.tsx, src/engine/run/*.ts (non-test), other balance values.
 
 ## Verification
 `npx tsc --noEmit && npx vitest run`
+
+## Status
+- 2026-09-19 ACCEPTED (172/172). Deviation accepted: when the front is empty melee may target the whole living backline (not lane-limited); untargetable front stacks still count as holding the front. Training Hall text moved to AO-007.

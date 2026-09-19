@@ -23,3 +23,6 @@ src/ui/**, src/App.tsx, combat files. If a stackId assumption lives in combat/ar
 
 ## Acceptance criteria
 1. MOVE_STACK relocates, swaps, and is rejected during battle and other non-map/city phases. 2. Unique ids across the mixed sequence test. 3. Recruit merge/first-free-slot pinned by test. 4. tsc clean, vitest green.
+
+## Extra (from AO-006 review)
+Training Hall description in src/engine/run/city.ts still reads "Hero max AC +1 and max DC +1" — AC/DC no longer exist (AO-D001). Change the text to say it grants +2 max Mana (matches the actual effect). Update any test that asserts the old string.
