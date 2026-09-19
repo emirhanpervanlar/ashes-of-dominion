@@ -26,3 +26,6 @@ src/ui/**, src/App.tsx, combat files. If a stackId assumption lives in combat/ar
 
 ## Extra (from AO-006 review)
 Training Hall description in src/engine/run/city.ts still reads "Hero max AC +1 and max DC +1" — AC/DC no longer exist (AO-D001). Change the text to say it grants +2 max Mana (matches the actual effect). Update any test that asserts the old string.
+
+## Status
+- 2026-09-19 ACCEPTED (179/179). No STACK_MOVED run event added (frequent UI action); ids never change on move; split id collision fixed in run layer.
