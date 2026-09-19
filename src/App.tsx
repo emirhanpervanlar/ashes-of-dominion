@@ -666,6 +666,7 @@ export default function App() {
           onOpenMenu={() => setMenuOpen(true)}
           onSplitStack={(stackId, splitCount) => dispatchRun({ type: 'SPLIT_STACK', stackId, splitCount })}
           onMergeStacks={(stackIdA, stackIdB) => dispatchRun({ type: 'MERGE_STACKS', stackIdA, stackIdB })}
+          onMoveStack={(stackId, toPosition) => dispatchRun({ type: 'MOVE_STACK', stackId, toPosition })}
         />
       </>
     );
@@ -689,6 +690,9 @@ export default function App() {
           onChooseDoctrine={(doctrineId) => dispatchRun({ type: 'CHOOSE_DOCTRINE', doctrineId })}
           onOpenMenu={() => setMenuOpen(true)}
           onLeave={() => dispatchRun({ type: 'LEAVE_CITY' })}
+          onSplitStack={(stackId, splitCount) => dispatchRun({ type: 'SPLIT_STACK', stackId, splitCount })}
+          onMergeStacks={(stackIdA, stackIdB) => dispatchRun({ type: 'MERGE_STACKS', stackIdA, stackIdB })}
+          onMoveStack={(stackId, toPosition) => dispatchRun({ type: 'MOVE_STACK', stackId, toPosition })}
         />
       </>
     );

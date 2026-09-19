@@ -12,17 +12,18 @@ Centered title, menu: New Game, Continue (only if a save exists), Settings.
 ## Road (world map) — meta family
 - **Scene (top, fills remaining height):** `LAYER n / 7`, "You are here — <type>" pill, `Enter City` button when standing on a city, "Choose Your Path", then path cards.
 - **Path cards:** 250w x 300h plaques, node-type accent border, corner badge icon scaled to the card. Unknown nodes are not shown.
-- **Bottom bar (200px, shared with City):** four columns
-  1. Gold / Food / Day, three rows.
-  2. Hero: name plaque (rectangular highlight, must sit fully visible above the portrait), large rectangular portrait, 3x5 relic grid below (15 slots; hover = name + effect; empty = dashed).
-  3. Army: always 6 slots. Filled = unit icon square, role badge, count printed below. Empty = dashed rectangle reading "Empty". Slot 130x130px (AO-D010), identical on Road and City. Click opens split/merge popup.
-  4. Two fixed-size buttons (60x46): Log (opens history drawer, closed by default) and Menu (pause menu).
+- **Bottom bar (200px, shared with City; one component, `GarrisonBar`):** 3px top border, padding 8px 16px, 181px content height, 8px spacing scale (4px only between relic cells), column gap 16. Four columns:
+  1. Resources (88 content + 16 padding + 2px divider): Gold / Food / Day, three 32px rows with 8px gaps.
+  2. Hero (156 content + 16 + 2px divider): plaque 24h, portrait 48h, 3x5 relic grid of 28x28 cells with 4px gaps (hover = name + effect; empty = dashed). The 1px left over in the 181px content box sits at the bottom.
+  3. Army (flexible zone, block centered): the 3x2 grid in true board positions. Top row = front, positions 1-3; bottom row = back, positions 4-6; columns = left / center / right lane (same lanes as the battle board). A 16px gutter left of the grid carries the rotated FRONT (accent) and BACK (dim) row labels. Slots are 86h, 240w (shrink to a 168 minimum on narrow viewports), 8px gaps; grid 736x180, block 760 wide. Each slot has a dim position digit 1-6 (bottom-right) and a tooltip ("Front - Left"). Filled slot: 64x64 icon with a 20px role badge inside its top-left corner, count `×N` (20px bold accent) and unit name (12px dim) to the right. Empty slot: dashed, "Empty".
+  4. Buttons (64 wide): Log (history drawer, closed by default) and Menu (pause menu), each 64x48 with an 8px gap, top-aligned.
+- **Reposition (AO-D015/D017):** left-click a filled slot to pick the stack up (3px accent outline, icon dimmed), then click another slot: an empty slot moves it there, an occupied slot swaps (never merges). Same-slot click, Esc, or a click outside the grid cancels. While holding, the other slots pulse; hovering an empty slot reads "Move here", hovering an occupied one shows a swap glyph. Both icons slide for 150ms. Runs `MOVE_STACK` (stack ids never change). Right-click a stack opens the info / split / merge popup. Drag-and-drop is not built.
 - No floating corner menu button, no "New Run" (the pause menu has Main Menu).
 
 ## City — meta family
 - Scene: sky gradient + CSS castle skyline; hotspots for Town Hall, Barracks, Temple and the seven buildings (built = solid, locked = dashed with cost). Popups per hotspot.
 - Barracks popup: four units, count input, cost, single **Recruit** button (goes to the army; disabled if unaffordable or the army is full with no matching stack). No garrison, no Fort.
-- Bottom bar: identical to Road (resources column shows Gold / Food / building slots).
+- Bottom bar: the same component as Road, pixel-identical (resources column shows Gold / Food / building slots). Recruiting shows a "+N" flourish that rises inside the recruited stack's slot. Reposition and right-click popup work here too.
 - **Leave:** a Leave button under the resources column inside the bar (column 1: Gold / Food / Slots, then Leave).
 
 ## Merchant — overlay family
