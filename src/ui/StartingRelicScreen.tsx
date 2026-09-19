@@ -13,7 +13,7 @@ export function StartingRelicScreen({ heroName, onChoose }: Props) {
       <h1>{heroName}</h1>
       <div className="subtitle">
         A veteran officer of the shattered Kingdom, commanding what remains of a proud army through the fractured
-        realm. Choose one starting relic to begin the run (AGENT.md §17).
+        realm. Choose one starting relic to begin the run.
       </div>
 
       <div className="setup-options">

@@ -1,17 +1,7 @@
-import { useState } from 'react';
-import { UNIT_DEFINITIONS } from '../engine/index.js';
+import type { Position } from '../engine/index.js';
 import type { RunState } from '../engine/run/index.js';
 import type { MapNode } from '../engine/run/index.js';
-import { HistoryDrawer } from './HistoryDrawer.js';
-import { describeRunEvent } from './runEventText.js';
-import { relicIcon } from './relicIcons.js';
-import { UNIT_ICONS } from './unitIcons.js';
-import { UNIT_ROLE_ICONS } from './unitShapes.js';
-import { UnitPopup } from './UnitPopup.js';
-import { HERO_PORTRAITS } from './heroIcons.js';
-
-const MAX_ARMY_SLOTS = 6;
-const RELIC_GRID_SLOTS = 15;
+import { GarrisonBar } from './GarrisonBar.js';
 
 interface Props {
   run: RunState;
@@ -20,6 +10,7 @@ interface Props {
   onOpenMenu: () => void;
   onSplitStack: (stackId: string, splitCount: number) => void;
   onMergeStacks: (stackIdA: string, stackIdB: string) => void;
+  onMoveStack: (stackId: string, toPosition: Position) => void;
 }
 
 const NODE_LABELS: Record<MapNode['type'], string> = {
@@ -55,17 +46,12 @@ const NODE_ACCENTS: Record<MapNode['type'], string> = {
   boss: '#e0503c',
 };
 
-export function WorldMapScreen({ run, onMoveTo, onEnterCity, onOpenMenu, onSplitStack, onMergeStacks }: Props) {
-  const [popupStackId, setPopupStackId] = useState<string | null>(null);
-  const [historyOpen, setHistoryOpen] = useState(false);
-  const popupStack = popupStackId ? run.army.find((s) => s.stackId === popupStackId && s.count > 0) ?? null : null;
+export function WorldMapScreen({ run, onMoveTo, onEnterCity, onOpenMenu, onSplitStack, onMergeStacks, onMoveStack }: Props) {
   const current = run.worldMap.nodes.find((n) => n.id === run.worldMap.currentNodeId)!;
   const layerCount = Math.max(...run.worldMap.nodes.map((n) => n.layer)) + 1;
   const nextChoices = current.connectsTo
     .map((id) => run.worldMap.nodes.find((n) => n.id === id))
     .filter((n): n is MapNode => !!n && n.visibility !== 'unknown');
-  const historyLines = run.log.map(describeRunEvent).filter((line): line is string => line !== null);
-  const armySlots = run.army.filter((s) => s.count > 0);
 
   return (
     <div className="garrison-frame">
@@ -103,81 +89,21 @@ export function WorldMapScreen({ run, onMoveTo, onEnterCity, onOpenMenu, onSplit
         </div>
       </div>
 
-      <div className="garrison-bar">
-        <div className="garrison-bar-col garrison-bar-resources">
-          <div className="garrison-bar-stat">
-            <span>💰</span> {run.gold}
-          </div>
-          <div className="garrison-bar-stat">
-            <span>🌾</span> {run.food}
-          </div>
-          <div className="garrison-bar-stat">
-            <span>⏳</span> Day {run.day}
-          </div>
-        </div>
-
-        <div className="garrison-bar-col garrison-bar-hero">
-          <div className="garrison-hero-plaque">{run.hero.name}</div>
-          <div className="garrison-hero-portrait-rect">{HERO_PORTRAITS[run.hero.heroType]}</div>
-          <div className="garrison-relic-grid">
-            {Array.from({ length: RELIC_GRID_SLOTS }).map((_, i) => {
-              const r = run.relics[i];
-              return r ? (
-                <span key={r.id} className="garrison-relic-cell" title={`${r.name} — ${r.description}`}>
-                  {relicIcon(r.id)}
-                </span>
-              ) : (
-                <span key={`empty-relic-${i}`} className="garrison-relic-cell empty" />
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="garrison-bar-col garrison-bar-main">
-          <div className="garrison-bar-army">
-            {Array.from({ length: MAX_ARMY_SLOTS }).map((_, i) => {
-              const s = armySlots[i];
-              if (!s) {
-                return (
-                  <div key={`empty-unit-${i}`} className="garrison-unit-cell empty">
-                    <div className="garrison-slot garrison-slot-empty">Empty</div>
-                  </div>
-                );
-              }
-              return (
-                <div key={s.stackId} className="garrison-unit-cell" onClick={() => setPopupStackId(s.stackId)} title={UNIT_DEFINITIONS[s.unitId].name}>
-                  <div className="garrison-slot">
-                    <span className="garrison-slot-icon">{UNIT_ICONS[s.unitId]}</span>
-                    <span className="garrison-slot-role">{UNIT_ROLE_ICONS[s.unitId]}</span>
-                  </div>
-                  <span className="garrison-slot-count-below">{s.count}</span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="garrison-bar-col garrison-bar-actions">
-          <button className="garrison-bar-btn" onClick={() => setHistoryOpen(true)} title="History">
-            📜
-          </button>
-          <button className="garrison-bar-btn" onClick={onOpenMenu} title="Menu">
-            ☰
-          </button>
-        </div>
-      </div>
-
-      <HistoryDrawer open={historyOpen} onClose={() => setHistoryOpen(false)} title="History" lines={historyLines} />
-
-      {popupStack && (
-        <UnitPopup
-          stack={popupStack}
-          army={run.army}
-          onClose={() => setPopupStackId(null)}
-          onSplit={onSplitStack}
-          onMerge={onMergeStacks}
-        />
-      )}
+      <GarrisonBar
+        stats={[
+          { icon: '💰', text: String(run.gold) },
+          { icon: '🌾', text: String(run.food) },
+          { icon: '⏳', text: `Day ${run.day}` },
+        ]}
+        hero={run.hero}
+        relics={run.relics}
+        army={run.army}
+        log={run.log}
+        onOpenMenu={onOpenMenu}
+        onMoveStack={onMoveStack}
+        onSplitStack={onSplitStack}
+        onMergeStacks={onMergeStacks}
+      />
     </div>
   );
 }

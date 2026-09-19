@@ -2,13 +2,9 @@ import { useEffect, useState } from 'react';
 import { BUILDING_DEFINITIONS, DOCTRINE_DEFINITIONS, LEVEL_SLOTS, LEVEL_UP_COST, canRecruitUnit, recruitCost } from '../engine/run/index.js';
 import type { CityState, RunEvent } from '../engine/run/index.js';
 import { UNIT_DEFINITIONS } from '../engine/index.js';
-import type { ArmyStack, HeroId, RelicDefinition, UnitId } from '../engine/index.js';
+import type { ArmyStack, HeroId, Position, RelicDefinition, UnitId } from '../engine/index.js';
 import { UNIT_ICONS } from './unitIcons.js';
-import { UNIT_ROLE_ICONS } from './unitShapes.js';
-import { HERO_PORTRAITS } from './heroIcons.js';
-import { relicIcon } from './relicIcons.js';
-import { HistoryDrawer } from './HistoryDrawer.js';
-import { describeRunEvent } from './runEventText.js';
+import { GarrisonBar } from './GarrisonBar.js';
 
 interface Props {
   city: CityState;
@@ -24,11 +20,12 @@ interface Props {
   onChooseDoctrine: (doctrineId: string) => void;
   onOpenMenu: () => void;
   onLeave: () => void;
+  onSplitStack: (stackId: string, splitCount: number) => void;
+  onMergeStacks: (stackIdA: string, stackIdB: string) => void;
+  onMoveStack: (stackId: string, toPosition: Position) => void;
 }
 
 const RECRUITABLE: UnitId[] = ['swordsman', 'archer', 'knight', 'priest'];
-const MAX_ARMY_SLOTS = 6;
-const RELIC_GRID_SLOTS = 15;
 
 type Panel = 'townhall' | 'barracks' | 'temple' | string | null;
 
@@ -46,17 +43,14 @@ const HOTSPOTS: Record<string, { top: string; left: string }> = {
   shrine: { top: '72%', left: '50%' },
 };
 
-export function CityScreen({ city, gold, food, hero, army, relics, log, onRecruit, onBuild, onUpgradeCity, onChooseDoctrine, onOpenMenu, onLeave }: Props) {
+export function CityScreen({ city, gold, food, hero, army, relics, log, onRecruit, onBuild, onUpgradeCity, onChooseDoctrine, onOpenMenu, onLeave, onSplitStack, onMergeStacks, onMoveStack }: Props) {
   const [panel, setPanel] = useState<Panel>(null);
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [recentRecruit, setRecentRecruit] = useState<{ unitId: UnitId; amount: number } | null>(null);
-  const [historyOpen, setHistoryOpen] = useState(false);
   const armyFull = army.filter((s) => s.count > 0).length >= 6;
   const nextLevel = city.level < 3 ? ((city.level + 1) as 2 | 3) : null;
   const slotsUsed = city.buildings.length;
   const slotsMax = LEVEL_SLOTS[city.level];
-  const armySlots = army.filter((s) => s.count > 0);
-  const historyLines = log.map(describeRunEvent).filter((line): line is string => line !== null);
 
   useEffect(() => {
     if (!recentRecruit) return;
@@ -233,75 +227,23 @@ export function CityScreen({ city, gold, food, hero, army, relics, log, onRecrui
         </>
       )}
 
-      <div className="garrison-bar">
-        <div className="garrison-bar-col garrison-bar-resources">
-          <div className="garrison-bar-stat">
-            <span>💰</span> {gold}
-          </div>
-          <div className="garrison-bar-stat">
-            <span>🌾</span> {food}
-          </div>
-          <div className="garrison-bar-stat">
-            <span>🏗️</span> {slotsUsed}/{slotsMax}
-          </div>
-          <button className="garrison-leave-btn" onClick={onLeave}>
-            Leave
-          </button>
-        </div>
-
-        <div className="garrison-bar-col garrison-bar-hero">
-          <div className="garrison-hero-plaque">{hero.name}</div>
-          <div className="garrison-hero-portrait-rect">{HERO_PORTRAITS[hero.heroType]}</div>
-          <div className="garrison-relic-grid">
-            {Array.from({ length: RELIC_GRID_SLOTS }).map((_, i) => {
-              const r = relics[i];
-              return r ? (
-                <span key={r.id} className="garrison-relic-cell" title={`${r.name} — ${r.description}`}>
-                  {relicIcon(r.id)}
-                </span>
-              ) : (
-                <span key={`empty-relic-${i}`} className="garrison-relic-cell empty" />
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="garrison-bar-col garrison-bar-main">
-          <div className="garrison-bar-army">
-            {Array.from({ length: MAX_ARMY_SLOTS }).map((_, i) => {
-              const s = armySlots[i];
-              if (!s) {
-                return (
-                  <div key={`empty-unit-${i}`} className="garrison-unit-cell empty">
-                    <div className="garrison-slot garrison-slot-empty">Empty</div>
-                  </div>
-                );
-              }
-              return (
-                <div key={s.stackId} className="garrison-unit-cell" title={UNIT_DEFINITIONS[s.unitId].name}>
-                  <div className="garrison-slot">
-                    <span className="garrison-slot-icon">{UNIT_ICONS[s.unitId]}</span>
-                    <span className="garrison-slot-role">{UNIT_ROLE_ICONS[s.unitId]}</span>
-                    {recentRecruit?.unitId === s.unitId && <span className="recruit-flourish">+{recentRecruit.amount}</span>}
-                  </div>
-                  <span className="garrison-slot-count-below">{s.count}</span>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        <div className="garrison-bar-col garrison-bar-actions">
-          <button className="garrison-bar-btn" onClick={() => setHistoryOpen(true)} title="History">
-            📜
-          </button>
-          <button className="garrison-bar-btn" onClick={onOpenMenu} title="Menu">
-            ☰
-          </button>
-        </div>
-      </div>
-
-      <HistoryDrawer open={historyOpen} onClose={() => setHistoryOpen(false)} title="History" lines={historyLines} />
+      <GarrisonBar
+        stats={[
+          { icon: '💰', text: String(gold) },
+          { icon: '🌾', text: String(food) },
+          { icon: '🏗️', text: `${slotsUsed}/${slotsMax}` },
+        ]}
+        onLeave={onLeave}
+        hero={hero}
+        relics={relics}
+        army={army}
+        log={log}
+        recentRecruit={recentRecruit}
+        onOpenMenu={onOpenMenu}
+        onMoveStack={onMoveStack}
+        onSplitStack={onSplitStack}
+        onMergeStacks={onMergeStacks}
+      />
     </div>
   );
 }
