@@ -40,6 +40,14 @@ export function describeRunEvent(event: RunEvent): string | null {
       return `Upgraded ${cardName(event.fromCardId)} → ${cardName(event.toCardId)}.`;
     case 'REWARD_SKIPPED':
       return 'Skipped the reward.';
+    case 'CARD_REMOVED':
+      return `Removed ${cardName(event.cardId)} from the deck${event.goldPaid > 0 ? ` for ${event.goldPaid}g` : ''}.`;
+    case 'UNITS_REVIVED':
+      return `Revived ${event.count} fallen unit(s) after the battle.`;
+    case 'DAILY_INCOME':
+      return `Gold Mine income: +${event.gold} Gold.`;
+    case 'MAGE_TOWER_UPGRADED':
+      return `Mage Tower upgraded to tier ${event.tier}.`;
     case 'EVENT_RESOLVED':
       if (event.outcome === 'search_relic') return `Search: found a relic!`;
       if (event.outcome === 'search_trap') return `Search: it was a trap!`;

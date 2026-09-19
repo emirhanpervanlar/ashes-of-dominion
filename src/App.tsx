@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { CARD_DEFINITIONS, UNIT_DEFINITIONS, computeValidHealTargets, computeValidTargets } from './engine/index.js';
 import type { ArmyStack, CardEffect, CardTargeting, EnemyIntent, PlayerAction, Position } from './engine/index.js';
-import { applyRunAction, createRun } from './engine/run/index.js';
+import { applyRunAction, cardRemovalQuote, createRun, migrateRun } from './engine/run/index.js';
 import type { RunEvent, RunState } from './engine/run/index.js';
 import { StackTile } from './ui/StackTile.js';
 import { UnitPopup } from './ui/UnitPopup.js';
@@ -18,6 +18,7 @@ import { EventScreen } from './ui/EventScreen.js';
 import { MerchantScreen } from './ui/MerchantScreen.js';
 import { CityScreen } from './ui/CityScreen.js';
 import { describeEvent } from './ui/eventText.js';
+import { describeRunEvent } from './ui/runEventText.js';
 import { relicIcon } from './ui/relicIcons.js';
 import { CARD_DESCRIPTIONS } from './ui/cardText.js';
 import { HistoryDrawer } from './ui/HistoryDrawer.js';
@@ -58,7 +59,7 @@ const BUFF_EFFECT_KINDS = new Set(['GAIN_MORALE', 'GAIN_MORALE_ALL', 'GAIN_MANA'
 function loadInitialRun(): RunState {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw) as RunState;
+    if (raw) return migrateRun(JSON.parse(raw) as RunState);
   } catch {
     // corrupted save — fall through to a fresh run
   }
@@ -104,11 +105,11 @@ export default function App() {
 
   useEffect(() => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(run));
+      if (hasSave) localStorage.setItem(STORAGE_KEY, JSON.stringify(run));
     } catch {
       // storage full/unavailable — non-fatal for a local playtest build
     }
-  }, [run]);
+  }, [run, hasSave]);
 
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
@@ -235,12 +236,28 @@ export default function App() {
       if (e.type === 'STARVING') {
         pushToast('💀', `Starving! Lost ${e.unitsLost} unit(s).`);
       }
+      if (e.type === 'CARD_REMOVED') {
+        pushToast('🗑️', describeRunEvent(e) ?? 'Card removed.');
+      }
+      if (e.type === 'MAGE_TOWER_UPGRADED') {
+        pushToast('🗼', describeRunEvent(e) ?? 'Mage Tower upgraded.');
+      }
+      if (e.type === 'ACTION_REJECTED') {
+        pushToast('⚠️', e.reason);
+      }
     }
   }
 
   function newRun() {
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch {
+      // storage unavailable — the in-memory run is replaced below anyway
+    }
     setRun(createRun(Date.now() & 0xffffffff));
     setPending(null);
+    setHasSave(false);
+    setAppStage('title');
   }
 
   function dispatchRun(action: Parameters<typeof applyRunAction>[1]) {
@@ -255,8 +272,11 @@ export default function App() {
     const logLengthBefore = combat?.log.length ?? 0;
     const result = dispatchRun({ type: 'COMBAT_ACTION', action });
     // Floating text is for the player's own actions only; the enemy turn is played back separately.
-    if (action.type !== 'END_TURN' && result.run.combat) {
-      spawnFloaters(floatersFromEvents(result.run.combat.log.slice(logLengthBefore), result.run.combat));
+    if (result.run.combat) {
+      const newEvents = result.run.combat.log.slice(logLengthBefore);
+      // The engine rejects illegal actions with a reason in the combat log; surface it instead of failing silently.
+      for (const e of newEvents) if (e.type === 'ACTION_REJECTED') pushToast('⚠️', e.reason);
+      if (action.type !== 'END_TURN') spawnFloaters(floatersFromEvents(newEvents, result.run.combat));
     }
     setPending(null);
   }
@@ -444,7 +464,7 @@ export default function App() {
       handleStackClick(stack, position, side);
       return;
     }
-    if (side === 'player' && stack && stack.count > 0 && !cannotAct(stack, side) && canAct) {
+    if (side === 'player' && stack && stack.count > 0 && !cannotAct(stack, side, combat?.playerArmy) && canAct) {
       const def = UNIT_DEFINITIONS[stack.unitId];
       const kind = def.basicAction ?? 'attack';
       setPending({
@@ -462,7 +482,7 @@ export default function App() {
       // Nothing pending — only the player's own alive, not-yet-acted stacks are
       // clickable, to start their free basic action.
       if (side !== 'player' || !stack || stack.count === 0) return false;
-      return !cannotAct(stack, side) && canAct;
+      return !cannotAct(stack, side, combat?.playerArmy) && canAct;
     }
     const alive = !!stack && stack.count > 0;
     const t = pending.targeting;
@@ -470,7 +490,7 @@ export default function App() {
       if (side !== 'enemy' || !alive || !combat) return false;
       const actor = combat.playerArmy.find((s) => s.stackId === pending.actingStackId);
       if (!actor) return false;
-      const validTargets = computeValidTargets(actor, combat.enemyArmy, UNIT_DEFINITIONS[actor.unitId]);
+      const validTargets = computeValidTargets(actor, combat.enemyArmy, UNIT_DEFINITIONS[actor.unitId], combat.playerArmy);
       return validTargets.some((v) => v.stackId === stack!.stackId);
     }
     if (t === 'basic-heal') {
@@ -486,7 +506,7 @@ export default function App() {
         if (!pending.actingStackId || !combat) return true;
         const actor = combat.playerArmy.find((s) => s.stackId === pending.actingStackId);
         if (!actor) return true;
-        const validTargets = computeValidTargets(actor, combat.enemyArmy, UNIT_DEFINITIONS[actor.unitId]);
+        const validTargets = computeValidTargets(actor, combat.enemyArmy, UNIT_DEFINITIONS[actor.unitId], combat.playerArmy);
         return validTargets.some((v) => v.stackId === stack!.stackId);
       }
       return false;
@@ -640,7 +660,10 @@ export default function App() {
           reward={run.pendingReward}
           onClaimCard={(cardId) => dispatchRun({ type: 'CLAIM_CARD', cardId })}
           onClaimUpgrade={(instanceId) => dispatchRun({ type: 'CLAIM_UPGRADE', instanceId })}
-          onConfirm={() => dispatchRun({ type: 'CONFIRM_REWARD' })}
+          deck={run.masterDeck}
+          removalQuote={cardRemovalQuote(run)}
+          onRemoveCard={(instanceId) => dispatchRun({ type: 'REMOVE_CARD', instanceId })}
+          onSkip={() => dispatchRun({ type: 'SKIP_REWARD' })}
         />
       </>
     );
@@ -687,6 +710,10 @@ export default function App() {
           onRecruit={(unitId, count) => dispatchRun({ type: 'RECRUIT', unitId, count })}
           onBuild={(buildingId) => dispatchRun({ type: 'BUILD_BUILDING', buildingId })}
           onUpgradeCity={() => dispatchRun({ type: 'UPGRADE_CITY' })}
+          onUpgradeMageTower={() => dispatchRun({ type: 'UPGRADE_MAGE_TOWER' })}
+          onRemoveCard={(instanceId) => dispatchRun({ type: 'REMOVE_CARD', instanceId })}
+          deck={run.masterDeck}
+          removalQuote={cardRemovalQuote(run)}
           onChooseDoctrine={(doctrineId) => dispatchRun({ type: 'CHOOSE_DOCTRINE', doctrineId })}
           onOpenMenu={() => setMenuOpen(true)}
           onLeave={() => dispatchRun({ type: 'LEAVE_CITY' })}
@@ -717,6 +744,9 @@ export default function App() {
         <MerchantScreen
           gold={run.gold}
           inventory={run.pendingMerchant}
+          deck={run.masterDeck}
+          removalQuote={cardRemovalQuote(run)}
+          onRemoveCard={(instanceId) => dispatchRun({ type: 'REMOVE_CARD', instanceId })}
           onBuyCard={(cardId) => dispatchRun({ type: 'BUY_CARD', cardId })}
           onBuyRelic={(relicId) => dispatchRun({ type: 'BUY_RELIC', relicId })}
           onLeave={() => dispatchRun({ type: 'LEAVE_MERCHANT' })}
@@ -792,6 +822,7 @@ export default function App() {
                   key={`p-${p}`}
                   stack={s}
                   side="player"
+                  ownArmy={combat.playerArmy}
                   selectable={isSelectable(s, 'player')}
                   selected={isSelected(s)}
                   dimmed={isDimmed(s, 'player')}
@@ -812,6 +843,7 @@ export default function App() {
                   key={`p-${p}`}
                   stack={s}
                   side="player"
+                  ownArmy={combat.playerArmy}
                   selectable={isSelectable(s, 'player')}
                   selected={isSelected(s)}
                   dimmed={isDimmed(s, 'player')}
@@ -844,6 +876,7 @@ export default function App() {
                   key={`e-${p}`}
                   stack={s}
                   side="enemy"
+                  ownArmy={combat.enemyArmy}
                   selectable={isSelectable(s, 'enemy')}
                   selected={isSelected(s)}
                   dimmed={isDimmed(s, 'enemy')}
@@ -864,6 +897,7 @@ export default function App() {
                   key={`e-${p}`}
                   stack={s}
                   side="enemy"
+                  ownArmy={combat.enemyArmy}
                   selectable={isSelectable(s, 'enemy')}
                   selected={isSelected(s)}
                   dimmed={isDimmed(s, 'enemy')}

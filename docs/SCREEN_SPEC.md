@@ -22,23 +22,31 @@ Centered title, menu: New Game, Continue (only if a save exists), Settings.
 
 ## City — meta family
 - Scene: sky gradient + CSS castle skyline; hotspots for Town Hall, Barracks, Temple and the seven buildings (built = solid, locked = dashed with cost). Popups per hotspot.
+- Town Hall popup: level up, plus **Remove a card** (free, once every 7 days, deck floor 5; `cardRemovalQuote`) which opens the deck picker; the disabled reason is shown under the button.
+- Mage Tower popup (built): tier (I-III), `mageTowerDescription`, **Upgrade to Tier N - X Gold** (disabled without gold, replaced by "Max tier" at III). The hotspot sub-label shows the tier.
 - Barracks popup: four units, count input, cost, single **Recruit** button (goes to the army; disabled if unaffordable or the army is full with no matching stack). No garrison, no Fort.
 - Bottom bar: the same component as Road, pixel-identical (resources column shows Gold / Food / building slots). Recruiting shows a "+N" flourish that rises inside the recruited stack's slot. Reposition and right-click popup work here too.
 - **Leave:** a Leave button under the resources column inside the bar (column 1: Gold / Food / Slots, then Leave).
 
 ## Merchant — overlay family
-Top bar (title, gold pill), a shelf of 3 card offers + optional relic (gold border) with price under each, unaffordable = dimmed, ribbon **Leave** at the bottom-left.
+Top bar (title, gold pill), a shelf of 3 card offers + optional relic (gold border) with price under each, unaffordable = dimmed, ribbon **Leave** at the bottom-left. Below the shelf a **Remove a card (price)** button opens the deck picker (price rises per use; disabled reasons shown: gold, deck floor). A toast confirms the removal; the screen stays open.
 
 ## Event — overlay family
 Centered `?` badge, gold plaque title, description, option cards (label + effect). One click resolves.
 
 ## Reward — overlay family
-Banner "Victory! Choose a Card", up to 3 large cards (cost medallion, icon, name, description), click selects (cyan ring), button reads Skip or Confirm & Continue. No relics.
+Banner "Victory! Choose One", up to 3 large cards (cost medallion, icon, name, description). One pick only, no Confirm: clicking a card (or upgrade) applies it and the screen closes. Below: **Remove a card (free)** (opens the deck picker; the pick removes the card and closes the screen) and **Skip**. No relics.
+
+## Deck picker (shared)
+Modal listing the whole master deck as cards; clicking one removes it and closes the picker. Used by Reward, Merchant and City. Rendered in a portal so clipped popups cannot trap it.
+
+## Defeat / Run complete
+Run summary and a **New Run** button: clears the saved run, disables Continue and returns to the title screen.
 
 ## Battle — battle family
 - **Frame:** full-screen ornate frame. Top: hero chip (name, relics, Mana bar) on the left, turn chip on the right. No floating menu button.
 - **Body:** left rail = your 2x3 portrait grid (back column, front column), center = scene panel (holds the Drop Card zone for no-target cards), right rail = enemy 2x3 grid (front column, back column).
-- **Portrait slot:** rectangular frame, unit icon, role badge, HP strip, name and `xCount`. Selected = white ring; selectable = gold ring; dimmed when not relevant; cannot act = grey with lock.
+- **Portrait slot:** rectangular frame, unit icon, role badge, HP strip, name and `xCount`. Selected = white ring; selectable = gold ring; dimmed when not relevant; cannot act = grey with lock (includes a back-row melee stack blocked by a friendly stack in front, AO-D033). Floating text shows `-N units` for kills and `Wounded` when the hit killed nothing; the battle log line carries HP damage, units killed and units left.
 - **Bottom bar:** Deck pile (count) at far left, hand in a flat row (no fan), Discard pile (count) at the right of the hand, then a vertical column of three rectangular buttons at the far right: End Turn (top, gold), Log, Settings. Draw = cards slide in from the deck; end of turn = leftover cards slide to the discard pile.
 - **Interaction:** click your stack to start its free action, then click a legal enemy (Priest: any friendly stack). Card flow: click card, then the required targets (or the Drop Card zone). Re-click a selected stack to deselect; `Esc` cancels. Dead enemy stacks never act in playback.
 - **No pos badge, no HP numbers** on portraits; the count is the health readout. Block and statuses appear as small icons with their amount on the portrait image (top-left), not as text under the name.

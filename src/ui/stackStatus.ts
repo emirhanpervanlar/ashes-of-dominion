@@ -1,3 +1,4 @@
+import { isBlockedByFrontAlly } from '../engine/index.js';
 import type { ArmyStack, StatusType } from '../engine/index.js';
 
 export const STATUS_ICONS: Record<StatusType, string> = {
@@ -12,8 +13,8 @@ export const STATUS_ICONS: Record<StatusType, string> = {
   freeze: '❄️',
 };
 
-/** Mirrors the engine's basic-action gate so the UI never offers a stack that would be rejected. */
-export function cannotAct(stack: ArmyStack, side: 'player' | 'enemy'): boolean {
+/** Mirrors the engine's basic-action gate so the UI never offers a stack that would be rejected. `ownArmy` enables the AO-D033 back-row block. */
+export function cannotAct(stack: ArmyStack, side: 'player' | 'enemy', ownArmy?: ArmyStack[]): boolean {
   const frozen = stack.statuses.some((s) => s.type === 'freeze' && s.amount > 0);
-  return (side === 'player' && stack.actedThisTurn) || frozen || !!stack.flags.cannotAttack;
+  return (side === 'player' && stack.actedThisTurn) || frozen || !!stack.flags.cannotAttack || (!!ownArmy && isBlockedByFrontAlly(stack, ownArmy));
 }

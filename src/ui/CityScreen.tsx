@@ -1,10 +1,11 @@
 import { useEffect, useState } from 'react';
-import { BUILDING_DEFINITIONS, DOCTRINE_DEFINITIONS, LEVEL_SLOTS, LEVEL_UP_COST, canRecruitUnit, recruitCost } from '../engine/run/index.js';
-import type { CityState, RunEvent } from '../engine/run/index.js';
+import { BUILDING_DEFINITIONS, DOCTRINE_DEFINITIONS, LEVEL_SLOTS, LEVEL_UP_COST, MAGE_TOWER_TIERS, canRecruitUnit, mageTowerDescription, recruitCost } from '../engine/run/index.js';
+import type { CardRemovalQuote, CityState, RunEvent } from '../engine/run/index.js';
 import { UNIT_DEFINITIONS } from '../engine/index.js';
-import type { ArmyStack, HeroId, Position, RelicDefinition, UnitId } from '../engine/index.js';
+import type { ArmyStack, CardInstance, HeroId, Position, RelicDefinition, UnitId } from '../engine/index.js';
 import { UNIT_ICONS } from './unitIcons.js';
 import { GarrisonBar } from './GarrisonBar.js';
+import { CardRemovalPicker } from './CardRemovalPicker.js';
 
 interface Props {
   city: CityState;
@@ -14,9 +15,13 @@ interface Props {
   army: ArmyStack[];
   relics: RelicDefinition[];
   log: RunEvent[];
+  deck: CardInstance[];
+  removalQuote: CardRemovalQuote;
   onRecruit: (unitId: UnitId, count: number) => void;
   onBuild: (buildingId: string) => void;
   onUpgradeCity: () => void;
+  onUpgradeMageTower: () => void;
+  onRemoveCard: (instanceId: string) => void;
   onChooseDoctrine: (doctrineId: string) => void;
   onOpenMenu: () => void;
   onLeave: () => void;
@@ -43,7 +48,7 @@ const HOTSPOTS: Record<string, { top: string; left: string }> = {
   shrine: { top: '72%', left: '50%' },
 };
 
-export function CityScreen({ city, gold, food, hero, army, relics, log, onRecruit, onBuild, onUpgradeCity, onChooseDoctrine, onOpenMenu, onLeave, onSplitStack, onMergeStacks, onMoveStack }: Props) {
+export function CityScreen({ city, gold, food, hero, army, relics, log, deck, removalQuote, onRecruit, onBuild, onUpgradeCity, onUpgradeMageTower, onRemoveCard, onChooseDoctrine, onOpenMenu, onLeave, onSplitStack, onMergeStacks, onMoveStack }: Props) {
   const [panel, setPanel] = useState<Panel>(null);
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [recentRecruit, setRecentRecruit] = useState<{ unitId: UnitId; amount: number } | null>(null);
@@ -102,7 +107,7 @@ export function CityScreen({ city, gold, food, hero, army, relics, log, onRecrui
             >
               <span className="th-hotspot-icon">{BUILDING_ICONS[building.id] ?? '🏚️'}</span>
               <span className="th-hotspot-name">{building.name}</span>
-              <span className="th-hotspot-sub">{built ? 'Built' : `${building.cost}g`}</span>
+              <span className="th-hotspot-sub">{built ? (building.id === 'mage_tower' ? `Tier ${ROMAN[city.mageTowerTier - 1]}` : 'Built') : `${building.cost}g`}</span>
             </div>
           );
         })}
@@ -129,6 +134,8 @@ export function CityScreen({ city, gold, food, hero, army, relics, log, onRecrui
                 ) : (
                   <p className="subtitle">Already at maximum level.</p>
                 )}
+                <h3 style={{ marginTop: 16 }}>Deck</h3>
+                <CardRemovalPicker deck={deck} quote={removalQuote} onRemove={onRemoveCard} />
               </>
             )}
 
@@ -212,8 +219,10 @@ export function CityScreen({ city, gold, food, hero, army, relics, log, onRecrui
                   <h3>
                     {BUILDING_ICONS[building.id] ?? '🏚️'} {building.name}
                   </h3>
-                  <p className="subtitle">{building.description}</p>
-                  {built ? (
+                  <p className="subtitle">{building.id === 'mage_tower' ? mageTowerDescription(city.mageTowerTier) : building.description}</p>
+                  {built && building.id === 'mage_tower' ? (
+                    <MageTowerUpgrade tier={city.mageTowerTier} gold={gold} onUpgrade={onUpgradeMageTower} />
+                  ) : built ? (
                     <p className="subtitle">Already built.</p>
                   ) : (
                     <button disabled={slotsFull || !affordable} onClick={() => onBuild(building.id)}>
@@ -245,6 +254,24 @@ export function CityScreen({ city, gold, food, hero, army, relics, log, onRecrui
         onMergeStacks={onMergeStacks}
       />
     </div>
+  );
+}
+
+const ROMAN = ['I', 'II', 'III'];
+
+function MageTowerUpgrade({ tier, gold, onUpgrade }: { tier: 0 | 1 | 2 | 3; gold: number; onUpgrade: () => void }) {
+  const next = MAGE_TOWER_TIERS[tier];
+  return (
+    <>
+      <p className="mage-tower-tier">Tier {ROMAN[tier - 1]}</p>
+      {next ? (
+        <button disabled={gold < next.cost} onClick={onUpgrade}>
+          Upgrade to Tier {ROMAN[tier]} - {next.cost} Gold
+        </button>
+      ) : (
+        <p className="subtitle">Max tier</p>
+      )}
+    </>
   );
 }
 

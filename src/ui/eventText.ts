@@ -26,9 +26,7 @@ export function describeEvent(state: CombatState, event: CombatEvent): string | 
     case 'DECK_RESHUFFLED':
       return 'Deck reshuffled.';
     case 'STACK_ATTACKED':
-      return `${stackLabel(state, event.attackerStackId)} attacks ${stackLabel(state, event.targetStackId)} for ${event.finalDamage} dmg${event.blocked > 0 ? ` (${event.blocked} blocked)` : ''}.`;
-    case 'UNITS_KILLED':
-      return `${event.count} ${stackLabel(state, event.stackId)} unit(s) killed.`;
+      return `${stackLabel(state, event.attackerStackId)} attacks ${stackLabel(state, event.targetStackId)} for ${event.finalDamage} dmg${event.blocked > 0 ? ` (${event.blocked} blocked)` : ''}: ${event.unitsKilled} unit(s) killed, ${event.countAfter} left.`;
     case 'STACK_DESTROYED':
       return `${stackLabel(state, event.stackId)} was destroyed!`;
     case 'BLOCK_GAINED':
