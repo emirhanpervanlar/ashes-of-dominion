@@ -57,9 +57,23 @@ describe('computeRawDamage', () => {
     expect(buffedDmg).toBeGreaterThan(baseDmg);
   });
 
-  it('floors per-unit damage at 0 when defense exceeds attack', () => {
+  it('a hit with attack below defense still deals damage (AO-D018: -2.5% per point, capped at -70%)', () => {
     const attacker = stack({ count: 10 });
-    expect(computeRawDamage({ attackerStack: attacker, attackerBaseAttack: 3, targetDefense: 99, multiplier: 1 })).toBe(0);
+    expect(computeRawDamage({ attackerStack: attacker, attackerBaseAttack: 3, targetDefense: 4, multiplier: 1 })).toBe(29); // 30 x 0.975
+    expect(computeRawDamage({ attackerStack: attacker, attackerBaseAttack: 3, targetDefense: 99, multiplier: 1 })).toBe(9); // 30 x 0.3 (capped)
+    expect(computeRawDamage({ attackerStack: stack({ count: 1 }), attackerBaseAttack: 1, targetDefense: 99, multiplier: 1 })).toBe(1);
+  });
+
+  it('attack above defense adds 5% per point, capped at +300%', () => {
+    const attacker = stack({ count: 10 });
+    expect(computeRawDamage({ attackerStack: attacker, attackerBaseAttack: 5, targetDefense: 3, multiplier: 1 })).toBe(55); // 50 x 1.10
+    expect(computeRawDamage({ attackerStack: attacker, attackerBaseAttack: 100, targetDefense: 0, multiplier: 1 })).toBe(4000);
+  });
+
+  it('is linear in unit count: one stack of 60 deals exactly what two stacks of 30 deal together', () => {
+    const one = computeRawDamage({ attackerStack: stack({ count: 60 }), attackerBaseAttack: 4, targetDefense: 0, multiplier: 1 });
+    const half = computeRawDamage({ attackerStack: stack({ count: 30 }), attackerBaseAttack: 4, targetDefense: 0, multiplier: 1 });
+    expect(one).toBe(2 * half);
   });
 
   it('applies Hero stat effectiveness as a multiplier', () => {

@@ -34,10 +34,13 @@ import type {
   CardTargeting,
   CombatEvent,
   CombatState,
+  EnemyStep,
+  EnemyStepHit,
   Hero,
   PlayerAction,
   Position,
   RelicEffect,
+  StackSnapshot,
   StatusType,
   UnitDefinition,
 } from './types.js';
@@ -162,7 +165,7 @@ function resolveAttack(
   const dodgeMult = actualTarget.flags.dodgeMultiplier ?? 1;
   const dodged = rollDodge(state.rng, state.hero, actualTarget.side, dodgeMult, relicDodgeBonusPercent(relics));
   if (dodged) {
-    events.push({ type: 'STACK_ATTACKED', attackerStackId: attacker.stackId, targetStackId: actualTarget.stackId, rawDamage: 0, finalDamage: 0, blocked: 0 });
+    events.push({ type: 'STACK_ATTACKED', attackerStackId: attacker.stackId, targetStackId: actualTarget.stackId, rawDamage: 0, finalDamage: 0, blocked: 0, unitsKilled: 0, countAfter: actualTarget.count });
     return;
   }
 
@@ -202,7 +205,12 @@ function resolveAttack(
   // Divine Protection — a lethal blow instead leaves the stack at 1 soldier, once.
   if (resolution.stack.count === 0 && actualTarget.flags.divineShield) {
     const survivorHp = targetDef.hpPerUnit;
-    resolution = { ...resolution, stack: { ...actualTarget, count: 1, currentHp: survivorHp, flags: { ...actualTarget.flags, divineShield: false } }, unitsKilled: actualTarget.count - 1 };
+    resolution = {
+      ...resolution,
+      stack: { ...actualTarget, count: 1, currentHp: survivorHp, flags: { ...actualTarget.flags, divineShield: false } },
+      finalDamage: actualTarget.currentHp - survivorHp,
+      unitsKilled: actualTarget.count - 1,
+    };
     events.push({ type: 'DIVINE_SHIELD_CONSUMED', stackId: actualTarget.stackId });
   }
 
@@ -215,6 +223,8 @@ function resolveAttack(
     rawDamage: raw,
     finalDamage: resolution.finalDamage,
     blocked: resolution.blocked,
+    unitsKilled: resolution.unitsKilled,
+    countAfter: resolution.stack.count,
   });
   if (resolution.unitsKilled > 0) {
     events.push({ type: 'UNITS_KILLED', stackId: actualTarget.stackId, count: resolution.unitsKilled });
@@ -729,7 +739,7 @@ function tickStatuses(army: ArmyStack[], events: CombatEvent[]): void {
       const def = UNIT_DEFINITIONS[stack.unitId];
       const resolution = applyDamageToStack(stack, def.hpPerUnit, dot);
       Object.assign(stack, resolution.stack);
-      events.push({ type: 'STACK_ATTACKED', attackerStackId: stack.stackId, targetStackId: stack.stackId, rawDamage: dot, finalDamage: resolution.finalDamage, blocked: resolution.blocked });
+      events.push({ type: 'STACK_ATTACKED', attackerStackId: stack.stackId, targetStackId: stack.stackId, rawDamage: dot, finalDamage: resolution.finalDamage, blocked: resolution.blocked, unitsKilled: resolution.unitsKilled, countAfter: resolution.stack.count });
       if (resolution.unitsKilled > 0) events.push({ type: 'UNITS_KILLED', stackId: stack.stackId, count: resolution.unitsKilled });
       if (resolution.stack.count === 0) events.push({ type: 'STACK_DESTROYED', stackId: stack.stackId });
     }
@@ -737,31 +747,65 @@ function tickStatuses(army: ArmyStack[], events: CombatEvent[]): void {
   }
 }
 
-function resolveEnemyTurn(state: CombatState, events: CombatEvent[]): void {
+function snapshotOf(state: CombatState, stackId: string): StackSnapshot | null {
+  const stack = state.playerArmy.find((s) => s.stackId === stackId) ?? state.enemyArmy.find((s) => s.stackId === stackId);
+  return stack ? { stackId, side: stack.side, count: stack.count, currentHp: stack.currentHp, block: stack.block } : null;
+}
+
+/** Turns the events one enemy action produced into its step record (AO-D023). */
+function buildEnemyStep(state: CombatState, kind: EnemyStep['kind'], actorStackId: string, targetStackId: string | null, stepEvents: CombatEvent[]): EnemyStep {
+  const hits: EnemyStepHit[] = [];
+  const statuses: EnemyStep['statuses'] = [];
+  const touched = new Set<string>([actorStackId]);
+  for (const e of stepEvents) {
+    if (e.type === 'STACK_ATTACKED') {
+      const dodged = e.rawDamage === 0 && e.finalDamage === 0 && e.blocked === 0;
+      hits.push({ attackerStackId: e.attackerStackId, targetStackId: e.targetStackId, hpDamage: e.finalDamage, blocked: e.blocked, unitsKilled: e.unitsKilled, dodged, countAfter: e.countAfter });
+      touched.add(e.attackerStackId);
+      touched.add(e.targetStackId);
+    } else if (e.type === 'STATUS_APPLIED') {
+      statuses.push({ stackId: e.stackId, status: e.status, amount: e.amount, duration: e.duration });
+      touched.add(e.stackId);
+    } else if (e.type === 'UNITS_KILLED') {
+      touched.add(e.stackId);
+    }
+  }
+  const resulting = [...touched].flatMap((id) => snapshotOf(state, id) ?? []);
+  return { actorStackId, kind, targetStackId, hits, statuses, resulting };
+}
+
+function resolveEnemyTurn(state: CombatState, events: CombatEvent[]): EnemyStep[] {
+  const steps: EnemyStep[] = [];
   for (const intent of state.enemyIntents) {
     const actor = findStack(state.enemyArmy, intent.stackId);
     // Intents are captured at the start of the player's turn — if the player kills this
     // stack (or its buff target) mid-turn, its stale intent must not still resolve.
     if (!actor || actor.count <= 0) continue;
+    const start = events.length;
 
     if (intent.kind === 'buff') {
       const target = findStack(state.enemyArmy, intent.targetStackId ?? undefined);
       if (!target || target.count <= 0 || !intent.buffStatus || intent.buffAmount === undefined) continue;
       target.statuses.push({ type: intent.buffStatus, amount: intent.buffAmount, duration: 1 });
       events.push({ type: 'STATUS_APPLIED', stackId: target.stackId, status: intent.buffStatus, amount: intent.buffAmount, duration: 1 });
+      steps.push(buildEnemyStep(state, 'buff', actor.stackId, target.stackId, events.slice(start)));
       continue;
     }
 
+    const validTargets = computeValidTargets(actor, state.playerArmy, UNIT_DEFINITIONS[actor.unitId]);
     let target = findStack(state.playerArmy, intent.targetStackId ?? undefined);
-    if (!target || target.count <= 0) {
-      // The planned target died mid-turn: re-pick, but only within what this attacker can reach.
-      target = computeValidTargets(actor, state.playerArmy, UNIT_DEFINITIONS[actor.unitId])[0];
+    const taunting = !!target && target.statuses.some((st) => st.type === 'taunt');
+    if (!target || (!taunting && !validTargets.some((t) => t.stackId === target!.stackId))) {
+      // The planned target died or left reach (the player moved stacks): re-pick, but only within what this attacker can reach.
+      target = validTargets[0];
     }
     if (!target) continue;
 
     resolveAttack(state, actor, target, state.playerArmy, 1, events, state.activeRelicEffects);
+    steps.push(buildEnemyStep(state, 'attack', actor.stackId, target.stackId, events.slice(start)));
   }
   events.push({ type: 'ENEMY_TURN_RESOLVED' });
+  return steps;
 }
 
 function startPlayerTurn(state: CombatState, events: CombatEvent[], isFirstTurn: boolean): void {
@@ -814,18 +858,18 @@ function endPlayerTurn(state: CombatState, events: CombatEvent[]): ApplyResult {
   state.phase = 'enemy';
   events.push({ type: 'TURN_STARTED', side: 'enemy', turnNumber: state.turnNumber });
 
-  resolveEnemyTurn(state, events);
+  const enemySteps = resolveEnemyTurn(state, events);
 
   const result = checkBattleResult(state);
   if (result !== 'ongoing') {
     state.result = result;
     state.phase = 'ended';
     events.push({ type: 'BATTLE_ENDED', result });
-    return { state, events };
+    return { state, events, enemySteps };
   }
 
   startPlayerTurn(state, events, false);
-  return { state, events };
+  return { state, events, enemySteps };
 }
 
 export function applyPlayerAction(state: CombatState, action: PlayerAction): ApplyResult {

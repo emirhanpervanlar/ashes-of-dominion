@@ -3,6 +3,7 @@ import { applyPlayerAction } from '../combat.js';
 import { UNIT_DEFINITIONS } from '../data/units.js';
 import { createVerticalSliceScenario } from '../scenario.js';
 import type { CombatState } from '../types.js';
+import { sturdy } from './helpers.js';
 
 /** Force a known hand for deterministic, card-specific test setups. */
 function withHand(state: CombatState, cardIds: string[]): CombatState {
@@ -148,7 +149,7 @@ describe('v3 §10 "unit card active if source unit count > 0"', () => {
 
 describe('turn loop', () => {
   it('End Turn resolves enemy intents, restores Mana, and starts a fresh player turn', () => {
-    const { state } = createVerticalSliceScenario(11);
+    const state = sturdy(createVerticalSliceScenario(11).state);
     const result = applyPlayerAction(state, { type: 'END_TURN' });
 
     expect(result.state.turnNumber).toBe(2);
@@ -160,7 +161,7 @@ describe('turn loop', () => {
   });
 
   it('actedThisTurn resets for every player stack at the start of the next player turn', () => {
-    const { state } = createVerticalSliceScenario(12);
+    const state = sturdy(createVerticalSliceScenario(12).state);
     const acted = applyPlayerAction(state, { type: 'BASIC_ACTION', stackId: 'player_swordsman_1', targetStackId: 'enemy_orc_1' });
     const afterEndTurn = applyPlayerAction(acted.state, { type: 'END_TURN' });
     const swordsman = afterEndTurn.state.playerArmy.find((s) => s.stackId === 'player_swordsman_1')!;
@@ -262,7 +263,7 @@ describe('battle outcome', () => {
 });
 
 describe('melee reach vs the backline (AO-D013)', () => {
-  it('rejects a basic attack with "no target in reach" while any front stack lives but none is in the attacker lane', () => {
+  it('rejects a backline target while any front stack lives, even when the front stack is out of lane (softlock guard picks the front stack instead)', () => {
     const { state } = createVerticalSliceScenario(8);
     // Only the right front stack survives: the left-lane Swordsman reaches left+center only.
     const laneEmpty: CombatState = {
@@ -273,7 +274,7 @@ describe('melee reach vs the backline (AO-D013)', () => {
     const result = applyPlayerAction(laneEmpty, { type: 'BASIC_ACTION', stackId: 'player_swordsman_1', targetStackId: backline.stackId });
     const rejected = result.events.find((e) => e.type === 'ACTION_REJECTED');
     expect(rejected).toBeDefined();
-    expect(JSON.stringify(rejected)).toContain('no target in reach');
+    expect(JSON.stringify(rejected)).toContain('cannot reach that target');
   });
 
   it('a melee army can finish a lone backline goblin once the front row is empty (softlock fixed)', () => {

@@ -3,6 +3,7 @@ import { applyPlayerAction } from '../combat.js';
 import { generateEnemyIntents } from '../intents.js';
 import { createVerticalSliceScenario } from '../scenario.js';
 import type { CombatState } from '../types.js';
+import { sturdy } from './helpers.js';
 
 function withHand(state: CombatState, cardIds: string[]): CombatState {
   return { ...state, hand: cardIds.map((cardId, i) => ({ instanceId: `test_${cardId}_${i}`, cardId })) };
@@ -171,7 +172,7 @@ describe('Dodge (Hero Dexterity)', () => {
 
 describe('Poison/Bleed/Burn tick as damage-over-time', () => {
   it('a poisoned stack loses soldiers at the start of its side\'s next turn', () => {
-    const { state } = createVerticalSliceScenario(506);
+    const state = sturdy(createVerticalSliceScenario(506).state);
     const poisoned: CombatState = {
       ...state,
       enemyArmy: state.enemyArmy.map((s) => (s.stackId === 'enemy_orc_1' ? { ...s, statuses: [{ type: 'poison' as const, amount: 9999, duration: 3 }] } : s)),
@@ -250,7 +251,7 @@ describe('Rally and unit passives', () => {
 
 describe('"1 turn" self-lockdown flags (Brace) expire instead of sticking forever', () => {
   it('a stack that plays Brace can act again on its next turn', () => {
-    let { state } = createVerticalSliceScenario(510);
+    let state = sturdy(createVerticalSliceScenario(510).state);
     state = withHand(state, ['brace']);
     const swordsman = state.playerArmy.find((s) => s.unitId === 'swordsman')!;
     const braced = applyPlayerAction(state, {

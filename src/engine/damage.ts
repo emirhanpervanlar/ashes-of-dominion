@@ -4,9 +4,8 @@ import type { ArmyStack, Hero, RelicEffect, StatusType, UnitDefinition } from '.
 import type { RngState } from './rng.js';
 
 /**
- * Diminishing returns on raw stack count — v3 §10 "Count scaling".
- * Flat-bracket lookup (not marginal/tax-bracket) per the literal table.
- * PROTOTYPE: coefficients are explicitly not locked (v3 §44).
+ * Diminishing returns on raw stack count, used by healing only — v3 §10 "Count scaling".
+ * Damage no longer uses it (AO-D018: damage is linear in unit count).
  */
 const EFFECTIVE_COUNT_BRACKETS: ReadonlyArray<{ max: number; multiplier: number }> = [
   { max: 20, multiplier: 1.0 },
@@ -86,19 +85,27 @@ export interface RawDamageParams {
   heroEffectiveness?: number;
 }
 
+/** AO-D018 — Heroes 3 attack-vs-defense damage constants, kept together so balance passes touch one place. */
+export const ATTACK_ADVANTAGE_PER_POINT = 0.05;
+export const ATTACK_ADVANTAGE_MAX = 3;
+export const DEFENSE_ADVANTAGE_PER_POINT = 0.025;
+export const DEFENSE_ADVANTAGE_MAX = 0.7;
+
+/** Percentage modifier on every unit's damage: x(1 + up to 3) if attack > defense, x(1 - up to 0.7) otherwise. */
+export function attackDefenseModifier(attack: number, defense: number): number {
+  if (attack > defense) return 1 + Math.min(ATTACK_ADVANTAGE_MAX, ATTACK_ADVANTAGE_PER_POINT * (attack - defense));
+  return 1 - Math.min(DEFENSE_ADVANTAGE_MAX, DEFENSE_ADVANTAGE_PER_POINT * (defense - attack));
+}
+
 /**
- * ASSUMPTION (documented): Defense (plus Armor status) mitigates damage per
- * attacking unit before the count multiplier is applied, rather than as a
- * flat subtraction from the final (already-scaled) damage total. A flat
- * subtraction makes single-digit Defense values meaningless once Raw
- * Damage reaches the hundreds. PROTOTYPE formula, not locked (v3 §44).
+ * AO-D018 (Heroes 3): per-unit attack scaled by the attack/defense percentage modifier, then
+ * multiplied linearly by unit count. A hit that lands never rounds down to 0.
  */
 export function computeRawDamage(params: RawDamageParams): number {
   const { attackerStack, attackerBaseAttack, targetDefense, multiplier, heroEffectiveness = 1 } = params;
   const perUnitAttack = effectiveAttack(attackerStack, attackerBaseAttack) * heroEffectiveness;
-  const perUnitNet = Math.max(0, perUnitAttack - targetDefense);
-  const raw = perUnitNet * effectiveCount(attackerStack.count) * multiplier;
-  return Math.round(raw);
+  const raw = perUnitAttack * attackDefenseModifier(perUnitAttack, targetDefense) * attackerStack.count * multiplier;
+  return raw > 0 ? Math.max(1, Math.round(raw)) : 0;
 }
 
 export function relicDodgeBonusPercent(relics: RelicEffect[]): number {
