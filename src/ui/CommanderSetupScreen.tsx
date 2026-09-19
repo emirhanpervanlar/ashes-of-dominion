@@ -26,12 +26,13 @@ export function CommanderSetupScreen({ onBack, onBegin }: Props) {
 
   if (step === 'hero') {
     return (
-      <div className="setup-screen commander-select-screen">
+      <div className="screen" data-screen="hero">
+       <div className="setup-screen">
         <h1>Your Commander</h1>
         <div className="subtitle">Name your officer, then choose who leads the army.</div>
 
         <input
-          className="name-input"
+          className="input name-input"
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Commander"
@@ -54,18 +55,22 @@ export function CommanderSetupScreen({ onBack, onBegin }: Props) {
           ))}
         </div>
 
-        <div className="toolbar" style={{ justifyContent: 'center', marginTop: 20 }}>
-          <button onClick={onBack}>Back</button>
-          <button className="primary begin-journey-btn" disabled={!heroId} onClick={() => heroId && setStep('relic')}>
+        <div className="toolbar">
+          <button className="btn" onClick={onBack}>
+            Back
+          </button>
+          <button className="btn btn--primary" disabled={!heroId} onClick={() => heroId && setStep('relic')}>
             Continue
           </button>
         </div>
+       </div>
       </div>
     );
   }
 
   return (
-    <div className="setup-screen commander-select-screen">
+    <div className="screen" data-screen="hero">
+     <div className="setup-screen">
       <h1>Starting Relic</h1>
       <div className="subtitle">Choose how {name.trim() || (heroId ? HERO_DEFINITIONS[heroId].name : 'your Commander')} enters the fractured realm.</div>
 
@@ -80,16 +85,19 @@ export function CommanderSetupScreen({ onBack, onBegin }: Props) {
         ))}
       </div>
 
-      <div className="toolbar" style={{ justifyContent: 'center', marginTop: 20 }}>
-        <button onClick={() => setStep('hero')}>Back</button>
+      <div className="toolbar">
+        <button className="btn" onClick={() => setStep('hero')}>
+          Back
+        </button>
         <button
-          className="primary begin-journey-btn"
+          className="btn btn--primary"
           disabled={!relicId}
           onClick={() => heroId && relicId && onBegin(heroId, name.trim(), relicId)}
         >
           Begin Journey
         </button>
       </div>
+     </div>
     </div>
   );
 }

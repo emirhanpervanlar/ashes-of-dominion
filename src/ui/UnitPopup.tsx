@@ -28,8 +28,8 @@ export function UnitPopup({ stack, army, onClose, inBattle, onSplit, onMerge }: 
   return (
     <>
       <div className="modal-backdrop" onClick={onClose} />
-      <div className="unit-popup-card">
-        <button className="modal-close" onClick={onClose}>
+      <div className="popup panel panel--stone step-8 unit-popup-card">
+        <button className="btn modal-close" onClick={onClose}>
           ✕
         </button>
         <div className="unit-popup-icon">{UNIT_ICONS[stack.unitId]}</div>
@@ -70,17 +70,20 @@ export function UnitPopup({ stack, army, onClose, inBattle, onSplit, onMerge }: 
             {canSplit && (
               <div className="unit-popup-action-row">
                 <input
+                  className="input count-input"
                   type="number"
                   min={1}
                   max={stack.count - 1}
                   value={splitCount}
                   onChange={(e) => setSplitCount(Math.max(1, Math.min(stack.count - 1, Number(e.target.value) || 1)))}
                 />
-                <button onClick={() => onSplit!(stack.stackId, splitCount)}>Split Off</button>
+                <button className="btn" onClick={() => onSplit!(stack.stackId, splitCount)}>
+                  Split Off
+                </button>
               </div>
             )}
             {otherMatchingStacks.map((other) => (
-              <button key={other.stackId} className="unit-popup-merge-btn" onClick={() => onMerge!(stack.stackId, other.stackId)}>
+              <button key={other.stackId} className="btn unit-popup-merge-btn" onClick={() => onMerge!(stack.stackId, other.stackId)}>
                 Merge with other {def.name} (×{other.count})
               </button>
             ))}

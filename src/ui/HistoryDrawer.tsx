@@ -12,16 +12,18 @@ export function HistoryDrawer({ open, onClose, title, lines }: Props) {
 
   return (
     <>
-      <div className="history-drawer-backdrop" onClick={onClose} />
+      <div className="modal-backdrop" onClick={onClose} />
       <div className="history-drawer">
         <div className="history-drawer-header">
           <strong>{title}</strong>
-          <button onClick={onClose}>✕</button>
+          <button className="btn btn--s btn--sq" onClick={onClose}>
+            ✕
+          </button>
         </div>
         <div className="history-drawer-body">
           {newestFirst.length === 0 && <div className="subtitle">No history yet.</div>}
           {newestFirst.map((line, i) => (
-            <div key={i} className="history-line">
+            <div key={i} className="row history-line">
               {line}
             </div>
           ))}

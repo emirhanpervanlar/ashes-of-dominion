@@ -18,15 +18,15 @@ export function PauseMenu({ onClose, onMainMenu, volume, onVolumeChange }: Props
   return (
     <>
       <div className="modal-backdrop pause-backdrop" onClick={onClose} />
-      <div className="pause-menu-card">
+      <div className="popup panel panel--iron step-8 pause-menu-card">
         <h2 className="pause-menu-title">Paused</h2>
-        <button className="pause-menu-option primary" onClick={onClose}>
+        <button className="btn btn--primary pause-menu-option" onClick={onClose}>
           Continue
         </button>
-        <button className="pause-menu-option" onClick={() => setView('settings')}>
+        <button className="btn pause-menu-option" onClick={() => setView('settings')}>
           Settings
         </button>
-        <button className="pause-menu-option" onClick={onMainMenu}>
+        <button className="btn pause-menu-option" onClick={onMainMenu}>
           Main Menu
         </button>
       </div>

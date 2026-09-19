@@ -10,10 +10,10 @@ export function EventScreen({ eventId, onChoose }: Props) {
   if (!def) return null;
 
   return (
-    <div className="event-overlay">
+    <div className="screen event-overlay" data-screen="vault">
       <div className="event-badge">?</div>
-      <div className="event-banner">{def.title}</div>
-      <div className="event-description">{def.description}</div>
+      <div className="plaque plaque--ribbon">{def.title}</div>
+      <div className="panel panel--parch step-8 event-description">{def.description}</div>
 
       <div className="event-options">
         {def.options.map((option) => (

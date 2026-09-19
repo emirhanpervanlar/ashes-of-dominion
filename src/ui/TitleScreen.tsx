@@ -6,21 +6,21 @@ interface Props {
 
 export function TitleScreen({ onStart, onContinue, onSettings }: Props) {
   return (
-    <div className="title-screen">
+    <div className="screen title-screen" data-screen="title">
       <div className="title-crest">🛡️</div>
       <h1 className="title-name">ASHES OF DOMINION</h1>
       <div className="title-tagline">From the embers of a shattered crown, a new dominion shall rise.</div>
 
       <div className="title-menu">
-        <button className="title-menu-btn primary" onClick={onStart}>
+        <button className="btn btn--l btn--primary" onClick={onStart}>
           New Game
         </button>
         {onContinue && (
-          <button className="title-menu-btn" onClick={onContinue}>
+          <button className="btn btn--l" onClick={onContinue}>
             Continue
           </button>
         )}
-        <button className="title-menu-btn" onClick={onSettings}>
+        <button className="btn btn--l" onClick={onSettings}>
           Settings
         </button>
       </div>
