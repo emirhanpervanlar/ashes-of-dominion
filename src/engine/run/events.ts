@@ -9,6 +9,8 @@ export interface EventOption {
   label: string;
   description: string;
   effect: EventEffect;
+  /** Chance (0-1) of also finding a relic on top of the option's normal effect, which is never altered. */
+  relicChance?: number;
 }
 
 export interface EventDefinition {
@@ -59,8 +61,9 @@ export const EVENT_DEFINITIONS: Record<string, EventDefinition> = {
       {
         id: 'refuse',
         label: 'Refuse and push through',
-        description: 'The detour costs 10 Food.',
+        description: 'The detour costs 10 Food. Small chance to loot a relic from the fleeing bandits.',
         effect: { kind: 'FOOD_DELTA', amount: -10 },
+        relicChance: 0.1,
       },
     ],
   },

@@ -21,6 +21,8 @@ export type RunPhase =
 export interface PendingReward {
   cardOptions: string[];
   upgradeOptions: { instanceId: string; cardId: string; upgradedCardId: string }[];
+  /** Elite victories only (AO-D037): one extra relic, claimed separately; leaving the reward screen forfeits it. */
+  relicOffer: string | null;
 }
 
 export interface PendingEvent {
@@ -86,6 +88,7 @@ export type RunAction =
   | { type: 'COMBAT_ACTION'; action: PlayerAction }
   | { type: 'CLAIM_CARD'; cardId: string }
   | { type: 'CLAIM_UPGRADE'; instanceId: string }
+  | { type: 'CLAIM_RELIC'; relicId: string }
   | { type: 'SKIP_REWARD' }
   | { type: 'REMOVE_CARD'; instanceId: string }
   | { type: 'CHOOSE_EVENT_OPTION'; optionId: string }

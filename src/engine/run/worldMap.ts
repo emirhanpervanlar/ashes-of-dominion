@@ -40,6 +40,10 @@ const MIDDLE_LAYER_TYPE_POOL: NodeType[] = [
   'road',
 ];
 
+/** AO-D039: no Elite Battle in the first 3 steps of the road (layers 1-3). */
+const ELITE_FREE_LAYERS = 3;
+const EARLY_LAYER_TYPE_POOL = MIDDLE_LAYER_TYPE_POOL.filter((t) => t !== 'elite_battle');
+
 export function generateWorldMap(rng: RngState): WorldMapState {
   const layers: MapNode[][] = [];
 
@@ -49,7 +53,8 @@ export function generateWorldMap(rng: RngState): WorldMapState {
     const isLast = layer === LAYER_SIZES.length - 1;
     const nodes: MapNode[] = [];
     for (let i = 0; i < size; i++) {
-      const type: NodeType = isFirst ? 'road' : isLast ? 'boss' : MIDDLE_LAYER_TYPE_POOL[nextInt(rng, MIDDLE_LAYER_TYPE_POOL.length)]!;
+      const pool = layer <= ELITE_FREE_LAYERS ? EARLY_LAYER_TYPE_POOL : MIDDLE_LAYER_TYPE_POOL;
+      const type: NodeType = isFirst ? 'road' : isLast ? 'boss' : pool[nextInt(rng, pool.length)]!;
       nodes.push({
         id: `n${layer}_${i}`,
         type,

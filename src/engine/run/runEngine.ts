@@ -6,7 +6,7 @@ import { UNIT_DEFINITIONS } from '../data/units.js';
 import { applyPlayerAction, startBattle } from '../combat.js';
 import { maxManaFromWisdom } from '../heroStats.js';
 import { buildHeroStartingArmy, createHero } from '../scenario.js';
-import { createRng, nextInt, shuffle } from '../rng.js';
+import { createRng, nextInt } from '../rng.js';
 import type { ArmyStack, CardInstance, CombatState, Hero, HeroId, PlayerAction, Position, RelicDefinition, RelicEffect, UnitId } from '../types.js';
 import { cardRemovalQuote, createCardRemovalState } from './cardRemoval.js';
 import { CARD_UPGRADES } from './cardUpgrades.js';
@@ -27,6 +27,7 @@ import { generateBattleEncounter, generateBossEncounter } from './encounters.js'
 import { EVENT_DEFINITIONS, EVENT_IDS } from './events.js';
 import { applyStarvation, moveFoodCost } from './food.js';
 import { generateMerchantInventory } from './merchant.js';
+import { pickRelicId } from './relicSources.js';
 import { buildPendingReward } from './rewards.js';
 import { createRunStats, tallyCombatEvents } from './stats.js';
 import type { RunAction, RunApplyResult, RunEvent, RunState } from './types.js';
@@ -121,6 +122,8 @@ export function createRun(seed: number, heroId: HeroId = 'warlord', heroName?: s
   };
 }
 
+const MIN_HERO_MAX_MANA = 1;
+
 function rescaleStack(stack: ArmyStack, multiplier: number): ArmyStack {
   const def = UNIT_DEFINITIONS[stack.unitId];
   const newCount = Math.max(0, Math.floor(stack.count * multiplier));
@@ -150,8 +153,9 @@ function applyRelicStatEffectsOnce(run: RunState, def: RelicDefinition): void {
   for (const effect of def.effects) {
     switch (effect.kind) {
       case 'HERO_MAX_MANA':
-        run.hero.maxMana += effect.amount;
-        run.hero.mana += effect.amount;
+        // A negative amount is a drawback: the hero always keeps at least 1 max Mana.
+        run.hero.maxMana = Math.max(MIN_HERO_MAX_MANA, run.hero.maxMana + effect.amount);
+        run.hero.mana = Math.min(run.hero.maxMana, Math.max(0, run.hero.mana + effect.amount));
         break;
       case 'ARMY_SIZE_MULT':
         run.army = run.army.map((s) => rescaleStack(s, effect.multiplier));
@@ -328,7 +332,8 @@ function forwardCombatAction(run: RunState, action: PlayerAction, events: RunEve
     run.stats.unitsRevived += settled.revived;
     events.push({ type: 'BATTLE_WON' });
     if (settled.revived > 0) events.push({ type: 'UNITS_REVIVED', count: settled.revived });
-    run.pendingReward = buildPendingReward(run.rng, run.relics, run.masterDeck);
+    const arrivedAt = findNode(run.worldMap, run.worldMap.currentNodeId);
+    run.pendingReward = buildPendingReward(run.rng, run.relics, run.masterDeck, arrivedAt?.type === 'elite_battle');
     run.phase = 'reward';
   } else if (result.state.result === 'defeat') {
     run.hero = result.state.hero;
@@ -364,6 +369,17 @@ function claimCard(run: RunState, cardId: string, events: RunEvent[]): RunApplyR
   run.masterDeck.push({ instanceId: newInstanceId(run.masterDeck, cardId, 'reward'), cardId });
   events.push({ type: 'CARD_REWARD_CLAIMED', cardId });
   finishReward(run, events);
+  return { run, events };
+}
+
+/** The elite relic is an extra on top of the one card/upgrade/skip pick, so claiming it keeps the screen open. */
+function claimRelic(run: RunState, relicId: string, events: RunEvent[]): RunApplyResult {
+  if (run.phase !== 'reward' || !run.pendingReward?.relicOffer || run.pendingReward.relicOffer !== relicId) {
+    reject(events, 'That relic is not on offer.');
+    return { run, events };
+  }
+  grantRelic(run, RELIC_DEFINITIONS[relicId]!, events);
+  run.pendingReward.relicOffer = null;
   return { run, events };
 }
 
@@ -423,12 +439,6 @@ function removeCard(run: RunState, instanceId: string, events: RunEvent[]): RunA
   return { run, events };
 }
 
-function pickUnownedRelicId(run: RunState): string | undefined {
-  const ownedIds = new Set(run.relics.map((r) => r.id));
-  const available = Object.keys(RELIC_DEFINITIONS).filter((id) => !ownedIds.has(id));
-  return shuffle(run.rng, available)[0];
-}
-
 function chooseEventOption(run: RunState, optionId: string, events: RunEvent[]): RunApplyResult {
   if (run.phase !== 'event' || !run.pendingEvent) {
     reject(events, 'No event pending.');
@@ -455,7 +465,7 @@ function chooseEventOption(run: RunState, optionId: string, events: RunEvent[]):
     case 'RISKY_SEARCH': {
       const roll = nextInt(run.rng, 100);
       if (roll < Math.round(option.effect.successChance * 100)) {
-        const relicId = pickUnownedRelicId(run);
+        const relicId = pickRelicId(run.rng, 'event', run.relics);
         if (relicId) {
           grantRelic(run, RELIC_DEFINITIONS[relicId]!, events);
           outcome = 'search_relic';
@@ -468,6 +478,14 @@ function chooseEventOption(run: RunState, optionId: string, events: RunEvent[]):
         outcome = 'search_trap';
       }
       break;
+    }
+  }
+
+  if (option.relicChance !== undefined && nextInt(run.rng, 100) < Math.round(option.relicChance * 100)) {
+    const relicId = pickRelicId(run.rng, 'event', run.relics);
+    if (relicId) {
+      grantRelic(run, RELIC_DEFINITIONS[relicId]!, events);
+      outcome = `${option.id}_relic`;
     }
   }
 
@@ -767,6 +785,9 @@ export function applyRunAction(run: RunState, action: RunAction): RunApplyResult
       break;
     case 'BUY_CARD':
       result = buyCard(working, action.cardId, events);
+      break;
+    case 'CLAIM_RELIC':
+      result = claimRelic(working, action.relicId, events);
       break;
     case 'BUY_RELIC':
       result = buyRelic(working, action.relicId, events);
