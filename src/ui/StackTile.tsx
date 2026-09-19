@@ -16,6 +16,7 @@ interface StackFx {
 interface StackTileProps {
   stack: ArmyStack | undefined;
   side: 'player' | 'enemy';
+  ownArmy?: ArmyStack[];
   selectable: boolean;
   selected: boolean;
   dimmed?: boolean;
@@ -30,6 +31,7 @@ interface StackTileProps {
 export function StackTile({
   stack,
   side,
+  ownArmy,
   selectable,
   selected,
   dimmed,
@@ -74,7 +76,7 @@ export function StackTile({
     previewHpLossPct = stack.maxHp > 0 ? Math.min(100, ((stack.currentHp - resolution.stack.currentHp) / stack.maxHp) * 100) : 0;
   }
 
-  const locked = cannotAct(stack, side);
+  const locked = cannotAct(stack, side, ownArmy);
 
   const classes = ['portrait-slot', side];
   if (selectable) classes.push('selectable');

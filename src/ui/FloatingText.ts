@@ -25,7 +25,8 @@ export function floatersFromEvents(events: CombatEvent[], after: CombatState): O
   }
   for (const e of events) {
     if (e.type === 'STACK_ATTACKED') {
-      if (e.finalDamage > 0) add(e.targetStackId, `-${e.finalDamage}`, 'damage');
+      if (e.unitsKilled > 0) add(e.targetStackId, `-${e.unitsKilled} ${e.unitsKilled === 1 ? 'unit' : 'units'}`, 'damage');
+      else if (e.finalDamage > 0) add(e.targetStackId, 'Wounded', 'damage');
       if (e.blocked > 0) add(e.targetStackId, `Blocked ${e.blocked}`, 'block');
     } else if (e.type === 'STACK_HEALED' && e.amount > 0) {
       const stack = [...after.playerArmy, ...after.enemyArmy].find((s) => s.stackId === e.stackId);

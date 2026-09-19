@@ -1,19 +1,24 @@
 import { CARD_DEFINITIONS } from '../engine/index.js';
+import type { CardInstance } from '../engine/index.js';
 import { RELIC_DEFINITIONS } from '../engine/run/index.js';
-import type { MerchantInventory } from '../engine/run/index.js';
+import type { CardRemovalQuote, MerchantInventory } from '../engine/run/index.js';
 import { CARD_DESCRIPTIONS } from './cardText.js';
 import { cardVisual } from './cardVisuals.js';
 import { relicIcon } from './relicIcons.js';
+import { CardRemovalPicker } from './CardRemovalPicker.js';
 
 interface Props {
   gold: number;
   inventory: MerchantInventory;
+  deck: CardInstance[];
+  removalQuote: CardRemovalQuote;
   onBuyCard: (cardId: string) => void;
   onBuyRelic: (relicId: string) => void;
+  onRemoveCard: (instanceId: string) => void;
   onLeave: () => void;
 }
 
-export function MerchantScreen({ gold, inventory, onBuyCard, onBuyRelic, onLeave }: Props) {
+export function MerchantScreen({ gold, inventory, deck, removalQuote, onBuyCard, onBuyRelic, onRemoveCard, onLeave }: Props) {
   return (
     <div className="merchant-overlay">
       <div className="merchant-topbar">
@@ -58,6 +63,10 @@ export function MerchantScreen({ gold, inventory, onBuyCard, onBuyRelic, onLeave
               </div>
             );
           })()}
+      </div>
+
+      <div className="merchant-removal">
+        <CardRemovalPicker deck={deck} quote={removalQuote} onRemove={onRemoveCard} />
       </div>
 
       <div className="merchant-leave-ribbon" onClick={onLeave}>
