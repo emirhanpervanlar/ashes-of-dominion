@@ -157,9 +157,7 @@ describe('recruited units are fully usable in battle (healer-cannot-heal-Swordsm
     expect(card.state.playerArmy.find((s) => s.stackId === sword.stackId)!.currentHp).toBeGreaterThan(30);
   });
 
-  // BUG (open, production): addUnitsToArmy ignores wiped stacks when picking a slot, so the recruit reuses the wiped stack's id.
-  // it.fails: flip to it() once fixed.
-  it.fails('every stack in a run army has a unique stackId after recruiting into a slot freed by a wiped stack', () => {
+  it('every stack in a run army has a unique stackId after recruiting into a slot freed by a wiped stack', () => {
     // Warlord's Swordsman stack was wiped in an earlier battle (count 0 stays in the army list); recruit Swordsmen again.
     const base = createRun(42).army.map((s) => (s.unitId === 'swordsman' ? { ...s, count: 0, currentHp: 0 } : s));
     const after = applyRunAction(inCity(createRun(42), base), { type: 'RECRUIT', unitId: 'swordsman', count: 5 }).run.army;
@@ -167,8 +165,8 @@ describe('recruited units are fully usable in battle (healer-cannot-heal-Swordsm
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  // Same bug seen from combat: replaceStack writes to the first stack with the id (the wiped one), so the live recruit is never healed.
-  it.fails('a recruited Swordsman takes a hit and is healed in battle when a wiped Swordsman stack shared its slot', () => {
+  // Same bug seen from combat: replaceStack writes to the first stack with the id (the wiped one), so the live recruit was never healed.
+  it('a recruited Swordsman takes a hit and is healed in battle when a wiped Swordsman stack shared its slot', () => {
     const wiped = createRun(43, 'mage').army.concat([{ ...createStack('swordsman', 'player', 1, 6), count: 0, currentHp: 0 }]);
     const recruited = applyRunAction(inCity(createRun(43, 'mage'), wiped), { type: 'RECRUIT', unitId: 'swordsman', count: 6 }).run.army;
     const sword = recruited.find((s) => s.unitId === 'swordsman' && s.count > 0)!;
@@ -178,5 +176,89 @@ describe('recruited units are fully usable in battle (healer-cannot-heal-Swordsm
     const livingSwordsmen = result.state.playerArmy.filter((s) => s.count > 0 && s.unitId === 'swordsman');
     expect(livingSwordsmen).toHaveLength(1);
     expect(livingSwordsmen[0]!.currentHp).toBeGreaterThan(30);
+  });
+
+  it('stackIds stay unique through wipe-in-battle, recruit, split and merge', () => {
+    let run = createRun(44);
+    const ids = () => run.army.map((s) => s.stackId);
+    const unique = () => expect(new Set(ids()).size).toBe(ids().length);
+    const swordId = run.army.find((s) => s.unitId === 'swordsman')!.stackId;
+
+    // Victory with the Swordsman stack wiped in the battle.
+    const wipedBattle: CombatState = {
+      ...startBattle({ seed: 44, rng: createRng(44), hero: run.hero, playerArmy: run.army, enemyArmy: [createStack('orc', 'enemy', 1, 1)], deck: run.masterDeck }).state,
+    };
+    const state: CombatState = {
+      ...wipedBattle,
+      playerArmy: wipedBattle.playerArmy.map((s) => (s.stackId === swordId ? { ...s, count: 0, currentHp: 0 } : s)),
+      enemyArmy: wipedBattle.enemyArmy.map((s) => ({ ...s, count: 0, currentHp: 0 })),
+    };
+    run = applyRunAction({ ...run, phase: 'in_battle', combat: state }, { type: 'COMBAT_ACTION', action: { type: 'END_TURN' } }).run;
+    expect(run.phase).toBe('reward');
+    unique();
+
+    run = { ...run, phase: 'city', gold: 1000, food: 1000 };
+    run = applyRunAction(run, { type: 'RECRUIT', unitId: 'swordsman', count: 6 }).run;
+    unique();
+    const recruited = run.army.find((s) => s.unitId === 'swordsman')!;
+    run = applyRunAction(run, { type: 'SPLIT_STACK', stackId: recruited.stackId, splitCount: 2 }).run;
+    unique();
+    expect(run.army.filter((s) => s.unitId === 'swordsman')).toHaveLength(2);
+    const [a, b] = run.army.filter((s) => s.unitId === 'swordsman');
+    run = applyRunAction(run, { type: 'MERGE_STACKS', stackIdA: a!.stackId, stackIdB: b!.stackId }).run;
+    unique();
+    expect(run.army.filter((s) => s.unitId === 'swordsman')).toHaveLength(1);
+  });
+});
+
+describe('Royal Banner / Arcane Crystal keep the heal cap consistent (AO-D004)', () => {
+  function healed(relicId: string, wound: number) {
+    const boosted = applyRunAction(createRun(51), { type: 'CHOOSE_STARTING_RELIC', relicId }).run.army;
+    const sword = boosted.find((s) => s.unitId === 'swordsman')!;
+    const priest = createStack('priest', 'player', 5, 4);
+    const army = [...boosted, priest].map((s) => (s.stackId === sword.stackId ? { ...s, currentHp: s.maxHp - wound } : s));
+    const { state } = startBattle({
+      seed: 5,
+      rng: createRng(5),
+      hero: createHero('warlord'),
+      playerArmy: army,
+      enemyArmy: [createStack('orc', 'enemy', 1, 10)],
+      deck: [],
+    });
+    const result = applyPlayerAction(state, { type: 'BASIC_ACTION', stackId: priest.stackId, targetStackId: sword.stackId });
+    const event = result.events.find((e) => e.type === 'STACK_HEALED');
+    return { sword, after: result.state.playerArmy.find((s) => s.stackId === sword.stackId)!, event };
+  }
+
+  it('relic-boosted stacks have every count field in step', () => {
+    for (const relicId of ['royal_banner', 'arcane_crystal']) {
+      const sword = applyRunAction(createRun(50), { type: 'CHOOSE_STARTING_RELIC', relicId }).run.army.find((s) => s.unitId === 'swordsman')!;
+      expect(sword.startingCount).toBe(sword.count);
+      expect(sword.preBattleMaxCount).toBe(sword.count);
+      expect(sword.currentHp).toBe(sword.maxHp);
+    }
+  });
+
+  it('a full-health Royal Banner Swordsman x26 is not changed by a Priest heal (never negative)', () => {
+    const { sword, after, event } = healed('royal_banner', 0);
+    expect(sword.count).toBe(26);
+    if (event && event.type === 'STACK_HEALED') expect(event.amount).toBe(0);
+    expect(after.currentHp).toBe(sword.maxHp);
+    expect(after.count).toBe(26);
+  });
+
+  it('a wounded Royal Banner Swordsman heals, but only up to the boosted cap', () => {
+    const wounded = healed('royal_banner', 5);
+    expect(wounded.after.currentHp).toBeGreaterThan(wounded.sword.maxHp - 5);
+    expect(wounded.after.currentHp).toBeLessThanOrEqual(wounded.sword.maxHp);
+    const grievous = healed('royal_banner', 200);
+    expect(grievous.after.currentHp).toBeGreaterThan(grievous.sword.maxHp - 200);
+    expect(grievous.after.currentHp).toBeLessThanOrEqual(grievous.sword.maxHp);
+  });
+
+  it('Arcane Crystal (-10%) full-health stack is also unchanged by a heal', () => {
+    const { sword, after } = healed('arcane_crystal', 0);
+    expect(after.currentHp).toBe(sword.maxHp);
+    expect(after.count).toBe(sword.count);
   });
 });
