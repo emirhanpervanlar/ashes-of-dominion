@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { applyRunAction, createRun } from '../runEngine.js';
+import { resolveEventToMap } from './eventHelpers.js';
 import type { CombatState } from '../../types.js';
 import type { RunState } from '../types.js';
 import type { NodeType } from '../worldMap.js';
@@ -187,11 +188,9 @@ describe('events', () => {
     expect(arrived.run.phase).toBe('event');
     expect(arrived.run.pendingEvent).not.toBeNull();
 
-    const eventId = arrived.run.pendingEvent!.eventId;
-    const optionId = eventId === 'abandoned_camp' ? 'rest' : 'pay';
-    const resolved = applyRunAction(arrived.run, { type: 'CHOOSE_EVENT_OPTION', optionId });
-    expect(resolved.run.phase).toBe('on_map');
-    expect(resolved.run.pendingEvent).toBeNull();
+    const resolved = resolveEventToMap(arrived.run);
+    expect(resolved.phase).toBe('on_map');
+    expect(resolved.pendingEvent).toBeNull();
   });
 });
 

@@ -27,8 +27,30 @@ export interface PendingReward {
   relicChoices: string[];
 }
 
+/** A sub-step some options need before they resolve: the player picks one of these cards or units (or backs out with CANCEL_EVENT_CHOICE). */
+export type PendingEventChoice =
+  | { kind: 'card'; optionId: string; action: 'upgrade' | 'remove' | 'give'; instanceIds: string[] }
+  | { kind: 'unit'; optionId: string; unitIds: UnitId[] };
+
 export interface PendingEvent {
   eventId: string;
+  choice: PendingEventChoice | null;
+  /** Set once the option has been applied but a pendingUnitChoice still blocks the event from closing (AO-D054). */
+  resolved: { optionId: string; outcome: string; text: string } | null;
+}
+
+/**
+ * AO-D054: an event granted a unit but all 6 stack slots are taken. The newcomer waits here as a
+ * temporary 7th entry (its `position` is a placeholder, not a real slot) until the player
+ * dismisses a stack (DISMISS_STACK, the newcomer included) or gives the unit up (DECLINE_UNIT_GAIN).
+ */
+export interface PendingUnitChoice {
+  newcomer: ArmyStack;
+}
+
+export interface UnitCount {
+  unitId: UnitId;
+  count: number;
 }
 
 export type RunEvent =
@@ -49,7 +71,12 @@ export type RunEvent =
   | { type: 'DAILY_INCOME'; gold: number; food: number }
   | { type: 'BATTLE_LOOT'; gold: number; food: number }
   | { type: 'FARM_UPGRADED'; tier: number }
-  | { type: 'EVENT_RESOLVED'; eventId: string; optionId: string; outcome: string }
+  | { type: 'EVENT_RESOLVED'; eventId: string; optionId: string; outcome: string; text: string }
+  | { type: 'THREAT_CHANGED'; threat: number; delta: number }
+  | { type: 'UNITS_GAINED'; unitId: UnitId; count: number }
+  | { type: 'UNITS_LOST'; unitId: UnitId; count: number }
+  | { type: 'UNITS_DISMISSED'; unitId: UnitId; count: number }
+  | { type: 'UNIT_GAIN_DECLINED'; unitId: UnitId; count: number }
   | { type: 'ITEM_PURCHASED'; itemId: string; price: number }
   | { type: 'UNITS_RECRUITED'; unitId: string; count: number }
   | { type: 'BUILDING_BUILT'; buildingId: string }
@@ -83,12 +110,17 @@ export interface RunState {
   chapter: number;
   /** Raised by each city visit (AO-D047); scales enemy unit counts. */
   threat: number;
+  /** Event ids already drawn (AO-D050); the pool resets when exhausted, keeping the last few excluded. */
+  seenEventIds: string[];
+  /** The last won battle's fallen units, net of Shrine revival; what event revivals draw from. */
+  lastCasualties: UnitCount[];
   /** Set while a boss battle or its reward is pending: resolving the reward starts the next chapter, or completes the run after the last. */
   bossBattle: boolean;
   phase: RunPhase;
   combat: CombatState | null;
   pendingReward: PendingReward | null;
   pendingEvent: PendingEvent | null;
+  pendingUnitChoice: PendingUnitChoice | null;
   pendingMerchant: MerchantInventory | null;
   log: RunEvent[];
 }
@@ -103,6 +135,11 @@ export type RunAction =
   | { type: 'SKIP_REWARD' }
   | { type: 'REMOVE_CARD'; instanceId: string }
   | { type: 'CHOOSE_EVENT_OPTION'; optionId: string }
+  | { type: 'CHOOSE_EVENT_CARD'; instanceId: string }
+  | { type: 'CHOOSE_EVENT_UNIT'; unitId: UnitId }
+  | { type: 'CANCEL_EVENT_CHOICE' }
+  | { type: 'DISMISS_STACK'; stackId: string; count?: number }
+  | { type: 'DECLINE_UNIT_GAIN' }
   | { type: 'BUY_CARD'; cardId: string }
   | { type: 'BUY_RELIC'; relicId: string }
   | { type: 'LEAVE_MERCHANT' }

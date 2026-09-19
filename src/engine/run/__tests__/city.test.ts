@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { applyRunAction, createRun } from '../runEngine.js';
+import { resolveEventToMap } from './eventHelpers.js';
 import type { RunState } from '../types.js';
 import type { CombatState } from '../../types.js';
 
@@ -19,8 +20,7 @@ function resolveUntilOnMapOrCity(run: RunState): RunState {
       continue;
     }
     if (current.phase === 'event') {
-      const optionId = current.pendingEvent!.eventId === 'abandoned_camp' ? 'rest' : 'pay';
-      current = applyRunAction(current, { type: 'CHOOSE_EVENT_OPTION', optionId }).run;
+      current = resolveEventToMap(current);
       continue;
     }
     if (current.phase === 'merchant') {

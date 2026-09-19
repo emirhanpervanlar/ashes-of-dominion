@@ -16,6 +16,8 @@ export interface MapNode {
 export interface WorldMapState {
   nodes: MapNode[];
   currentNodeId: string;
+  /** Set by the Ruined Watchtower: nodes up to this layer (= step) are shown. The UI reads it; it dies with the chapter's map. */
+  revealedUntilStep?: number;
 }
 
 /** Nodes per layer between the start node and the boss. Fully connected to the next layer so nothing is ever orphaned. */
