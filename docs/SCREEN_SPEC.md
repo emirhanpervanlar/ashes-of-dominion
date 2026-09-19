@@ -37,17 +37,14 @@ Banner "Victory! Choose a Card", up to 3 large cards (cost medallion, icon, name
 ## Battle — battle family
 - **Frame:** full-screen ornate frame. Top: hero chip (name, relics, Mana bar) on the left, turn chip on the right. No floating menu button.
 - **Body:** left rail = your 2x3 portrait grid (back column, front column), center = scene panel (holds the Drop Card zone for no-target cards), right rail = enemy 2x3 grid (front column, back column).
-- **Portrait slot:** rectangular frame, unit icon, role badge, HP strip, name and `xCount`. Selected = white ring; selectable = gold ring; dimmed when not relevant; acted = grey.
+- **Portrait slot:** rectangular frame, unit icon, role badge, HP strip, name and `xCount`. Selected = white ring; selectable = gold ring; dimmed when not relevant; cannot act = grey with lock.
 - **Bottom bar:** Deck pile (count) at far left, hand in a flat row (no fan), Discard pile (count) at the right of the hand, then a vertical column of three rectangular buttons at the far right: End Turn (top, gold), Log, Settings. Draw = cards slide in from the deck; end of turn = leftover cards slide to the discard pile.
 - **Interaction:** click your stack to start its free action, then click a legal enemy (Priest: any friendly stack). Card flow: click card, then the required targets (or the Drop Card zone). Re-click a selected stack to deselect; `Esc` cancels. Dead enemy stacks never act in playback.
-- **[PLANNED AO-002]**
-  - No `pos N` badge on any portrait.
-  - No HP numbers in battle; count is the health readout.
-  - Buffs/debuffs shown as small icons **on the portrait image** with their amount beside each icon (not text under the name).
-  - Right-click a stack = info popup (reuse `UnitPopup` without split/merge; add statuses, morale, veterancy, block).
-  - Floating combat text on the affected portrait for the player's own actions: damage (-N), Blocked N, heal, status applied.
-  - A stack that cannot act this turn (acted, frozen, cannotAttack) gets a lock icon and loses hover/selectable styling; the "cannot attack this turn" warning text is removed.
-  - Played cards travel to the scene centre and remain visible (fix the z-index bug where they fly up and vanish behind the bottom bar).
+- **No pos badge, no HP numbers** on portraits; the count is the health readout. Block and statuses appear as small icons with their amount on the portrait image (top-left), not as text under the name.
+- **Right-click** any stack (yours or enemy) opens the unit info popup without split/merge, plus morale, veterancy, block and active statuses.
+- **Floating combat text** rises over the affected portrait for the player's own actions only (damage -N, Blocked N, +N block, heal in units, status applied).
+- **Cannot act** (acted, frozen, cannotAttack): lock icon, greyed, not selectable; no warning text.
+- **Played cards** travel to the scene centre in a fixed layer above the hand bar and stay until the action resolves.
 - **Removed on purpose (AO-D003):** enemy intent text/bubble, threatened pulse, hover highlight of attackers, hover damage preview.
 
 ## Pause menu / Settings / History drawer

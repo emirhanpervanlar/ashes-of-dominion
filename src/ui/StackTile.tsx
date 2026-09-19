@@ -1,7 +1,9 @@
 import { applyDamageToStack, UNIT_DEFINITIONS } from '../engine/index.js';
-import type { ArmyStack, Position } from '../engine/index.js';
+import type { ArmyStack } from '../engine/index.js';
 import { UNIT_ICONS } from './unitIcons.js';
 import { UNIT_ROLE_ICONS } from './unitShapes.js';
+import { STATUS_ICONS, cannotAct } from './stackStatus.js';
+import type { Floater } from './FloatingText.js';
 
 interface StackFx {
   acting: boolean;
@@ -13,32 +15,37 @@ interface StackFx {
 
 interface StackTileProps {
   stack: ArmyStack | undefined;
-  position: Position;
   side: 'player' | 'enemy';
   selectable: boolean;
   selected: boolean;
   dimmed?: boolean;
   previewDamage?: number;
   fx?: StackFx;
+  floaters?: Floater[];
   onClick: () => void;
-  onHoverStart?: () => void;
-  onHoverEnd?: () => void;
+  onInspect: () => void;
 }
 
-/** Disciples-style portrait slot: a bordered portrait square with HP printed below it. */
+/** Disciples-style portrait slot: a bordered portrait square; the unit count is the health readout. */
 export function StackTile({
   stack,
-  position,
   side,
   selectable,
   selected,
   dimmed,
   previewDamage,
   fx,
+  floaters,
   onClick,
-  onHoverStart,
-  onHoverEnd,
+  onInspect,
 }: StackTileProps) {
+  // Rendered in the wiped branch too so a killing blow's floater still shows.
+  const floatersEl = floaters?.map((f) => (
+    <span key={f.id} className={`floater floater-${f.kind}`} style={{ animationDelay: `${f.delayMs}ms` }}>
+      {f.text}
+    </span>
+  ));
+
   if (!stack || stack.count === 0) {
     const classes = ['portrait-slot', side, 'empty'];
     if (stack?.count === 0) classes.push('dead');
@@ -49,10 +56,8 @@ export function StackTile({
         </div>
         <div className="portrait-meta">
           <div className="unit-name">{stack ? `${UNIT_DEFINITIONS[stack.unitId].name} wiped` : 'Empty'}</div>
-          <div className="badges">
-            <span className="badge">pos {position}</span>
-          </div>
         </div>
+        {floatersEl}
       </div>
     );
   }
@@ -69,12 +74,12 @@ export function StackTile({
     previewHpLossPct = stack.maxHp > 0 ? Math.min(100, ((stack.currentHp - resolution.stack.currentHp) / stack.maxHp) * 100) : 0;
   }
 
-  const acted = side === 'player' && stack.actedThisTurn;
+  const locked = cannotAct(stack, side);
 
   const classes = ['portrait-slot', side];
   if (selectable) classes.push('selectable');
   if (selected) classes.push('selected');
-  if (acted) classes.push('acted');
+  if (locked) classes.push('locked');
   if (dimmed) classes.push('dimmed');
 
   const frameClasses = ['portrait-frame'];
@@ -85,12 +90,35 @@ export function StackTile({
   if (fx?.debuff) frameClasses.push('fx-debuff');
 
   return (
-    <div className={classes.join(' ')} onMouseEnter={onHoverStart} onMouseLeave={onHoverEnd}>
-      <div className={frameClasses.join(' ')} onClick={selectable ? onClick : undefined} title={def.name}>
+    <div className={classes.join(' ')}>
+      <div
+        className={frameClasses.join(' ')}
+        onClick={selectable ? onClick : undefined}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          onInspect();
+        }}
+        title={def.name}
+      >
         <span className="portrait-art">{UNIT_ICONS[stack.unitId]}</span>
         <span className="portrait-role-badge">{UNIT_ROLE_ICONS[stack.unitId]}</span>
         {selected && <span className="portrait-select-badge">✓</span>}
-        {acted && !selected && <span className="portrait-acted-badge" title="Already acted this turn">💤</span>}
+        {locked && !selected && <span className="portrait-lock-badge">🔒</span>}
+        {(stack.block > 0 || stack.statuses.length > 0) && (
+          <div className="portrait-statuses">
+            {stack.block > 0 && (
+              <span className="portrait-status" title="Block">
+                🧱<b>{stack.block}</b>
+              </span>
+            )}
+            {stack.statuses.map((st) => (
+              <span className="portrait-status" key={st.type} title={st.type}>
+                {STATUS_ICONS[st.type]}
+                <b>{st.amount}</b>
+              </span>
+            ))}
+          </div>
+        )}
         <div className="portrait-hp-strip">
           <div className={`bar-fill-hp${hpPct < 30 ? ' low' : ''}`} style={{ width: `${hpPct}%` }} />
           {previewHpLossPct > 0 && (
@@ -106,22 +134,10 @@ export function StackTile({
           </div>
         )}
       </div>
-      <div className="portrait-hp-text">
-        {stack.currentHp}/{stack.maxHp}
-      </div>
+      {floatersEl}
       <div className="portrait-meta">
         <div className="unit-name">
           {def.name} <span className="unit-count">×{stack.count}</span>
-        </div>
-        <div className="badges">
-          {stack.block > 0 && <span className="badge">Block {stack.block}</span>}
-          {stack.morale !== 100 && <span className="badge">Morale {stack.morale}</span>}
-          {stack.statuses.map((s, i) => (
-            <span className="badge" key={i}>
-              {s.type} {s.amount}
-            </span>
-          ))}
-          <span className="badge">pos {position}</span>
         </div>
       </div>
     </div>

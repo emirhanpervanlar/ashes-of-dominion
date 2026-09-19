@@ -4,6 +4,11 @@ import type { ArmyStack, CardEffect, CardTargeting, EnemyIntent, PlayerAction, P
 import { applyRunAction, createRun } from './engine/run/index.js';
 import type { RunEvent, RunState } from './engine/run/index.js';
 import { StackTile } from './ui/StackTile.js';
+import { UnitPopup } from './ui/UnitPopup.js';
+import { FlyingCard } from './ui/FlyingCard.js';
+import type { FlyingCardState } from './ui/FlyingCard.js';
+import { floatersFromEvents, useFloatingText } from './ui/FloatingText.js';
+import { cannotAct } from './ui/stackStatus.js';
 import { ActionCardTile } from './ui/ActionCardTile.js';
 import { StartingRelicScreen } from './ui/StartingRelicScreen.js';
 import { RewardScreen } from './ui/RewardScreen.js';
@@ -69,8 +74,10 @@ export default function App() {
   const [pending, setPending] = useState<PendingAction | null>(null);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const [historyOpen, setHistoryOpen] = useState(false);
-  const [hoveredStackId, setHoveredStackId] = useState<string | null>(null);
-  const [droppingInstanceId, setDroppingInstanceId] = useState<string | null>(null);
+  const [flyingCard, setFlyingCard] = useState<FlyingCardState | null>(null);
+  const [playedInstanceId, setPlayedInstanceId] = useState<string | null>(null);
+  const [inspectStackId, setInspectStackId] = useState<string | null>(null);
+  const { floaters, spawn: spawnFloaters } = useFloatingText();
   const [discardingIds, setDiscardingIds] = useState<string[] | null>(null);
   const [drawingIds, setDrawingIds] = useState<Set<string>>(new Set());
   const prevHandIds = useRef<Set<string>>(new Set());
@@ -245,7 +252,12 @@ export default function App() {
   }
 
   function dispatchCombat(action: PlayerAction) {
-    dispatchRun({ type: 'COMBAT_ACTION', action });
+    const logLengthBefore = combat?.log.length ?? 0;
+    const result = dispatchRun({ type: 'COMBAT_ACTION', action });
+    // Floating text is for the player's own actions only; the enemy turn is played back separately.
+    if (action.type !== 'END_TURN' && result.run.combat) {
+      spawnFloaters(floatersFromEvents(result.run.combat.log.slice(logLengthBefore), result.run.combat));
+    }
     setPending(null);
   }
 
@@ -270,7 +282,7 @@ export default function App() {
   }
 
   function finalize(extra: { actingStackId?: string; targetStackId?: string; toPosition?: Position }) {
-    if (!pending || !combat) return;
+    if (!pending || !combat || flyingCard || playerFx) return;
     const current = pending;
 
     function dispatchNow() {
@@ -317,10 +329,13 @@ export default function App() {
     }
 
     const hasFx = fx.attackFrom || fx.attackTo || fx.blockStacks?.length || fx.buffStacks?.length || fx.debuffStacks?.length;
-    if (hasFx) {
-      setPlayerFx(fx);
+    const launched = current.kind === 'card' && launchCardFlight(current.id);
+    if (hasFx || launched) {
+      if (hasFx) setPlayerFx(fx);
       setTimeout(() => {
         setPlayerFx(null);
+        setFlyingCard(null);
+        setPlayedInstanceId(null);
         dispatchNow();
       }, 420);
     } else {
@@ -328,17 +343,25 @@ export default function App() {
     }
   }
 
-  function handleDropZoneConfirm() {
-    if (!pending) return;
-    if (pending.kind === 'card') {
-      setDroppingInstanceId(pending.id);
-      setTimeout(() => {
-        finalize({});
-        setDroppingInstanceId(null);
-      }, 360);
-    } else {
-      finalize({});
-    }
+  /** Lifts the played card out of the (clipping) hand bar into a fixed layer that travels to the scene centre. */
+  function launchCardFlight(instanceId: string): boolean {
+    const instance = combat?.hand.find((c) => c.instanceId === instanceId);
+    const def = instance ? CARD_DEFINITIONS[instance.cardId] : undefined;
+    const slot = document.querySelector(`[data-instance-id="${instanceId}"]`);
+    const scene = document.querySelector('.frame-scene');
+    if (!def || !slot || !scene) return false;
+    const from = slot.getBoundingClientRect();
+    const sceneRect = scene.getBoundingClientRect();
+    setPlayedInstanceId(instanceId);
+    setFlyingCard({
+      cardId: def.id,
+      name: def.name,
+      description: CARD_DESCRIPTIONS[def.id] ?? def.id,
+      manaCost: def.manaCost,
+      from: { left: from.left, top: from.top, width: from.width, height: from.height },
+      to: { x: sceneRect.left + sceneRect.width / 2, y: sceneRect.top + sceneRect.height / 2 },
+    });
+    return true;
   }
 
   function handleStackClick(stack: ArmyStack | undefined, position: Position, side: 'player' | 'enemy') {
@@ -421,7 +444,7 @@ export default function App() {
       handleStackClick(stack, position, side);
       return;
     }
-    if (side === 'player' && stack && stack.count > 0 && !stack.actedThisTurn && canAct) {
+    if (side === 'player' && stack && stack.count > 0 && !cannotAct(stack, side) && canAct) {
       const def = UNIT_DEFINITIONS[stack.unitId];
       const kind = def.basicAction ?? 'attack';
       setPending({
@@ -439,7 +462,7 @@ export default function App() {
       // Nothing pending — only the player's own alive, not-yet-acted stacks are
       // clickable, to start their free basic action.
       if (side !== 'player' || !stack || stack.count === 0) return false;
-      return !stack.actedThisTurn && canAct;
+      return !cannotAct(stack, side) && canAct;
     }
     const alive = !!stack && stack.count > 0;
     const t = pending.targeting;
@@ -484,18 +507,6 @@ export default function App() {
     return stack.stackId === pending.actingStackId || stack.stackId === pending.targetStackId;
   }
 
-  /** Hovering my own unit highlights the enemy that intends to hit it, and vice versa; everything else fades. */
-  function hoverHighlightSet(): Set<string> | null {
-    if (!combat || pending || !hoveredStackId) return null;
-    const set = new Set([hoveredStackId]);
-    for (const intent of combat.enemyIntents) {
-      if (intent.kind !== 'attack') continue;
-      if (intent.targetStackId === hoveredStackId) set.add(intent.stackId);
-      if (intent.stackId === hoveredStackId && intent.targetStackId) set.add(intent.targetStackId);
-    }
-    return set;
-  }
-
   function isDimmed(stack: ArmyStack | undefined, side: 'player' | 'enemy'): boolean {
     if (!stack) return false;
     if (currentEnemyIntent) {
@@ -510,8 +521,7 @@ export default function App() {
       const chosen = stack.stackId === pending.actingStackId || stack.stackId === pending.targetStackId;
       return !selectable && !chosen;
     }
-    const highlight = hoverHighlightSet();
-    return highlight !== null && !highlight.has(stack.stackId);
+    return false;
   }
 
   function findPendingAttackEffect(): Extract<CardEffect, { kind: 'ATTACK' }> | undefined {
@@ -534,10 +544,6 @@ export default function App() {
       const attacker = combat.playerArmy.find((s) => s.stackId === pending.actingStackId);
       if (!attacker) return undefined;
       return previewAttackDamage(combat, attacker, stack, attackEffect);
-    }
-    if (side === 'player' && hoveredStackId === stack.stackId) {
-      const intent = combat.enemyIntents.find((i) => i.kind === 'attack' && i.targetStackId === stack.stackId);
-      return intent?.estimatedDamage;
     }
     return undefined;
   }
@@ -723,7 +729,8 @@ export default function App() {
   const back = [4, 5, 6] as const;
   const combatHistory = combat.log.map((e) => describeEvent(combat, e)).filter((line): line is string => line !== null);
   const manaPct = combat.hero.maxMana > 0 ? Math.min(100, (combat.hero.mana / combat.hero.maxMana) * 100) : 0;
-  const canAct = combat.phase === 'player' && combat.result === 'ongoing' && !enemyAnimQueue && !playerFx;
+  const inspectedStack = [...combat.playerArmy, ...combat.enemyArmy].find((s) => s.stackId === inspectStackId && s.count > 0);
+  const canAct = combat.phase === 'player' && combat.result === 'ongoing' && !enemyAnimQueue && !playerFx && !flyingCard;
 
   return (
     <div className="disciples-frame">
@@ -780,16 +787,15 @@ export default function App() {
                 <StackTile
                   key={`p-${p}`}
                   stack={s}
-                  position={p}
                   side="player"
                   selectable={isSelectable(s, 'player')}
                   selected={isSelected(s)}
                   dimmed={isDimmed(s, 'player')}
                   fx={stackFx(s?.stackId)}
+                  floaters={floaters.filter((f) => f.stackId === s?.stackId)}
                   previewDamage={previewDamageFor(s, 'player')}
                   onClick={() => onArmyStackClick(s, p, 'player')}
-                  onHoverStart={() => s && setHoveredStackId(s.stackId)}
-                  onHoverEnd={() => setHoveredStackId(null)}
+                  onInspect={() => s && setInspectStackId(s.stackId)}
                 />
               );
             })}
@@ -801,16 +807,15 @@ export default function App() {
                 <StackTile
                   key={`p-${p}`}
                   stack={s}
-                  position={p}
                   side="player"
                   selectable={isSelectable(s, 'player')}
                   selected={isSelected(s)}
                   dimmed={isDimmed(s, 'player')}
                   fx={stackFx(s?.stackId)}
+                  floaters={floaters.filter((f) => f.stackId === s?.stackId)}
                   previewDamage={previewDamageFor(s, 'player')}
                   onClick={() => onArmyStackClick(s, p, 'player')}
-                  onHoverStart={() => s && setHoveredStackId(s.stackId)}
-                  onHoverEnd={() => setHoveredStackId(null)}
+                  onInspect={() => s && setInspectStackId(s.stackId)}
                 />
               );
             })}
@@ -819,7 +824,7 @@ export default function App() {
 
         <div className="frame-scene">
           {pending?.targeting === 'none' && (
-            <div className="drop-zone" onClick={handleDropZoneConfirm}>
+            <div className="drop-zone" onClick={() => finalize({})}>
               <div className="drop-zone-icon">🃏</div>
               <div className="drop-zone-label">{pending.kind === 'card' ? 'Drop Card' : 'Confirm'}</div>
             </div>
@@ -834,16 +839,15 @@ export default function App() {
                 <StackTile
                   key={`e-${p}`}
                   stack={s}
-                  position={p}
                   side="enemy"
                   selectable={isSelectable(s, 'enemy')}
                   selected={isSelected(s)}
                   dimmed={isDimmed(s, 'enemy')}
                   fx={stackFx(s?.stackId)}
+                  floaters={floaters.filter((f) => f.stackId === s?.stackId)}
                   previewDamage={previewDamageFor(s, 'enemy')}
                   onClick={() => onArmyStackClick(s, p, 'enemy')}
-                  onHoverStart={() => s && setHoveredStackId(s.stackId)}
-                  onHoverEnd={() => setHoveredStackId(null)}
+                  onInspect={() => s && setInspectStackId(s.stackId)}
                 />
               );
             })}
@@ -855,16 +859,15 @@ export default function App() {
                 <StackTile
                   key={`e-${p}`}
                   stack={s}
-                  position={p}
                   side="enemy"
                   selectable={isSelectable(s, 'enemy')}
                   selected={isSelected(s)}
                   dimmed={isDimmed(s, 'enemy')}
                   fx={stackFx(s?.stackId)}
+                  floaters={floaters.filter((f) => f.stackId === s?.stackId)}
                   previewDamage={previewDamageFor(s, 'enemy')}
                   onClick={() => onArmyStackClick(s, p, 'enemy')}
-                  onHoverStart={() => s && setHoveredStackId(s.stackId)}
-                  onHoverEnd={() => setHoveredStackId(null)}
+                  onInspect={() => s && setInspectStackId(s.stackId)}
                 />
               );
             })}
@@ -883,15 +886,15 @@ export default function App() {
           {combat.hand.map((instance, i) => {
             const cardDef = CARD_DEFINITIONS[instance.cardId];
             if (!cardDef) return null;
-            const isDropping = droppingInstanceId === instance.instanceId;
+            const isPlayed = playedInstanceId === instance.instanceId;
             const isDiscarding = discardingIds?.includes(instance.instanceId) ?? false;
             const isDrawing = drawingIds.has(instance.instanceId);
             const slotStyle = { '--stagger': `${i * 40}ms` } as React.CSSProperties;
-            const slotClass = ['hand-card-slot', isDropping && 'dropping', isDiscarding && 'discarding', isDrawing && 'drawing']
+            const slotClass = ['hand-card-slot', isPlayed && 'played', isDiscarding && 'discarding', isDrawing && 'drawing']
               .filter(Boolean)
               .join(' ');
             return (
-              <div key={instance.instanceId} className={slotClass} style={slotStyle}>
+              <div key={instance.instanceId} className={slotClass} style={slotStyle} data-instance-id={instance.instanceId}>
                 <ActionCardTile
                   id={cardDef.id}
                   name={cardDef.name}
@@ -924,6 +927,16 @@ export default function App() {
           </button>
         </div>
       </div>
+
+      {flyingCard && <FlyingCard card={flyingCard} />}
+      {inspectedStack && (
+        <UnitPopup
+          stack={inspectedStack}
+          army={combat.playerArmy.includes(inspectedStack) ? combat.playerArmy : combat.enemyArmy}
+          inBattle
+          onClose={() => setInspectStackId(null)}
+        />
+      )}
 
       <HistoryDrawer
         open={historyOpen}
