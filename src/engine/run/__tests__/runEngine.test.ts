@@ -54,7 +54,7 @@ describe('run creation', () => {
     const run = createRun(1);
     expect(run.phase).toBe('choosing_starting_relic');
     expect(run.army.map((s) => s.count)).toEqual([6, 2]);
-    expect(run.masterDeck.length).toBe(12);
+    expect(run.masterDeck.length).toBe(10);
     expect(run.combat).toBeNull();
     expect(run.gold).toBe(100);
     expect(run.food).toBe(50);
@@ -155,7 +155,7 @@ describe('battle -> reward -> back to map loop', () => {
     expect(claimed.run.phase).toBe('on_map');
     expect(claimed.run.pendingReward).toBeNull();
     expect(claimed.run.masterDeck.some((c) => c.cardId === cardId)).toBe(true);
-    expect(claimed.run.masterDeck.length).toBe(13);
+    expect(claimed.run.masterDeck.length).toBe(11);
   });
 
   // The v3 canonical doc's upgrade model (§15) modifies a card's own state rather than
