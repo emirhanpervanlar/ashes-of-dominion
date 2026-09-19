@@ -1,7 +1,8 @@
 import { nextInt } from '../rng.js';
 import type { RngState } from '../rng.js';
+import { ELITE_FREE_STEPS, bossDay } from './chapters.js';
 
-export type NodeType = 'road' | 'battle' | 'elite_battle' | 'resource' | 'merchant' | 'event' | 'city' | 'boss';
+export type NodeType = 'start' | 'battle' | 'elite_battle' | 'resource' | 'merchant' | 'event' | 'boss';
 export type NodeVisibility = 'unknown' | 'revealed' | 'visited';
 
 export interface MapNode {
@@ -17,17 +18,11 @@ export interface WorldMapState {
   currentNodeId: string;
 }
 
-/**
- * PROTOTYPE topology (AGENT.md §19, node count is explicitly not locked —
- * §70): 7 layers, small layers fully bipartite-connected to the next so
- * every node is always reachable (no orphan nodes) while still giving the
- * player a real choice of node type at every step. AGENT.md's "~30 nodes"
- * MVP target is expected to grow with future content passes (§70: node
- * count is explicitly not locked).
- */
-const LAYER_SIZES = [1, 3, 3, 3, 3, 3, 1];
+/** Nodes per layer between the start node and the boss. Fully connected to the next layer so nothing is ever orphaned. */
+const CHOICES_PER_LAYER = 3;
 
-const MIDDLE_LAYER_TYPE_POOL: NodeType[] = [
+/** AO-D045: every step is a real encounter or stop; the city is not a node (AO-D047). */
+const STEP_TYPE_POOL: NodeType[] = [
   'battle',
   'battle',
   'battle',
@@ -37,46 +32,33 @@ const MIDDLE_LAYER_TYPE_POOL: NodeType[] = [
   'resource',
   'merchant',
   'elite_battle',
-  'road',
 ];
+const ELITE_FREE_POOL = STEP_TYPE_POOL.filter((t) => t !== 'elite_battle');
 
-/** AO-D039: no Elite Battle in the first 3 steps of the road (layers 1-3). */
-const ELITE_FREE_LAYERS = 3;
-const EARLY_LAYER_TYPE_POOL = MIDDLE_LAYER_TYPE_POOL.filter((t) => t !== 'elite_battle');
-
-export function generateWorldMap(rng: RngState): WorldMapState {
+/**
+ * One 30-day chapter (AO-D046). The start node is the current position on `startDay`;
+ * each layer is one day, so the boss layer lands on the chapter's boss day (30/60/90).
+ * The first ELITE_FREE_STEPS steps of the whole run (chapter 1 only) never hold an elite (AO-D049).
+ */
+export function generateWorldMap(rng: RngState, chapter = 1, startDay = 1): WorldMapState {
+  const bossLayer = Math.max(1, bossDay(chapter) - startDay);
   const layers: MapNode[][] = [];
 
-  for (let layer = 0; layer < LAYER_SIZES.length; layer++) {
-    const size = LAYER_SIZES[layer]!;
-    const isFirst = layer === 0;
-    const isLast = layer === LAYER_SIZES.length - 1;
+  for (let layer = 0; layer <= bossLayer; layer++) {
+    const size = layer === 0 || layer === bossLayer ? 1 : CHOICES_PER_LAYER;
+    const eliteFree = chapter === 1 && layer <= ELITE_FREE_STEPS;
+    const pool = eliteFree ? ELITE_FREE_POOL : STEP_TYPE_POOL;
     const nodes: MapNode[] = [];
     for (let i = 0; i < size; i++) {
-      const pool = layer <= ELITE_FREE_LAYERS ? EARLY_LAYER_TYPE_POOL : MIDDLE_LAYER_TYPE_POOL;
-      const type: NodeType = isFirst ? 'road' : isLast ? 'boss' : pool[nextInt(rng, pool.length)]!;
-      nodes.push({
-        id: `n${layer}_${i}`,
-        type,
-        layer,
-        visibility: 'unknown',
-        connectsTo: [],
-      });
+      const type: NodeType = layer === 0 ? 'start' : layer === bossLayer ? 'boss' : pool[nextInt(rng, pool.length)]!;
+      nodes.push({ id: `c${chapter}n${layer}_${i}`, type, layer, visibility: 'unknown', connectsTo: [] });
     }
     layers.push(nodes);
   }
 
-  // Exactly one City node per run (AGENT.md §55 MVP: City count = 1),
-  // placed at the map's midpoint rather than left to the random pool.
-  const cityLayer = layers[3];
-  if (cityLayer && cityLayer[0]) cityLayer[0].type = 'city';
-
   for (let layer = 0; layer < layers.length - 1; layer++) {
-    const from = layers[layer]!;
     const to = layers[layer + 1]!;
-    for (const node of from) {
-      node.connectsTo = to.map((n) => n.id);
-    }
+    for (const node of layers[layer]!) node.connectsTo = to.map((n) => n.id);
   }
 
   const allNodes = layers.flat();
