@@ -21,3 +21,6 @@ UI, run layer, card numbers/effects (do not change what a card does).
 
 ## Acceptance criteria
 tsc clean, vitest green, new tests fail without the change, report lists conditional cards and the helper API for the UI.
+
+## Status
+- 2026-09-19 ACCEPTED. UI still has to show requirement text via cardRequirement/cardPlayability.

@@ -26,3 +26,6 @@ tsc clean, vitest green, report lists the three decks (card names x count) and w
 
 ## Verification
 vitest + a short script/test that draws opening hands for all three heroes without error.
+
+## Status
+- 2026-09-19 ACCEPTED (merged with AO-016). Note: Warlord deck attack depends on Charge (Knight only).

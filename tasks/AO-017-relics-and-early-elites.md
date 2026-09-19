@@ -24,3 +24,6 @@ combat/damage/targeting files, UI, unit/card data, hero XP.
 
 ## Acceptance criteria
 tsc clean (UI may need follow-up for changed relic APIs: if the UI stops compiling, list exactly which exports changed and keep old export names working by design, not with shims), vitest green, report lists the final starting five, all relics with rarity/drawback, prices, and event changes.
+
+## Status
+- 2026-09-19 ACCEPTED. Open owner questions: Abandoned Camp Search relic chance 60% vs "rare"; Arcane Crystal drawback in the starting five.
