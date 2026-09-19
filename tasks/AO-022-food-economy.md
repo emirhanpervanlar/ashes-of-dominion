@@ -24,3 +24,6 @@ UI, combat rules/damage, card data, other unit stats.
 
 ## Acceptance criteria
 tsc and vitest green; report lists new exports and a table of daily upkeep for the three starting armies and a 60-unit army, and net food over 30 days with no production vs Farm tier I.
+
+## Status
+- 2026-09-19 ACCEPTED (engine; 313/314 tests, the remaining failure is the missing Farm icon for the UI task). Numbers retuned to targets after a balance flag: foodPerUnit 0.1/0.2/0.5, Farm +3/+6/+9.
