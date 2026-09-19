@@ -656,6 +656,9 @@ export const SPRITES: Record<string, Sprite> = {
 Renderer (`PixelSprite.tsx`): draws to an offscreen `<canvas>` once per (name, palette-variant) with `ctx.fillRect(x,y,1,1)` per non-`.` char, caches as `ImageBitmap`/`toDataURL`, and shows `<img src style="image-rendering: pixelated; width: w*scale; height: h*scale">`. Requirements: scale is an integer (2 or 3), enemy variants mirror horizontally (`transform: scaleX(-1)`) and swap the team-colour characters `b`/`B` (player steel blue) to `r`/`R` (enemy red) via `palette` override so one sprite serves both sides. Animation frames (idle bob, attack) = optional `frames: string[][]`; with none, motion is CSS (section 8). Tests: every unit id in `data/units.ts` has a sprite; every row length equals `w`; row count equals `h`; only palette characters used.
 Icons (7) use the identical structure with w = h = 16.
 
+### 7.7 Icons actually drawn (AO-020, src/ui/pixel/icons/*)
+Deviations from the list in 7: `day` reuses the proof hourglass, `hp` is the proof heart, `ui_log` is the proof scroll, `card_attack` = `role_melee` art, `card_defense` = `shield` art. Added beyond the list: `crest` (title), `ornament_dragon` (battle frame), unit portraits `unit_<unitId>` (8), hero portraits `hero_<heroId>` (3), relics `rel_<relicId>` (19), card effect art `fx_bolt fx_target fx_wind fx_horse fx_helm fx_dagger fx_sparkle fx_flag fx_banner fx_skull`. Palette keys beyond the 8-colour set are those of the style proof (see `src/ui/pixel/palette.ts`). Completeness is enforced by `src/ui/pixel/icons.test.ts`.
+
 ---
 
 ## 8. Motion rules

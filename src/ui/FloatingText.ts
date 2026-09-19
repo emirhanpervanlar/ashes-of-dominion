@@ -1,12 +1,14 @@
 import { useCallback, useState } from 'react';
 import { UNIT_DEFINITIONS } from '../engine/index.js';
 import type { CombatEvent, CombatState } from '../engine/index.js';
+import type { IconName } from './pixel/icons.js';
 import { STATUS_ICONS } from './stackStatus.js';
 
 export interface Floater {
   id: number;
   stackId: string;
   text: string;
+  icon?: IconName;
   kind: 'damage' | 'block' | 'heal' | 'status';
   delayMs: number;
 }
@@ -18,10 +20,10 @@ let nextFloaterId = 1;
 export function floatersFromEvents(events: CombatEvent[], after: CombatState): Omit<Floater, 'id'>[] {
   const out: Omit<Floater, 'id'>[] = [];
   const perStack = new Map<string, number>();
-  function add(stackId: string, text: string, kind: Floater['kind']) {
+  function add(stackId: string, text: string, kind: Floater['kind'], icon?: IconName) {
     const n = perStack.get(stackId) ?? 0;
     perStack.set(stackId, n + 1);
-    out.push({ stackId, text, kind, delayMs: n * 260 });
+    out.push({ stackId, text, icon, kind, delayMs: n * 260 });
   }
   for (const e of events) {
     if (e.type === 'STACK_ATTACKED') {
@@ -35,7 +37,7 @@ export function floatersFromEvents(events: CombatEvent[], after: CombatState): O
     } else if (e.type === 'BLOCK_GAINED' && e.amount > 0) {
       add(e.stackId, `+${e.amount} Block`, 'block');
     } else if (e.type === 'STATUS_APPLIED') {
-      add(e.stackId, `${STATUS_ICONS[e.status]} ${e.status}`, 'status');
+      add(e.stackId, e.status, 'status', STATUS_ICONS[e.status]);
     }
   }
   return out;

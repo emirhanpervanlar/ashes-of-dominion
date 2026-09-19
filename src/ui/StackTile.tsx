@@ -1,7 +1,8 @@
 import { applyDamageToStack, UNIT_DEFINITIONS } from '../engine/index.js';
 import type { ArmyStack } from '../engine/index.js';
-import { UNIT_ICONS } from './unitIcons.js';
-import { UNIT_ROLE_ICONS } from './unitShapes.js';
+import { Icon } from './pixel/Icon.js';
+import { UnitArt } from './UnitArt.js';
+import { UNIT_ROLE_ICONS } from './unitIcons.js';
 import { STATUS_ICONS, cannotAct } from './stackStatus.js';
 import type { Floater } from './FloatingText.js';
 
@@ -44,6 +45,7 @@ export function StackTile({
   // Rendered in the wiped branch too so a killing blow's floater still shows.
   const floatersEl = floaters?.map((f) => (
     <span key={f.id} className={`floater floater-${f.kind}`} style={{ animationDelay: `${f.delayMs}ms` }}>
+      {f.icon && <Icon name={f.icon} />}
       {f.text}
     </span>
   ));
@@ -54,7 +56,11 @@ export function StackTile({
     return (
       <div className={classes.join(' ')}>
         <div className="portrait-frame" onClick={selectable ? onClick : undefined}>
-          {stack && <span className="portrait-art">{UNIT_ICONS[stack.unitId]}</span>}
+          {stack && (
+            <span className="portrait-art">
+              <UnitArt unitId={stack.unitId} />
+            </span>
+          )}
         </div>
         <div className="portrait-meta">
           <div className="unit-name">{stack ? `${UNIT_DEFINITIONS[stack.unitId].name} wiped` : 'Empty'}</div>
@@ -102,21 +108,34 @@ export function StackTile({
         }}
         title={def.name}
       >
-        <span className="portrait-art">{UNIT_ICONS[stack.unitId]}</span>
+        <span className="portrait-art">
+          <UnitArt unitId={stack.unitId} />
+        </span>
         <span className="portrait-count">×{stack.count}</span>
-        <span className="portrait-role-badge">{UNIT_ROLE_ICONS[stack.unitId]}</span>
-        {selected && <span className="portrait-select-badge">✓</span>}
-        {locked && !selected && <span className="portrait-lock-badge">🔒</span>}
+        <span className="portrait-role-badge">
+          <Icon name={UNIT_ROLE_ICONS[stack.unitId]} />
+        </span>
+        {selected && (
+          <span className="portrait-select-badge">
+            <Icon name="ui_check" />
+          </span>
+        )}
+        {locked && !selected && (
+          <span className="portrait-lock-badge">
+            <Icon name="ui_lock" />
+          </span>
+        )}
         {(stack.block > 0 || stack.statuses.length > 0) && (
           <div className="portrait-statuses">
             {stack.block > 0 && (
               <span className="portrait-status" title="Block">
-                🧱<b>{stack.block}</b>
+                <Icon name="shield" />
+                <b>{stack.block}</b>
               </span>
             )}
             {stack.statuses.map((st) => (
               <span className="portrait-status" key={st.type} title={st.type}>
-                {STATUS_ICONS[st.type]}
+                <Icon name={STATUS_ICONS[st.type]} />
                 <b>{st.amount}</b>
               </span>
             ))}

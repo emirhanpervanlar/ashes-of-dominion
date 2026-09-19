@@ -1,4 +1,5 @@
 import { cardVisual } from './cardVisuals.js';
+import { Icon } from './pixel/Icon.js';
 
 interface ActionCardTileProps {
   id: string;
@@ -20,7 +21,9 @@ export function ActionCardTile({ id, name, description, manaCost, affordable, pe
   return (
     <div className={classes.join(' ')} onClick={affordable ? onClick : undefined} title={description}>
       <div className="action-card-cost">{manaCost}M</div>
-      <div className="action-card-icon">{visual.icon}</div>
+      <div className="action-card-icon">
+        <Icon name={visual.icon} size={2} />
+      </div>
       <div className="action-card-name">{name}</div>
       <div className="action-card-desc">{description}</div>
       {footer && <div className="action-card-footer">{footer}</div>}

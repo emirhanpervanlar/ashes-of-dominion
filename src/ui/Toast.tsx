@@ -1,8 +1,10 @@
 import { useEffect } from 'react';
+import { Icon } from './pixel/Icon.js';
+import type { IconName } from './pixel/icons.js';
 
 export interface ToastItem {
   id: number;
-  icon: string;
+  icon: IconName;
   text: string;
 }
 
@@ -30,7 +32,7 @@ function ToastRow({ toast, onDismiss }: { toast: ToastItem; onDismiss: (id: numb
 
   return (
     <div className="toast-row" onClick={() => onDismiss(toast.id)}>
-      <span className="toast-icon">{toast.icon}</span>
+      <Icon name={toast.icon} />
       <span>{toast.text}</span>
     </div>
   );

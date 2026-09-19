@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { UNIT_DEFINITIONS } from '../engine/index.js';
 import type { ArmyStack } from '../engine/index.js';
-import { UNIT_ICONS } from './unitIcons.js';
+import { Icon } from './pixel/Icon.js';
+import { UnitArt } from './UnitArt.js';
 import { UNIT_DESCRIPTIONS } from './unitText.js';
 import { STATUS_ICONS } from './stackStatus.js';
 
@@ -30,17 +31,25 @@ export function UnitPopup({ stack, army, onClose, inBattle, onSplit, onMerge }: 
       <div className="modal-backdrop" onClick={onClose} />
       <div className="popup panel panel--stone step-8 unit-popup-card">
         <button className="btn modal-close" onClick={onClose}>
-          ✕
+          <Icon name="ui_close" />
         </button>
-        <div className="unit-popup-icon">{UNIT_ICONS[stack.unitId]}</div>
+        <div className="unit-popup-icon">
+          <UnitArt unitId={stack.unitId} size={4} />
+        </div>
         <div className="unit-popup-name">{def.name}</div>
         <div className="unit-popup-desc">{UNIT_DESCRIPTIONS[stack.unitId]}</div>
 
         <div className="unit-popup-stats-row">
           <div className="unit-popup-stats">
-            <div>❤ HP {def.hpPerUnit}</div>
-            <div>⚔ Attack {def.attack}</div>
-            <div>🛡 Defense {def.defense}</div>
+            <div>
+              <Icon name="hp" /> HP {def.hpPerUnit}
+            </div>
+            <div>
+              <Icon name="role_melee" /> Attack {def.attack}
+            </div>
+            <div>
+              <Icon name="shield" /> Defense {def.defense}
+            </div>
           </div>
           <div className="unit-popup-count-block">
             <div className="unit-popup-count">×{stack.count}</div>
@@ -58,7 +67,7 @@ export function UnitPopup({ stack, army, onClose, inBattle, onSplit, onMerge }: 
             ) : (
               stack.statuses.map((st) => (
                 <div key={st.type}>
-                  {STATUS_ICONS[st.type]} {st.type} {st.amount} ({st.duration} {st.duration === 1 ? 'turn' : 'turns'})
+                  <Icon name={STATUS_ICONS[st.type]} /> {st.type} {st.amount} ({st.duration} {st.duration === 1 ? 'turn' : 'turns'})
                 </div>
               ))
             )}
