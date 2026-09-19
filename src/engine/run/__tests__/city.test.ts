@@ -32,30 +32,17 @@ function resolveUntilOnMapOrCity(run: RunState): RunState {
   return current;
 }
 
-/** Walks to the map's one guaranteed City node (layer 3, AGENT.md §55), resolving anything en route. */
+/** Opens the city from the map (AO-D047: reachable any time). */
 function reachCity(seed: number): RunState {
   let run = createRun(seed);
-  run = resolveUntilOnMapOrCity(applyRunAction(run, { type: 'CHOOSE_STARTING_RELIC', relicId: 'royal_banner' }).run);
-  const cityId = run.worldMap.nodes.find((n) => n.type === 'city')!.id;
-
-  while (run.phase === 'on_map') {
-    const current = run.worldMap.nodes.find((n) => n.id === run.worldMap.currentNodeId)!;
-    const nextId = current.connectsTo.includes(cityId) ? cityId : current.connectsTo[0]!;
-    run = resolveUntilOnMapOrCity(applyRunAction(run, { type: 'MOVE_TO', nodeId: nextId }).run);
-  }
+  run = applyRunAction(run, { type: 'CHOOSE_STARTING_RELIC', relicId: 'royal_banner' }).run;
+  run = applyRunAction(run, { type: 'TRAVEL_TO_CITY' }).run;
   if (run.phase !== 'city') throw new Error(`reachCity(${seed}) ended in unexpected phase: ${run.phase}`);
   return run;
 }
 
 describe('reaching the city', () => {
-  it('the map always has exactly one city node, reachable', () => {
-    const run = createRun(1);
-    const cityNodes = run.worldMap.nodes.filter((n) => n.type === 'city');
-    expect(cityNodes).toHaveLength(1);
-    expect(cityNodes[0]!.layer).toBe(3);
-  });
-
-  it('arriving at the city node opens the city phase', () => {
+  it('opens the city phase with the initial city state', () => {
     const run = reachCity(2);
     expect(run.phase).toBe('city');
     expect(run.city.level).toBe(1);
@@ -151,15 +138,6 @@ describe('leaving the city', () => {
     const run = reachCity(14);
     const result = applyRunAction(run, { type: 'LEAVE_CITY' });
     expect(result.run.phase).toBe('on_map');
-  });
-});
-
-describe('re-entering the city', () => {
-  it('a city you are standing on can be re-entered without moving', () => {
-    const left = applyRunAction(reachCity(15), { type: 'LEAVE_CITY' }).run;
-    const revisit = applyRunAction(left, { type: 'ENTER_CITY' });
-    expect(revisit.events.some((e) => e.type === 'ACTION_REJECTED')).toBe(false);
-    expect(revisit.run.phase).toBe('city');
   });
 });
 

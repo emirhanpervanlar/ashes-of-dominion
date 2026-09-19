@@ -2,6 +2,8 @@ export * from './types.js';
 export * from './runEngine.js';
 export * from './rewards.js';
 export * from './worldMap.js';
+export * from './chapters.js';
+export { generateBattleEncounter, generateBossEncounter } from './encounters.js';
 export * from './food.js';
 export * from './events.js';
 export * from './merchant.js';

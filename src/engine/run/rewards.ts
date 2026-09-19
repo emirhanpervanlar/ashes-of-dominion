@@ -3,7 +3,7 @@ import { shuffle } from '../rng.js';
 import type { RngState } from '../rng.js';
 import type { CardInstance, RelicDefinition } from '../types.js';
 import { CARD_UPGRADES } from './cardUpgrades.js';
-import { pickRelicId } from './relicSources.js';
+import { pickBossRelicChoices, pickRelicId } from './relicSources.js';
 import type { PendingReward } from './types.js';
 
 /** Total number of new-card + upgrade choices shown on the post-battle reward screen. */
@@ -32,12 +32,13 @@ export function generateUpgradeOptions(
  * Card/upgrade choices are capped at REWARD_OPTION_COUNT total, split between fresh cards and in-deck upgrades.
  * The relic is drawn last so a normal battle's rng stream is untouched.
  */
-export function buildPendingReward(rng: RngState, owned: RelicDefinition[], masterDeck: CardInstance[], elite: boolean): PendingReward {
+export function buildPendingReward(rng: RngState, owned: RelicDefinition[], masterDeck: CardInstance[], elite: boolean, bossRelicChoices = false): PendingReward {
   const upgradeOptions = generateUpgradeOptions(rng, masterDeck, REWARD_OPTION_COUNT);
   const cardOptions = generateCardOptions(rng, REWARD_OPTION_COUNT - upgradeOptions.length);
   return {
     cardOptions,
     upgradeOptions,
     relicOffer: elite ? pickRelicId(rng, 'elite', owned) : null,
+    relicChoices: bossRelicChoices ? pickBossRelicChoices(rng, owned) : [],
   };
 }

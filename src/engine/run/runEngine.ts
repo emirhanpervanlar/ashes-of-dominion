@@ -23,6 +23,7 @@ import {
   recruitCost,
   settleArmyAfterVictory,
 } from './city.js';
+import { THREAT_PER_CITY_VISIT, TOTAL_CHAPTERS } from './chapters.js';
 import { generateBattleEncounter, generateBossEncounter } from './encounters.js';
 import { EVENT_DEFINITIONS, EVENT_IDS } from './events.js';
 import { applyStarvation, moveFoodCost } from './food.js';
@@ -46,7 +47,21 @@ function cloneRun(run: RunState): RunState {
  * reducer also applies it, so an old run keeps working on its first action.
  */
 export function migrateRun(run: RunState): RunState {
-  const migrated: RunState = { ...run, stats: { ...createRunStats(), ...run.stats }, cardRemoval: run.cardRemoval ?? createCardRemovalState() };
+  const legacy = run as RunState & { finalBattle?: boolean };
+  const migrated: RunState = {
+    ...run,
+    stats: { ...createRunStats(), ...run.stats },
+    cardRemoval: run.cardRemoval ?? createCardRemovalState(),
+    chapter: run.chapter ?? 1,
+    threat: run.threat ?? 0,
+    bossBattle: run.bossBattle ?? legacy.finalBattle ?? false,
+    pendingReward: run.pendingReward && { ...run.pendingReward, relicChoices: run.pendingReward.relicChoices ?? [] },
+  };
+  delete (migrated as { finalBattle?: boolean }).finalBattle;
+  if (run.chapter === undefined) {
+    // Saves from before AO-D045/D046: the old 7-layer map (road and city nodes) is replaced by a fresh chapter-1 map from today's day.
+    migrated.worldMap = generateWorldMap(createRng(run.seed + run.day), 1, run.day);
+  }
   if (run.city.mageTowerTier === undefined) {
     // Saves from before AO-D036: a built Mage Tower is tier I. It used to add Wisdom +2 (and the Mana that was worth); undo that, grant tier I.
     const hasTower = run.city.buildings.includes('mage_tower');
@@ -112,7 +127,9 @@ export function createRun(seed: number, heroId: HeroId = 'warlord', heroName?: s
     cardRemoval: createCardRemovalState(),
     worldMap: generateWorldMap(rng),
     city: createInitialCityState(),
-    finalBattle: false,
+    chapter: 1,
+    threat: 0,
+    bossBattle: false,
     phase: 'choosing_starting_relic',
     combat: null,
     pendingReward: null,
@@ -225,25 +242,13 @@ function resolveResourceNode(run: RunState, events: RunEvent[]): void {
   events.push({ type: 'RESOURCE_FOUND', gold, food });
 }
 
-function moveTo(run: RunState, nodeId: string, events: RunEvent[]): RunApplyResult {
-  if (run.phase !== 'on_map') {
-    reject(events, 'Cannot move right now.');
-    return { run, events };
-  }
-  const current = findNode(run.worldMap, run.worldMap.currentNodeId);
-  const destination = findNode(run.worldMap, nodeId);
-  if (!current || !destination || !current.connectsTo.includes(nodeId)) {
-    reject(events, 'That node is not reachable from here.');
-    return { run, events };
-  }
-
+/** One world day: food upkeep, Gold Mine income, starvation. Returns the food the day cost. */
+function advanceDay(run: RunState, events: RunEvent[]): number {
   const foodCost = moveFoodCost(run.army, run.city);
   run.stats.foodEaten += Math.min(run.food, foodCost);
   run.food -= foodCost;
   run.day += 1;
   run.stats.daysElapsed += 1;
-  run.stats.nodesVisited += 1;
-  events.push({ type: 'MOVED', nodeId, foodCost });
 
   if (run.city.buildings.includes('gold_mine')) {
     changeGold(run, GOLD_MINE_DAILY_GOLD);
@@ -257,22 +262,39 @@ function moveTo(run: RunState, nodeId: string, events: RunEvent[]): RunApplyResu
     run.stats.unitsLost += result.unitsLost;
     if (result.unitsLost > 0) events.push({ type: 'STARVING', unitsLost: result.unitsLost });
   }
+  return foodCost;
+}
+
+function moveTo(run: RunState, nodeId: string, events: RunEvent[]): RunApplyResult {
+  if (run.phase !== 'on_map') {
+    reject(events, 'Cannot move right now.');
+    return { run, events };
+  }
+  const current = findNode(run.worldMap, run.worldMap.currentNodeId);
+  const destination = findNode(run.worldMap, nodeId);
+  if (!current || !destination || !current.connectsTo.includes(nodeId)) {
+    reject(events, 'That node is not reachable from here.');
+    return { run, events };
+  }
+
+  const foodCost = advanceDay(run, events);
+  run.stats.nodesVisited += 1;
+  events.push({ type: 'MOVED', nodeId, foodCost });
 
   visitNode(run.worldMap, nodeId);
   events.push({ type: 'ARRIVED_AT_NODE', nodeId, nodeType: destination.type });
 
   switch (destination.type) {
-    case 'road':
+    case 'start':
       break;
-    case 'boss': {
-      run.finalBattle = true;
+    case 'boss':
+      run.bossBattle = true;
       run.phase = 'in_battle';
-      run.combat = startBattleForRun(run, generateBossEncounter());
+      run.combat = startBattleForRun(run, generateBossEncounter(run.chapter, run.threat));
       break;
-    }
     case 'battle':
     case 'elite_battle': {
-      const encounter = generateBattleEncounter(destination.layer, destination.type === 'elite_battle');
+      const encounter = generateBattleEncounter(destination.layer, destination.type === 'elite_battle', run.chapter, run.threat);
       run.phase = 'in_battle';
       run.combat = startBattleForRun(run, encounter);
       break;
@@ -290,26 +312,23 @@ function moveTo(run: RunState, nodeId: string, events: RunEvent[]): RunApplyResu
       run.phase = 'event';
       break;
     }
-    case 'city':
-      run.phase = 'city';
-      break;
   }
 
   return { run, events };
 }
 
 /**
- * The world map only moves forward (AGENT.md §19's DAG, no backward
- * edges), but a city should stay revisitable like a Heroes3 town — this
- * re-enters the city node you're currently standing on without moving.
+ * The city is reachable from the map at any time (AO-D047, GDD "Teleport to Town"); each visit
+ * raises Threat. It costs no days (AO-D051), and leaving returns to the same map node.
  */
-function enterCity(run: RunState, events: RunEvent[]): RunApplyResult {
-  const current = findNode(run.worldMap, run.worldMap.currentNodeId);
-  if (run.phase !== 'on_map' || !current || current.type !== 'city') {
-    reject(events, 'Not standing on a city.');
+function travelToCity(run: RunState, events: RunEvent[]): RunApplyResult {
+  if (run.phase !== 'on_map') {
+    reject(events, 'The city can only be reached from the map.');
     return { run, events };
   }
+  run.threat += THREAT_PER_CITY_VISIT;
   run.phase = 'city';
+  events.push({ type: 'CITY_VISITED', threat: run.threat });
   return { run, events };
 }
 
@@ -336,7 +355,7 @@ function forwardCombatAction(run: RunState, action: PlayerAction, events: RunEve
     events.push({ type: 'BATTLE_WON' });
     if (settled.revived > 0) events.push({ type: 'UNITS_REVIVED', count: settled.revived });
     const arrivedAt = findNode(run.worldMap, run.worldMap.currentNodeId);
-    run.pendingReward = buildPendingReward(run.rng, run.relics, run.masterDeck, arrivedAt?.type === 'elite_battle');
+    run.pendingReward = buildPendingReward(run.rng, run.relics, run.masterDeck, arrivedAt?.type === 'elite_battle', run.bossBattle && run.chapter < TOTAL_CHAPTERS);
     run.phase = 'reward';
   } else if (result.state.result === 'defeat') {
     run.hero = result.state.hero;
@@ -352,12 +371,21 @@ function forwardCombatAction(run: RunState, action: PlayerAction, events: RunEve
 /** Every reward pick (card, upgrade, removal, skip) ends the reward screen at once (AO-D026). */
 function finishReward(run: RunState, events: RunEvent[]): void {
   run.pendingReward = null;
-  if (run.finalBattle) {
+  if (!run.bossBattle) {
+    run.phase = 'on_map';
+    return;
+  }
+  run.bossBattle = false;
+  events.push({ type: 'BOSS_DEFEATED', chapter: run.chapter });
+  if (run.chapter >= TOTAL_CHAPTERS) {
     run.phase = 'run_complete';
     events.push({ type: 'RUN_COMPLETE' });
-  } else {
-    run.phase = 'on_map';
+    return;
   }
+  run.chapter += 1;
+  run.worldMap = generateWorldMap(run.rng, run.chapter, run.day);
+  run.phase = 'on_map';
+  events.push({ type: 'CHAPTER_STARTED', chapter: run.chapter });
 }
 
 function claimCard(run: RunState, cardId: string, events: RunEvent[]): RunApplyResult {
@@ -375,14 +403,17 @@ function claimCard(run: RunState, cardId: string, events: RunEvent[]): RunApplyR
   return { run, events };
 }
 
-/** The elite relic is an extra on top of the one card/upgrade/skip pick, so claiming it keeps the screen open. */
+/** The elite relic / boss relic choice is an extra on top of the one card/upgrade/skip pick, so claiming it keeps the screen open. */
 function claimRelic(run: RunState, relicId: string, events: RunEvent[]): RunApplyResult {
-  if (run.phase !== 'reward' || !run.pendingReward?.relicOffer || run.pendingReward.relicOffer !== relicId) {
+  const reward = run.pendingReward;
+  const onOffer = reward && (reward.relicOffer === relicId || reward.relicChoices.includes(relicId));
+  if (run.phase !== 'reward' || !reward || !onOffer) {
     reject(events, 'That relic is not on offer.');
     return { run, events };
   }
   grantRelic(run, RELIC_DEFINITIONS[relicId]!, events);
-  run.pendingReward.relicOffer = null;
+  reward.relicOffer = null;
+  reward.relicChoices = [];
   return { run, events };
 }
 
@@ -798,8 +829,8 @@ export function applyRunAction(run: RunState, action: RunAction): RunApplyResult
     case 'LEAVE_MERCHANT':
       result = leaveMerchant(working, events);
       break;
-    case 'ENTER_CITY':
-      result = enterCity(working, events);
+    case 'TRAVEL_TO_CITY':
+      result = travelToCity(working, events);
       break;
     case 'RECRUIT':
       result = recruit(working, action.unitId, action.count, events);

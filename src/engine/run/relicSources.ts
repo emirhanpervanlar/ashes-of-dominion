@@ -1,5 +1,5 @@
 import { RELIC_DEFINITIONS } from '../data/relics.js';
-import { nextInt } from '../rng.js';
+import { nextInt, shuffle } from '../rng.js';
 import type { RngState } from '../rng.js';
 import type { RelicDefinition, RelicRarity } from '../types.js';
 
@@ -28,4 +28,19 @@ export function pickRelicId(rng: RngState, source: RelicSource, owned: readonly 
     if (roll < 0) return r.id;
   }
   return null;
+}
+
+const BOSS_RELIC_CHOICES = 3;
+const RARITY_ORDER: RelicRarity[] = ['epic', 'rare', 'common'];
+
+/**
+ * Boss reward (AO-D046): up to 3 unowned relics, epic first. The roster has fewer epics than
+ * choices, so the remaining slots fall back to rare, then common; nothing owned is ever offered.
+ */
+export function pickBossRelicChoices(rng: RngState, owned: readonly RelicDefinition[]): string[] {
+  const ownedIds = new Set(owned.map((r) => r.id));
+  const candidates = Object.values(RELIC_DEFINITIONS).filter((r) => !ownedIds.has(r.id));
+  return RARITY_ORDER.flatMap((rarity) => shuffle(rng, candidates.filter((r) => r.rarity === rarity)))
+    .slice(0, BOSS_RELIC_CHOICES)
+    .map((r) => r.id);
 }

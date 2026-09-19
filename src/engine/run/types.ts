@@ -23,6 +23,8 @@ export interface PendingReward {
   upgradeOptions: { instanceId: string; cardId: string; upgradedCardId: string }[];
   /** Elite victories only (AO-D037): one extra relic, claimed separately; leaving the reward screen forfeits it. */
   relicOffer: string | null;
+  /** Boss victories before the last chapter (AO-D046): pick one via CLAIM_RELIC; the rest are forfeited. */
+  relicChoices: string[];
 }
 
 export interface PendingEvent {
@@ -52,6 +54,9 @@ export type RunEvent =
   | { type: 'CITY_LEVELED_UP'; level: number }
   | { type: 'MAGE_TOWER_UPGRADED'; tier: number }
   | { type: 'DOCTRINE_CHOSEN'; doctrineId: string }
+  | { type: 'CITY_VISITED'; threat: number }
+  | { type: 'BOSS_DEFEATED'; chapter: number }
+  | { type: 'CHAPTER_STARTED'; chapter: number }
   | { type: 'RUN_COMPLETE' }
   | { type: 'ACTION_REJECTED'; reason: string };
 
@@ -72,8 +77,12 @@ export interface RunState {
   cardRemoval: CardRemovalState;
   worldMap: WorldMapState;
   city: CityState;
-  /** Set when the current battle was triggered by the map's Boss node — its reward routes to 'run_complete' instead of 'on_map'. */
-  finalBattle: boolean;
+  /** 1-3 (AO-D046): the boss is due on day 30 x chapter. */
+  chapter: number;
+  /** Raised by each city visit (AO-D047); scales enemy unit counts. */
+  threat: number;
+  /** Set while a boss battle or its reward is pending: resolving the reward starts the next chapter, or completes the run after the last. */
+  bossBattle: boolean;
   phase: RunPhase;
   combat: CombatState | null;
   pendingReward: PendingReward | null;
@@ -95,7 +104,7 @@ export type RunAction =
   | { type: 'BUY_CARD'; cardId: string }
   | { type: 'BUY_RELIC'; relicId: string }
   | { type: 'LEAVE_MERCHANT' }
-  | { type: 'ENTER_CITY' }
+  | { type: 'TRAVEL_TO_CITY' }
   | { type: 'RECRUIT'; unitId: UnitId; count: number }
   | { type: 'BUILD_BUILDING'; buildingId: string }
   | { type: 'UPGRADE_CITY' }

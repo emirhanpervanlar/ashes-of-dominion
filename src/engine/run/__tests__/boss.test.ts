@@ -46,17 +46,17 @@ describe('boss encounter generation', () => {
 });
 
 describe('run completion via the boss', () => {
-  it('defeating the boss offers a final reward whose resolution ends the run (run_complete)', () => {
+  it('defeating the last boss offers a final reward whose resolution ends the run (run_complete)', () => {
     const run = reachBoss(50);
     expect(run.phase).toBe('in_battle');
-    expect(run.finalBattle).toBe(true);
+    expect(run.bossBattle).toBe(true);
 
     const combat = run.combat!;
     const wiped: CombatState = { ...combat, enemyArmy: combat.enemyArmy.map((s) => ({ ...s, count: 0, currentHp: 0 })) };
     const won = applyRunAction({ ...run, combat: wiped }, { type: 'COMBAT_ACTION', action: { type: 'END_TURN' } });
     expect(won.run.phase).toBe('reward');
 
-    const confirmed = applyRunAction(won.run, { type: 'SKIP_REWARD' });
+    const confirmed = applyRunAction({ ...won.run, chapter: 3 }, { type: 'SKIP_REWARD' });
     expect(confirmed.run.phase).toBe('run_complete');
     expect(confirmed.events.some((e) => e.type === 'RUN_COMPLETE')).toBe(true);
   });
