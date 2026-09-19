@@ -95,7 +95,7 @@ export const BUILDING_DEFINITIONS: Record<string, CityBuildingDefinition> = {
   training_hall: {
     id: 'training_hall',
     name: 'Training Hall',
-    description: 'Hero max AC +1 and max DC +1, immediately.',
+    description: 'Hero max Mana +2, immediately.',
     category: 'hero',
     cost: 80,
   },

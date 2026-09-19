@@ -6,7 +6,7 @@ import { UNIT_DEFINITIONS } from '../data/units.js';
 import { applyPlayerAction, startBattle } from '../combat.js';
 import { buildHeroStartingArmy, createHero } from '../scenario.js';
 import { createRng, nextInt, shuffle } from '../rng.js';
-import type { ArmyStack, CardInstance, CombatState, Hero, HeroId, PlayerAction, RelicDefinition, RelicEffect, UnitId } from '../types.js';
+import type { ArmyStack, CardInstance, CombatState, Hero, HeroId, PlayerAction, Position, RelicDefinition, RelicEffect, UnitId } from '../types.js';
 import { CARD_UPGRADES } from './cardUpgrades.js';
 import {
   BUILDING_DEFINITIONS,
@@ -514,7 +514,33 @@ function splitStackAction(run: RunState, stackId: string, splitCount: number, ev
     reject(events, 'Cannot split that stack (invalid amount or army already has 6 stacks).');
     return { run, events };
   }
-  run.army = updatedArmy;
+  // splitArmyStack derives the id from the free position, which can collide with a stack created there and later moved away.
+  const created = updatedArmy[updatedArmy.length - 1]!;
+  const taken = new Set(updatedArmy.slice(0, -1).map((s) => s.stackId));
+  let uniqueId = created.stackId;
+  for (let n = 2; taken.has(uniqueId); n++) uniqueId = `${created.stackId}_${n}`;
+  run.army = updatedArmy.map((s) => (s === created ? { ...s, stackId: uniqueId } : s));
+  return { run, events };
+}
+
+function moveStackAction(run: RunState, stackId: string, toPosition: Position, events: RunEvent[]): RunApplyResult {
+  if (run.phase !== 'on_map' && run.phase !== 'city') {
+    reject(events, 'Stacks can only be repositioned on the map or in the city.');
+    return { run, events };
+  }
+  const stack = run.army.find((s) => s.stackId === stackId);
+  if (!stack) {
+    reject(events, 'Unknown stack.');
+    return { run, events };
+  }
+  if (!Number.isInteger(toPosition) || toPosition < 1 || toPosition > 6) {
+    reject(events, 'Position must be 1-6.');
+    return { run, events };
+  }
+  if (stack.position === toPosition) return { run, events };
+  const from = stack.position;
+  // Ids stay stable: they are opaque and never re-derived from the position.
+  run.army = run.army.map((s) => (s.stackId === stackId ? { ...s, position: toPosition } : s.position === toPosition ? { ...s, position: from } : s));
   return { run, events };
 }
 
@@ -614,7 +640,7 @@ function leaveCity(run: RunState, events: RunEvent[]): RunApplyResult {
 
 export function applyRunAction(run: RunState, action: RunAction): RunApplyResult {
   const working = cloneRun(run);
-  // Wiped stacks (battle, starvation) are dropped so a later recruit/split can't reuse their `<unit>_<position>` stackId.
+  // Wiped stacks (battle, starvation) are dropped so a later recruit/split can't reuse their stackId.
   working.army = working.army.filter((s) => s.count > 0);
   const events: RunEvent[] = [];
 
@@ -676,6 +702,9 @@ export function applyRunAction(run: RunState, action: RunAction): RunApplyResult
       break;
     case 'MERGE_STACKS':
       result = mergeStacksAction(working, action.stackIdA, action.stackIdB, events);
+      break;
+    case 'MOVE_STACK':
+      result = moveStackAction(working, action.stackId, action.toPosition, events);
       break;
   }
 
