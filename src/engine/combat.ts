@@ -7,7 +7,6 @@ import {
   armorReduction,
   computeHealAmount,
   computeRawDamage,
-  effectiveCount,
   fearDamageMultiplier,
   moraleDamageMultiplier,
   moraleDefenseMultiplier,
@@ -23,7 +22,7 @@ import {
   statusAmount,
   veterancyDamageMultiplier,
 } from './damage.js';
-import { computeValidHealTargets, computeValidTargets, laneOf } from './targeting.js';
+import { computeValidHealTargets, computeValidTargets, isBlockedByFrontAlly, laneOf } from './targeting.js';
 import { generateEnemyIntents } from './intents.js';
 import { shuffle } from './rng.js';
 import type {
@@ -584,7 +583,8 @@ function validateTargeting(state: CombatState, def: { id: string; targeting: Car
     if (!stack) return 'Invalid or dead enemy stack.';
     if (def.targeting === 'ally-stack+enemy-stack') {
       const actor = findStack(state.playerArmy, action.actingStackId)!;
-      const validTargets = computeValidTargets(actor, state.enemyArmy, UNIT_DEFINITIONS[actor.unitId]);
+      if (isBlockedByFrontAlly(actor, state.playerArmy)) return `${UNIT_DEFINITIONS[actor.unitId].name} cannot attack while a friendly stack stands in front of it.`;
+      const validTargets = computeValidTargets(actor, state.enemyArmy, UNIT_DEFINITIONS[actor.unitId], state.playerArmy);
       if (validTargets.length === 0) return `${UNIT_DEFINITIONS[actor.unitId].name} has no target in reach.`;
       if (!validTargets.some((t) => t.stackId === stack.stackId)) {
         return `${UNIT_DEFINITIONS[actor.unitId].name} cannot reach that target from its position.`;
@@ -701,7 +701,11 @@ function basicAction(state: CombatState, action: Extract<PlayerAction, { type: '
       reject(events, 'Invalid or dead enemy stack.');
       return { state, events };
     }
-    const validTargets = computeValidTargets(actor, state.enemyArmy, def);
+    if (isBlockedByFrontAlly(actor, state.playerArmy, def)) {
+      reject(events, `${def.name} cannot attack while a friendly stack stands in front of it.`);
+      return { state, events };
+    }
+    const validTargets = computeValidTargets(actor, state.enemyArmy, def, state.playerArmy);
     if (validTargets.length === 0) {
       reject(events, `${def.name} has no target in reach.`);
       return { state, events };
@@ -792,10 +796,9 @@ function resolveEnemyTurn(state: CombatState, events: CombatEvent[]): EnemyStep[
       continue;
     }
 
-    const validTargets = computeValidTargets(actor, state.playerArmy, UNIT_DEFINITIONS[actor.unitId]);
+    const validTargets = computeValidTargets(actor, state.playerArmy, UNIT_DEFINITIONS[actor.unitId], state.enemyArmy);
     let target = findStack(state.playerArmy, intent.targetStackId ?? undefined);
-    const taunting = !!target && target.statuses.some((st) => st.type === 'taunt');
-    if (!target || (!taunting && !validTargets.some((t) => t.stackId === target!.stackId))) {
+    if (!target || !validTargets.some((t) => t.stackId === target!.stackId)) {
       // The planned target died or left reach (the player moved stacks): re-pick, but only within what this attacker can reach.
       target = validTargets[0];
     }

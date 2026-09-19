@@ -3,7 +3,9 @@ import { createStack } from '../army.js';
 import { applyPlayerAction } from '../combat.js';
 import { UNIT_DEFINITIONS } from '../data/units.js';
 import { createVerticalSliceScenario } from '../scenario.js';
-import { computeValidTargets } from '../targeting.js';
+import { computeHealAmount } from '../damage.js';
+import { generateEnemyIntents } from '../intents.js';
+import { computeValidTargets, isBlockedByFrontAlly } from '../targeting.js';
 import type { ArmyStack, CombatState, Position } from '../types.js';
 import { sturdy } from './helpers.js';
 
@@ -153,5 +155,80 @@ describe('AO-D023 enemy step list', () => {
   it('non-END_TURN actions return no step list', () => {
     const { state } = createVerticalSliceScenario(2);
     expect(applyPlayerAction(state, { type: 'BASIC_ACTION', stackId: 'player_swordsman_1', targetStackId: 'enemy_orc_1' }).enemySteps).toBeUndefined();
+  });
+});
+
+describe('AO-D033 back-row melee behind a living friendly stack cannot attack', () => {
+  const own = (): ArmyStack[] => [createStack('orc', 'enemy', 1, 5), createStack('orc', 'enemy', 2, 5), createStack('goblin', 'enemy', 4, 5), createStack('goblin', 'enemy', 5, 5), createStack('goblin', 'enemy', 6, 5)];
+  const player = (): ArmyStack[] => [createStack('swordsman', 'player', 1, 6), createStack('knight', 'player', 2, 2), createStack('swordsman', 'player', 3, 6)];
+
+  it('has no targets when the front slot of its lane is alive, and does once that slot is empty', () => {
+    const army = own();
+    const [, , g4, g5, g6] = army;
+    expect(isBlockedByFrontAlly(g4!, army)).toBe(true);
+    expect(computeValidTargets(g4!, player(), undefined, army)).toEqual([]);
+    expect(isBlockedByFrontAlly(g6!, army)).toBe(false); // lane 3 front slot is empty
+    expect(computeValidTargets(g6!, player(), undefined, army).length).toBeGreaterThan(0);
+    const frontDead = army.map((s) => (s.position === 2 ? dead(s) : s));
+    expect(isBlockedByFrontAlly(g5!, frontDead)).toBe(false);
+  });
+
+  it('ranged units are unaffected', () => {
+    const army = [createStack('swordsman', 'player', 1, 5), createStack('archer', 'player', 4, 5)];
+    expect(isBlockedByFrontAlly(army[1]!, army)).toBe(false);
+    expect(computeValidTargets(army[1]!, [createStack('orc', 'enemy', 1, 5)], undefined, army)).toHaveLength(1);
+  });
+
+  it('the player cannot order a blocked stack to attack', () => {
+    const { state } = createVerticalSliceScenario(1);
+    const setup: CombatState = {
+      ...state,
+      playerArmy: [createStack('knight', 'player', 1, 3), createStack('swordsman', 'player', 4, 6)],
+      enemyArmy: [createStack('orc', 'enemy', 1, 5)],
+    };
+    const result = applyPlayerAction(setup, { type: 'BASIC_ACTION', stackId: 'player_swordsman_4', targetStackId: 'enemy_orc_1' });
+    expect(result.events.some((e) => e.type === 'ACTION_REJECTED')).toBe(true);
+    expect(result.events.some((e) => e.type === 'STACK_ATTACKED')).toBe(false);
+  });
+
+  it('a whole blocked enemy back row does not act, the front row still does, and the battle cannot stall', () => {
+    const { state } = createVerticalSliceScenario(1);
+    const enemy = [1, 2, 3].map((p) => createStack('orc', 'enemy', p as Position, 5)).concat([4, 5, 6].map((p) => createStack('goblin', 'enemy', p as Position, 5)));
+    const setup: CombatState = { ...sturdy(state), enemyArmy: enemy };
+    const ready = { ...setup, enemyIntents: generateEnemyIntents(setup) };
+    const attackers = ready.enemyIntents.filter((i) => i.kind === 'attack').map((i) => i.stackId);
+    expect(attackers.sort()).toEqual(['enemy_orc_1', 'enemy_orc_2', 'enemy_orc_3']);
+    const result = applyPlayerAction(ready, { type: 'END_TURN' });
+    expect(new Set(result.enemySteps!.map((s) => s.actorStackId))).toEqual(new Set(attackers));
+
+    // Front orcs die: the goblins are no longer blocked and act.
+    const frontDead: CombatState = { ...setup, enemyArmy: enemy.map((s) => (s.position <= 3 ? dead(s) : s)) };
+    expect(generateEnemyIntents(frontDead).filter((i) => i.kind === 'attack')).toHaveLength(3);
+  });
+});
+
+describe('AO-D034 healing is linear in count', () => {
+  it('doubling the healer count doubles the heal', () => {
+    const priest = (count: number) => createStack('priest', 'player', 5, count);
+    expect(computeHealAmount(priest(100), 4)).toBe(400);
+    expect(computeHealAmount(priest(100), 4)).toBe(2 * computeHealAmount(priest(50), 4));
+  });
+});
+
+describe('AO-D031 balance guard: starting armies survive one passed enemy turn', () => {
+  it('Warlord and Rogue starting armies survive a passed turn against the guarded_shaman formation', () => {
+    for (const hero of ['warlord', 'rogue'] as const) {
+      for (let seed = 1; seed <= 5; seed++) {
+        const { state } = createVerticalSliceScenario(seed, hero, 'guarded_shaman');
+        expect(applyPlayerAction(state, { type: 'END_TURN' }).state.result).toBe('ongoing');
+      }
+    }
+  });
+
+  it('the Mage starting army (Archer + Priest) is never blocked from acting by the back-row rule', () => {
+    const { state } = createVerticalSliceScenario(3, 'mage');
+    const archer = state.playerArmy.find((s) => s.unitId === 'archer')!;
+    expect(isBlockedByFrontAlly(archer, state.playerArmy)).toBe(false);
+    expect(computeValidTargets(archer, state.enemyArmy, undefined, state.playerArmy).length).toBeGreaterThan(0);
   });
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyDamageToStack, applyHealToStack, computeRawDamage, effectiveCount } from '../damage.js';
+import { applyDamageToStack, applyHealToStack, computeRawDamage } from '../damage.js';
 import type { ArmyStack } from '../types.js';
 
 function stack(overrides: Partial<ArmyStack> = {}): ArmyStack {
@@ -23,23 +23,6 @@ function stack(overrides: Partial<ArmyStack> = {}): ArmyStack {
   };
 }
 
-describe('effectiveCount', () => {
-  it('applies the correct bracket multiplier (v3 §10: 1-20/21-50/51-100/101-200/201-400/400+)', () => {
-    expect(effectiveCount(20)).toBe(20);
-    expect(effectiveCount(50)).toBeCloseTo(45);
-    expect(effectiveCount(100)).toBeCloseTo(75);
-    expect(effectiveCount(200)).toBeCloseTo(120);
-    expect(effectiveCount(400)).toBeCloseTo(180);
-    expect(effectiveCount(1000)).toBeCloseTo(350);
-  });
-
-  it('500 soldiers are stronger than 100 but not 5x stronger', () => {
-    const ratio = effectiveCount(500) / effectiveCount(100);
-    expect(ratio).toBeGreaterThan(1);
-    expect(ratio).toBeLessThan(5);
-  });
-});
-
 describe('computeRawDamage', () => {
   it('is deterministic for identical inputs', () => {
     const attacker = stack({ count: 80 });
@@ -58,16 +41,24 @@ describe('computeRawDamage', () => {
   });
 
   it('a hit with attack below defense still deals damage (AO-D018: -2.5% per point, capped at -70%)', () => {
-    const attacker = stack({ count: 10 });
-    expect(computeRawDamage({ attackerStack: attacker, attackerBaseAttack: 3, targetDefense: 4, multiplier: 1 })).toBe(29); // 30 x 0.975
-    expect(computeRawDamage({ attackerStack: attacker, attackerBaseAttack: 3, targetDefense: 99, multiplier: 1 })).toBe(9); // 30 x 0.3 (capped)
+    const attacker = stack({ count: 100 }); // swordsman, base damage 1
+    expect(computeRawDamage({ attackerStack: attacker, attackerBaseAttack: 3, targetDefense: 5, multiplier: 1 })).toBe(95);
+    expect(computeRawDamage({ attackerStack: attacker, attackerBaseAttack: 3, targetDefense: 99, multiplier: 1 })).toBe(30);
     expect(computeRawDamage({ attackerStack: stack({ count: 1 }), attackerBaseAttack: 1, targetDefense: 99, multiplier: 1 })).toBe(1);
   });
 
   it('attack above defense adds 5% per point, capped at +300%', () => {
-    const attacker = stack({ count: 10 });
-    expect(computeRawDamage({ attackerStack: attacker, attackerBaseAttack: 5, targetDefense: 3, multiplier: 1 })).toBe(55); // 50 x 1.10
-    expect(computeRawDamage({ attackerStack: attacker, attackerBaseAttack: 100, targetDefense: 0, multiplier: 1 })).toBe(4000);
+    const attacker = stack({ count: 100 });
+    expect(computeRawDamage({ attackerStack: attacker, attackerBaseAttack: 5, targetDefense: 3, multiplier: 1 })).toBe(110);
+    expect(computeRawDamage({ attackerStack: attacker, attackerBaseAttack: 100, targetDefense: 0, multiplier: 1 })).toBe(400);
+  });
+
+  it('AO-D031: base damage comes from the unit definition, attack only feeds the modifier', () => {
+    const knight = stack({ unitId: 'knight', count: 10 }); // base damage 4
+    expect(computeRawDamage({ attackerStack: knight, attackerBaseAttack: 4, targetDefense: 4, multiplier: 1 })).toBe(40);
+    expect(computeRawDamage({ attackerStack: knight, attackerBaseAttack: 4, targetDefense: 4, multiplier: 2 })).toBe(80);
+    // Doubling attack changes only the percentage modifier (+20% for 4 points), not the base.
+    expect(computeRawDamage({ attackerStack: knight, attackerBaseAttack: 8, targetDefense: 4, multiplier: 1 })).toBe(48);
   });
 
   it('is linear in unit count: one stack of 60 deals exactly what two stacks of 30 deal together', () => {

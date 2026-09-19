@@ -34,9 +34,12 @@ function laneDistance(a: Lane, b: Lane): number {
  * Softlock guard: if that leaves no target while candidates exist (e.g. the
  * only living enemy is two lanes away), the nearest lane's candidates become
  * legal so a battle can never stall.
+ * AO-D033: when `ownArmy` is given, a back-row melee stack with a living
+ * friendly stack directly in front of it (same lane) has no targets at all.
  */
-export function computeValidTargets(attacker: ArmyStack, enemyArmy: ArmyStack[], attackerDef?: UnitDefinition): ArmyStack[] {
+export function computeValidTargets(attacker: ArmyStack, enemyArmy: ArmyStack[], attackerDef?: UnitDefinition, ownArmy?: ArmyStack[]): ArmyStack[] {
   const def = attackerDef ?? UNIT_DEFINITIONS[attacker.unitId];
+  if (ownArmy && isBlockedByFrontAlly(attacker, ownArmy, def)) return [];
   const alive = enemyArmy.filter((s) => s.count > 0 && !s.flags.untargetable);
 
   if (def.rangedAllAccess) {
@@ -54,6 +57,14 @@ export function computeValidTargets(attacker: ArmyStack, enemyArmy: ArmyStack[],
 
   const nearest = Math.min(...candidates.map((s) => laneDistance(lane, laneOf(s.position))));
   return candidates.filter((s) => laneDistance(lane, laneOf(s.position)) === nearest);
+}
+
+/** AO-D033 "disciples": a melee unit in the back row cannot attack while a living friendly stack stands directly in front of it. */
+export function isBlockedByFrontAlly(attacker: ArmyStack, ownArmy: ArmyStack[], attackerDef?: UnitDefinition): boolean {
+  const def = attackerDef ?? UNIT_DEFINITIONS[attacker.unitId];
+  if (def.rangedAllAccess || isFrontPosition(attacker.position)) return false;
+  const frontPosition = attacker.position - 3;
+  return ownArmy.some((s) => s.count > 0 && s.stackId !== attacker.stackId && s.position === frontPosition);
 }
 
 /** Any living friendly stack is a valid heal target (Priest's basic action). */

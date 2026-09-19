@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { createStack } from '../army.js';
 import { applyPlayerAction } from '../combat.js';
 import { generateEnemyIntents } from '../intents.js';
 import { createVerticalSliceScenario } from '../scenario.js';
@@ -46,24 +47,33 @@ describe('v3 §8 Veterancy (flat tiers 0/3/5/8%)', () => {
   });
 });
 
-describe('Taunt overrides normal enemy targeting', () => {
-  it('a taunting stack pulls every attack intent regardless of lane/row', () => {
-    // Intents are locked in at the start of a turn — this tests generateEnemyIntents
-    // directly rather than going through an END_TURN that would still be executing
-    // the turn's original (pre-Taunt) intents.
-    // Warlord's reduced starting roster (v3 balance pass) has no Archer — use Rogue, whose
-    // Archer stack still lands at the same player_archer_4 id (ranged units are backline).
+describe('Taunt narrows enemy targeting but never overrides reach (AO-D032)', () => {
+  const taunt = { type: 'taunt' as const, amount: 1, duration: 2 };
+  const setup = (taunted: string): CombatState => {
     const { state } = createVerticalSliceScenario(502, 'rogue');
-    const taunting: CombatState = {
+    return {
       ...state,
-      playerArmy: state.playerArmy.map((s) => (s.stackId === 'player_archer_4' ? { ...s, statuses: [{ type: 'taunt' as const, amount: 1, duration: 2 }] } : s)),
+      playerArmy: [createStack('knight', 'player', 1, 6), createStack('swordsman', 'player', 3, 6), createStack('archer', 'player', 4, 6)].map((s) =>
+        s.stackId === taunted ? { ...s, statuses: [taunt] } : s
+      ),
+      enemyArmy: [createStack('orc', 'enemy', 1, 5), createStack('orc', 'enemy', 3, 5)],
     };
-    const intents = generateEnemyIntents(taunting);
-    const attackIntents = intents.filter((i) => i.kind === 'attack');
-    expect(attackIntents.length).toBeGreaterThan(0);
-    for (const intent of attackIntents) {
-      expect(intent.targetStackId).toBe('player_archer_4');
-    }
+  };
+  const targetOf = (state: CombatState, actorPosition: number) => {
+    const actor = state.enemyArmy.find((s) => s.position === actorPosition)!;
+    return generateEnemyIntents(state).find((i) => i.stackId === actor.stackId)!.targetStackId;
+  };
+
+  it('a taunting front stack pulls the melee attackers that can reach it, and only those', () => {
+    const state = setup('player_swordsman_3');
+    expect(targetOf(state, 3)).toBe('player_swordsman_3');
+    // The left-lane orc cannot reach the right-lane taunter: it keeps its normal target.
+    expect(targetOf(state, 1)).toBe('player_knight_1');
+  });
+
+  it('a back-row taunter cannot be targeted by front-row melee while a front stack lives', () => {
+    const state = setup('player_archer_4');
+    for (const pos of [1, 3]) expect(targetOf(state, pos)).not.toBe('player_archer_4');
   });
 });
 
@@ -154,9 +164,10 @@ describe('Dodge (Hero Dexterity)', () => {
         ...current,
         // v3 balance pass shrank starting rosters — reset the target to full strength each
         // iteration so it survives the whole enemy formation's concentrated fire and the loop
-        // gets a fair number of dodge rolls instead of dying out after one or two turns.
+        // gets a fair number of dodge rolls instead of dying out after one or two turns. The archer
+        // stands in the front row so the forced intents are inside melee reach (AO-D013/D021).
         playerArmy: current.playerArmy.map((s) =>
-          s.stackId === archer.stackId ? { ...s, count: originalArcher.count, currentHp: originalArcher.maxHp } : s
+          s.stackId === archer.stackId ? { ...s, count: originalArcher.count, currentHp: originalArcher.maxHp, position: 3 as const } : s
         ),
         enemyIntents: current.enemyIntents.map((it) => ({ ...it, kind: 'attack', targetStackId: archer.stackId, estimatedDamage: 1 })),
       };

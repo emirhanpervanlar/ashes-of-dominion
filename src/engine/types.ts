@@ -30,6 +30,8 @@ export interface UnitDefinition {
   name: string;
   side: Side;
   hpPerUnit: number;
+  /** AO-D031: base damage per unit; attack and defense only scale it through the H3 percentage modifier. */
+  damage: number;
   attack: number;
   defense: number;
   tags: string[];
