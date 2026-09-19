@@ -225,9 +225,9 @@ describe('AO-D027: run stats', () => {
       { type: 'TURN_STARTED', side: 'player', turnNumber: 2 },
       { type: 'TURN_STARTED', side: 'enemy', turnNumber: 2 },
       { type: 'CARD_PLAYED', instanceId: 'a', cardId: 'x' },
-      { type: 'STACK_ATTACKED', attackerStackId: 'p1', targetStackId: 'e1', rawDamage: 20, finalDamage: 15, blocked: 5 },
+      { type: 'STACK_ATTACKED', attackerStackId: 'p1', targetStackId: 'e1', rawDamage: 20, finalDamage: 15, blocked: 5, unitsKilled: 3, countAfter: 0 },
       { type: 'UNITS_KILLED', stackId: 'e1', count: 3 },
-      { type: 'STACK_ATTACKED', attackerStackId: 'e1', targetStackId: 'p1', rawDamage: 9, finalDamage: 9, blocked: 0 },
+      { type: 'STACK_ATTACKED', attackerStackId: 'e1', targetStackId: 'p1', rawDamage: 9, finalDamage: 9, blocked: 0, unitsKilled: 1, countAfter: 0 },
       { type: 'UNITS_KILLED', stackId: 'p1', count: 1 },
     ];
     tallyCombatEvents(stats, events, new Set(['p1']));
