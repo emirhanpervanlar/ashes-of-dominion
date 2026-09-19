@@ -247,3 +247,29 @@ describe('Rally and unit passives', () => {
     expect(backDmg).toBeGreaterThan(frontDmg);
   });
 });
+
+describe('"1 turn" self-lockdown flags (Brace) expire instead of sticking forever', () => {
+  it('a stack that plays Brace can act again on its next turn', () => {
+    let { state } = createVerticalSliceScenario(510);
+    state = withHand(state, ['brace']);
+    const swordsman = state.playerArmy.find((s) => s.unitId === 'swordsman')!;
+    const braced = applyPlayerAction(state, {
+      type: 'PLAY_CARD',
+      instanceId: handCard(state, 'brace').instanceId,
+      actingStackId: swordsman.stackId,
+    }).state;
+    expect(braced.playerArmy.find((s) => s.stackId === swordsman.stackId)!.flags.cannotAttack).toBe(true);
+
+    // Rejected this turn.
+    const rejectedThisTurn = applyPlayerAction(braced, { type: 'BASIC_ACTION', stackId: swordsman.stackId, targetStackId: 'enemy_orc_1' });
+    expect(rejectedThisTurn.events.some((e) => e.type === 'ACTION_REJECTED')).toBe(true);
+
+    // End turn (through the enemy's turn) and back to a fresh player turn — the flag must be gone.
+    const nextTurn = applyPlayerAction(braced, { type: 'END_TURN' }).state;
+    const swordsmanNextTurn = nextTurn.playerArmy.find((s) => s.stackId === swordsman.stackId)!;
+    expect(swordsmanNextTurn.flags.cannotAttack).toBeFalsy();
+    expect(swordsmanNextTurn.flags.incomingDamageReductionPercent).toBeFalsy();
+    const actedNextTurn = applyPlayerAction(nextTurn, { type: 'BASIC_ACTION', stackId: swordsman.stackId, targetStackId: 'enemy_orc_1' });
+    expect(actedNextTurn.events.some((e) => e.type === 'ACTION_REJECTED')).toBe(false);
+  });
+});

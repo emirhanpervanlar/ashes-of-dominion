@@ -146,7 +146,15 @@ function resolveAttack(
   let actualTarget = target;
   if (redirect && !attacker.flags.nextAttackCannotBeRedirected) {
     const guardian = findStack(army, redirect.toStackId);
-    if (guardian) actualTarget = guardian;
+    if (guardian) {
+      actualTarget = guardian;
+      // The Protect card's explicit redirect covers only the next hit taken — clear it so later
+      // attacks against the original target don't keep redirecting forever (the Guard passive's
+      // implicit redirect has no flag to clear, so it naturally re-evaluates every attack instead).
+      if (target.flags.redirectToStackId) {
+        replaceStack(army, { ...target, flags: { ...target.flags, redirectPercent: undefined, redirectToStackId: undefined } });
+      }
+    }
   }
   targetDef = UNIT_DEFINITIONS[actualTarget.unitId];
 
@@ -756,6 +764,13 @@ function startPlayerTurn(state: CombatState, events: CombatEvent[], isFirstTurn:
 
     for (const stack of state.playerArmy) {
       stack.block = 0;
+      // "1 turn" self-lockdown flags (Brace, Shield Wall, ...) protect through the enemy's turn
+      // and then expire — unlike statuses, StackFlags have no duration field, so this is the
+      // only place they get cleared. Without it a stack that ever played one of these cards
+      // would be permanently stuck (e.g. always rejecting basic actions as "cannot act").
+      if (stack.flags.cannotAttack || stack.flags.cannotMove || stack.flags.incomingDamageReductionPercent) {
+        stack.flags = { ...stack.flags, cannotAttack: undefined, cannotMove: undefined, incomingDamageReductionPercent: undefined };
+      }
     }
 
     tickStatuses(state.playerArmy, events);

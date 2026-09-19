@@ -34,12 +34,13 @@ describe('v2 targeting geometry (v2_list.md §5)', () => {
     expect(targets.map((t) => t.position).sort()).toEqual([2, 3]);
   });
 
-  it('an empty/dead front lane exposes the matching backline position', () => {
+  it('an empty/dead front lane gives melee no target there — it never falls back to the backline', () => {
     const enemy = enemyRow().map((s) => (s.position === 1 ? { ...s, count: 0, currentHp: 0 } : s));
     const attacker = createStack('swordsman', 'player', 1, 10);
     const targets = computeValidTargets(attacker, enemy, UNIT_DEFINITIONS.swordsman);
-    // Left lane (front pos 1 dead) falls back to back pos 4; center front pos 2 is still alive.
-    expect(targets.map((t) => t.position).sort()).toEqual([2, 4]);
+    // Left lane (front pos 1 dead) contributes nothing; center front pos 2 is still alive.
+    // Only ranged units may ever reach the backline.
+    expect(targets.map((t) => t.position).sort()).toEqual([2]);
   });
 
   it('a ranged unit (Archer) can reach every alive enemy regardless of lane', () => {
