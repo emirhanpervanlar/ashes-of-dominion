@@ -212,7 +212,7 @@ describe('AO-D027: run stats', () => {
     const { stats: _s, cardRemoval: _c, ...legacy } = createRun(10);
     const migrated = migrateRun(legacy as unknown as RunState);
     expect(migrated.stats).toEqual(createRunStats());
-    expect(migrated.cardRemoval).toEqual({ merchantUses: 0, lastCityDay: null });
+    expect(migrated.cardRemoval).toEqual({ merchantUses: 0, cityUses: 0 });
     // ...and the reducer accepts it directly.
     const result = applyRunAction(legacy as unknown as RunState, { type: 'CHOOSE_STARTING_RELIC', relicId: 'royal_banner' });
     expect(result.run.stats.nodesVisited).toBe(0);
@@ -358,21 +358,39 @@ describe('AO-D026: card removal at merchant and city', () => {
     expect(result.run.gold).toBe(10);
   });
 
-  it('city: free, once per week', () => {
-    let run = atCity(32);
-    const gold = run.gold;
-    run = act(run, { type: 'REMOVE_CARD', instanceId: run.masterDeck[0]!.instanceId }).run;
-    expect(run.gold).toBe(gold);
+  it('city (AO-D052): the first removal is free, then 50, 100, 200 ... Gold each, with no daily limit', () => {
+    let run = { ...atCity(32), gold: 1000 };
+    const remove = () => {
+      const before = run.gold;
+      const result = act(run, { type: 'REMOVE_CARD', instanceId: run.masterDeck[0]!.instanceId });
+      expect(rejected(result.events)).toBe(false);
+      run = result.run;
+      return before - run.gold;
+    };
+    expect(cardRemovalQuote(run)).toEqual({ allowed: true, gold: 0 });
+    expect([remove(), remove(), remove(), remove()]).toEqual([0, 50, 100, 200]);
+    expect(run.day).toBe(atCity(32).day); // same day every time
     expect(run.phase).toBe('city');
-    expect(run.masterDeck).toHaveLength(9);
+    expect(run.masterDeck).toHaveLength(6);
+    expect(cardRemovalQuote(run)).toEqual({ allowed: true, gold: 400 });
+  });
 
+  it('city: an unaffordable removal is rejected and quoted as such', () => {
+    let run = atCity(32);
+    run = act(run, { type: 'REMOVE_CARD', instanceId: run.masterDeck[0]!.instanceId }).run;
+    run = { ...run, gold: 49 };
+    expect(cardRemovalQuote(run)).toMatchObject({ allowed: false });
     const again = act(run, { type: 'REMOVE_CARD', instanceId: run.masterDeck[0]!.instanceId });
     expect(rejected(again.events)).toBe(true);
     expect(again.run.masterDeck).toHaveLength(9);
+    expect(cardRemovalQuote({ ...run, gold: 50 })).toEqual({ allowed: true, gold: 50 });
+  });
 
-    const nextWeek = act({ ...run, day: run.day + CARD_REMOVAL.city.cooldownDays }, { type: 'REMOVE_CARD', instanceId: run.masterDeck[0]!.instanceId });
-    expect(rejected(nextWeek.events)).toBe(false);
-    expect(nextWeek.run.masterDeck).toHaveLength(8);
+  it('a save with the old lastCityDay counter migrates to one paid-for city use', () => {
+    const run = atCity(32);
+    const old = { ...run, cardRemoval: { merchantUses: 2, lastCityDay: 4 } } as unknown as RunState;
+    expect(migrateRun(old).cardRemoval).toEqual({ merchantUses: 2, cityUses: 1 });
+    expect(migrateRun({ ...old, cardRemoval: { merchantUses: 0, lastCityDay: null } } as unknown as RunState).cardRemoval.cityUses).toBe(0);
   });
 
   it('is rejected on the map, for unknown cards, and below the minimum deck size', () => {
