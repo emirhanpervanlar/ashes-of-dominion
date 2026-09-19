@@ -13,14 +13,14 @@ interface ActionCardTileProps {
 
 export function ActionCardTile({ id, name, description, manaCost, affordable, pending, footer, onClick }: ActionCardTileProps) {
   const visual = cardVisual(id);
-  const classes = ['action-card', 'cost-mana'];
+  const classes = ['action-card', `polarity-${visual.polarity}`];
   if (!affordable) classes.push('disabled');
   if (pending) classes.push('pending');
 
   return (
     <div className={classes.join(' ')} onClick={affordable ? onClick : undefined} title={description}>
       <div className="action-card-cost">{manaCost}M</div>
-      <div className={`action-card-icon polarity-${visual.polarity}`}>{visual.icon}</div>
+      <div className="action-card-icon">{visual.icon}</div>
       <div className="action-card-name">{name}</div>
       <div className="action-card-desc">{description}</div>
       {footer && <div className="action-card-footer">{footer}</div>}

@@ -8,7 +8,8 @@ interface Props {
 
 export function StartingRelicScreen({ heroName, onChoose }: Props) {
   return (
-    <div className="setup-screen">
+    <div className="screen" data-screen="hero">
+     <div className="setup-screen">
       <div className="setup-hero-portrait">🤴</div>
       <h1>{heroName}</h1>
       <div className="subtitle">
@@ -18,16 +19,17 @@ export function StartingRelicScreen({ heroName, onChoose }: Props) {
 
       <div className="setup-options">
         {Object.values(STARTING_RELIC_DEFINITIONS).map((relic) => (
-          <div key={relic.id} className="card-tile setup-option" onClick={() => onChoose(relic.id)}>
-            <div className="card-name">
+          <div key={relic.id} className="option-tile setup-option" onClick={() => onChoose(relic.id)}>
+            <div className="option-name">
               <span>
                 {relicIcon(relic.id)} {relic.name}
               </span>
             </div>
-            <div className="card-text">{relic.description}</div>
+            <div className="option-text">{relic.description}</div>
           </div>
         ))}
       </div>
+     </div>
     </div>
   );
 }

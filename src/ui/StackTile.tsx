@@ -103,6 +103,7 @@ export function StackTile({
         title={def.name}
       >
         <span className="portrait-art">{UNIT_ICONS[stack.unitId]}</span>
+        <span className="portrait-count">×{stack.count}</span>
         <span className="portrait-role-badge">{UNIT_ROLE_ICONS[stack.unitId]}</span>
         {selected && <span className="portrait-select-badge">✓</span>}
         {locked && !selected && <span className="portrait-lock-badge">🔒</span>}
@@ -138,9 +139,7 @@ export function StackTile({
       </div>
       {floatersEl}
       <div className="portrait-meta">
-        <div className="unit-name">
-          {def.name} <span className="unit-count">×{stack.count}</span>
-        </div>
+        <div className="unit-name">{def.name}</div>
       </div>
     </div>
   );

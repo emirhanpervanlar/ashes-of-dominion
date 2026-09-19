@@ -28,8 +28,8 @@ export function RewardScreen({ reward, deck, removalQuote, onClaimCard, onClaimU
   ];
 
   return (
-    <div className="reward-overlay">
-      <div className="reward-banner">Victory! Choose One</div>
+    <div className="screen reward-overlay" data-screen="vault">
+      <div className="plaque plaque--ribbon">Victory! Choose One</div>
 
       <div className="reward-card-row">
         {slots.length === 0 && <div className="reward-empty">No cards available.</div>}
@@ -41,9 +41,9 @@ export function RewardScreen({ reward, deck, removalQuote, onClaimCard, onClaimU
           const visual = cardVisual(slot.cardId);
           const onClick = isUpgrade ? () => onClaimUpgrade(slot.instanceId) : () => onClaimCard(slot.cardId);
           return (
-            <div key={slot.key} className="reward-card" onClick={onClick}>
+            <div key={slot.key} className={`reward-card polarity-${visual.polarity}`} onClick={onClick}>
               <div className="reward-card-cost">{def.manaCost}</div>
-              <div className={`reward-card-icon polarity-${visual.polarity}`}>{visual.icon}</div>
+              <div className="reward-card-icon">{visual.icon}</div>
               <div className="reward-card-name">{def.name}</div>
               {isUpgrade && <div className="reward-card-tag">Upgrade</div>}
               <div className="reward-card-desc">{CARD_DESCRIPTIONS[displayCardId] ?? displayCardId}</div>
@@ -53,8 +53,8 @@ export function RewardScreen({ reward, deck, removalQuote, onClaimCard, onClaimU
       </div>
 
       <div className="reward-actions">
-        <CardRemovalPicker deck={deck} quote={removalQuote} onRemove={onRemoveCard} className="reward-skip-btn" />
-        <button className="reward-skip-btn" onClick={onSkip}>
+        <CardRemovalPicker deck={deck} quote={removalQuote} onRemove={onRemoveCard} />
+        <button className="btn" onClick={onSkip}>
           Skip
         </button>
       </div>

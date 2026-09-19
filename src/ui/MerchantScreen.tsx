@@ -20,11 +20,11 @@ interface Props {
 
 export function MerchantScreen({ gold, inventory, deck, removalQuote, onBuyCard, onBuyRelic, onRemoveCard, onLeave }: Props) {
   return (
-    <div className="merchant-overlay">
+    <div className="screen merchant-overlay" data-screen="vault">
       <div className="merchant-topbar">
-        <div className="merchant-title">Merchant</div>
-        <div className="merchant-gold">
-          <span className="merchant-gold-icon">💰</span> {gold}
+        <div className="plaque plaque--ribbon">Merchant</div>
+        <div className="pill pill--gold">
+          <span>💰</span> {gold}
         </div>
       </div>
 
@@ -35,9 +35,13 @@ export function MerchantScreen({ gold, inventory, deck, removalQuote, onBuyCard,
           const visual = cardVisual(offer.cardId);
           const affordable = gold >= offer.price;
           return (
-            <div key={offer.cardId} className={`reward-card merchant-card${affordable ? '' : ' disabled'}`} onClick={affordable ? () => onBuyCard(offer.cardId) : undefined}>
+            <div
+              key={offer.cardId}
+              className={`reward-card merchant-card polarity-${visual.polarity}${affordable ? '' : ' disabled'}`}
+              onClick={affordable ? () => onBuyCard(offer.cardId) : undefined}
+            >
               <div className="reward-card-cost">{cardDef.manaCost}</div>
-              <div className={`reward-card-icon polarity-${visual.polarity}`}>{visual.icon}</div>
+              <div className="reward-card-icon">{visual.icon}</div>
               <div className="reward-card-name">{cardDef.name}</div>
               <div className="reward-card-desc">{CARD_DESCRIPTIONS[offer.cardId] ?? offer.cardId}</div>
               <div className="merchant-price">{offer.price}g</div>
@@ -56,7 +60,7 @@ export function MerchantScreen({ gold, inventory, deck, removalQuote, onBuyCard,
                 onClick={affordable ? () => onBuyRelic(inventory.relicOffer!.relicId) : undefined}
               >
                 <div className="reward-card-tag">Relic</div>
-                <div className="reward-card-icon polarity-utility">{relicIcon(inventory.relicOffer.relicId)}</div>
+                <div className="reward-card-icon">{relicIcon(inventory.relicOffer.relicId)}</div>
                 <div className="reward-card-name">{relic.name}</div>
                 <div className="reward-card-desc">{relic.description}</div>
                 <div className="merchant-price">{inventory.relicOffer.price}g</div>
@@ -69,9 +73,9 @@ export function MerchantScreen({ gold, inventory, deck, removalQuote, onBuyCard,
         <CardRemovalPicker deck={deck} quote={removalQuote} onRemove={onRemoveCard} />
       </div>
 
-      <div className="merchant-leave-ribbon" onClick={onLeave}>
+      <button className="btn btn--danger btn--l merchant-leave" onClick={onLeave}>
         Leave
-      </div>
+      </button>
     </div>
   );
 }

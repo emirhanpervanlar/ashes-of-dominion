@@ -610,7 +610,7 @@ export default function App() {
 
   const toastLayer = <ToastStack toasts={toasts} onDismiss={dismissToast} />;
   const menuButton = (
-    <button className="pause-menu-btn" onClick={() => setMenuOpen(true)} title="Menu">
+    <button className="btn btn--sq pause-menu-btn" onClick={() => setMenuOpen(true)} title="Menu">
       ☰
     </button>
   );
@@ -767,7 +767,7 @@ export default function App() {
   const canAct = combat.phase === 'player' && combat.result === 'ongoing' && !enemyAnimQueue && !playerFx && !flyingCard;
 
   return (
-    <div className="disciples-frame">
+    <div className="screen disciples-frame" data-screen="battle">
       {gameChromeNoMenuBtn}
 
       <span className="frame-ornament corner-tl" aria-hidden="true">
@@ -796,7 +796,7 @@ export default function App() {
               <div className="mana-bar-track">
                 <div className="mana-bar-fill" style={{ width: `${manaPct}%` }} />
               </div>
-              <span>
+              <span className="mana-value">
                 {combat.hero.mana}/{combat.hero.maxMana}
               </span>
             </div>
@@ -954,13 +954,13 @@ export default function App() {
         </div>
 
         <div className="frame-round-buttons">
-          <button className="round-btn round-btn-main" disabled={!canAct} onClick={handleEndTurn} title="End Turn">
+          <button className="btn btn--primary round-btn round-btn-main" disabled={!canAct} onClick={handleEndTurn} title="End Turn">
             ⚔️
           </button>
-          <button className="round-btn" onClick={() => setHistoryOpen(true)} title="Battle Log">
+          <button className="btn round-btn" onClick={() => setHistoryOpen(true)} title="Battle Log">
             📜
           </button>
-          <button className="round-btn" onClick={() => setMenuOpen(true)} title="Menu">
+          <button className="btn round-btn" onClick={() => setMenuOpen(true)} title="Menu">
             ⚙️
           </button>
         </div>

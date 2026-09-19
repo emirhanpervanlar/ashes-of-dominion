@@ -73,7 +73,7 @@ export function CityScreen({ city, gold, food, hero, army, relics, log, deck, re
   }
 
   return (
-    <div className="th-frame">
+    <div className="screen th-frame" data-screen="city">
       <div className="th-scene">
         <div className="th-skyline" />
         <div className="th-scene-label">Ironhold</div>
@@ -116,8 +116,8 @@ export function CityScreen({ city, gold, food, hero, army, relics, log, deck, re
       {panel && (
         <>
           <div className="modal-backdrop" onClick={() => setPanel(null)} />
-          <div className="city-building-popup">
-            <button className="modal-close" onClick={() => setPanel(null)}>
+          <div className="popup panel panel--wood step-8 city-building-popup">
+            <button className="btn modal-close" onClick={() => setPanel(null)}>
               ✕
             </button>
 
@@ -128,13 +128,14 @@ export function CityScreen({ city, gold, food, hero, army, relics, log, deck, re
                   City Level {city.level} — {slotsMax} building slots.
                 </p>
                 {nextLevel ? (
-                  <button onClick={onUpgradeCity} disabled={gold < LEVEL_UP_COST[nextLevel]}>
+                  <button className="btn" onClick={onUpgradeCity} disabled={gold < LEVEL_UP_COST[nextLevel]}>
                     Upgrade to Level {nextLevel} ({LEVEL_UP_COST[nextLevel]}g)
                   </button>
                 ) : (
                   <p className="subtitle">Already at maximum level.</p>
                 )}
-                <h3 style={{ marginTop: 16 }}>Deck</h3>
+                <div className="divider" />
+                <h3>Deck</h3>
                 <CardRemovalPicker deck={deck} quote={removalQuote} onRemove={onRemoveCard} />
               </>
             )}
@@ -142,36 +143,36 @@ export function CityScreen({ city, gold, food, hero, army, relics, log, deck, re
             {panel === 'barracks' && (
               <>
                 <h3>⚔️ Barracks — Recruit</h3>
-                <div className="hand" style={{ flexWrap: 'wrap' }}>
+                <div className="option-row">
                   {RECRUITABLE.map((unitId) => {
                     const unlocked = canRecruitUnit(city, unitId);
                     const count = counts[unitId] ?? 5;
                     const cost = unlocked ? recruitCost(city, unitId, count) : null;
                     const affordable = !!cost && gold >= cost.gold && food >= cost.food;
                     return (
-                      <div key={unitId} className="card-tile" style={{ minWidth: 170 }}>
-                        <div className="card-name">
+                      <div key={unitId} className="option-tile">
+                        <div className="option-name">
                           <span>
                             {UNIT_ICONS[unitId]} {UNIT_DEFINITIONS[unitId].name}
                           </span>
                         </div>
                         {!unlocked ? (
-                          <div className="card-text">Not recruitable yet.</div>
+                          <div className="option-text">Not recruitable yet.</div>
                         ) : (
                           <>
-                            <div className="card-text">
+                            <div className="option-text">
                               {cost!.gold}g / {cost!.food}f for {count}
                             </div>
                             <input
+                              className="input count-input"
                               type="number"
                               min={1}
                               max={99}
                               value={count}
                               onChange={(e) => setCounts({ ...counts, [unitId]: Math.max(1, Number(e.target.value) || 1) })}
-                              style={{ width: 50, marginTop: 4 }}
                             />
-                            <div className="toolbar" style={{ marginTop: 4, marginBottom: 0 }}>
-                              <button disabled={!affordable || armyFull} onClick={() => recruit(unitId, count)}>
+                            <div className="toolbar">
+                              <button className="btn btn--s" disabled={!affordable || armyFull} onClick={() => recruit(unitId, count)}>
                                 Recruit
                               </button>
                             </div>
@@ -187,21 +188,21 @@ export function CityScreen({ city, gold, food, hero, army, relics, log, deck, re
             {panel === 'temple' && (
               <>
                 <h3>⛩️ Temple — Doctrine</h3>
-                <div className="hand" style={{ flexWrap: 'wrap' }}>
+                <div className="option-row">
                   {Object.values(DOCTRINE_DEFINITIONS).map((doctrine) => {
                     const chosen = city.doctrine === doctrine.id;
                     const disabled = !!city.doctrine && !chosen;
                     return (
                       <div
                         key={doctrine.id}
-                        className={`card-tile${chosen ? ' pending' : ''}${disabled ? ' disabled' : ''}`}
+                        className={`option-tile${chosen ? ' chosen' : ''}${disabled ? ' disabled' : ''}`}
                         onClick={!city.doctrine ? () => onChooseDoctrine(doctrine.id) : undefined}
                       >
-                        <div className="card-name">
+                        <div className="option-name">
                           <span>{doctrine.name}</span>
-                          {chosen && <span className="card-cost">chosen</span>}
+                          {chosen && <span className="option-tag">chosen</span>}
                         </div>
-                        <div className="card-text">{doctrine.description}</div>
+                        <div className="option-text">{doctrine.description}</div>
                       </div>
                     );
                   })}
@@ -225,7 +226,7 @@ export function CityScreen({ city, gold, food, hero, army, relics, log, deck, re
                   ) : built ? (
                     <p className="subtitle">Already built.</p>
                   ) : (
-                    <button disabled={slotsFull || !affordable} onClick={() => onBuild(building.id)}>
+                    <button className="btn" disabled={slotsFull || !affordable} onClick={() => onBuild(building.id)}>
                       Build ({building.cost}g){slotsFull ? ' — no free slots' : ''}
                     </button>
                   )}
@@ -265,7 +266,7 @@ function MageTowerUpgrade({ tier, gold, onUpgrade }: { tier: 0 | 1 | 2 | 3; gold
     <>
       <p className="mage-tower-tier">Tier {ROMAN[tier - 1]}</p>
       {next ? (
-        <button disabled={gold < next.cost} onClick={onUpgrade}>
+        <button className="btn" disabled={gold < next.cost} onClick={onUpgrade}>
           Upgrade to Tier {ROMAN[tier]} - {next.cost} Gold
         </button>
       ) : (

@@ -37,20 +37,20 @@ export function GarrisonBar({ stats, onLeave, hero, relics, army, log, recentRec
     <>
       <div className="garrison-bar">
         <div className="garrison-bar-col garrison-bar-resources">
-          {stats.map((stat) => (
-            <div key={stat.icon} className="garrison-bar-stat">
+          {stats.map((stat, i) => (
+            <div key={stat.icon} className={`pill garrison-bar-stat${i === 0 ? ' pill--gold' : ''}`}>
               <span>{stat.icon}</span> {stat.text}
             </div>
           ))}
           {onLeave && (
-            <button className="garrison-leave-btn" onClick={onLeave}>
+            <button className="btn btn--danger btn--s" onClick={onLeave}>
               Leave
             </button>
           )}
         </div>
 
         <div className="garrison-bar-col garrison-bar-hero">
-          <div className="garrison-hero-plaque">{hero.name}</div>
+          <div className="plaque plaque--iron garrison-hero-plaque">{hero.name}</div>
           <div className="garrison-hero-portrait-rect">{HERO_PORTRAITS[hero.heroType]}</div>
           <div className="garrison-relic-grid">
             {Array.from({ length: RELIC_GRID_SLOTS }).map((_, i) => {
@@ -71,10 +71,10 @@ export function GarrisonBar({ stats, onLeave, hero, relics, army, log, recentRec
         </div>
 
         <div className="garrison-bar-actions">
-          <button className="garrison-bar-btn" onClick={() => setHistoryOpen(true)} title="History">
+          <button className="btn garrison-bar-btn" onClick={() => setHistoryOpen(true)} title="History">
             📜
           </button>
-          <button className="garrison-bar-btn" onClick={onOpenMenu} title="Menu">
+          <button className="btn garrison-bar-btn" onClick={onOpenMenu} title="Menu">
             ☰
           </button>
         </div>

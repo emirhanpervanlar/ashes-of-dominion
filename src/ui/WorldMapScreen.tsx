@@ -35,17 +35,6 @@ const NODE_BADGES: Record<MapNode['type'], string> = {
   boss: '👑',
 };
 
-const NODE_ACCENTS: Record<MapNode['type'], string> = {
-  road: '#6b7280',
-  battle: '#c85c5c',
-  elite_battle: '#8b2f2f',
-  resource: '#d4af37',
-  merchant: '#4a90d9',
-  event: '#a05cd9',
-  city: '#e0b34c',
-  boss: '#e0503c',
-};
-
 export function WorldMapScreen({ run, onMoveTo, onEnterCity, onOpenMenu, onSplitStack, onMergeStacks, onMoveStack }: Props) {
   const current = run.worldMap.nodes.find((n) => n.id === run.worldMap.currentNodeId)!;
   const layerCount = Math.max(...run.worldMap.nodes.map((n) => n.layer)) + 1;
@@ -54,17 +43,17 @@ export function WorldMapScreen({ run, onMoveTo, onEnterCity, onOpenMenu, onSplit
     .filter((n): n is MapNode => !!n && n.visibility !== 'unknown');
 
   return (
-    <div className="garrison-frame">
+    <div className="screen garrison-frame" data-screen="map">
       <div className="garrison-scene">
         <div className="path-progress">
           Layer {current.layer + 1} / {layerCount}
         </div>
-        <div className="current-location-badge" style={{ '--pc-color': NODE_ACCENTS[current.type] } as React.CSSProperties}>
+        <div className={`current-location-badge node-${current.type}`}>
           <span className="current-location-icon">{NODE_BADGES[current.type]}</span>
           <span>You are here — {NODE_LABELS[current.type]}</span>
         </div>
         {current.type === 'city' && (
-          <button className="primary" style={{ marginTop: 10 }} onClick={onEnterCity}>
+          <button className="btn btn--primary" onClick={onEnterCity}>
             Enter City
           </button>
         )}
@@ -77,8 +66,7 @@ export function WorldMapScreen({ run, onMoveTo, onEnterCity, onOpenMenu, onSplit
             return (
               <div
                 key={node.id}
-                className="path-choice-card"
-                style={{ '--pc-color': NODE_ACCENTS[node.type] } as React.CSSProperties}
+                className={`path-choice-card node-${node.type}`}
                 onClick={() => onMoveTo(node.id)}
               >
                 <span className="path-choice-badge">{known ? NODE_BADGES[node.type] : '?'}</span>
