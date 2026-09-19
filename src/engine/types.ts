@@ -236,10 +236,14 @@ export type RelicEffect =
   | { kind: 'HEALING_MULT'; multiplier: number }
   | { kind: 'FIRST_CARD_DISCOUNT'; amount: number };
 
+export type RelicRarity = 'common' | 'rare' | 'epic';
+
 export interface RelicDefinition {
   id: string;
   name: string;
+  /** States the drawback (if any) in plain words - shown as-is by the UI. */
   description: string;
+  rarity: RelicRarity;
   effects: RelicEffect[];
   unique?: boolean;
 }

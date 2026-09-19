@@ -3,6 +3,7 @@ import { shuffle } from '../rng.js';
 import type { RngState } from '../rng.js';
 import type { CardInstance, RelicDefinition } from '../types.js';
 import { CARD_UPGRADES } from './cardUpgrades.js';
+import { pickRelicId } from './relicSources.js';
 import type { PendingReward } from './types.js';
 
 /** Total number of new-card + upgrade choices shown on the post-battle reward screen. */
@@ -27,15 +28,16 @@ export function generateUpgradeOptions(
 }
 
 /**
- * Reward relics were removed (v3 balance pass) — relics now only come from the run's
- * starting pick and merchant purchases. Card/upgrade choices are capped at
- * REWARD_OPTION_COUNT total, split between fresh cards and in-deck upgrades.
+ * Normal battles reward no relics (AO-D006); only an elite victory adds one relic offer (AO-D037).
+ * Card/upgrade choices are capped at REWARD_OPTION_COUNT total, split between fresh cards and in-deck upgrades.
+ * The relic is drawn last so a normal battle's rng stream is untouched.
  */
-export function buildPendingReward(rng: RngState, _owned: RelicDefinition[], masterDeck: CardInstance[]): PendingReward {
+export function buildPendingReward(rng: RngState, owned: RelicDefinition[], masterDeck: CardInstance[], elite: boolean): PendingReward {
   const upgradeOptions = generateUpgradeOptions(rng, masterDeck, REWARD_OPTION_COUNT);
   const cardOptions = generateCardOptions(rng, REWARD_OPTION_COUNT - upgradeOptions.length);
   return {
     cardOptions,
     upgradeOptions,
+    relicOffer: elite ? pickRelicId(rng, 'elite', owned) : null,
   };
 }

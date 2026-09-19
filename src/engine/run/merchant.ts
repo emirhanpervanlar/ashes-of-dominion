@@ -1,7 +1,7 @@
 import { RELIC_DEFINITIONS } from '../data/relics.js';
-import { shuffle } from '../rng.js';
 import type { RngState } from '../rng.js';
 import type { RelicDefinition } from '../types.js';
+import { pickRelicId, RELIC_PRICE_BY_RARITY } from './relicSources.js';
 import { generateCardOptions } from './rewards.js';
 
 export interface MerchantCardOffer {
@@ -20,17 +20,13 @@ export interface MerchantInventory {
 }
 
 const CARD_PRICE = 50;
-const RELIC_PRICE = 120;
 
 export function generateMerchantInventory(rng: RngState, ownedRelics: RelicDefinition[]): MerchantInventory {
   const cardOffers = generateCardOptions(rng, 3).map((cardId) => ({ cardId, price: CARD_PRICE }));
-
-  const ownedIds = new Set(ownedRelics.map((r) => r.id));
-  const availableRelics = Object.keys(RELIC_DEFINITIONS).filter((id) => !ownedIds.has(id));
-  const relicId = shuffle(rng, availableRelics)[0];
+  const relicId = pickRelicId(rng, 'merchant', ownedRelics);
 
   return {
     cardOffers,
-    relicOffer: relicId ? { relicId, price: RELIC_PRICE } : null,
+    relicOffer: relicId ? { relicId, price: RELIC_PRICE_BY_RARITY[RELIC_DEFINITIONS[relicId]!.rarity] } : null,
   };
 }
