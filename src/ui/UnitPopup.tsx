@@ -3,16 +3,19 @@ import { UNIT_DEFINITIONS } from '../engine/index.js';
 import type { ArmyStack } from '../engine/index.js';
 import { UNIT_ICONS } from './unitIcons.js';
 import { UNIT_DESCRIPTIONS } from './unitText.js';
+import { STATUS_ICONS } from './stackStatus.js';
 
 interface Props {
   stack: ArmyStack;
   army: ArmyStack[];
   onClose: () => void;
+  /** Shows live battle state (statuses, morale, veterancy, block). */
+  inBattle?: boolean;
   onSplit?: (stackId: string, splitCount: number) => void;
   onMerge?: (stackIdA: string, stackIdB: string) => void;
 }
 
-export function UnitPopup({ stack, army, onClose, onSplit, onMerge }: Props) {
+export function UnitPopup({ stack, army, onClose, inBattle, onSplit, onMerge }: Props) {
   const def = UNIT_DEFINITIONS[stack.unitId];
   const totalHp = stack.count * def.hpPerUnit;
   const [splitCount, setSplitCount] = useState(Math.max(1, Math.floor(stack.count / 2)));
@@ -44,6 +47,23 @@ export function UnitPopup({ stack, army, onClose, onSplit, onMerge }: Props) {
             <div className="unit-popup-total">Total HP {totalHp}</div>
           </div>
         </div>
+
+        {inBattle && (
+          <div className="unit-popup-battle">
+            <div>Morale {stack.morale}</div>
+            <div>Veterancy {stack.veterancy}</div>
+            <div>Block {stack.block}</div>
+            {stack.statuses.length === 0 ? (
+              <div className="unit-popup-hint">No active statuses.</div>
+            ) : (
+              stack.statuses.map((st) => (
+                <div key={st.type}>
+                  {STATUS_ICONS[st.type]} {st.type} {st.amount} ({st.duration} {st.duration === 1 ? 'turn' : 'turns'})
+                </div>
+              ))
+            )}
+          </div>
+        )}
 
         {(canSplit || otherMatchingStacks.length > 0) && (
           <div className="unit-popup-actions">
