@@ -1,0 +1,56 @@
+# Runs a task file from tasks/ when an issue gets the `ai-task` label
+# (issue title must start with the task id, e.g. "AO-002 ..."), or on manual dispatch.
+# Requires repo secret ANTHROPIC_API_KEY. Runs are billed per token — max-turns is the cost guard.
+name: claude-task
+
+on:
+  issues:
+    types: [labeled]
+  workflow_dispatch:
+    inputs:
+      task_id:
+        description: Task id (e.g. AO-002)
+        required: true
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  id-token: write
+
+jobs:
+  run:
+    if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'ai-task'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+
+      - name: Resolve task
+        id: task
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            ID="${{ inputs.task_id }}"
+          else
+            ID=$(echo "${{ github.event.issue.title }}" | grep -oE '^AO-[0-9]+')
+          fi
+          FILE=$(ls tasks/${ID}-*.md | head -1)
+          echo "id=$ID" >> "$GITHUB_OUTPUT"
+          echo "file=$FILE" >> "$GITHUB_OUTPUT"
+
+      - uses: anthropics/claude-code-action@v1
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          prompt: |
+            You are the Lead for Ashes of Dominion. Read docs/AI_RULES.md and docs/DECISIONS.md, then execute
+            ${{ steps.task.outputs.file }} on branch ai/${{ steps.task.outputs.id }}.
+            Delegate to the agent named in the task (see .claude/agents/). Run tsc and vitest.
+            Open a PR against main with the report from AI_RULES.md as the body.
+            If you hit a design question, do NOT decide: put a DDR in the PR body and stop that item.
+            Never push to main.
+          claude_args: --max-turns 60
