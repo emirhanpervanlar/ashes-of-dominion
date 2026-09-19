@@ -23,22 +23,25 @@ export const MAGE_TOWER_TIERS: ReadonlyArray<{ cost: number; maxMana: number }> 
 ];
 
 /**
- * AO-D048 Farm (proposal): cumulative Food per day and Gold cost per tier (index 0 = tier I, which is the build itself).
- * Like the Mage Tower it is one building slot at every tier.
+ * AO-D048 / AO-D058 Farm: cumulative Food per day and Gold cost per tier (index 0 = tier I, which is the build itself).
+ * Like the Mage Tower it is one building slot at every tier. Balance points (Stable = upkeep -25%):
+ * I covers the starting army, III a ~38-unit army, IV a ~60-unit army with a Stable, V a ~60-unit army even without one.
  */
 export const FARM_TIERS: ReadonlyArray<{ cost: number; food: number }> = [
   { cost: 60, food: 3 },
   { cost: 140, food: 6 },
   { cost: 320, food: 9 },
+  { cost: 560, food: 11 },
+  { cost: 900, food: 13 },
 ];
 
-const ROMAN = ['I', 'II', 'III'];
+const ROMAN = ['I', 'II', 'III', 'IV', 'V'];
 
 /** Tier text for the Farm card, same shape as the Mage Tower's. `tier` 0 = not built. */
 export function farmDescription(tier: number): string {
   const next = FARM_TIERS[tier];
   const current = tier > 0 ? `Tier ${ROMAN[tier - 1]}: +${FARM_TIERS[tier - 1]!.food} Food every day.` : `+${FARM_TIERS[0]!.food} Food every day (tier I).`;
-  if (tier === 0) return `${current} Upgradeable to +${FARM_TIERS[2]!.food}.`;
+  if (tier === 0) return `${current} Upgradeable to +${FARM_TIERS[FARM_TIERS.length - 1]!.food}.`;
   return next ? `${current} Next: tier ${ROMAN[tier]} (+${next.food} total) for ${next.cost} Gold.` : `${current} Max tier.`;
 }
 
@@ -56,7 +59,7 @@ export interface CityState {
   /** 0 = no Mage Tower. The tower is one building slot at every tier. */
   mageTowerTier: 0 | 1 | 2 | 3;
   /** 0 = no Farm (AO-D048). One building slot at every tier. */
-  farmTier: 0 | 1 | 2 | 3;
+  farmTier: 0 | 1 | 2 | 3 | 4 | 5;
 }
 
 /**
