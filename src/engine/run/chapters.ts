@@ -23,7 +23,7 @@ export function bossDay(chapter: number): number {
 }
 
 export function daysUntilBoss(run: Pick<RunState, 'chapter' | 'day'>): number {
-  return bossDay(run.chapter) - run.day;
+  return Math.max(0, bossDay(run.chapter) - run.day);
 }
 
 export function bossWarning(run: Pick<RunState, 'chapter' | 'day'>): boolean {

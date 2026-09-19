@@ -109,16 +109,16 @@ describe('movement', () => {
     expect(result.run.worldMap.currentNodeId).toBe(nodeId);
   });
 
-  it('applies Starvation (HP -5%, Morale -1) instead of ending the run when Food runs out', () => {
+  it('starves units instead of ending the run when Food runs out', () => {
     const onMap = startOnMap(12);
     const starving = { ...onMap, food: 0 };
     const { run, nodeId } = withNextNodeType(starving, 'start');
-    const hpBefore = run.army[0]!.currentHp;
+    const before = run.army.reduce((n, s) => n + s.count, 0);
     const result = applyRunAction(run, { type: 'MOVE_TO', nodeId });
     expect(result.run.food).toBe(0);
     expect(result.run.phase).not.toBe('defeat');
-    expect(result.run.army[0]!.currentHp).toBeLessThan(hpBefore);
-    expect(result.run.army[0]!.morale).toBeLessThan(run.army[0]!.morale);
+    expect(result.run.army.reduce((n, s) => n + s.count, 0)).toBeLessThan(before);
+    expect(result.events.some((e) => e.type === 'STARVED')).toBe(true);
   });
 
   it('a resource node grants Gold and Food and stays on the map', () => {

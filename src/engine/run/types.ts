@@ -57,7 +57,8 @@ export type RunEvent =
   | { type: 'RUN_STARTED' }
   | { type: 'STARTING_RELIC_CHOSEN'; relicId: string }
   | { type: 'MOVED'; nodeId: string; foodCost: number }
-  | { type: 'STARVING'; unitsLost: number }
+  /** AO-D057: a day (or an event's upkeep payment) the Food could not cover; `deaths` is the units that starved, `consecutiveDays` the streak including this one. */
+  | { type: 'STARVED'; deaths: UnitCount[]; day: number; consecutiveDays: number }
   | { type: 'RESOURCE_FOUND'; gold: number; food: number }
   | { type: 'ARRIVED_AT_NODE'; nodeId: string; nodeType: string }
   | { type: 'BATTLE_WON' }
@@ -100,6 +101,8 @@ export interface RunState {
   relics: RelicDefinition[];
   gold: number;
   food: number;
+  /** Consecutive starving days so far (AO-D057); reset by the first fully fed day. Drives loss escalation and the battle Morale malus. */
+  starvationDays: number;
   day: number;
   battlesWon: number;
   stats: RunStats;
