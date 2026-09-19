@@ -1,26 +1,8 @@
 import { dodgeChancePercent, statEffectiveness } from './heroStats.js';
+import { UNIT_DEFINITIONS } from './data/units.js';
 import { nextInt } from './rng.js';
 import type { ArmyStack, Hero, RelicEffect, StatusType, UnitDefinition } from './types.js';
 import type { RngState } from './rng.js';
-
-/**
- * Diminishing returns on raw stack count — v3 §10 "Count scaling".
- * Flat-bracket lookup (not marginal/tax-bracket) per the literal table.
- * PROTOTYPE: coefficients are explicitly not locked (v3 §44).
- */
-const EFFECTIVE_COUNT_BRACKETS: ReadonlyArray<{ max: number; multiplier: number }> = [
-  { max: 20, multiplier: 1.0 },
-  { max: 50, multiplier: 0.9 },
-  { max: 100, multiplier: 0.75 },
-  { max: 200, multiplier: 0.6 },
-  { max: 400, multiplier: 0.45 },
-  { max: Infinity, multiplier: 0.35 },
-];
-
-export function effectiveCount(count: number): number {
-  const bracket = EFFECTIVE_COUNT_BRACKETS.find((b) => count <= b.max);
-  return count * (bracket ? bracket.multiplier : 0.35);
-}
 
 export function statusAmount(stack: ArmyStack, type: StatusType): number {
   return stack.statuses.filter((s) => s.type === type).reduce((sum, s) => sum + s.amount, 0);
@@ -86,19 +68,29 @@ export interface RawDamageParams {
   heroEffectiveness?: number;
 }
 
+/** AO-D018 — Heroes 3 attack-vs-defense damage constants, kept together so balance passes touch one place. */
+export const ATTACK_ADVANTAGE_PER_POINT = 0.05;
+export const ATTACK_ADVANTAGE_MAX = 3;
+export const DEFENSE_ADVANTAGE_PER_POINT = 0.025;
+export const DEFENSE_ADVANTAGE_MAX = 0.7;
+
+/** Percentage modifier on every unit's damage: x(1 + up to 3) if attack > defense, x(1 - up to 0.7) otherwise. */
+export function attackDefenseModifier(attack: number, defense: number): number {
+  if (attack > defense) return 1 + Math.min(ATTACK_ADVANTAGE_MAX, ATTACK_ADVANTAGE_PER_POINT * (attack - defense));
+  return 1 - Math.min(DEFENSE_ADVANTAGE_MAX, DEFENSE_ADVANTAGE_PER_POINT * (defense - attack));
+}
+
 /**
- * ASSUMPTION (documented): Defense (plus Armor status) mitigates damage per
- * attacking unit before the count multiplier is applied, rather than as a
- * flat subtraction from the final (already-scaled) damage total. A flat
- * subtraction makes single-digit Defense values meaningless once Raw
- * Damage reaches the hundreds. PROTOTYPE formula, not locked (v3 §44).
+ * AO-D031 (Heroes 3 model B): the unit's base `damage` scaled by the attack/defense percentage
+ * modifier, hero/relic/card multipliers, then linearly by unit count. Attack (plus Strength/Weak)
+ * only feeds the modifier. A hit that lands never rounds down to 0.
  */
 export function computeRawDamage(params: RawDamageParams): number {
   const { attackerStack, attackerBaseAttack, targetDefense, multiplier, heroEffectiveness = 1 } = params;
-  const perUnitAttack = effectiveAttack(attackerStack, attackerBaseAttack) * heroEffectiveness;
-  const perUnitNet = Math.max(0, perUnitAttack - targetDefense);
-  const raw = perUnitNet * effectiveCount(attackerStack.count) * multiplier;
-  return Math.round(raw);
+  const baseDamage = UNIT_DEFINITIONS[attackerStack.unitId].damage;
+  const modifier = attackDefenseModifier(effectiveAttack(attackerStack, attackerBaseAttack), targetDefense);
+  const raw = baseDamage * heroEffectiveness * modifier * attackerStack.count * multiplier;
+  return raw > 0 ? Math.max(1, Math.round(raw)) : 0;
 }
 
 export function relicDodgeBonusPercent(relics: RelicEffect[]): number {
@@ -176,7 +168,7 @@ export interface HealResolution {
 
 /** v3 §9/§11 heal cards/actions — heals up to `preBattleMaxCount` soldiers, never beyond it. */
 export function computeHealAmount(healer: ArmyStack, healPower: number, wisdomEffectiveness = 1, healingMult = 1): number {
-  return Math.round(effectiveCount(healer.count) * healPower * wisdomEffectiveness * healingMult);
+  return Math.round(healer.count * healPower * wisdomEffectiveness * healingMult);
 }
 
 export function applyHealToStack(target: ArmyStack, amount: number, hpPerUnit: number): HealResolution {

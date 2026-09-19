@@ -18,33 +18,29 @@ export function isFrontPosition(position: Position): boolean {
   return position <= 3;
 }
 
-function frontPositionForLane(lane: Lane): Position {
-  return lane === 'left' ? 1 : lane === 'center' ? 2 : 3;
-}
+const LANE_INDEX: Record<Lane, number> = { left: 0, center: 1, right: 2 };
 
-function backPositionForLane(lane: Lane): Position {
-  return lane === 'left' ? 4 : lane === 'center' ? 5 : 6;
+/** AO-D021 — a melee unit reaches its own lane and adjacent lanes only (left never reaches right). */
+function laneDistance(a: Lane, b: Lane): number {
+  return Math.abs(LANE_INDEX[a] - LANE_INDEX[b]);
 }
-
-/** v2_list.md §5 — X→A,B / Y→A,B,C / Z→B,C for a melee unit's own lane. */
-const MELEE_LANE_TARGETS: Record<Lane, Lane[]> = {
-  left: ['left', 'center'],
-  center: ['left', 'center', 'right'],
-  right: ['center', 'right'],
-};
 
 /**
  * Valid enemy targets for a stack's free basic action (or a card that
- * reuses the same geometry). Ranged units (rangedAllAccess) ignore lane
- * restriction entirely and can reach the backline. Melee units are limited
- * to their lane's front-row targets only. AO-D013: only when the enemy front
- * row (positions 1-3) has no living stack at all may melee hit the backline;
- * a single dead front lane exposes nothing.
+ * reuses the same geometry). Ranged units (rangedAllAccess) are unrestricted.
+ * Melee units: AO-D013 first — while any enemy front stack lives only front
+ * stacks are candidates, otherwise the backline opens up — then AO-D021: of
+ * those candidates only own/adjacent lanes are reachable.
+ * Softlock guard: if that leaves no target while candidates exist (e.g. the
+ * only living enemy is two lanes away), the nearest lane's candidates become
+ * legal so a battle can never stall.
+ * AO-D033: when `ownArmy` is given, a back-row melee stack with a living
+ * friendly stack directly in front of it (same lane) has no targets at all.
  */
-export function computeValidTargets(attacker: ArmyStack, enemyArmy: ArmyStack[], attackerDef?: UnitDefinition): ArmyStack[] {
+export function computeValidTargets(attacker: ArmyStack, enemyArmy: ArmyStack[], attackerDef?: UnitDefinition, ownArmy?: ArmyStack[]): ArmyStack[] {
   const def = attackerDef ?? UNIT_DEFINITIONS[attacker.unitId];
+  if (ownArmy && isBlockedByFrontAlly(attacker, ownArmy, def)) return [];
   const alive = enemyArmy.filter((s) => s.count > 0 && !s.flags.untargetable);
-  const byPosition = new Map(alive.map((s) => [s.position, s]));
 
   if (def.rangedAllAccess) {
     return alive;
@@ -52,15 +48,23 @@ export function computeValidTargets(attacker: ArmyStack, enemyArmy: ArmyStack[],
 
   // AO-D013: "living" includes untargetable stacks — they still hold the front.
   const frontHeld = enemyArmy.some((s) => s.count > 0 && isFrontPosition(s.position));
-  if (!frontHeld) return alive;
+  const candidates = frontHeld ? alive.filter((s) => isFrontPosition(s.position)) : alive;
+  if (candidates.length === 0) return [];
 
   const lane = laneOf(attacker.position);
-  const targets: ArmyStack[] = [];
-  for (const l of MELEE_LANE_TARGETS[lane]) {
-    const front = byPosition.get(frontPositionForLane(l));
-    if (front) targets.push(front);
-  }
-  return targets;
+  const inReach = candidates.filter((s) => laneDistance(lane, laneOf(s.position)) <= 1);
+  if (inReach.length > 0) return inReach;
+
+  const nearest = Math.min(...candidates.map((s) => laneDistance(lane, laneOf(s.position))));
+  return candidates.filter((s) => laneDistance(lane, laneOf(s.position)) === nearest);
+}
+
+/** AO-D033 "disciples": a melee unit in the back row cannot attack while a living friendly stack stands directly in front of it. */
+export function isBlockedByFrontAlly(attacker: ArmyStack, ownArmy: ArmyStack[], attackerDef?: UnitDefinition): boolean {
+  const def = attackerDef ?? UNIT_DEFINITIONS[attacker.unitId];
+  if (def.rangedAllAccess || isFrontPosition(attacker.position)) return false;
+  const frontPosition = attacker.position - 3;
+  return ownArmy.some((s) => s.count > 0 && s.stackId !== attacker.stackId && s.position === frontPosition);
 }
 
 /** Any living friendly stack is a valid heal target (Priest's basic action). */

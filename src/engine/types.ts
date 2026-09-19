@@ -30,6 +30,8 @@ export interface UnitDefinition {
   name: string;
   side: Side;
   hpPerUnit: number;
+  /** AO-D031: base damage per unit; attack and defense only scale it through the H3 percentage modifier. */
+  damage: number;
   attack: number;
   defense: number;
   tags: string[];
@@ -264,8 +266,12 @@ export type CombatEvent =
       attackerStackId: string;
       targetStackId: string;
       rawDamage: number;
+      /** HP damage that got through Block (AO-D022 pairs it with unitsKilled). */
       finalDamage: number;
       blocked: number;
+      unitsKilled: number;
+      /** Target stack size right after this hit. */
+      countAfter: number;
     }
   | { type: 'UNITS_KILLED'; stackId: string; count: number }
   | { type: 'STACK_DESTROYED'; stackId: string }
@@ -312,7 +318,39 @@ export interface CombatState {
   log: CombatEvent[];
 }
 
+/** One damaging hit inside an enemy step: the primary attack or a counterattack it triggered. */
+export interface EnemyStepHit {
+  attackerStackId: string;
+  targetStackId: string;
+  hpDamage: number;
+  blocked: number;
+  unitsKilled: number;
+  dodged: boolean;
+  countAfter: number;
+}
+
+/** Stack values right after an enemy step; replaying these in order reproduces the final state. */
+export interface StackSnapshot {
+  stackId: string;
+  side: Side;
+  count: number;
+  currentHp: number;
+  block: number;
+}
+
+/** AO-D023 — one enemy action, in execution order. */
+export interface EnemyStep {
+  actorStackId: string;
+  kind: EnemyIntent['kind'];
+  targetStackId: string | null;
+  hits: EnemyStepHit[];
+  statuses: { stackId: string; status: StatusType; amount: number; duration: number }[];
+  resulting: StackSnapshot[];
+}
+
 export interface ApplyResult {
   state: CombatState;
   events: CombatEvent[];
+  /** Present on END_TURN: the enemy phase as an ordered step list (state is still the atomic final state). */
+  enemySteps?: EnemyStep[];
 }

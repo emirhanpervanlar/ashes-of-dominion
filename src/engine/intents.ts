@@ -64,14 +64,14 @@ export function generateEnemyIntents(state: CombatState): EnemyIntent[] {
 
     if (livePlayer.length === 0) continue;
 
-    // Taunt overrides normal targeting entirely, including the lane geometry.
-    const taunting = livePlayer.filter((s) => s.statuses.some((st) => st.type === 'taunt'));
+    // AO-D032: Taunt narrows the pool but never overrides reach (lane and front/back rules still apply).
+    const validTargets = computeValidTargets(stack, livePlayer, def, liveEnemy);
+    if (validTargets.length === 0) continue;
+    const taunting = validTargets.filter((s) => s.statuses.some((st) => st.type === 'taunt'));
     let pool: ArmyStack[];
     if (taunting.length > 0) {
       pool = taunting;
     } else {
-      const validTargets = computeValidTargets(stack, livePlayer, def);
-      if (validTargets.length === 0) continue;
       if (pref === 'backline') {
         const back = validTargets.filter((s) => !isFrontPosition(s.position));
         pool = back.length > 0 ? back : validTargets;

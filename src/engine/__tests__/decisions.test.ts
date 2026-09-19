@@ -46,7 +46,7 @@ function stackOf(state: CombatState, stackId: string): ArmyStack {
 const enemyOrcs = () => [createStack('orc', 'enemy', 1, 10), createStack('orc', 'enemy', 2, 10), createStack('orc', 'enemy', 3, 10)];
 
 describe('AO-001 review gap: card path with no legal target', () => {
-  it('a unit card is rejected with "no target in reach" when a front stack lives but none in the melee lane, spending nothing', () => {
+  it('a unit card aimed at the backline is rejected while a (out-of-lane) front stack lives, spending nothing', () => {
     const enemy = [dead(createStack('orc', 'enemy', 1, 10)), dead(createStack('orc', 'enemy', 2, 10)), createStack('orc', 'enemy', 3, 10), createStack('goblin', 'enemy', 4, 10)];
     const state = battle([createStack('swordsman', 'player', 1, 6), createStack('knight', 'player', 2, 2)], enemy, ['charge']);
     const result = applyPlayerAction(state, {
@@ -55,7 +55,7 @@ describe('AO-001 review gap: card path with no legal target', () => {
       actingStackId: 'player_swordsman_1',
       targetStackId: 'enemy_goblin_4',
     });
-    expect(rejection(result.events)).toContain('no target in reach');
+    expect(rejection(result.events)).toContain('cannot reach that target');
     expect(result.state.hero.mana).toBe(10);
     expect(result.state.hand).toHaveLength(1);
     expect(result.state.enemyArmy.find((s) => s.stackId === 'enemy_goblin_4')!.count).toBe(10);
@@ -65,30 +65,32 @@ describe('AO-001 review gap: card path with no legal target', () => {
 describe('AO-D002 / AO-D013: melee reaches the backline only when the front row is empty, ranged always', () => {
   const backline = () => [createStack('goblin', 'enemy', 4, 10), createStack('shaman', 'enemy', 5, 8), createStack('goblin', 'enemy', 6, 10)];
 
-  it('a single dead front lane exposes nothing; a lane with no reachable front stack lists no target', () => {
+  it('a single dead front lane exposes nothing; a lane with no reachable front stack falls back to the nearest front stack (softlock guard)', () => {
     const enemy = [dead(createStack('orc', 'enemy', 1, 10)), createStack('orc', 'enemy', 2, 10), createStack('orc', 'enemy', 3, 10), ...backline()];
     const left = computeValidTargets(createStack('swordsman', 'player', 1, 5), enemy, UNIT_DEFINITIONS.swordsman);
     expect(left.map((s) => s.position)).toEqual([2]);
     const onlyRight = [dead(createStack('orc', 'enemy', 1, 10)), dead(createStack('orc', 'enemy', 2, 10)), createStack('orc', 'enemy', 3, 10), ...backline()];
-    expect(computeValidTargets(createStack('swordsman', 'player', 1, 5), onlyRight, UNIT_DEFINITIONS.swordsman)).toEqual([]);
+    expect(computeValidTargets(createStack('swordsman', 'player', 1, 5), onlyRight, UNIT_DEFINITIONS.swordsman).map((s) => s.position)).toEqual([3]);
   });
 
-  it('a player melee stack lists the whole living backline when every enemy front slot is dead, and so does an archer', () => {
+  it('with the enemy front dead a player melee stack reaches the backline within its lane rule (AO-D021); an archer reaches all of it', () => {
     const enemy = [...enemyOrcs().map(dead), ...backline()];
+    const reach: Record<number, number[]> = { 1: [4, 5], 2: [4, 5, 6], 3: [5, 6] };
     for (const pos of [1, 2, 3] as Position[]) {
       const melee = computeValidTargets(createStack('swordsman', 'player', pos, 5), enemy, UNIT_DEFINITIONS.swordsman);
-      expect(melee.map((s) => s.position).sort()).toEqual([4, 5, 6]);
+      expect(melee.map((s) => s.position).sort()).toEqual(reach[pos]);
     }
     const archer = computeValidTargets(createStack('archer', 'player', 4, 5), enemy, UNIT_DEFINITIONS.archer);
     expect(archer.map((s) => s.position).sort()).toEqual([4, 5, 6]);
   });
 
-  it('an ENEMY melee stack lists the player backline once the whole player front is dead', () => {
+  it('an ENEMY melee stack reaches the player backline within its lane rule once the whole player front is dead', () => {
     const player = [dead(createStack('swordsman', 'player', 1, 6)), dead(createStack('knight', 'player', 2, 2)), createStack('archer', 'player', 4, 4), createStack('priest', 'player', 5, 4)];
+    const reach: Record<number, number[]> = { 1: [4, 5], 2: [4, 5], 3: [5] };
     for (const unit of ['orc', 'goblin', 'wolf', 'shaman'] as UnitId[]) {
       for (const pos of [1, 2, 3] as Position[]) {
         const targets = computeValidTargets(createStack(unit, 'enemy', pos, 5), player, UNIT_DEFINITIONS[unit]);
-        expect(targets.map((s) => s.position).sort()).toEqual([4, 5]);
+        expect(targets.map((s) => s.position).sort()).toEqual(reach[pos]);
       }
     }
   });
