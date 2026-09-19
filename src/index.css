@@ -1,81 +1,563 @@
+/* ==========================================================================
+   Ashes of Dominion - visual language (docs/DESIGN_LANGUAGE.md)
+   1 tokens  2 base  3 shared components  4 screens
+   ========================================================================== */
+
+/* ---------- 1. tokens ---------- */
 :root {
   color-scheme: dark;
-  --bg: #14161c;
-  --panel: #1e212b;
-  --panel-2: #262a37;
-  --border: #3a3f4f;
-  --text: #e7e9ee;
-  --text-dim: #9aa0b0;
-  --hp: #4caf50;
-  --hp-low: #e0503c;
-  --block: #4a90d9;
-  --enemy: #c85c5c;
-  --player: #5c9ac8;
-  --accent: #e0b34c;
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+
+  /* stone */
+  --stone-950: #0e0d0c;
+  --stone-900: #171512;
+  --stone-800: #221f1b;
+  --stone-700: #2e2a24;
+  --stone-600: #3d3830;
+  --stone-500: #544d42;
+  --stone-400: #746b5c;
+  --stone-300: #9a907d;
+  --stone-200: #c4baa4;
+  --stone-100: #e6dcc3;
+
+  /* wood */
+  --wood-900: #1c130c;
+  --wood-800: #2b1d11;
+  --wood-700: #3c2916;
+  --wood-600: #523821;
+  --wood-500: #6b4a2b;
+
+  /* parchment */
+  --parch-100: #e3d3a8;
+  --parch-200: #d2bf8e;
+  --parch-300: #b9a271;
+  --parch-400: #8f7a50;
+  --ink-900: #211a10;
+  --ink-700: #3e3222;
+
+  /* iron */
+  --iron-900: #16181b;
+  --iron-800: #23272b;
+  --iron-700: #33393e;
+  --iron-600: #4a5259;
+  --iron-500: #66707a;
+  --iron-300: #9aa4ad;
+
+  /* aged gold */
+  --gold-900: #3d2f0d;
+  --gold-700: #7a5f1c;
+  --gold-500: #b08d2e;
+  --gold-400: #cfa93f;
+  --gold-200: #ecd082;
+
+  /* semantic */
+  --blood-900: #2a0f0d;
+  --blood-700: #6e1f1a;
+  --blood-500: #9c2f26;
+  --blood-300: #cf6a58;
+
+  --moss-900: #131f12;
+  --moss-700: #2f4a26;
+  --moss-500: #4f7a3a;
+  --moss-300: #8fb56b;
+
+  --steel-900: #0f1a24;
+  --steel-700: #21405a;
+  --steel-500: #3f6f95;
+  --steel-300: #86b0cf;
+
+  --frost-500: #7fb7c4;
+  --frost-200: #cfe8ec;
+  --venom-500: #6f8a2a;
+  --ember-500: #b5651d;
+  --arcane-500: #6d4f96;
+
+  --teal-700: #1f4a48;
+  --teal-500: #2f7a72;
+  --teal-300: #7fbdb2;
+
+  /* role tokens: what components read */
+  --text: var(--stone-200);
+  --text-strong: var(--stone-100);
+  --text-dim: var(--stone-300);
+  --text-faint: var(--stone-400);
+  --text-on-parch: var(--ink-900);
+  --text-on-parch-dim: var(--ink-700);
+  --line: var(--stone-600);
+  --focus: var(--gold-200);
+  --danger: var(--blood-500);
+  --heal: var(--moss-500);
+  --block: var(--steel-500);
+  --reward: var(--gold-400);
+  --selectable: var(--gold-400);
+  --selected: var(--stone-100);
+
+  --rar-common: var(--stone-300);
+  --rar-uncommon: var(--moss-500);
+  --rar-rare: var(--steel-500);
+  --rar-epic: var(--arcane-500);
+
+  /* per-screen tints (overridden by [data-screen]) */
+  --tint-void: var(--stone-950);
+  --tint-a: var(--stone-800);
+  --tint-b: var(--stone-700);
+  --tint-trim: var(--iron-600);
+  --tint-glow: transparent;
+
+  /* type */
+  --font-display: 'MedievalSharp', 'Georgia', serif;
+  --font-pixel: 'Silkscreen', 'Courier New', monospace;
+  --font-body: 'Alegreya Sans', 'Segoe UI', sans-serif;
+  --t-title: 400 64px/72px var(--font-display);
+  --t-h1: 400 40px/48px var(--font-display);
+  --t-h2: 400 24px/32px var(--font-display);
+  --t-h3: 400 20px/24px var(--font-display);
+  --t-label: 400 8px/16px var(--font-pixel);
+  --t-btn: 700 16px/24px var(--font-pixel);
+  --t-num: 400 16px/16px var(--font-pixel);
+  --t-body: 400 16px/24px var(--font-body);
+  --t-small: 400 14px/16px var(--font-body);
+
+  /* spacing */
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 12px;
+  --s-4: 16px;
+  --s-5: 24px;
+  --s-6: 32px;
+  --s-7: 48px;
+  --s-8: 64px;
+
+  /* shadows: hard, never blurred */
+  --shadow-1: 0 2px 0 rgba(0, 0, 0, 0.6);
+  --shadow-2: 0 4px 0 rgba(0, 0, 0, 0.7);
+
+  /* motion */
+  --dur-fast: 80ms;
+  --dur-1: 120ms;
+  --dur-2: 200ms;
+  --dur-3: 320ms;
+  --dur-4: 480ms;
+  --ease-step2: steps(2, end);
+  --ease-step4: steps(4, end);
+  --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  /* 16x16 noise tile reused by every material */
+  --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' shape-rendering='crispEdges'%3E%3Crect x='2' y='1' width='1' height='1' fill='%23000' fill-opacity='.18'/%3E%3Crect x='9' y='3' width='2' height='1' fill='%23fff' fill-opacity='.07'/%3E%3Crect x='5' y='7' width='1' height='2' fill='%23000' fill-opacity='.14'/%3E%3Crect x='13' y='6' width='1' height='1' fill='%23fff' fill-opacity='.08'/%3E%3Crect x='1' y='11' width='2' height='1' fill='%23fff' fill-opacity='.06'/%3E%3Crect x='10' y='12' width='1' height='2' fill='%23000' fill-opacity='.16'/%3E%3Crect x='14' y='14' width='1' height='1' fill='%23000' fill-opacity='.12'/%3E%3Crect x='6' y='14' width='2' height='1' fill='%23fff' fill-opacity='.05'/%3E%3C/svg%3E");
+
+  /* material backgrounds (bevel colours are set next to each use) */
+  --bg-stone: var(--grain), linear-gradient(90deg, var(--stone-950) 0 2px, transparent 2px) 0 0 / 32px 16px,
+    linear-gradient(90deg, var(--stone-950) 0 2px, transparent 2px) 16px 16px / 32px 16px,
+    linear-gradient(0deg, var(--stone-950) 0 2px, transparent 2px) 0 0 / 100% 16px, var(--stone-800);
+  --bg-stone-smooth: var(--grain), var(--stone-800);
+  --bg-well: var(--grain), var(--stone-900);
+  --bg-wood: var(--grain), repeating-linear-gradient(90deg, transparent 0 22px, var(--wood-900) 22px 24px),
+    repeating-linear-gradient(0deg, transparent 0 6px, rgba(0, 0, 0, 0.1) 6px 8px),
+    linear-gradient(90deg, var(--wood-700), var(--wood-600) 40%, var(--wood-700));
+  --bg-wood-dark: var(--grain), repeating-linear-gradient(90deg, transparent 0 22px, var(--wood-900) 22px 24px), var(--wood-800);
+  --bg-parch: var(--grain), radial-gradient(ellipse at 20% 15%, var(--parch-100) 0, transparent 45%),
+    radial-gradient(ellipse at 85% 90%, var(--parch-300) 0, transparent 55%),
+    linear-gradient(0deg, var(--parch-300) 0 8px, transparent 8px calc(100% - 8px), var(--parch-300) calc(100% - 8px)), var(--parch-200);
+  --bg-iron: var(--grain), linear-gradient(180deg, rgba(255, 255, 255, 0.05) 0 2px, transparent 2px),
+    linear-gradient(180deg, var(--iron-700), var(--iron-800));
+  --bg-gold: var(--grain), linear-gradient(180deg, rgba(255, 255, 255, 0.18) 0 2px, transparent 2px),
+    linear-gradient(180deg, var(--gold-400), var(--gold-500) 55%, var(--gold-700));
+  --bg-hatch: repeating-linear-gradient(45deg, transparent 0 4px, rgba(0, 0, 0, 0.25) 4px 6px);
+  --divider: linear-gradient(180deg, var(--stone-900) 0 2px, var(--stone-600) 2px 4px);
 }
 
+[data-screen='title'] { --tint-void: #0c0b0a; --tint-a: #1a1613; --tint-b: #2b231c; --tint-trim: var(--gold-700); --tint-glow: #3a2a12; }
+[data-screen='hero'] { --tint-void: #0e0c0a; --tint-a: #221b15; --tint-b: #32271d; --tint-trim: var(--gold-700); --tint-glow: #2f2312; }
+[data-screen='map'] { --tint-void: #1a1509; --tint-a: var(--parch-200); --tint-b: var(--parch-300); --tint-trim: var(--wood-600); --tint-glow: #5a4520; }
+[data-screen='city'] { --tint-void: #160f0a; --tint-a: #3b2e22; --tint-b: #4d3a28; --tint-trim: var(--wood-500); --tint-glow: #7a4a1c; }
+[data-screen='battle'] { --tint-void: #0a0c0f; --tint-a: #171b20; --tint-b: #232a31; --tint-trim: var(--iron-600); --tint-glow: #10202c; }
+[data-screen='vault'] { --tint-void: #08080a; --tint-a: #14131a; --tint-b: #201e27; --tint-trim: var(--gold-700); --tint-glow: #2a2210; }
+[data-screen='defeat'] { --tint-void: #0c0808; --tint-a: #1d1413; --tint-b: #2c1d1b; --tint-trim: var(--blood-700); --tint-glow: #3a1210; }
+[data-screen='victory'] { --tint-void: #0b0a07; --tint-a: #1f1b12; --tint-b: #302a19; --tint-trim: var(--gold-500); --tint-glow: #4a3a12; }
+
+/* ---------- 2. base ---------- */
 * {
   box-sizing: border-box;
+  scrollbar-width: auto;
+  scrollbar-color: var(--iron-600) var(--stone-900);
+}
+
+html {
+  background: var(--stone-950);
 }
 
 body {
   margin: 0;
-  background: var(--bg);
+  background: var(--stone-950);
   color: var(--text);
-  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Cpath d='M2 2 L2 21 L8 16.5 L12 25 L16.5 23 L12.3 14.5 L21 14.5 Z' fill='%23e0b34c' stroke='%23140f06' stroke-width='1.6' stroke-linejoin='round'/%3E%3C/svg%3E") 2 2, auto;
+  font: var(--t-body);
+  -webkit-font-smoothing: none;
+  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Cpath d='M2 2 L2 21 L8 16.5 L12 25 L16.5 23 L12.3 14.5 L21 14.5 Z' fill='%23ecd082' stroke='%230e0d0c' stroke-width='2' stroke-linejoin='miter'/%3E%3C/svg%3E") 2 2, auto;
 }
 
-#root {
-  max-width: 1320px;
-  margin: 0 auto;
-  padding: 16px;
+h1,
+h2,
+h3 {
+  margin: 0;
+  font-weight: 400;
+  color: var(--gold-200);
+  text-shadow: 0 2px 0 var(--stone-950);
 }
 
-h1 {
-  font-size: 18px;
-  margin: 0 0 4px;
-}
+h1 { font: var(--t-h1); }
+h2 { font: var(--t-h2); }
+h3 { font: var(--t-h3); }
+
+p { margin: 0; }
 
 .subtitle {
+  max-width: 56ch;
   color: var(--text-dim);
-  font-size: 12px;
-  margin-bottom: 12px;
 }
 
 .toolbar {
   display: flex;
-  gap: 8px;
+  gap: var(--s-2);
   align-items: center;
-  margin-bottom: 12px;
 }
 
-button {
-  background: var(--panel-2);
-  color: var(--text);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 6px 12px;
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+::-webkit-scrollbar { width: 16px; height: 16px; background: var(--stone-900); }
+::-webkit-scrollbar-thumb { background: var(--iron-600); box-shadow: inset 2px 2px 0 var(--iron-500), inset -2px -2px 0 var(--iron-900); }
+::-webkit-scrollbar-thumb:hover { background: var(--iron-500); }
+::-webkit-scrollbar-button { display: none; }
+::-webkit-scrollbar-corner { background: var(--stone-900); }
+
+/* ---------- 3. shared components ---------- */
+
+/* Stepped corners: 4px steps. Anything with a step keeps its border in inset shadows because clip-path removes real ones. */
+.step,
+.btn,
+.pill,
+.panel,
+.plaque,
+.well,
+.input {
+  --c: 4px;
+  clip-path: polygon(
+    0 var(--c), var(--c) var(--c), var(--c) 0,
+    calc(100% - var(--c)) 0, calc(100% - var(--c)) var(--c), 100% var(--c),
+    100% calc(100% - var(--c)), calc(100% - var(--c)) calc(100% - var(--c)), calc(100% - var(--c)) 100%,
+    var(--c) 100%, var(--c) calc(100% - var(--c)), 0 calc(100% - var(--c))
+  );
+}
+
+.step-8 { --c: 8px; }
+
+/* Stepped circle for gems and medallions */
+.gem {
+  clip-path: polygon(25% 0, 75% 0, 75% 12.5%, 87.5% 12.5%, 87.5% 25%, 100% 25%, 100% 75%, 87.5% 75%, 87.5% 87.5%, 75% 87.5%, 75% 100%, 25% 100%, 25% 87.5%, 12.5% 87.5%, 12.5% 75%, 0 75%, 0 25%, 12.5% 25%, 12.5% 12.5%, 25% 12.5%);
+}
+
+/* Materials */
+.mat-stone-smooth,
+.panel--stone {
+  --bev-light: var(--stone-500);
+  --bev-dark: var(--stone-950);
+  background: var(--bg-stone-smooth);
+}
+
+.mat-wood,
+.panel--wood {
+  --bev-light: var(--wood-500);
+  --bev-dark: var(--wood-900);
+  background: var(--bg-wood);
+}
+
+.mat-wood-dark {
+  --bev-light: var(--wood-600);
+  --bev-dark: var(--wood-900);
+  background: var(--bg-wood-dark);
+}
+
+.mat-parch,
+.panel--parch {
+  --bev-light: var(--parch-100);
+  --bev-dark: var(--parch-400);
+  color: var(--text-on-parch);
+  background: var(--bg-parch);
+}
+
+.mat-iron,
+.panel--iron {
+  --bev-light: var(--iron-500);
+  --bev-dark: var(--iron-900);
+  background: var(--bg-iron);
+}
+
+.mat-gold {
+  --bev-light: var(--gold-200);
+  --bev-dark: var(--gold-900);
+  color: var(--gold-900);
+  background: var(--bg-gold);
+}
+
+.trim-gold {
+  box-shadow: inset 0 0 0 2px var(--gold-900), inset 0 0 0 4px var(--gold-500), inset 0 0 0 6px var(--gold-900);
+}
+
+/* Panel: bevelled material surface. */
+.panel {
+  position: relative;
+  padding: var(--s-4);
+  box-shadow: inset 4px 4px 0 var(--bev-light), inset -4px -4px 0 var(--bev-dark);
+}
+
+/* Sunken well for lists and stat tables inside panels. */
+.well {
+  --bev-light: var(--stone-500);
+  --bev-dark: var(--stone-950);
+  background: var(--bg-well);
+  box-shadow: inset 2px 2px 0 var(--bev-dark), inset -2px -2px 0 var(--bev-light);
+}
+
+/* Plaque: static gold banner; wood, iron and blood variants. */
+.plaque {
+  position: relative;
+  display: inline-block;
+  height: 48px;
+  padding: 0 40px;
+  font: var(--t-h2);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  white-space: nowrap;
+  color: var(--gold-900);
+  text-shadow: 0 2px 0 var(--gold-200);
+  --bev-light: var(--gold-200);
+  --bev-dark: var(--gold-900);
+  line-height: 48px;
+  background: var(--bg-gold);
+}
+
+.plaque::before,
+.plaque::after {
+  content: '';
+  position: absolute;
+  top: 20px;
+  width: 8px;
+  height: 8px;
+  background: var(--iron-300);
+  box-shadow: 2px 2px 0 var(--iron-900);
+}
+
+.plaque::before { left: 16px; }
+.plaque::after { right: 18px; }
+
+.plaque--ribbon {
+  padding: 0 56px;
+  clip-path: polygon(0 0, 100% 0, calc(100% - 16px) 50%, 100% 100%, 0 100%, 16px 50%);
+}
+
+.plaque--ribbon::before { left: 28px; }
+.plaque--ribbon::after { right: 30px; }
+
+.plaque--wood {
+  --bev-light: var(--wood-600);
+  --bev-dark: var(--wood-900);
+  color: var(--gold-200);
+  text-shadow: 0 2px 0 var(--stone-950);
+  background: var(--bg-wood-dark);
+}
+
+.plaque--iron {
+  --bev-light: var(--iron-500);
+  --bev-dark: var(--iron-900);
+  height: 32px;
+  padding: 0 24px;
+  font: 400 16px/32px var(--font-display);
+  color: var(--stone-100);
+  text-shadow: 0 2px 0 var(--stone-950);
+  background: var(--bg-iron);
+}
+
+.plaque--iron::before,
+.plaque--iron::after {
+  display: none;
+}
+
+.plaque--blood {
+  --bev-light: var(--blood-300);
+  --bev-dark: var(--blood-900);
+  color: var(--gold-200);
+  text-shadow: 0 2px 0 var(--blood-900);
+  background: var(--grain), linear-gradient(180deg, var(--blood-500), var(--blood-700) 60%, var(--blood-900));
+}
+
+/* Button */
+.btn {
+  --bev-light: var(--iron-500);
+  --bev-dark: var(--iron-900);
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  height: 40px;
+  padding: 0 var(--s-5);
+  border: 0;
   cursor: pointer;
-  font-size: 13px;
+  color: var(--stone-100);
+  font: var(--t-btn);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  white-space: nowrap;
+  text-shadow: 0 2px 0 var(--stone-950);
+  background: var(--bg-iron);
+  box-shadow: inset 4px 4px 0 var(--bev-light), inset -4px -4px 0 var(--bev-dark);
+  transition: none;
 }
 
-button:hover:not(:disabled) {
-  border-color: var(--accent);
+.btn--primary {
+  --bev-light: var(--gold-200);
+  --bev-dark: var(--gold-900);
+  color: var(--gold-900);
+  text-shadow: 0 2px 0 var(--gold-200);
+  background: var(--bg-gold);
 }
 
-button:disabled {
-  opacity: 0.4;
-  cursor: default;
+.btn--danger {
+  --bev-light: var(--blood-500);
+  --bev-dark: var(--blood-900);
+  background: var(--grain), linear-gradient(180deg, var(--blood-700), var(--blood-900));
 }
 
-button.primary {
-  background: var(--accent);
-  color: #1a1a1a;
-  border-color: var(--accent);
-  font-weight: 600;
+.btn--s { height: 32px; padding: 0 var(--s-3); }
+.btn--l { height: 56px; padding: 0 var(--s-6); }
+.btn--sq { width: 40px; padding: 0; }
+
+.btn:hover:not(:disabled) { transform: translateY(-2px); }
+.btn:not(.btn--primary):not(.btn--danger):hover:not(:disabled) { --bev-light: var(--gold-400); }
+.btn--primary:hover:not(:disabled) {
+  background: var(--grain), linear-gradient(180deg, rgba(255, 255, 255, 0.18) 0 2px, transparent 2px),
+    linear-gradient(180deg, var(--gold-200), var(--gold-400) 40%, var(--gold-500));
+}
+.btn--danger:hover:not(:disabled) { --bev-light: var(--blood-300); }
+
+.btn:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow: inset 4px 4px 0 var(--bev-dark), inset -4px -4px 0 var(--bev-light);
 }
 
+.btn:disabled {
+  cursor: not-allowed;
+  transform: none;
+  color: var(--stone-400);
+  text-shadow: none;
+  background: var(--bg-hatch), var(--stone-700);
+  box-shadow: inset 4px 4px 0 var(--stone-500), inset -4px -4px 0 var(--stone-900);
+}
+
+/* clip-path removes outlines, so clipped controls show focus as an inner ring */
+.btn:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--focus), inset 4px 4px 0 var(--bev-light), inset -4px -4px 0 var(--bev-dark);
+}
+
+/* Resource pill */
+.pill {
+  --bev-light: var(--iron-500);
+  --bev-dark: var(--iron-900);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  height: 32px;
+  padding: 0 var(--s-3);
+  color: var(--stone-100);
+  font: var(--t-num);
+  background: var(--bg-iron);
+  box-shadow: inset 2px 2px 0 var(--bev-light), inset -2px -2px 0 var(--bev-dark);
+}
+
+.pill--gold { color: var(--gold-200); }
+
+/* Text input and range: sunken */
+.input {
+  height: 40px;
+  padding: 0 var(--s-3);
+  border: 0;
+  color: var(--text-strong);
+  font: var(--t-body);
+  caret-color: var(--gold-200);
+  --bev-light: var(--stone-500);
+  --bev-dark: var(--stone-950);
+  background: var(--bg-well);
+  box-shadow: inset 2px 2px 0 var(--bev-dark), inset -2px -2px 0 var(--bev-light);
+}
+
+.input:focus {
+  outline: none;
+  box-shadow: inset 0 0 0 2px var(--gold-400), inset 4px 4px 0 var(--bev-dark), inset -4px -4px 0 var(--bev-light);
+}
+
+/* List row: zebra, hover bar */
+.row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  min-height: 32px;
+  padding: var(--s-1) var(--s-2);
+  border-bottom: 2px solid var(--stone-900);
+  background: var(--stone-800);
+}
+
+.row:nth-child(even) { background: var(--stone-700); }
+.row:hover { background: var(--stone-600); box-shadow: inset 4px 0 0 var(--gold-400); }
+
+/* Screen root: fixed scene tinted by [data-screen] */
+.screen {
+  position: fixed;
+  inset: 0;
+  overflow-y: auto;
+  background: radial-gradient(ellipse at 50% 30%, var(--tint-glow) 0, transparent 60%), var(--tint-void);
+}
+
+/* Modal backdrop and window */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 950;
+  background: rgba(8, 7, 6, 0.78);
+}
+
+.popup {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  z-index: 951;
+  transform: translate(-50%, -50%);
+  max-height: 80vh;
+  overflow-y: auto;
+  padding: var(--s-5);
+  box-shadow: inset 4px 4px 0 var(--bev-light), inset -4px -4px 0 var(--bev-dark), inset 0 0 0 6px var(--gold-700);
+}
+
+.modal-close {
+  position: absolute;
+  top: var(--s-3);
+  right: var(--s-3);
+  width: 32px;
+  padding: 0;
+}
+
+/* Sunken divider line used between sections of a panel */
+.divider {
+  height: 4px;
+  background: var(--divider);
+  border: 0;
+  margin: var(--s-3) 0;
+}
+
+/* TEMPORARY (removed by the screen conversion): legacy tokens */
+:root { --bg:#14161c; --panel:#1e212b; --panel-2:#262a37; --border:#3a3f4f; --hp:#4caf50; --hp-low:#e0503c; --enemy:#c85c5c; --player:#5c9ac8; --accent:#e0b34c; }
 .hero-panel {
   display: flex;
   gap: 16px;
