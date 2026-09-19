@@ -114,7 +114,7 @@ describe('AO-D020: city building effects', () => {
     const base = moveFoodCost(run.army);
     expect(moveFoodCost(run.army, stable.city)).toBe(Math.max(1, Math.floor(base * 0.75)));
     expect(moveFoodCost(run.army, stable.city)).toBeLessThan(base);
-    const moved = moveToNextAs({ ...stable, food: 50 }, 'road');
+    const moved = moveToNextAs({ ...stable, food: 50 }, 'start');
     expect(moved.food).toBe(50 - moveFoodCost(run.army, stable.city));
   });
 
@@ -191,7 +191,7 @@ describe('AO-D020: city building effects', () => {
     const built = act(run, { type: 'BUILD_BUILDING', buildingId: 'gold_mine' }).run;
     expect(built.gold).toBe(200 - 80); // no immediate payout
     const day = built.day;
-    const moved = moveToNextAs({ ...built, phase: 'on_map' }, 'road');
+    const moved = moveToNextAs({ ...built, phase: 'on_map' }, 'start');
     expect(moved.day).toBe(day + 1);
     expect(moved.gold).toBe(120 + GOLD_MINE_DAILY_GOLD);
     expect(moved.log.some((e) => e.type === 'DAILY_INCOME' && e.gold === 10)).toBe(true);
@@ -322,8 +322,8 @@ describe('AO-D026: reward resolves immediately', () => {
     expect(new Set(ids).size).toBe(ids.length);
   });
 
-  it('the boss reward still ends the run', () => {
-    const run = onMap(23);
+  it('the last boss reward still ends the run', () => {
+    const run = { ...onMap(23), chapter: 3 };
     const boss = moveToNextAs(run, 'boss');
     const won = winWith(boss, (a) => a);
     expect(act(won, { type: 'SKIP_REWARD' }).run.phase).toBe('run_complete');
@@ -332,7 +332,7 @@ describe('AO-D026: reward resolves immediately', () => {
 
 describe('AO-D026: card removal at merchant and city', () => {
   const atMerchant = (seed: number, gold = 500): RunState => ({ ...moveToNextAs(onMap(seed), 'merchant'), gold });
-  const atCity = (seed: number): RunState => moveToNextAs(onMap(seed), 'city');
+  const atCity = (seed: number): RunState => act(onMap(seed), { type: 'TRAVEL_TO_CITY' }).run;
 
   it('merchant: price rises with each removal and Gold is charged', () => {
     let run = atMerchant(30);

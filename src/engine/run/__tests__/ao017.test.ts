@@ -228,13 +228,13 @@ describe('AO-D037: event relics', () => {
   });
 });
 
-describe('AO-D039: no early Elite Battle', () => {
-  it('layers 0-3 never contain an elite over many seeds, and elites still exist deeper', () => {
+describe('AO-D039 + AO-D049: no early Elite Battle', () => {
+  it('layers 0-5 never contain an elite over many seeds, and elites still exist deeper', () => {
     let deepElites = 0;
     for (let seed = 1; seed <= 500; seed++) {
       for (const node of generateWorldMap(createRng(seed)).nodes) {
         if (node.type !== 'elite_battle') continue;
-        expect(node.layer).toBeGreaterThan(3);
+        expect(node.layer).toBeGreaterThan(5);
         deepElites++;
       }
     }

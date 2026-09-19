@@ -101,7 +101,7 @@ describe('movement', () => {
 
   it('consumes Food and advances the Day counter on every move', () => {
     const onMap = startOnMap(11);
-    const { run, nodeId } = withNextNodeType(onMap, 'road');
+    const { run, nodeId } = withNextNodeType(onMap, 'start');
     const result = applyRunAction(run, { type: 'MOVE_TO', nodeId });
     expect(result.run.food).toBeLessThan(run.food);
     expect(result.run.day).toBe(run.day + 1);
@@ -111,7 +111,7 @@ describe('movement', () => {
   it('applies Starvation (HP -5%, Morale -1) instead of ending the run when Food runs out', () => {
     const onMap = startOnMap(12);
     const starving = { ...onMap, food: 0 };
-    const { run, nodeId } = withNextNodeType(starving, 'road');
+    const { run, nodeId } = withNextNodeType(starving, 'start');
     const hpBefore = run.army[0]!.currentHp;
     const result = applyRunAction(run, { type: 'MOVE_TO', nodeId });
     expect(result.run.food).toBe(0);
@@ -134,7 +134,7 @@ describe('movement', () => {
     const { run, nodeId } = withNextNodeType(onMap, 'boss');
     const result = applyRunAction(run, { type: 'MOVE_TO', nodeId });
     expect(result.run.phase).toBe('in_battle');
-    expect(result.run.finalBattle).toBe(true);
+    expect(result.run.bossBattle).toBe(true);
     const total = result.run.combat!.enemyArmy.reduce((sum, s) => sum + s.count, 0);
     expect(total).toBeGreaterThan(150);
   });
