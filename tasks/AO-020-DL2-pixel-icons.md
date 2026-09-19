@@ -23,3 +23,6 @@ src/engine/** (needs of new ids: report), layout redesign, logic changes.
 
 ## Acceptance criteria
 tsc clean, vitest green including the icon completeness test; emoji grep clean; every screen re-screenshotted at 1366x900 (title, hero, relic, map, city + popups, battle, reward, merchant, event, defeat, pause/settings) and looked at: icons crisp (no blur), legible at their sizes, consistent palette; no console errors; list icons you judge weak so they can be redrawn.
+
+## Status
+- 2026-09-19 ACCEPTED (tsc clean, 270 tests, emoji test, screenshots reviewed). Weak icons to redraw later: ornament_dragon, hero_warlord/unit_swordsman face, card_buff/debuff, st_weak, st_taunt, node_road/resource, some relics.
