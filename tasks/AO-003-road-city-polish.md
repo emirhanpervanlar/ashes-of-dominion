@@ -16,3 +16,6 @@ src/ui/WorldMapScreen.tsx, src/ui/CityScreen.tsx, src/index.css.
 
 ## Acceptance criteria
 Screenshots of Road and City at 1366x900 showing each item; measured widths reported; tsc + vitest green.
+
+## Status
+- 2026-09-19 ACCEPTED (Director verified screenshots + measurements: card 250x300, slot 130, bar 200, plaque visible). tsc clean, 82/82.
