@@ -24,3 +24,6 @@ src/ui/**, src/App.tsx, combat/damage/targeting files, unit/card balance. Hero X
 
 ## Acceptance criteria
 1. Tests for each item (heal, each building effect, stats accumulation incl. old-save default, card removal in all three places, reward resolves without confirm). 2. tsc clean, vitest green. 3. Report lists DDRs (removal prices/limits, Mage Tower Wisdom) and stats that need combat data.
+
+## Status
+- 2026-09-19 ACCEPTED after REVISION-1 (Mage Tower tiers AO-D036).

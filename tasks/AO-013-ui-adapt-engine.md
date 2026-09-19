@@ -29,3 +29,6 @@ src/engine/** (report an engine gap instead), design changes.
 
 ## Acceptance criteria
 1. tsc clean, vitest green. 2. Browser (puppeteer-core, 1366x900, port other than 5173, inject `aod_run_state_v1`): reward screen picks apply instantly; card removal works from reward, merchant, city; Mage Tower upgrade visible and works; defeat -> New Run lands on the title with no saved run; a battle showing "-N units"/"Wounded". Screenshots looked at. 3. No console errors.
+
+## Status
+- 2026-09-19 ACCEPTED (tsc clean, 226 tests, screenshots reviewed). Open: full run-statistics Defeat screen (AO-D027) not built yet.

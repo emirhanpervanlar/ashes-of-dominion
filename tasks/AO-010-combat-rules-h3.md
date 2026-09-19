@@ -26,3 +26,6 @@ src/ui/**, src/App.tsx, run layer. Balance: do not retune unit/card numbers; if 
 
 ## Acceptance criteria
 1. Tests: a hit with attack < defense deals > 0; linear scaling (60 units in one stack = 2x30 damage); lane rule table (left never reaches right for melee, ranged does); softlock guard; enemySteps replay equals final state. 2. tsc clean, vitest green (update tests that encoded the old formula and say so). 3. Report a small table of old vs new damage for the 4-5 typical matchups.
+
+## Status
+- 2026-09-19 ACCEPTED after REVISION-1 (H3 base damage, taunt reach, back-row block, linear heal). Open: elite_guard wipes starting armies in one passed turn - balance for qa-playtest.
