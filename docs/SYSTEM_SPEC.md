@@ -1,0 +1,42 @@
+# System Spec — what is actually built
+
+Describes the implementation as it stands. Where it differs from `01_CANONICAL_GDD.md`, **this file and `DECISIONS.md` win**. Update this file in the same change that alters a rule.
+
+## Architecture
+- `src/engine/` — pure TypeScript, deterministic (`rng.ts`, seeded), no DOM/React. Combat: `combat.ts` (`applyPlayerAction`, `startBattle`), `damage.ts`, `targeting.ts`, `intents.ts`, `army.ts`, `heroStats.ts`, `data/{cards,units,heroes,relics}.ts`.
+- `src/engine/run/` — run layer. One reducer, `applyRunAction(run, action)` in `runEngine.ts`. Phases: `choosing_starting_relic | on_map | in_battle | reward | event | merchant | city | defeat | run_complete`.
+- Persistence: the whole `RunState` JSON in localStorage key `aod_run_state_v1`. No server (the GDD's PHP / server authority is not built).
+- Combat state carries a cumulative `log: CombatEvent[]`; the UI derives feedback from newly appended events.
+
+## Combat
+- **Board.** 6v6. Positions 1–3 are the front row (left/center/right), 4–6 the back row sharing lanes (1&4, 2&5, 3&6).
+- **Turn.** Player turn, then `END_TURN`, then enemy intents resolve, then the next player turn. Mana refills each turn. Hand: 5 cards on turn 1, +3 each later turn, max 10. Unplayed non-`retain` cards are discarded at end of turn. Block resets each player turn.
+- **Free basic action.** Each stack acts once per turn (`actedThisTurn`): attack, or heal for the Priest. Costs no Mana.
+- **Targeting (AO-D002).** Ranged (`rangedAllAccess`) units hit any living enemy. Melee: left lane hits enemy left+center, center hits all three, right hits center+right, **front row only**, no backline fallback. A melee stack with no legal target has nothing to attack (`"<Unit> has no target in reach."`). Taunt overrides enemy targeting. `untargetable` stacks are skipped.
+- **Health model (AO-D004).** `maxHp = count x hpPerUnit`. Damage lowers `currentHp` and `count = ceil(currentHp / hpPerUnit)`. Block absorbs first. Healing adds HP, capped at `preBattleMaxCount x hpPerUnit`: each `hpPerUnit` of heal restores one soldier, never above the pre-battle count. Casualties persist into the run army.
+- **Damage.** `perUnit = max(0, attack x heroEffectiveness x mods - defense)`; `raw = perUnit x effectiveCount(count) x multiplier`. Count scaling: 1–20 x1.00, 21–50 x0.90, 51–100 x0.75, 101–200 x0.60, 201–400 x0.45, 400+ x0.35. Hero effectiveness `1 + max(0, stat-10) x 0.02`, capped x1.40 (STR melee, DEX ranged, INT magic, WIS healing). Dodge (player side) `max(0, DEX-10)%`, cap 20%. Max Mana `base + floor(max(0, WIS-10)/2)`, cap 12.
+- **Defense buffs.** A card's "+N% Defense" becomes an `armor` status of `max(1, round(max(2, baseDefense) x N/100))` (sign preserved), never a flat N.
+- **Morale** 0–100, starts 100: damage x0.7–1.0, defense x0.85–1.0. **Veterancy** tiers 0–3 give +0/3/5/8% damage.
+- **Statuses (player-visible):** strength, weak, armor, bleed, poison, burn, fear, taunt, freeze. Poison/bleed/burn tick real damage at the start of the owner's turn; durations tick down each round.
+- **StackFlags (internal, not statuses).** `cannotAttack`, `cannotMove`, `incomingDamageReductionPercent` expire at the start of the owner's next turn (AO-D005). Protect's `redirectPercent` / `redirectToStackId` are consumed by the first hit they redirect. `divineShield` is consumed by the first lethal hit (leaves 1 soldier). Counterattack is limited by `counterattackUsesLeft`. "Next attack" bonus flags clear after the attacker acts.
+- **Passives.** Swordsman formation discipline (+10% defense next to a front ally), Archer high ground (+25% from the back row), Knight guard (25% redirect for adjacent front allies), Priest devotion, Goblin mob tactics, Orc brutal (+20% vs stacks under 50% count), Shaman support, Wolf pounce (+50% vs the back row).
+- **Enemy AI.** Intents are generated once at the start of each player turn from the live board (`intents.ts`); target score is baseline 30, +100 if lethal, +80 more if the lethal target is ranged/healer. The target pool uses the same geometry as the player's, so melee never targets the backline. At resolution, intents whose actor died are skipped, and a dead planned target is retargeted only within the actor's legal targets. Intent data is **not shown to the player** (AO-D003) but drives the end-of-turn playback.
+- **Cards.** 46-card pool (16 unit, 24 hero, 6 neutral). Effects are composable `CardEffect` data, not per-card code. Unit-sourced cards need a living stack of that unit; hero cards work regardless of army. Cost is Mana only.
+
+## Run layer
+- **Map.** 7 layers, 3 choices per layer. Node types: road, battle, elite_battle, resource, merchant, event, city, boss. One guaranteed city on layer 3. Moving costs food; starving kills units.
+- **Start.** Hero (warlord/rogue/mage) with a 12-card deck and a small army (AO-D007), one starting relic (Royal Banner: +20 to the largest stack; Arcane Crystal: +2 max Mana, army -10%). Gold 100, Food 50, Day 1.
+- **Rewards (AO-D006).** After victory: up to 3 choices total from new cards plus in-deck upgrades (`CARD_UPGRADES` is empty today, so 3 new cards). No relics. Skip allowed.
+- **Merchant.** 3 cards at 50g and optionally one relic at 120g.
+- **City.** Level 1–3 with 3/4/5 building slots (upgrade 150g / 300g). Recruit swordsman/archer/knight/priest straight into the army (max 6 stacks, same type merges), no garrison (AO-D008). Buildings: market, gold mine, mage tower, stable, training hall (+2 max Mana), forge (+2 max Mana), shrine. One permanent doctrine at the Temple.
+- **Events.** Small choice events with gold/food/HP/relic outcomes.
+- **Boss.** Currently a placeholder oversized Orc-heavy formation. The 3-phase Ashen Warlord is not built.
+
+## Not built yet (GDD items still open)
+Threat and dynamic encounters, Town teleport + 3-road return + 7-day recruitment, healing costs, Hero XP/leveling UI and traits, spatial dungeon with persistence, real boss phases, the full 15-relic roster (a subset exists), the card upgrade pool, server authority. Do not build these without a task.
+
+## Known divergences from the GDD
+- Enemy intent preview: GDD §20/§41 want it visible; the owner removed it (AO-D003).
+- Melee backline fallback: GDD §4 allows the backline to become reachable; the owner forbids it for melee (AO-D002).
+- Garrison and recruit-to-garrison: GDD §26 describes them; removed (AO-D008).
+- Hero HP is hidden on hub screens (AO-D009); combat still tracks it (defeat at 0).

@@ -1,6 +1,6 @@
 # AO-002 Battle screen clarity pass
 Owner-intent: "I don't understand what my actions do; statuses are messy; too much noise"
-Agent: ui
+Agent: ui-frontend
 Priority: P0
 Depends-on: AO-001 merged
 Branch: ai/AO-002

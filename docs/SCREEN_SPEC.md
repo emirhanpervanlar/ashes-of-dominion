@@ -1,0 +1,54 @@
+# Screen Spec
+
+Current layout and behavior of every screen. Items marked **[PLANNED]** are decided but not built (owned by tasks in `tasks/`). Viewport target 1366x900.
+
+## Title
+Centered title, menu: New Game, Continue (only if a save exists), Settings.
+
+## Hero Setup (2 steps)
+1. Name input + three hero cards (Warlord / Rogue / Mage) showing portrait, tagline and STR/DEX/INT/VIT/WIS.
+2. Starting relic choice (Royal Banner / Arcane Crystal), then Begin Journey.
+
+## Road (world map) — meta family
+- **Scene (top, fills remaining height):** `LAYER n / 7`, "You are here — <type>" pill, `Enter City` button when standing on a city, "Choose Your Path", then path cards.
+- **Path cards [PLANNED AO-003]:** 250w x 300h plaques, node-type accent border, corner badge icon scaled to the card. Unknown nodes are not shown.
+- **Bottom bar (200px, shared with City):** four columns
+  1. Gold / Food / Day, three rows.
+  2. Hero: name plaque (rectangular highlight, must sit fully visible above the portrait **[PLANNED AO-003 fix]**), large rectangular portrait, 3x5 relic grid below (15 slots; hover = name + effect; empty = dashed).
+  3. Army: always 6 slots. Filled = unit icon square, role badge, count printed below. Empty = dashed rectangle reading "Empty". Slot width 130px **[PLANNED AO-003]** (currently 150px). Click opens split/merge popup.
+  4. Two fixed-size buttons (60x46): Log (opens history drawer, closed by default) and Menu (pause menu).
+- No floating corner menu button, no "New Run" (the pause menu has Main Menu).
+
+## City — meta family
+- Scene: sky gradient + CSS castle skyline; hotspots for Town Hall, Barracks, Temple and the seven buildings (built = solid, locked = dashed with cost). Popups per hotspot.
+- Barracks popup: four units, count input, cost, single **Recruit** button (goes to the army; disabled if unaffordable or the army is full with no matching stack). No garrison, no Fort.
+- Bottom bar: identical to Road (resources column shows Gold / Food / building slots).
+- **Leave [PLANNED AO-003]:** a Leave button under the resources column inside the bar (currently a fixed ribbon at the bottom-left).
+
+## Merchant — overlay family
+Top bar (title, gold pill), a shelf of 3 card offers + optional relic (gold border) with price under each, unaffordable = dimmed, ribbon **Leave** at the bottom-left.
+
+## Event — overlay family
+Centered `?` badge, gold plaque title, description, option cards (label + effect). One click resolves.
+
+## Reward — overlay family
+Banner "Victory! Choose a Card", up to 3 large cards (cost medallion, icon, name, description), click selects (cyan ring), button reads Skip or Confirm & Continue. No relics.
+
+## Battle — battle family
+- **Frame:** full-screen ornate frame. Top: hero chip (name, relics, Mana bar) on the left, turn chip on the right. No floating menu button.
+- **Body:** left rail = your 2x3 portrait grid (back column, front column), center = scene panel (holds the Drop Card zone for no-target cards), right rail = enemy 2x3 grid (front column, back column).
+- **Portrait slot:** rectangular frame, unit icon, role badge, HP strip, name and `xCount`. Selected = white ring; selectable = gold ring; dimmed when not relevant; acted = grey.
+- **Bottom bar:** Deck pile (count) at far left, hand in a flat row (no fan), Discard pile (count) at the right of the hand, then a vertical column of three rectangular buttons at the far right: End Turn (top, gold), Log, Settings. Draw = cards slide in from the deck; end of turn = leftover cards slide to the discard pile.
+- **Interaction:** click your stack to start its free action, then click a legal enemy (Priest: any friendly stack). Card flow: click card, then the required targets (or the Drop Card zone). Re-click a selected stack to deselect; `Esc` cancels. Dead enemy stacks never act in playback.
+- **[PLANNED AO-002]**
+  - No `pos N` badge on any portrait.
+  - No HP numbers in battle; count is the health readout.
+  - Buffs/debuffs shown as small icons **on the portrait image** with their amount beside each icon (not text under the name).
+  - Right-click a stack = info popup (reuse `UnitPopup` without split/merge; add statuses, morale, veterancy, block).
+  - Floating combat text on the affected portrait for the player's own actions: damage (-N), Blocked N, heal, status applied.
+  - A stack that cannot act this turn (acted, frozen, cannotAttack) gets a lock icon and loses hover/selectable styling; the "cannot attack this turn" warning text is removed.
+  - Played cards travel to the scene centre and remain visible (fix the z-index bug where they fly up and vanish behind the bottom bar).
+- **Removed on purpose (AO-D003):** enemy intent text/bubble, threatened pulse, hover highlight of attackers, hover damage preview.
+
+## Pause menu / Settings / History drawer
+Pause menu: resume, settings (music volume), main menu. History drawer: newest-first numbered log, opened only via a Log button, closed by default.

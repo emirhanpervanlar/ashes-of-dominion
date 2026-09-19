@@ -1,6 +1,6 @@
 # AO-001 Battle engine rule fixes
 Owner-intent: "front units must not hit back units; units get stuck unable to attack; heal/HP should work like Heroes 3"
-Agent: gameplay
+Agent: gameplay-combat
 Priority: P0
 Depends-on: none
 Branch: ai/AO-001

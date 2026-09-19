@@ -1,6 +1,6 @@
 # AO-003 Road / City polish
 Owner-intent: "road cards too small, hero name hidden, city Leave doesn't fit"
-Agent: ui
+Agent: ui-frontend
 Priority: P1
 Depends-on: AO-002 (both edit index.css — sequential)
 Branch: ai/AO-003
