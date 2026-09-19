@@ -303,18 +303,20 @@ describe('Protect redirect is consumed by the first redirected hit (AO-D005)', (
   });
 });
 
-describe('melee enemies never reach the backline (AO-D002)', () => {
-  it('generates no attack intent for a melee enemy whose lanes have no living front target', () => {
+describe('melee enemies reach the backline only once the front row is empty (AO-D013)', () => {
+  it('an all-backline Mage army is attackable: every melee enemy plans an attack on it', () => {
     const { state } = createVerticalSliceScenario(512, 'mage'); // Mage army is backline only
     const melee = state.enemyArmy.filter((s) => s.unitId === 'orc');
     expect(melee.length).toBeGreaterThan(0);
     const intents = generateEnemyIntents(state);
     for (const orc of melee) {
-      expect(intents.some((i) => i.stackId === orc.stackId && i.kind === 'attack')).toBe(false);
+      const intent = intents.find((i) => i.stackId === orc.stackId && i.kind === 'attack');
+      expect(intent).toBeDefined();
+      expect(state.playerArmy.find((s) => s.stackId === intent!.targetStackId)!.position).toBeGreaterThan(3);
     }
   });
 
-  it('a melee enemy whose planned target died does not fall back to the backline', () => {
+  it('a melee enemy whose planned target died retargets the remaining backline stack', () => {
     const { state } = createVerticalSliceScenario(513, 'mage');
     const orc = state.enemyArmy.find((s) => s.unitId === 'orc')!;
     const dead = state.playerArmy[0]!;
@@ -324,6 +326,8 @@ describe('melee enemies never reach the backline (AO-D002)', () => {
       enemyIntents: [{ stackId: orc.stackId, kind: 'attack', targetStackId: dead.stackId, estimatedDamage: 1 }],
     };
     const ended = applyPlayerAction(forced, { type: 'END_TURN' });
-    expect(ended.events.some((e) => e.type === 'STACK_ATTACKED' && e.attackerStackId === orc.stackId)).toBe(false);
+    const hits = ended.events.filter((e) => e.type === 'STACK_ATTACKED' && e.attackerStackId === orc.stackId);
+    expect(hits).toHaveLength(1);
+    expect(hits[0]!.type === 'STACK_ATTACKED' && hits[0]!.targetStackId).toBe(state.playerArmy[1]!.stackId);
   });
 });

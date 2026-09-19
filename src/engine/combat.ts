@@ -462,7 +462,9 @@ function executeEffect(state: CombatState, effect: CardEffect, action: TargetedA
       return;
     }
     case 'APPLY_STATUS': {
-      const target = findStack(state.enemyArmy, action.targetStackId) ?? findStack(state.playerArmy, action.targetStackId ?? action.actingStackId)!;
+      const target = findStack(state.enemyArmy, action.targetStackId) ?? findStack(state.playerArmy, action.targetStackId ?? action.actingStackId);
+      // An earlier lethal effect of the same card may have removed the target.
+      if (!target) return;
       const targetArmy = target.side === 'player' ? state.playerArmy : state.enemyArmy;
       const updated = { ...target, statuses: [...target.statuses, { type: effect.status, amount: effect.amount, duration: effect.duration }] };
       replaceStack(targetArmy, updated);

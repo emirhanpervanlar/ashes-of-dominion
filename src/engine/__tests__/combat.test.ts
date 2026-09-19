@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { applyPlayerAction } from '../combat.js';
+import { UNIT_DEFINITIONS } from '../data/units.js';
 import { createVerticalSliceScenario } from '../scenario.js';
 import type { CombatState } from '../types.js';
 
@@ -260,17 +261,31 @@ describe('battle outcome', () => {
   });
 });
 
-describe('melee stack with no legal target (AO-D002)', () => {
-  it('rejects a basic attack with a "no target in reach" message', () => {
+describe('melee reach vs the backline (AO-D013)', () => {
+  it('rejects a basic attack with "no target in reach" while any front stack lives but none is in the attacker lane', () => {
     const { state } = createVerticalSliceScenario(8);
-    const frontDead: CombatState = {
+    // Only the right front stack survives: the left-lane Swordsman reaches left+center only.
+    const laneEmpty: CombatState = {
       ...state,
-      enemyArmy: state.enemyArmy.map((s) => (s.position <= 3 ? { ...s, count: 0, currentHp: 0 } : s)),
+      enemyArmy: state.enemyArmy.map((s) => (s.position <= 2 ? { ...s, count: 0, currentHp: 0 } : s)),
     };
-    const backline = frontDead.enemyArmy.find((s) => s.position === 4)!;
-    const result = applyPlayerAction(frontDead, { type: 'BASIC_ACTION', stackId: 'player_swordsman_1', targetStackId: backline.stackId });
+    const backline = laneEmpty.enemyArmy.find((s) => s.position === 4)!;
+    const result = applyPlayerAction(laneEmpty, { type: 'BASIC_ACTION', stackId: 'player_swordsman_1', targetStackId: backline.stackId });
     const rejected = result.events.find((e) => e.type === 'ACTION_REJECTED');
     expect(rejected).toBeDefined();
     expect(JSON.stringify(rejected)).toContain('no target in reach');
+  });
+
+  it('a melee army can finish a lone backline goblin once the front row is empty (softlock fixed)', () => {
+    const { state } = createVerticalSliceScenario(8);
+    const goblinOnly: CombatState = {
+      ...state,
+      enemyArmy: state.enemyArmy.map((s) => (s.position === 5 ? { ...s, count: 1, currentHp: UNIT_DEFINITIONS[s.unitId].hpPerUnit } : { ...s, count: 0, currentHp: 0 })),
+      hero: { ...state.hero, stats: { ...state.hero.stats, dexterity: 0 } },
+    };
+    const goblin = goblinOnly.enemyArmy.find((s) => s.count > 0)!;
+    const result = applyPlayerAction(goblinOnly, { type: 'BASIC_ACTION', stackId: 'player_swordsman_1', targetStackId: goblin.stackId });
+    expect(result.events.some((e) => e.type === 'ACTION_REJECTED')).toBe(false);
+    expect(result.events.some((e) => e.type === 'STACK_ATTACKED' && e.targetStackId === goblin.stackId)).toBe(true);
   });
 });
