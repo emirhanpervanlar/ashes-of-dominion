@@ -31,3 +31,6 @@ src/ui/**, src/App.tsx, any card/unit data values.
 
 ## Verification
 `npx tsc --noEmit && npx vitest run`
+
+## Status
+- 2026-09-19 ACCEPTED (reviewer: ACCEPT, 82/82 tests). Follow-ups moved to AO-004: card-path "no target in reach" test; second hit on Protected stack not redirected; melee enemy re-picks a reachable target when its planned target dies. Open minor question (Director): retarget uses first legal target, ignores scoring/Taunt.
