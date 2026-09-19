@@ -68,7 +68,7 @@ function rescaleStack(stack: ArmyStack, multiplier: number): ArmyStack {
   const def = UNIT_DEFINITIONS[stack.unitId];
   const newCount = Math.max(0, Math.floor(stack.count * multiplier));
   const newMaxHp = newCount * def.hpPerUnit;
-  return { ...stack, count: newCount, currentHp: newMaxHp, maxHp: newMaxHp, startingCount: newCount };
+  return { ...stack, count: newCount, currentHp: newMaxHp, maxHp: newMaxHp, startingCount: newCount, preBattleMaxCount: newCount };
 }
 
 function addFlatToLargestStack(army: ArmyStack[], amount: number): ArmyStack[] {
@@ -79,7 +79,7 @@ function addFlatToLargestStack(army: ArmyStack[], amount: number): ArmyStack[] {
     if (s.stackId !== largest.stackId) return s;
     const newCount = s.count + amount;
     const newMaxHp = newCount * def.hpPerUnit;
-    return { ...s, count: newCount, currentHp: newMaxHp, maxHp: newMaxHp, startingCount: newCount };
+    return { ...s, count: newCount, currentHp: newMaxHp, maxHp: newMaxHp, startingCount: newCount, preBattleMaxCount: newCount };
   });
 }
 
@@ -614,6 +614,8 @@ function leaveCity(run: RunState, events: RunEvent[]): RunApplyResult {
 
 export function applyRunAction(run: RunState, action: RunAction): RunApplyResult {
   const working = cloneRun(run);
+  // Wiped stacks (battle, starvation) are dropped so a later recruit/split can't reuse their `<unit>_<position>` stackId.
+  working.army = working.army.filter((s) => s.count > 0);
   const events: RunEvent[] = [];
 
   let result: RunApplyResult;
