@@ -1,5 +1,5 @@
 import type { RngState } from '../rng.js';
-import type { ArmyStack, CardInstance, CombatState, Hero, PlayerAction, RelicDefinition, UnitId } from '../types.js';
+import type { ArmyStack, CardInstance, CombatState, Hero, PlayerAction, Position, RelicDefinition, UnitId } from '../types.js';
 import type { CityState } from './city.js';
 import type { MerchantInventory } from './merchant.js';
 import type { WorldMapState } from './worldMap.js';
@@ -94,7 +94,8 @@ export type RunAction =
   | { type: 'CHOOSE_DOCTRINE'; doctrineId: string }
   | { type: 'LEAVE_CITY' }
   | { type: 'SPLIT_STACK'; stackId: string; splitCount: number }
-  | { type: 'MERGE_STACKS'; stackIdA: string; stackIdB: string };
+  | { type: 'MERGE_STACKS'; stackIdA: string; stackIdB: string }
+  | { type: 'MOVE_STACK'; stackId: string; toPosition: Position };
 
 export interface RunApplyResult {
   run: RunState;
