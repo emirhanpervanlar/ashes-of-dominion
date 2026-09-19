@@ -19,3 +19,6 @@ UI, combat files, other relic numbers.
 
 ## Acceptance criteria
 tsc clean, vitest green, report lists the new starting five and any UI-visible export changes.
+
+## Status
+- 2026-09-19 ACCEPTED. Note: Arcane Crystal drawback is army SIZE -10% (ARMY_SIZE_MULT), not damage.
