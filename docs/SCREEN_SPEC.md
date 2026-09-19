@@ -11,11 +11,11 @@ Centered title, menu: New Game, Continue (only if a save exists), Settings.
 
 ## Road (world map) — meta family
 - **Scene (top, fills remaining height):** `LAYER n / 7`, "You are here — <type>" pill, `Enter City` button when standing on a city, "Choose Your Path", then path cards.
-- **Path cards [PLANNED AO-003]:** 250w x 300h plaques, node-type accent border, corner badge icon scaled to the card. Unknown nodes are not shown.
+- **Path cards:** 250w x 300h plaques, node-type accent border, corner badge icon scaled to the card. Unknown nodes are not shown.
 - **Bottom bar (200px, shared with City):** four columns
   1. Gold / Food / Day, three rows.
-  2. Hero: name plaque (rectangular highlight, must sit fully visible above the portrait **[PLANNED AO-003 fix]**), large rectangular portrait, 3x5 relic grid below (15 slots; hover = name + effect; empty = dashed).
-  3. Army: always 6 slots. Filled = unit icon square, role badge, count printed below. Empty = dashed rectangle reading "Empty". Slot width 130px **[PLANNED AO-003]** (currently 150px). Click opens split/merge popup.
+  2. Hero: name plaque (rectangular highlight, must sit fully visible above the portrait), large rectangular portrait, 3x5 relic grid below (15 slots; hover = name + effect; empty = dashed).
+  3. Army: always 6 slots. Filled = unit icon square, role badge, count printed below. Empty = dashed rectangle reading "Empty". Slot 130x130px (AO-D010), identical on Road and City. Click opens split/merge popup.
   4. Two fixed-size buttons (60x46): Log (opens history drawer, closed by default) and Menu (pause menu).
 - No floating corner menu button, no "New Run" (the pause menu has Main Menu).
 
@@ -23,7 +23,7 @@ Centered title, menu: New Game, Continue (only if a save exists), Settings.
 - Scene: sky gradient + CSS castle skyline; hotspots for Town Hall, Barracks, Temple and the seven buildings (built = solid, locked = dashed with cost). Popups per hotspot.
 - Barracks popup: four units, count input, cost, single **Recruit** button (goes to the army; disabled if unaffordable or the army is full with no matching stack). No garrison, no Fort.
 - Bottom bar: identical to Road (resources column shows Gold / Food / building slots).
-- **Leave [PLANNED AO-003]:** a Leave button under the resources column inside the bar (currently a fixed ribbon at the bottom-left).
+- **Leave:** a Leave button under the resources column inside the bar (column 1: Gold / Food / Slots, then Leave).
 
 ## Merchant — overlay family
 Top bar (title, gold pill), a shelf of 3 card offers + optional relic (gold border) with price under each, unaffordable = dimmed, ribbon **Leave** at the bottom-left.
