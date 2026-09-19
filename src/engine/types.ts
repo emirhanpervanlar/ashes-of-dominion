@@ -226,6 +226,7 @@ export type RelicEffect =
   | { kind: 'HERO_MAX_MANA'; amount: number }
   | { kind: 'ARMY_SIZE_MULT'; multiplier: number }
   | { kind: 'ARMY_SIZE_FLAT_LARGEST'; amount: number }
+  | { kind: 'GOLD_FLAT'; amount: number }
   | { kind: 'PLAYER_DAMAGE_MULT'; multiplier: number }
   | { kind: 'TAG_DAMAGE_MULT'; tag: string; multiplier: number }
   | { kind: 'LARGE_STACK_STRENGTH'; threshold: number; amount: number }

@@ -75,12 +75,11 @@ describe('starting relic', () => {
     expect(result.run.combat).toBeNull();
   });
 
-  it('Arcane Crystal boosts max Mana and shrinks the whole army by 10%', () => {
+  it("Traveler's Purse grants +50 Gold once at run start and does not count as gathered income (AO-D043)", () => {
     const run = createRun(3);
-    const result = applyRunAction(run, { type: 'CHOOSE_STARTING_RELIC', relicId: 'arcane_crystal' });
-    expect(result.run.hero.maxMana).toBe(5); // Warlord base 3 + 2
-    expect(result.run.hero.mana).toBe(5);
-    expect(result.run.army.find((s) => s.unitId === 'swordsman')!.count).toBe(5); // floor(6*0.9)
+    const result = applyRunAction(run, { type: 'CHOOSE_STARTING_RELIC', relicId: 'travelers_purse' });
+    expect(result.run.gold).toBe(run.gold + 50);
+    expect(result.run.stats.goldGathered).toBe(run.stats.goldGathered);
   });
 
   it('rejects choosing a starting relic twice', () => {
