@@ -38,6 +38,7 @@ Status: TODO / IN PROGRESS / BLOCKED (needs owner). Decisions live in docs/DECIS
 - [TODO qa-playtest] elite_guard wipes starting armies in one passed turn; buff cards weigh less under the H3 model; Mage army vs guarded_shaman.
 
 ## Planned, far future (owner discussion first)
+- Real objectives instead of plain battles (AO-D059): mine capture (+10 Gold/day passive), village raid (100 Gold + 20 Food now) vs help villagers (+10 Food/day passive), rescues; player decisions create passive income. Design conversation first.
 - Hero XP / levels / stats and RPG structure (AO-D030); unit XP.
 - Unlocks after death: cards, starting relics, new heroes (persistent profile).
 - Elemental damage types (poison, fire, freeze, lightning) and immunities (AO-D031).
