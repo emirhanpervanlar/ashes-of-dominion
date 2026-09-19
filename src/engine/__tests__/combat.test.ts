@@ -259,3 +259,18 @@ describe('battle outcome', () => {
     expect(ended.state.hero.hp).toBe(100); // hero is untouched; run continues at a higher layer
   });
 });
+
+describe('melee stack with no legal target (AO-D002)', () => {
+  it('rejects a basic attack with a "no target in reach" message', () => {
+    const { state } = createVerticalSliceScenario(8);
+    const frontDead: CombatState = {
+      ...state,
+      enemyArmy: state.enemyArmy.map((s) => (s.position <= 3 ? { ...s, count: 0, currentHp: 0 } : s)),
+    };
+    const backline = frontDead.enemyArmy.find((s) => s.position === 4)!;
+    const result = applyPlayerAction(frontDead, { type: 'BASIC_ACTION', stackId: 'player_swordsman_1', targetStackId: backline.stackId });
+    const rejected = result.events.find((e) => e.type === 'ACTION_REJECTED');
+    expect(rejected).toBeDefined();
+    expect(JSON.stringify(rejected)).toContain('no target in reach');
+  });
+});

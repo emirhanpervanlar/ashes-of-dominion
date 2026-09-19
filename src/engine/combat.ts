@@ -146,7 +146,15 @@ function resolveAttack(
   let actualTarget = target;
   if (redirect && !attacker.flags.nextAttackCannotBeRedirected) {
     const guardian = findStack(army, redirect.toStackId);
-    if (guardian) actualTarget = guardian;
+    if (guardian) {
+      actualTarget = guardian;
+      // The Protect card's explicit redirect covers only the next hit taken — clear it so later
+      // attacks against the original target don't keep redirecting forever (the Guard passive's
+      // implicit redirect has no flag to clear, so it naturally re-evaluates every attack instead).
+      if (target.flags.redirectToStackId) {
+        replaceStack(army, { ...target, flags: { ...target.flags, redirectPercent: undefined, redirectToStackId: undefined } });
+      }
+    }
   }
   targetDef = UNIT_DEFINITIONS[actualTarget.unitId];
 
@@ -565,6 +573,7 @@ function validateTargeting(state: CombatState, def: { id: string; targeting: Car
     if (def.targeting === 'ally-stack+enemy-stack') {
       const actor = findStack(state.playerArmy, action.actingStackId)!;
       const validTargets = computeValidTargets(actor, state.enemyArmy, UNIT_DEFINITIONS[actor.unitId]);
+      if (validTargets.length === 0) return `${UNIT_DEFINITIONS[actor.unitId].name} has no target in reach.`;
       if (!validTargets.some((t) => t.stackId === stack.stackId)) {
         return `${UNIT_DEFINITIONS[actor.unitId].name} cannot reach that target from its position.`;
       }
@@ -681,6 +690,10 @@ function basicAction(state: CombatState, action: Extract<PlayerAction, { type: '
       return { state, events };
     }
     const validTargets = computeValidTargets(actor, state.enemyArmy, def);
+    if (validTargets.length === 0) {
+      reject(events, `${def.name} has no target in reach.`);
+      return { state, events };
+    }
     if (!validTargets.some((t) => t.stackId === target.stackId)) {
       reject(events, `${def.name} cannot reach that target from its position.`);
       return { state, events };
@@ -739,7 +752,8 @@ function resolveEnemyTurn(state: CombatState, events: CombatEvent[]): void {
 
     let target = findStack(state.playerArmy, intent.targetStackId ?? undefined);
     if (!target || target.count <= 0) {
-      target = state.playerArmy.find((s) => s.count > 0);
+      // The planned target died mid-turn: re-pick, but only within what this attacker can reach.
+      target = computeValidTargets(actor, state.playerArmy, UNIT_DEFINITIONS[actor.unitId])[0];
     }
     if (!target) continue;
 
@@ -756,6 +770,13 @@ function startPlayerTurn(state: CombatState, events: CombatEvent[], isFirstTurn:
 
     for (const stack of state.playerArmy) {
       stack.block = 0;
+      // "1 turn" self-lockdown flags (Brace, Shield Wall, ...) protect through the enemy's turn
+      // and then expire — unlike statuses, StackFlags have no duration field, so this is the
+      // only place they get cleared. Without it a stack that ever played one of these cards
+      // would be permanently stuck (e.g. always rejecting basic actions as "cannot act").
+      if (stack.flags.cannotAttack || stack.flags.cannotMove || stack.flags.incomingDamageReductionPercent) {
+        stack.flags = { ...stack.flags, cannotAttack: undefined, cannotMove: undefined, incomingDamageReductionPercent: undefined };
+      }
     }
 
     tickStatuses(state.playerArmy, events);
