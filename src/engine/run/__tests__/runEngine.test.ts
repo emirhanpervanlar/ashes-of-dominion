@@ -66,11 +66,11 @@ describe('run creation', () => {
 });
 
 describe('starting relic', () => {
-  it('Royal Banner adds +20 to the largest starting stack and moves to the map', () => {
+  it('Royal Banner adds +6 to the largest starting stack and moves to the map', () => {
     const run = createRun(2);
     const result = applyRunAction(run, { type: 'CHOOSE_STARTING_RELIC', relicId: 'royal_banner' });
     const swordsman = result.run.army.find((s) => s.unitId === 'swordsman')!;
-    expect(swordsman.count).toBe(26); // 6 (Warlord's largest starting stack) + 20
+    expect(swordsman.count).toBe(12); // 6 (Warlord's largest starting stack) + 6 (AO-D014)
     expect(result.run.phase).toBe('on_map');
     expect(result.run.combat).toBeNull();
   });

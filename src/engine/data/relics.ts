@@ -62,8 +62,8 @@ export const STARTING_RELIC_DEFINITIONS: Record<string, RelicDefinition> = {
   royal_banner: {
     id: 'royal_banner',
     name: 'Royal Banner',
-    description: "Army size +20 (added to the run's largest starting stack).",
-    effects: [{ kind: 'ARMY_SIZE_FLAT_LARGEST', amount: 20 }],
+    description: "Army size +6 (added to the run's largest starting stack).",
+    effects: [{ kind: 'ARMY_SIZE_FLAT_LARGEST', amount: 6 }],
   },
   arcane_crystal: {
     id: 'arcane_crystal',

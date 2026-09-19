@@ -239,12 +239,12 @@ describe('Royal Banner / Arcane Crystal keep the heal cap consistent (AO-D004)',
     }
   });
 
-  it('a full-health Royal Banner Swordsman x26 is not changed by a Priest heal (never negative)', () => {
+  it('a full-health Royal Banner Swordsman x12 is not changed by a Priest heal (never negative)', () => {
     const { sword, after, event } = healed('royal_banner', 0);
-    expect(sword.count).toBe(26);
+    expect(sword.count).toBe(12);
     if (event && event.type === 'STACK_HEALED') expect(event.amount).toBe(0);
     expect(after.currentHp).toBe(sword.maxHp);
-    expect(after.count).toBe(26);
+    expect(after.count).toBe(12);
   });
 
   it('a wounded Royal Banner Swordsman heals, but only up to the boosted cap', () => {
