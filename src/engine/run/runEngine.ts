@@ -16,7 +16,7 @@ import {
   GOLD_MINE_DAILY_GOLD,
   LEVEL_SLOTS,
   LEVEL_UP_COST,
-  MAGE_TOWER_WISDOM,
+  MAGE_TOWER_TIERS,
   addUnitsToArmy,
   canRecruitUnit,
   createInitialCityState,
@@ -45,7 +45,18 @@ function cloneRun(run: RunState): RunState {
  * reducer also applies it, so an old run keeps working on its first action.
  */
 export function migrateRun(run: RunState): RunState {
-  return { ...run, stats: { ...createRunStats(), ...run.stats }, cardRemoval: run.cardRemoval ?? createCardRemovalState() };
+  const migrated: RunState = { ...run, stats: { ...createRunStats(), ...run.stats }, cardRemoval: run.cardRemoval ?? createCardRemovalState() };
+  if (run.city.mageTowerTier === undefined) {
+    // Saves from before AO-D036: a built Mage Tower is tier I. It used to add Wisdom +2 (and the Mana that was worth); undo that, grant tier I.
+    const hasTower = run.city.buildings.includes('mage_tower');
+    migrated.city = { ...run.city, mageTowerTier: hasTower ? 1 : 0 };
+    if (hasTower) {
+      const stats = { ...run.hero.stats, wisdom: run.hero.stats.wisdom - 2 };
+      const manaDelta = maxManaFromWisdom(run.hero.baseMana, stats.wisdom) - maxManaFromWisdom(run.hero.baseMana, run.hero.stats.wisdom) + MAGE_TOWER_TIERS[0]!.maxMana;
+      migrated.hero = { ...run.hero, stats, maxMana: run.hero.maxMana + manaDelta, mana: Math.max(0, run.hero.mana + manaDelta) };
+    }
+  }
+  return migrated;
 }
 
 function changeGold(run: RunState, delta: number): void {
@@ -637,14 +648,40 @@ function buildBuilding(run: RunState, buildingId: string, events: RunEvent[]): R
     run.hero.mana += 2;
   }
   if (buildingId === 'mage_tower') {
-    const manaBefore = maxManaFromWisdom(run.hero.baseMana, run.hero.stats.wisdom);
-    run.hero.stats.wisdom += MAGE_TOWER_WISDOM;
-    const manaGained = maxManaFromWisdom(run.hero.baseMana, run.hero.stats.wisdom) - manaBefore;
-    run.hero.maxMana += manaGained;
-    run.hero.mana += manaGained;
+    run.city.mageTowerTier = 1;
+    run.hero.maxMana += MAGE_TOWER_TIERS[0]!.maxMana;
+    run.hero.mana += MAGE_TOWER_TIERS[0]!.maxMana;
   }
 
   events.push({ type: 'BUILDING_BUILT', buildingId });
+  return { run, events };
+}
+
+function upgradeMageTower(run: RunState, events: RunEvent[]): RunApplyResult {
+  if (run.phase !== 'city') {
+    reject(events, 'Not at the city.');
+    return { run, events };
+  }
+  const tier = run.city.mageTowerTier;
+  if (tier === 0) {
+    reject(events, 'Build the Mage Tower first.');
+    return { run, events };
+  }
+  const next = MAGE_TOWER_TIERS[tier];
+  if (!next) {
+    reject(events, 'Mage Tower is already at max tier.');
+    return { run, events };
+  }
+  if (run.gold < next.cost) {
+    reject(events, 'Not enough Gold.');
+    return { run, events };
+  }
+  const gained = next.maxMana - MAGE_TOWER_TIERS[tier - 1]!.maxMana;
+  changeGold(run, -next.cost);
+  run.city.mageTowerTier = (tier + 1) as 2 | 3;
+  run.hero.maxMana += gained;
+  run.hero.mana += gained;
+  events.push({ type: 'MAGE_TOWER_UPGRADED', tier: tier + 1 });
   return { run, events };
 }
 
@@ -745,6 +782,9 @@ export function applyRunAction(run: RunState, action: RunAction): RunApplyResult
       break;
     case 'BUILD_BUILDING':
       result = buildBuilding(working, action.buildingId, events);
+      break;
+    case 'UPGRADE_MAGE_TOWER':
+      result = upgradeMageTower(working, events);
       break;
     case 'UPGRADE_CITY':
       result = upgradeCity(working, events);

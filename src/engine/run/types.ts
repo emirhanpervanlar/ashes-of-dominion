@@ -48,6 +48,7 @@ export type RunEvent =
   | { type: 'UNITS_RECRUITED'; unitId: string; count: number }
   | { type: 'BUILDING_BUILT'; buildingId: string }
   | { type: 'CITY_LEVELED_UP'; level: number }
+  | { type: 'MAGE_TOWER_UPGRADED'; tier: number }
   | { type: 'DOCTRINE_CHOSEN'; doctrineId: string }
   | { type: 'RUN_COMPLETE' }
   | { type: 'ACTION_REJECTED'; reason: string };
@@ -95,6 +96,7 @@ export type RunAction =
   | { type: 'RECRUIT'; unitId: UnitId; count: number }
   | { type: 'BUILD_BUILDING'; buildingId: string }
   | { type: 'UPGRADE_CITY' }
+  | { type: 'UPGRADE_MAGE_TOWER' }
   | { type: 'CHOOSE_DOCTRINE'; doctrineId: string }
   | { type: 'LEAVE_CITY' }
   | { type: 'SPLIT_STACK'; stackId: string; splitCount: number }

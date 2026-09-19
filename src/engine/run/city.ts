@@ -15,13 +15,28 @@ export interface CityBuildingDefinition {
 
 /** AO-D020 building numbers. */
 export const GOLD_MINE_DAILY_GOLD = 10;
-export const MAGE_TOWER_WISDOM = 2;
-export const SHRINE_REVIVE_RATIO = 0.1;
+/** AO-D036: cumulative hero max Mana and Gold cost per Mage Tower tier (index 0 = tier I, which is the build itself). */
+export const MAGE_TOWER_TIERS: ReadonlyArray<{ cost: number; maxMana: number }> = [
+  { cost: 80, maxMana: 1 },
+  { cost: 200, maxMana: 3 },
+  { cost: 500, maxMana: 6 },
+];
+
+const ROMAN = ['I', 'II', 'III'];
+
+/** Tier text for the building card: current bonus and the next tier's price. `tier` 0 = not built. */
+export function mageTowerDescription(tier: number): string {
+  const next = MAGE_TOWER_TIERS[tier];
+  const current = tier > 0 ? `Tier ${ROMAN[tier - 1]}: hero max Mana +${MAGE_TOWER_TIERS[tier - 1]!.maxMana}.` : `Hero max Mana +${MAGE_TOWER_TIERS[0]!.maxMana} (tier I).`;
+  return next && tier > 0 ? `${current} Next: tier ${ROMAN[tier]} (+${next.maxMana} total) for ${next.cost} Gold.` : `${current}${tier === 0 ? ` Upgradeable to +${MAGE_TOWER_TIERS[2]!.maxMana}.` : ' Max tier.'}`;
+}export const SHRINE_REVIVE_RATIO = 0.1;
 
 export interface CityState {
   level: 1 | 2 | 3;
   buildings: string[];
   doctrine: string | null;
+  /** 0 = no Mage Tower. The tower is one building slot at every tier. */
+  mageTowerTier: 0 | 1 | 2 | 3;
 }
 
 /**
@@ -88,9 +103,9 @@ export const BUILDING_DEFINITIONS: Record<string, CityBuildingDefinition> = {
   mage_tower: {
     id: 'mage_tower',
     name: 'Mage Tower',
-    description: `Hero Wisdom +${MAGE_TOWER_WISDOM} (stronger heals, more Mana past 10).`,
+    description: mageTowerDescription(0),
     category: 'army',
-    cost: 80,
+    cost: MAGE_TOWER_TIERS[0]!.cost,
   },
   stable: {
     id: 'stable',
@@ -155,7 +170,7 @@ export function settleArmyAfterVictory(army: ArmyStack[], city: CityState): { ar
 }
 
 export function createInitialCityState(): CityState {
-  return { level: 1, buildings: [], doctrine: null };
+  return { level: 1, buildings: [], doctrine: null, mageTowerTier: 0 };
 }
 
 export function canRecruitUnit(_city: CityState, unitId: UnitId): boolean {

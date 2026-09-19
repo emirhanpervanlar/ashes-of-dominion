@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { CombatEvent, CombatState } from '../../types.js';
 import { CARD_REMOVAL, cardRemovalQuote } from '../cardRemoval.js';
-import { BUILDING_DEFINITIONS, GOLD_MINE_DAILY_GOLD } from '../city.js';
+import { BUILDING_DEFINITIONS, GOLD_MINE_DAILY_GOLD, MAGE_TOWER_TIERS, mageTowerDescription } from '../city.js';
 import { moveFoodCost } from '../food.js';
 import { applyRunAction, createRun, migrateRun } from '../runEngine.js';
 import { createRunStats, tallyCombatEvents } from '../stats.js';
@@ -118,13 +118,72 @@ describe('AO-D020: city building effects', () => {
     expect(moved.food).toBe(50 - moveFoodCost(run.army, stable.city));
   });
 
-  it('Mage Tower gives the hero Wisdom +2 (and the Mana it is worth); heal/mana math reads that stat', () => {
-    const run = { ...onMap(8, 'mage'), phase: 'city' as const, gold: 500 };
-    const built = act(run, { type: 'BUILD_BUILDING', buildingId: 'mage_tower' }).run;
-    expect(built.hero.stats.wisdom).toBe(run.hero.stats.wisdom + 2);
-    // Mage Wisdom 16 -> 18: +1 max Mana (every 2 above 10).
-    expect(built.hero.maxMana).toBe(run.hero.maxMana + 1);
-    expect(built.hero.mana).toBe(run.hero.mana + 1);
+  const inCityWith = (gold: number, seed = 8): RunState => ({ ...onMap(seed), phase: 'city' as const, gold });
+  const build = (r: RunState) => act(r, { type: 'BUILD_BUILDING', buildingId: 'mage_tower' });
+  const upgrade = (r: RunState) => act(r, { type: 'UPGRADE_MAGE_TOWER' });
+
+  it('Mage Tower tiers give cumulative +1/+3/+6 max Mana for 80/200/500 Gold in one slot, strictly in order', () => {
+    const start = inCityWith(2000);
+    expect(rejected(upgrade(start).events)).toBe(true); // nothing to upgrade yet
+    let run = build(start).run;
+    expect(run.city.mageTowerTier).toBe(1);
+    expect(run.gold).toBe(2000 - MAGE_TOWER_TIERS[0]!.cost);
+    expect(run.hero.maxMana).toBe(start.hero.maxMana + 1);
+    expect(run.hero.mana).toBe(start.hero.mana + 1);
+    expect(run.hero.stats.wisdom).toBe(start.hero.stats.wisdom);
+
+    run = upgrade(run).run;
+    expect(run.city.mageTowerTier).toBe(2);
+    expect(run.gold).toBe(2000 - 80 - 200);
+    expect(run.hero.maxMana).toBe(start.hero.maxMana + 3);
+
+    const t3 = upgrade(run);
+    expect(t3.events.some((e) => e.type === 'MAGE_TOWER_UPGRADED' && e.tier === 3)).toBe(true);
+    run = t3.run;
+    expect(run.city.mageTowerTier).toBe(3);
+    expect(run.gold).toBe(2000 - 80 - 200 - 500);
+    expect(run.hero.maxMana).toBe(start.hero.maxMana + 6);
+    expect(run.city.buildings.filter((id) => id === 'mage_tower')).toHaveLength(1);
+    expect(rejected(upgrade(run).events)).toBe(true); // max tier
+    expect(rejected(build(run).events)).toBe(true); // cannot rebuild
+  });
+
+  it('a tier needs its full price and a failed upgrade changes nothing', () => {
+    const built = build(inCityWith(80 + 199)).run;
+    const result = upgrade(built);
+    expect(rejected(result.events)).toBe(true);
+    expect(result.run.city.mageTowerTier).toBe(1);
+    expect(result.run.gold).toBe(199);
+    expect(result.run.hero.maxMana).toBe(built.hero.maxMana);
+  });
+
+  it('upgrades only work in the city, and stack with Training Hall and relics without double counting', () => {
+    const start = inCityWith(2000);
+    const tower = upgrade(build(start).run).run;
+    expect(rejected(act({ ...tower, phase: 'on_map' }, { type: 'UPGRADE_MAGE_TOWER' }).events)).toBe(true);
+    const both = act(tower, { type: 'BUILD_BUILDING', buildingId: 'training_hall' }).run;
+    expect(both.hero.maxMana).toBe(start.hero.maxMana + 3 + 2);
+  });
+
+  it('descriptions state the current tier bonus and the next cost', () => {
+    expect(mageTowerDescription(0)).toContain('+1');
+    expect(mageTowerDescription(1)).toContain('Tier I');
+    expect(mageTowerDescription(1)).toContain('200 Gold');
+    expect(mageTowerDescription(2)).toContain('500 Gold');
+    expect(mageTowerDescription(2)).toContain('+6 total');
+    expect(mageTowerDescription(3)).toContain('Max tier');
+    expect(BUILDING_DEFINITIONS.mage_tower!.cost).toBe(80);
+  });
+
+  it('a pre-AO-D036 save with a Mage Tower migrates to tier I: Wisdom +2 undone, max Mana recomputed', () => {
+    const run = onMap(8, 'mage');
+    const old = { ...run, city: { level: 1, buildings: ['mage_tower'], doctrine: null }, hero: { ...run.hero, stats: { ...run.hero.stats, wisdom: run.hero.stats.wisdom + 2 }, maxMana: run.hero.maxMana + 1, mana: run.hero.mana + 1 } };
+    const migrated = migrateRun(old as unknown as RunState);
+    expect(migrated.city.mageTowerTier).toBe(1);
+    expect(migrated.hero.stats.wisdom).toBe(run.hero.stats.wisdom);
+    expect(migrated.hero.maxMana).toBe(run.hero.maxMana + 1);
+    expect(migrateRun(migrated).hero.maxMana).toBe(migrated.hero.maxMana); // idempotent
+    expect(migrateRun(run).city.mageTowerTier).toBe(0);
   });
 
   it('Gold Mine gives +10 Gold per day instead of a one-off +100', () => {
@@ -142,7 +201,7 @@ describe('AO-D020: city building effects', () => {
   it('descriptions tell the truth', () => {
     expect(BUILDING_DEFINITIONS.stable!.description).toContain('Food');
     expect(BUILDING_DEFINITIONS.gold_mine!.description).toContain('10 Gold');
-    expect(BUILDING_DEFINITIONS.mage_tower!.description).toContain('Wisdom');
+    expect(BUILDING_DEFINITIONS.mage_tower!.description).toContain('max Mana');
     expect(BUILDING_DEFINITIONS.shrine!.description).toContain('10%');
   });
 });
