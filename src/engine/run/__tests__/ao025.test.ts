@@ -155,9 +155,9 @@ describe('AO-D057: starvation Morale', () => {
   it('malus starts after 3 consecutive starving days, then grows and is capped', () => {
     expect(starvationMoraleMalus(0)).toBe(0);
     expect(starvationMoraleMalus(STARVATION.moraleAfterDays - 1)).toBe(0);
-    expect(starvationMoraleMalus(3)).toBe(5);
-    expect(starvationMoraleMalus(4)).toBe(8);
-    expect(starvationMoraleMalus(5)).toBe(11);
+    expect(starvationMoraleMalus(3)).toBe(10);
+    expect(starvationMoraleMalus(4)).toBe(18);
+    expect(starvationMoraleMalus(5)).toBe(26);
     expect(starvationMoraleMalus(99)).toBe(STARVATION.moraleMax);
   });
 
@@ -174,14 +174,14 @@ describe('AO-D057: starvation Morale', () => {
     const starving = step({ ...withArmy(onMap(8), BIG), food: 0, starvationDays: 2 }, 'battle').run; // 3rd starving day
     expect(starving.starvationDays).toBe(3);
     expect(starving.phase).toBe('in_battle');
-    expect(starving.combat!.playerArmy.every((s) => s.morale === 100 - 5)).toBe(true);
+    expect(starving.combat!.playerArmy.every((s) => s.morale === 100 - 10)).toBe(true);
     expect(starving.army.every((s) => s.morale === 100)).toBe(true);
 
     const second = step({ ...withArmy(onMap(8), BIG), food: 0, starvationDays: 1 }, 'battle').run; // only the 2nd starving day
     expect(second.combat!.playerArmy.every((s) => s.morale === 100)).toBe(true);
 
     const later = step({ ...withArmy(onMap(8), BIG), food: 0, starvationDays: 4 }, 'battle').run;
-    expect(later.combat!.playerArmy.every((s) => s.morale === 100 - 11)).toBe(true);
+    expect(later.combat!.playerArmy.every((s) => s.morale === 100 - 26)).toBe(true);
   });
 
   it('winning the battle does not bake the malus into the run army', () => {
@@ -225,6 +225,11 @@ describe('AO-D058: Farm tiers and the balance table', () => {
       for (let seed = 1; seed <= SEEDS; seed++) starveFor(counts, 5, seed).forEach((n, i) => (sums[i]! += n));
       const single = starveFor(counts, 5, 1);
       lines.push(`${name.padStart(5)} | ` + sums.map((s, i) => `d${i + 1}: ${(s / SEEDS).toFixed(1)} [${single[i]}]`).join('  ') + ` | ${[1, 2, 3, 4, 5].map((d) => starvationMoraleMalus(d)).join('/')}  (of ${total})`);
+    }
+    lines.push('Starving day: Morale malus -> damage x / defence x');
+    for (let d = 1; d <= 10; d++) {
+      const m = Math.max(0, 100 - starvationMoraleMalus(d));
+      lines.push(`  d${d}: -${starvationMoraleMalus(d)} -> x${(0.7 + m * 0.003).toFixed(3)} / x${(0.85 + m * 0.0015).toFixed(3)}`);
     }
     lines.push('Farm tier: cost, Food/day; net Food/day for 8 / 38 / 60 units without and with Stable');
     FARM_TIERS.forEach((t, i) => {

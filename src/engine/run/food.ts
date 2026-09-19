@@ -67,9 +67,9 @@ export const STARVATION = {
   /** Consecutive starving days before battles start with a Morale malus. */
   moraleAfterDays: 3,
   /** Malus (Morale points off 100) on the first affected day, then `moraleStep` more per further day, never above `moraleMax`. */
-  moraleBase: 5,
-  moraleStep: 3,
-  moraleMax: 40,
+  moraleBase: 10,
+  moraleStep: 8,
+  moraleMax: 100,
 } as const;
 
 /** Share of the army that dies on a starving day: `shortageRatio` = deficit / daily need in (0, 1]. */
