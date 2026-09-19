@@ -13,5 +13,8 @@ One file per task: `AO-###-slug.md`. Format, lifecycle and the agent report form
 | AO-007 run reposition | gameplay-economy | ACCEPTED |
 | AO-008 army bar UX spec | ui-ux | DONE |
 | AO-009 army bar + polish | ui-frontend | ACCEPTED |
+| AO-010 combat rules (H3 damage, lane rule, kill counts, enemy steps) | gameplay-combat | DISPATCHED |
+| AO-011 run rules (full heal, buildings, stats, card removal) | gameplay-economy | DISPATCHED |
+| AO-012 starting deck + relic drawbacks proposal (DDR only) | gameplay-combat | DISPATCHED |
 
 The Director appends dated status lines to each task file as it moves through the lifecycle.
