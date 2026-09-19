@@ -287,17 +287,17 @@ describe('AO-D026: reward resolves immediately', () => {
     const claimed = act(won, { type: 'CLAIM_CARD', cardId });
     expect(claimed.run.phase).toBe('on_map');
     expect(claimed.run.pendingReward).toBeNull();
-    expect(claimed.run.masterDeck).toHaveLength(13);
+    expect(claimed.run.masterDeck).toHaveLength(11);
 
     const skipped = act(won, { type: 'SKIP_REWARD' });
     expect(skipped.run.phase).toBe('on_map');
     expect(skipped.events.some((e) => e.type === 'REWARD_SKIPPED')).toBe(true);
-    expect(skipped.run.masterDeck).toHaveLength(12);
+    expect(skipped.run.masterDeck).toHaveLength(10);
 
     const target = won.masterDeck[0]!;
     const removed = act(won, { type: 'REMOVE_CARD', instanceId: target.instanceId });
     expect(removed.run.phase).toBe('on_map');
-    expect(removed.run.masterDeck).toHaveLength(11);
+    expect(removed.run.masterDeck).toHaveLength(9);
     expect(removed.run.masterDeck.some((c) => c.instanceId === target.instanceId)).toBe(false);
     expect(removed.run.gold).toBe(won.gold);
     expect(removed.run.stats.cardsRemoved).toBe(1);
@@ -345,7 +345,7 @@ describe('AO-D026: card removal at merchant and city', () => {
     const gold = run.gold;
     run = act(run, { type: 'REMOVE_CARD', instanceId: b.instanceId }).run;
     expect(run.gold).toBe(gold - CARD_REMOVAL.merchant.baseGold - CARD_REMOVAL.merchant.stepGold);
-    expect(run.masterDeck).toHaveLength(10);
+    expect(run.masterDeck).toHaveLength(8);
     expect(run.stats.goldSpent).toBe(CARD_REMOVAL.merchant.baseGold * 2 + CARD_REMOVAL.merchant.stepGold);
     expect(run.stats.cardsRemoved).toBe(2);
   });
@@ -354,7 +354,7 @@ describe('AO-D026: card removal at merchant and city', () => {
     const run = atMerchant(31, 10);
     const result = act(run, { type: 'REMOVE_CARD', instanceId: run.masterDeck[0]!.instanceId });
     expect(rejected(result.events)).toBe(true);
-    expect(result.run.masterDeck).toHaveLength(12);
+    expect(result.run.masterDeck).toHaveLength(10);
     expect(result.run.gold).toBe(10);
   });
 
@@ -364,15 +364,15 @@ describe('AO-D026: card removal at merchant and city', () => {
     run = act(run, { type: 'REMOVE_CARD', instanceId: run.masterDeck[0]!.instanceId }).run;
     expect(run.gold).toBe(gold);
     expect(run.phase).toBe('city');
-    expect(run.masterDeck).toHaveLength(11);
+    expect(run.masterDeck).toHaveLength(9);
 
     const again = act(run, { type: 'REMOVE_CARD', instanceId: run.masterDeck[0]!.instanceId });
     expect(rejected(again.events)).toBe(true);
-    expect(again.run.masterDeck).toHaveLength(11);
+    expect(again.run.masterDeck).toHaveLength(9);
 
     const nextWeek = act({ ...run, day: run.day + CARD_REMOVAL.city.cooldownDays }, { type: 'REMOVE_CARD', instanceId: run.masterDeck[0]!.instanceId });
     expect(rejected(nextWeek.events)).toBe(false);
-    expect(nextWeek.run.masterDeck).toHaveLength(10);
+    expect(nextWeek.run.masterDeck).toHaveLength(8);
   });
 
   it('is rejected on the map, for unknown cards, and below the minimum deck size', () => {

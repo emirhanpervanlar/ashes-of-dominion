@@ -28,6 +28,7 @@ import { shuffle } from './rng.js';
 import type {
   ApplyResult,
   ArmyStack,
+  CardDefinition,
   CardEffect,
   CardInstance,
   CardTargeting,
@@ -607,8 +608,14 @@ function validateTargeting(state: CombatState, def: { id: string; targeting: Car
   return null;
 }
 
+/** Why a unit-sourced card cannot be played right now (no living stack of its source unit). */
+export function inactiveCardReason(cardDef: CardDefinition): string {
+  const unit = cardDef.source.type === 'unit' ? UNIT_DEFINITIONS[cardDef.source.unitId].name : '';
+  return `${cardDef.name} is inactive — you have no living ${unit} stack.`;
+}
+
 /** v3 §10 "Unit card active if source unit count >0" — Hero/Neutral cards are always active. */
-function isCardActive(state: CombatState, cardId: string): boolean {
+export function isCardActive(state: CombatState, cardId: string): boolean {
   const def = CARD_DEFINITIONS[cardId];
   if (!def) return false;
   if (def.source.type !== 'unit') return true;
@@ -629,7 +636,7 @@ function playCard(state: CombatState, action: Extract<PlayerAction, { type: 'PLA
     return { state, events };
   }
   if (!isCardActive(state, instance.cardId)) {
-    reject(events, `${cardDef.name} is inactive — you have no living ${cardDef.source.type === 'unit' ? cardDef.source.unitId : ''} stack.`);
+    reject(events, inactiveCardReason(cardDef));
     return { state, events };
   }
   if (state.hero.mana < cardDef.manaCost) {

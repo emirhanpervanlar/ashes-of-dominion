@@ -25,36 +25,49 @@ function laneDistance(a: Lane, b: Lane): number {
   return Math.abs(LANE_INDEX[a] - LANE_INDEX[b]);
 }
 
+/** AO-D013 pool: while any enemy front stack lives (untargetable ones still hold the front) only front stacks are candidates. */
+function meleeCandidates(enemyArmy: ArmyStack[]): ArmyStack[] {
+  const alive = enemyArmy.filter((s) => s.count > 0 && !s.flags.untargetable);
+  const frontHeld = enemyArmy.some((s) => s.count > 0 && isFrontPosition(s.position));
+  return frontHeld ? alive.filter((s) => isFrontPosition(s.position)) : alive;
+}
+
+/** Targets legal under every reach rule (ranged, AO-D013 front/back, AO-D021 lane, AO-D033 disciples) — no fallback. */
+function strictTargets(attacker: ArmyStack, enemyArmy: ArmyStack[], def: UnitDefinition, ownArmy?: ArmyStack[]): ArmyStack[] {
+  if (ownArmy && isBlockedByFrontAlly(attacker, ownArmy, def)) return [];
+  if (def.rangedAllAccess) return enemyArmy.filter((s) => s.count > 0 && !s.flags.untargetable);
+  const lane = laneOf(attacker.position);
+  return meleeCandidates(enemyArmy).filter((s) => laneDistance(lane, laneOf(s.position)) <= 1);
+}
+
 /**
- * Valid enemy targets for a stack's free basic action (or a card that
- * reuses the same geometry). Ranged units (rangedAllAccess) are unrestricted.
- * Melee units: AO-D013 first — while any enemy front stack lives only front
- * stacks are candidates, otherwise the backline opens up — then AO-D021: of
- * those candidates only own/adjacent lanes are reachable.
- * Softlock guard: if that leaves no target while candidates exist (e.g. the
- * only living enemy is two lanes away), the nearest lane's candidates become
- * legal so a battle can never stall.
- * AO-D033: when `ownArmy` is given, a back-row melee stack with a living
- * friendly stack directly in front of it (same lane) has no targets at all.
+ * AO-D038: a true stalemate is when no living unit on EITHER side has a legal target under the
+ * strict reach rules (ranged units included). Only then does the nearest-lane fallback open up,
+ * so a battle can never stall; otherwise a unit that reaches nothing simply does not attack.
+ */
+export function isStalemate(playerArmy: ArmyStack[], enemyArmy: ArmyStack[]): boolean {
+  const canHit = (army: ArmyStack[], other: ArmyStack[]) =>
+    army.some((s) => s.count > 0 && strictTargets(s, other, UNIT_DEFINITIONS[s.unitId], army).length > 0);
+  return !canHit(playerArmy, enemyArmy) && !canHit(enemyArmy, playerArmy);
+}
+
+/**
+ * Valid enemy targets for a stack's free basic action (or a card that reuses the same geometry).
+ * Ranged units (rangedAllAccess) are unrestricted. Melee units: AO-D013 first (front row while
+ * any enemy front stack lives, otherwise the backline), then AO-D021 (own/adjacent lane only).
+ * AO-D033: a back-row melee stack with a living friendly stack directly in front has no targets.
+ * A unit with no legal target gets none — unless the whole board is in a stalemate (AO-D038,
+ * needs `ownArmy` to judge), in which case the nearest lane's candidates become legal for both sides.
  */
 export function computeValidTargets(attacker: ArmyStack, enemyArmy: ArmyStack[], attackerDef?: UnitDefinition, ownArmy?: ArmyStack[]): ArmyStack[] {
   const def = attackerDef ?? UNIT_DEFINITIONS[attacker.unitId];
-  if (ownArmy && isBlockedByFrontAlly(attacker, ownArmy, def)) return [];
-  const alive = enemyArmy.filter((s) => s.count > 0 && !s.flags.untargetable);
+  const strict = strictTargets(attacker, enemyArmy, def, ownArmy);
+  if (strict.length > 0 || !ownArmy) return strict;
+  if (isBlockedByFrontAlly(attacker, ownArmy, def) || !isStalemate(ownArmy, enemyArmy)) return [];
 
-  if (def.rangedAllAccess) {
-    return alive;
-  }
-
-  // AO-D013: "living" includes untargetable stacks — they still hold the front.
-  const frontHeld = enemyArmy.some((s) => s.count > 0 && isFrontPosition(s.position));
-  const candidates = frontHeld ? alive.filter((s) => isFrontPosition(s.position)) : alive;
+  const candidates = meleeCandidates(enemyArmy);
   if (candidates.length === 0) return [];
-
   const lane = laneOf(attacker.position);
-  const inReach = candidates.filter((s) => laneDistance(lane, laneOf(s.position)) <= 1);
-  if (inReach.length > 0) return inReach;
-
   const nearest = Math.min(...candidates.map((s) => laneDistance(lane, laneOf(s.position))));
   return candidates.filter((s) => laneDistance(lane, laneOf(s.position)) === nearest);
 }
