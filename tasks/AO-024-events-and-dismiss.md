@@ -24,3 +24,6 @@ UI, combat rules, card data. If placeholder numbers look broken, keep them and r
 
 ## Acceptance criteria
 tsc and vitest green (UI compile breaks from changed event exports listed exactly), report lists all event ids with weights, the run actions/pending states and UI needs.
+
+## Status
+- 2026-09-20 ACCEPTED (engine; events). Card upgrade options are gated because CARD_UPGRADES is empty (owner decision pending).

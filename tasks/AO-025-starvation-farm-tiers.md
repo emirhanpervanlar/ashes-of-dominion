@@ -24,3 +24,6 @@ UI, combat rules/damage/morale rules (report instead), card data.
 
 ## Acceptance criteria
 tsc and vitest green except the known UI-side failures (Farm icon test, the 4 UI compile errors from AO-021), report lists new events/exports for the UI and the balance table.
+
+## Status
+- 2026-09-19 ACCEPTED (engine). Morale malus -10 at day 3 then -8/day (floor around day 14; a step of 15 would reach it at day 9). Numbers tunable in STARVATION.
