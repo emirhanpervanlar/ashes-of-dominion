@@ -46,7 +46,7 @@ function stackOf(state: CombatState, stackId: string): ArmyStack {
 const enemyOrcs = () => [createStack('orc', 'enemy', 1, 10), createStack('orc', 'enemy', 2, 10), createStack('orc', 'enemy', 3, 10)];
 
 describe('AO-001 review gap: card path with no legal target', () => {
-  it('a unit card aimed at the backline is rejected while a (out-of-lane) front stack lives, spending nothing', () => {
+  it('a unit card aimed at the backline is rejected while a (out-of-lane) front stack lives and an ally can still act, spending nothing', () => {
     const enemy = [dead(createStack('orc', 'enemy', 1, 10)), dead(createStack('orc', 'enemy', 2, 10)), createStack('orc', 'enemy', 3, 10), createStack('goblin', 'enemy', 4, 10)];
     const state = battle([createStack('swordsman', 'player', 1, 6), createStack('knight', 'player', 2, 2)], enemy, ['charge']);
     const result = applyPlayerAction(state, {
@@ -55,7 +55,7 @@ describe('AO-001 review gap: card path with no legal target', () => {
       actingStackId: 'player_swordsman_1',
       targetStackId: 'enemy_goblin_4',
     });
-    expect(rejection(result.events)).toContain('cannot reach that target');
+    expect(rejection(result.events)).toContain('has no target in reach');
     expect(result.state.hero.mana).toBe(10);
     expect(result.state.hand).toHaveLength(1);
     expect(result.state.enemyArmy.find((s) => s.stackId === 'enemy_goblin_4')!.count).toBe(10);
@@ -65,12 +65,16 @@ describe('AO-001 review gap: card path with no legal target', () => {
 describe('AO-D002 / AO-D013: melee reaches the backline only when the front row is empty, ranged always', () => {
   const backline = () => [createStack('goblin', 'enemy', 4, 10), createStack('shaman', 'enemy', 5, 8), createStack('goblin', 'enemy', 6, 10)];
 
-  it('a single dead front lane exposes nothing; a lane with no reachable front stack falls back to the nearest front stack (softlock guard)', () => {
+  it('a single dead front lane exposes nothing; a lane with no reachable front stack only falls back to the nearest front stack in a true stalemate (AO-D038)', () => {
     const enemy = [dead(createStack('orc', 'enemy', 1, 10)), createStack('orc', 'enemy', 2, 10), createStack('orc', 'enemy', 3, 10), ...backline()];
     const left = computeValidTargets(createStack('swordsman', 'player', 1, 5), enemy, UNIT_DEFINITIONS.swordsman);
     expect(left.map((s) => s.position)).toEqual([2]);
     const onlyRight = [dead(createStack('orc', 'enemy', 1, 10)), dead(createStack('orc', 'enemy', 2, 10)), createStack('orc', 'enemy', 3, 10), ...backline()];
-    expect(computeValidTargets(createStack('swordsman', 'player', 1, 5), onlyRight, UNIT_DEFINITIONS.swordsman).map((s) => s.position)).toEqual([3]);
+    const lone = createStack('swordsman', 'player', 1, 5);
+    const onlyRightNoBack = onlyRight.slice(0, 3);
+    expect(computeValidTargets(lone, onlyRightNoBack, UNIT_DEFINITIONS.swordsman, [lone]).map((s) => s.position)).toEqual([3]);
+    const withCenterAlly = [lone, createStack('knight', 'player', 2, 2)];
+    expect(computeValidTargets(lone, onlyRightNoBack, UNIT_DEFINITIONS.swordsman, withCenterAlly)).toEqual([]);
   });
 
   it('with the enemy front dead a player melee stack reaches the backline within its lane rule (AO-D021); an archer reaches all of it', () => {

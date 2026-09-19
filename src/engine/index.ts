@@ -10,3 +10,4 @@ export { UNIT_DEFINITIONS } from './data/units.js';
 export { CARD_DEFINITIONS } from './data/cards.js';
 export { HERO_DEFINITIONS } from './data/heroes.js';
 export * from './army.js';
+export * from './cardRequirements.js';

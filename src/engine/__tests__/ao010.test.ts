@@ -10,8 +10,8 @@ import type { ArmyStack, CombatState, Position } from '../types.js';
 import { sturdy } from './helpers.js';
 
 const dead = (s: ArmyStack): ArmyStack => ({ ...s, count: 0, currentHp: 0 });
-const positionsFor = (attacker: ArmyStack, enemy: ArmyStack[]) =>
-  computeValidTargets(attacker, enemy, UNIT_DEFINITIONS[attacker.unitId]).map((s) => s.position).sort();
+const positionsFor = (attacker: ArmyStack, enemy: ArmyStack[], own?: ArmyStack[]) =>
+  computeValidTargets(attacker, enemy, UNIT_DEFINITIONS[attacker.unitId], own).map((s) => s.position).sort();
 
 describe('AO-D021 lane rule for melee', () => {
   const front = (): ArmyStack[] => [1, 2, 3].map((p) => createStack('orc', 'enemy', p as Position, 10));
@@ -42,12 +42,33 @@ describe('AO-D021 lane rule for melee', () => {
     expect(positionsFor(createStack('orc', 'enemy', 3, 5), player)).toEqual([3]);
   });
 
-  it('softlock guard: when the lane rule leaves no target, the nearest lane becomes legal', () => {
-    const onlyRightFront = [dead(front()[0]!), dead(front()[1]!), front()[2]!, ...back()];
-    expect(positionsFor(createStack('swordsman', 'player', 1, 5), onlyRightFront)).toEqual([3]);
+  // AO-D038: the guard is global (true stalemate only), no longer per attacker.
+  it('true stalemate: nobody on either side can reach anything, so the nearest lane becomes legal', () => {
+    const onlyRightFront = [dead(front()[0]!), dead(front()[1]!), front()[2]!];
+    const lone = createStack('swordsman', 'player', 1, 5);
+    expect(positionsFor(lone, onlyRightFront, [lone])).toEqual([3]);
 
     const onlyRightBack = [...front().map(dead), dead(back()[0]!), dead(back()[1]!), back()[2]!];
-    expect(positionsFor(createStack('swordsman', 'player', 1, 5), onlyRightBack)).toEqual([6]);
+    expect(positionsFor(lone, onlyRightBack, [lone])).toEqual([6]);
+  });
+
+  it('no stalemate while anyone can act: a stuck unit gets no target instead of a nearest-lane fallback', () => {
+    const onlyRightFront = [dead(front()[0]!), dead(front()[1]!), front()[2]!];
+    const stuck = createStack('swordsman', 'player', 1, 5);
+    const ally = createStack('swordsman', 'player', 2, 5); // reaches the right front stack
+    expect(positionsFor(stuck, onlyRightFront, [stuck, ally])).toEqual([]);
+    expect(positionsFor(ally, onlyRightFront, [stuck, ally])).toEqual([3]);
+  });
+
+  it('an enemy stack that can still act prevents the fallback for both sides (owner bug: right-lane enemy hit my last left-lane unit)', () => {
+    const lonePlayer = createStack('swordsman', 'player', 1, 5);
+    const rightOrc = createStack('orc', 'enemy', 3, 5);
+    const centerOrc = createStack('orc', 'enemy', 2, 5); // reaches the left lane
+    const enemy = [rightOrc, centerOrc];
+    expect(positionsFor(rightOrc, [lonePlayer], enemy)).toEqual([]);
+    expect(positionsFor(centerOrc, [lonePlayer], enemy)).toEqual([1]);
+    // remove the center orc: now nobody can act, the stalemate fallback applies to the enemy too
+    expect(positionsFor(rightOrc, [lonePlayer], [rightOrc])).toEqual([1]);
   });
 
   it('a planned enemy target that left reach (player moved) is re-picked inside the lane rule', () => {

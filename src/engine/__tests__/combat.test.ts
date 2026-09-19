@@ -263,7 +263,7 @@ describe('battle outcome', () => {
 });
 
 describe('melee reach vs the backline (AO-D013)', () => {
-  it('rejects a backline target while any front stack lives, even when the front stack is out of lane (softlock guard picks the front stack instead)', () => {
+  it('rejects a backline target while any front stack lives; an out-of-lane melee stack has no target while an ally can still act (AO-D038)', () => {
     const { state } = createVerticalSliceScenario(8);
     // Only the right front stack survives: the left-lane Swordsman reaches left+center only.
     const laneEmpty: CombatState = {
@@ -274,7 +274,7 @@ describe('melee reach vs the backline (AO-D013)', () => {
     const result = applyPlayerAction(laneEmpty, { type: 'BASIC_ACTION', stackId: 'player_swordsman_1', targetStackId: backline.stackId });
     const rejected = result.events.find((e) => e.type === 'ACTION_REJECTED');
     expect(rejected).toBeDefined();
-    expect(JSON.stringify(rejected)).toContain('cannot reach that target');
+    expect(JSON.stringify(rejected)).toContain('has no target in reach');
   });
 
   it('a melee army can finish a lone backline goblin once the front row is empty (softlock fixed)', () => {
