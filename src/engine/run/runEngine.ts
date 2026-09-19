@@ -8,11 +8,12 @@ import { maxManaFromWisdom } from '../heroStats.js';
 import { buildHeroStartingArmy, createHero } from '../scenario.js';
 import { createRng, nextInt } from '../rng.js';
 import type { ArmyStack, CardInstance, CombatState, Hero, HeroId, PlayerAction, Position, RelicDefinition, RelicEffect, UnitId } from '../types.js';
-import { cardRemovalQuote, createCardRemovalState } from './cardRemoval.js';
+import { cardRemovalQuote, createCardRemovalState, type CardRemovalState } from './cardRemoval.js';
 import { CARD_UPGRADES } from './cardUpgrades.js';
 import {
   BUILDING_DEFINITIONS,
   DOCTRINE_DEFINITIONS,
+  FARM_TIERS,
   GOLD_MINE_DAILY_GOLD,
   LEVEL_SLOTS,
   LEVEL_UP_COST,
@@ -26,7 +27,8 @@ import {
 import { THREAT_PER_CITY_VISIT, TOTAL_CHAPTERS } from './chapters.js';
 import { generateBattleEncounter, generateBossEncounter } from './encounters.js';
 import { EVENT_DEFINITIONS, EVENT_IDS } from './events.js';
-import { applyStarvation, moveFoodCost } from './food.js';
+import { applyStarvation, dailyProduction, moveFoodCost } from './food.js';
+import { rollBattleLoot } from './loot.js';
 import { generateMerchantInventory } from './merchant.js';
 import { pickRelicId } from './relicSources.js';
 import { buildPendingReward } from './rewards.js';
@@ -48,10 +50,12 @@ function cloneRun(run: RunState): RunState {
  */
 export function migrateRun(run: RunState): RunState {
   const legacy = run as RunState & { finalBattle?: boolean };
+  const legacyRemoval = run.cardRemoval as (CardRemovalState & { lastCityDay?: number | null }) | undefined;
   const migrated: RunState = {
     ...run,
     stats: { ...createRunStats(), ...run.stats },
-    cardRemoval: run.cardRemoval ?? createCardRemovalState(),
+    // Saves from before AO-D052 tracked the day of the last City removal; that removal counts as one use.
+    cardRemoval: legacyRemoval ? { merchantUses: legacyRemoval.merchantUses, cityUses: legacyRemoval.cityUses ?? (legacyRemoval.lastCityDay != null ? 1 : 0) } : createCardRemovalState(),
     chapter: run.chapter ?? 1,
     threat: run.threat ?? 0,
     bossBattle: run.bossBattle ?? legacy.finalBattle ?? false,
@@ -72,6 +76,7 @@ export function migrateRun(run: RunState): RunState {
       migrated.hero = { ...run.hero, stats, maxMana: run.hero.maxMana + manaDelta, mana: Math.max(0, run.hero.mana + manaDelta) };
     }
   }
+  if (run.city.farmTier === undefined) migrated.city = { ...migrated.city, farmTier: 0 };
   return migrated;
 }
 
@@ -242,18 +247,19 @@ function resolveResourceNode(run: RunState, events: RunEvent[]): void {
   events.push({ type: 'RESOURCE_FOUND', gold, food });
 }
 
-/** One world day: food upkeep, Gold Mine income, starvation. Returns the food the day cost. */
+/** One world day: Farm production, per-unit food upkeep, Gold Mine income, starvation. Returns the food the day cost. */
 function advanceDay(run: RunState, events: RunEvent[]): number {
   const foodCost = moveFoodCost(run.army, run.city);
+  const farmFood = dailyProduction(run);
+  const mineGold = run.city.buildings.includes('gold_mine') ? GOLD_MINE_DAILY_GOLD : 0;
+  changeFood(run, farmFood); // produced before the army eats, so a Farm can prevent this day's starvation
   run.stats.foodEaten += Math.min(run.food, foodCost);
   run.food -= foodCost;
   run.day += 1;
   run.stats.daysElapsed += 1;
 
-  if (run.city.buildings.includes('gold_mine')) {
-    changeGold(run, GOLD_MINE_DAILY_GOLD);
-    events.push({ type: 'DAILY_INCOME', gold: GOLD_MINE_DAILY_GOLD });
-  }
+  if (mineGold > 0) changeGold(run, mineGold);
+  if (mineGold > 0 || farmFood > 0) events.push({ type: 'DAILY_INCOME', gold: mineGold, food: farmFood });
 
   if (run.food < 0) {
     run.food = 0;
@@ -355,6 +361,10 @@ function forwardCombatAction(run: RunState, action: PlayerAction, events: RunEve
     events.push({ type: 'BATTLE_WON' });
     if (settled.revived > 0) events.push({ type: 'UNITS_REVIVED', count: settled.revived });
     const arrivedAt = findNode(run.worldMap, run.worldMap.currentNodeId);
+    const loot = rollBattleLoot(run.rng, { chapter: run.chapter, day: run.day, elite: run.bossBattle || arrivedAt?.type === 'elite_battle', threat: run.threat });
+    changeGold(run, loot.gold);
+    changeFood(run, loot.food);
+    events.push({ type: 'BATTLE_LOOT', gold: loot.gold, food: loot.food });
     run.pendingReward = buildPendingReward(run.rng, run.relics, run.masterDeck, arrivedAt?.type === 'elite_battle', run.bossBattle && run.chapter < TOTAL_CHAPTERS);
     run.phase = 'reward';
   } else if (result.state.result === 'defeat') {
@@ -468,7 +478,7 @@ function removeCard(run: RunState, instanceId: string, events: RunEvent[]): RunA
   events.push({ type: 'CARD_REMOVED', instanceId, cardId: card.cardId, goldPaid: quote.gold });
 
   if (run.phase === 'merchant') run.cardRemoval.merchantUses += 1;
-  else if (run.phase === 'city') run.cardRemoval.lastCityDay = run.day;
+  else if (run.phase === 'city') run.cardRemoval.cityUses += 1;
   else finishReward(run, events);
   return { run, events };
 }
@@ -705,7 +715,34 @@ function buildBuilding(run: RunState, buildingId: string, events: RunEvent[]): R
     run.hero.mana += MAGE_TOWER_TIERS[0]!.maxMana;
   }
 
+  if (buildingId === 'farm') run.city.farmTier = 1;
+
   events.push({ type: 'BUILDING_BUILT', buildingId });
+  return { run, events };
+}
+
+function upgradeFarm(run: RunState, events: RunEvent[]): RunApplyResult {
+  if (run.phase !== 'city') {
+    reject(events, 'Not at the city.');
+    return { run, events };
+  }
+  const tier = run.city.farmTier;
+  if (tier === 0) {
+    reject(events, 'Build the Farm first.');
+    return { run, events };
+  }
+  const next = FARM_TIERS[tier];
+  if (!next) {
+    reject(events, 'Farm is already at max tier.');
+    return { run, events };
+  }
+  if (run.gold < next.cost) {
+    reject(events, 'Not enough Gold.');
+    return { run, events };
+  }
+  changeGold(run, -next.cost);
+  run.city.farmTier = (tier + 1) as 2 | 3;
+  events.push({ type: 'FARM_UPGRADED', tier: tier + 1 });
   return { run, events };
 }
 
@@ -840,6 +877,9 @@ export function applyRunAction(run: RunState, action: RunAction): RunApplyResult
       break;
     case 'UPGRADE_MAGE_TOWER':
       result = upgradeMageTower(working, events);
+      break;
+    case 'UPGRADE_FARM':
+      result = upgradeFarm(working, events);
       break;
     case 'UPGRADE_CITY':
       result = upgradeCity(working, events);

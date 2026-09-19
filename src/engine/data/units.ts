@@ -4,6 +4,7 @@ import type { UnitDefinition, UnitId } from '../types.js';
  * v3 canonical doc §8/§18 — MVP roster is exactly 4 friendly + 4 enemy units.
  * All values PROTOTYPE (v3 §44) except the base stats, which are locked as
  * written in the doc.
+ * foodPerUnit (AO-D048) is the one Food-upkeep table: Food eaten per unit per day.
  */
 export const UNIT_DEFINITIONS: Record<UnitId, UnitDefinition> = {
   swordsman: {
@@ -11,6 +12,7 @@ export const UNIT_DEFINITIONS: Record<UnitId, UnitDefinition> = {
     name: 'Swordsman',
     side: 'player',
     hpPerUnit: 10,
+    foodPerUnit: 0.1,
     damage: 1,
     attack: 3,
     defense: 2,
@@ -23,6 +25,7 @@ export const UNIT_DEFINITIONS: Record<UnitId, UnitDefinition> = {
     name: 'Archer',
     side: 'player',
     hpPerUnit: 6,
+    foodPerUnit: 0.2,
     damage: 3,
     attack: 4,
     defense: 0,
@@ -36,6 +39,7 @@ export const UNIT_DEFINITIONS: Record<UnitId, UnitDefinition> = {
     name: 'Knight',
     side: 'player',
     hpPerUnit: 12,
+    foodPerUnit: 0.5,
     damage: 4,
     attack: 7,
     defense: 4,
@@ -48,6 +52,7 @@ export const UNIT_DEFINITIONS: Record<UnitId, UnitDefinition> = {
     name: 'Priest',
     side: 'player',
     hpPerUnit: 8,
+    foodPerUnit: 0.2,
     damage: 1,
     attack: 1,
     defense: 1,
@@ -61,6 +66,7 @@ export const UNIT_DEFINITIONS: Record<UnitId, UnitDefinition> = {
     name: 'Goblin',
     side: 'enemy',
     hpPerUnit: 5,
+    foodPerUnit: 0.1,
     damage: 1,
     attack: 2,
     defense: 0,
@@ -74,6 +80,7 @@ export const UNIT_DEFINITIONS: Record<UnitId, UnitDefinition> = {
     name: 'Orc',
     side: 'enemy',
     hpPerUnit: 12,
+    foodPerUnit: 0.5,
     damage: 2,
     attack: 5,
     defense: 2,
@@ -87,6 +94,7 @@ export const UNIT_DEFINITIONS: Record<UnitId, UnitDefinition> = {
     name: 'Shaman',
     side: 'enemy',
     hpPerUnit: 8,
+    foodPerUnit: 0.2,
     damage: 1,
     attack: 2,
     defense: 1,
@@ -100,6 +108,7 @@ export const UNIT_DEFINITIONS: Record<UnitId, UnitDefinition> = {
     name: 'Wolf',
     side: 'enemy',
     hpPerUnit: 7,
+    foodPerUnit: 0.2,
     damage: 2,
     attack: 4,
     defense: 1,

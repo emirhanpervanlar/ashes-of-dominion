@@ -1,26 +1,31 @@
 import type { RunState } from './types.js';
 
 /**
- * AO-D026 card removal. Every number here is a PROPOSAL awaiting the owner's
- * answer to the removal DDR; nothing else in the engine hard-codes them.
+ * AO-D026 / AO-D052 card removal. Every number here is a PROPOSAL awaiting the owner's
+ * answer; nothing else in the engine hard-codes them.
  */
 export const CARD_REMOVAL = {
   /** The deck can never be thinned below this many cards. */
   minDeckSize: 5,
   /** Merchant price = baseGold + stepGold * removals already bought there this run. */
   merchant: { baseGold: 50, stepGold: 25 },
-  /** City removal is free, at most once per this many days. */
-  city: { cooldownDays: 7 },
+  /** AO-D052: the first City removal of the run is free, then the price is firstPaidGold x growth^(paid removals so far): 50, 100, 200, 400 ... */
+  city: { firstPaidGold: 50, growth: 2 },
 } as const;
 
 export interface CardRemovalState {
   merchantUses: number;
-  /** Day of the last City removal, null if never. */
-  lastCityDay: number | null;
+  /** Removals done at the City this run (the first is free). */
+  cityUses: number;
 }
 
 export function createCardRemovalState(): CardRemovalState {
-  return { merchantUses: 0, lastCityDay: null };
+  return { merchantUses: 0, cityUses: 0 };
+}
+
+/** Gold the City charges for its next removal, given how many were done there already. */
+export function cityRemovalPrice(cityUses: number): number {
+  return cityUses === 0 ? 0 : CARD_REMOVAL.city.firstPaidGold * CARD_REMOVAL.city.growth ** (cityUses - 1);
 }
 
 export type CardRemovalQuote = { allowed: true; gold: number } | { allowed: false; reason: string };
@@ -38,11 +43,8 @@ export function cardRemovalQuote(run: RunState): CardRemovalQuote {
       return run.gold >= gold ? { allowed: true, gold } : { allowed: false, reason: 'Not enough Gold.' };
     }
     case 'city': {
-      const last = run.cardRemoval.lastCityDay;
-      if (last !== null && run.day - last < CARD_REMOVAL.city.cooldownDays) {
-        return { allowed: false, reason: `City removal is available once every ${CARD_REMOVAL.city.cooldownDays} days.` };
-      }
-      return { allowed: true, gold: 0 };
+      const gold = cityRemovalPrice(run.cardRemoval.cityUses);
+      return run.gold >= gold ? { allowed: true, gold } : { allowed: false, reason: 'Not enough Gold.' };
     }
     default:
       return { allowed: false, reason: 'Cards can only be removed at a reward, merchant or city.' };

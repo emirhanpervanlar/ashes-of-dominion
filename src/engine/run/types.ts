@@ -46,7 +46,9 @@ export type RunEvent =
   | { type: 'REWARD_SKIPPED' }
   | { type: 'CARD_REMOVED'; instanceId: string; cardId: string; goldPaid: number }
   | { type: 'UNITS_REVIVED'; count: number }
-  | { type: 'DAILY_INCOME'; gold: number }
+  | { type: 'DAILY_INCOME'; gold: number; food: number }
+  | { type: 'BATTLE_LOOT'; gold: number; food: number }
+  | { type: 'FARM_UPGRADED'; tier: number }
   | { type: 'EVENT_RESOLVED'; eventId: string; optionId: string; outcome: string }
   | { type: 'ITEM_PURCHASED'; itemId: string; price: number }
   | { type: 'UNITS_RECRUITED'; unitId: string; count: number }
@@ -109,6 +111,7 @@ export type RunAction =
   | { type: 'BUILD_BUILDING'; buildingId: string }
   | { type: 'UPGRADE_CITY' }
   | { type: 'UPGRADE_MAGE_TOWER' }
+  | { type: 'UPGRADE_FARM' }
   | { type: 'CHOOSE_DOCTRINE'; doctrineId: string }
   | { type: 'LEAVE_CITY' }
   | { type: 'SPLIT_STACK'; stackId: string; splitCount: number }

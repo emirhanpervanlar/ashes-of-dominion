@@ -27,7 +27,7 @@ Status: TODO / IN PROGRESS / BLOCKED (needs owner). Decisions live in docs/DECIS
 - [TODO UI] Unit and buff/debuff tooltips with real effect text (AO-D025).
 
 ## Meta screens and systems
-- [TODO UI] Hero + starting relic on ONE screen (needs atomic START_RUN engine action).
+- [TODO UI] Hero + starting relic on ONE screen (needs atomic START_RUN engine action). Must also: make hero stats readable on the hero select (they are not legible today) and block starting without a commander name (empty/whitespace name disables Start).
 - [TODO UI] Defeat screen with full run statistics (engine already collects `run.stats`).
 - [TODO UI] City redesign, Heroes 3 style, wide panel per building; Temple doctrines as big cards.
 - [TODO UI] Drag-and-drop army repositioning, split places the new stack where the player chooses, merge closes the popup, dropping the same type merges (reverses AO-D017 drop rule).

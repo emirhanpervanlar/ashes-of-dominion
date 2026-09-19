@@ -22,7 +22,25 @@ export const MAGE_TOWER_TIERS: ReadonlyArray<{ cost: number; maxMana: number }> 
   { cost: 500, maxMana: 6 },
 ];
 
+/**
+ * AO-D048 Farm (proposal): cumulative Food per day and Gold cost per tier (index 0 = tier I, which is the build itself).
+ * Like the Mage Tower it is one building slot at every tier.
+ */
+export const FARM_TIERS: ReadonlyArray<{ cost: number; food: number }> = [
+  { cost: 60, food: 3 },
+  { cost: 140, food: 6 },
+  { cost: 320, food: 9 },
+];
+
 const ROMAN = ['I', 'II', 'III'];
+
+/** Tier text for the Farm card, same shape as the Mage Tower's. `tier` 0 = not built. */
+export function farmDescription(tier: number): string {
+  const next = FARM_TIERS[tier];
+  const current = tier > 0 ? `Tier ${ROMAN[tier - 1]}: +${FARM_TIERS[tier - 1]!.food} Food every day.` : `+${FARM_TIERS[0]!.food} Food every day (tier I).`;
+  if (tier === 0) return `${current} Upgradeable to +${FARM_TIERS[2]!.food}.`;
+  return next ? `${current} Next: tier ${ROMAN[tier]} (+${next.food} total) for ${next.cost} Gold.` : `${current} Max tier.`;
+}
 
 /** Tier text for the building card: current bonus and the next tier's price. `tier` 0 = not built. */
 export function mageTowerDescription(tier: number): string {
@@ -37,6 +55,8 @@ export interface CityState {
   doctrine: string | null;
   /** 0 = no Mage Tower. The tower is one building slot at every tier. */
   mageTowerTier: 0 | 1 | 2 | 3;
+  /** 0 = no Farm (AO-D048). One building slot at every tier. */
+  farmTier: 0 | 1 | 2 | 3;
 }
 
 /**
@@ -92,6 +112,13 @@ export const BUILDING_DEFINITIONS: Record<string, CityBuildingDefinition> = {
     description: 'Recruitment costs -15% Gold.',
     category: 'economy',
     cost: 80,
+  },
+  farm: {
+    id: 'farm',
+    name: 'Farm',
+    description: farmDescription(0),
+    category: 'economy',
+    cost: FARM_TIERS[0]!.cost,
   },
   gold_mine: {
     id: 'gold_mine',
@@ -170,7 +197,7 @@ export function settleArmyAfterVictory(army: ArmyStack[], city: CityState): { ar
 }
 
 export function createInitialCityState(): CityState {
-  return { level: 1, buildings: [], doctrine: null, mageTowerTier: 0 };
+  return { level: 1, buildings: [], doctrine: null, mageTowerTier: 0, farmTier: 0 };
 }
 
 export function canRecruitUnit(_city: CityState, unitId: UnitId): boolean {
