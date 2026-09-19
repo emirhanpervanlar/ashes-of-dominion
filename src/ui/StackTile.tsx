@@ -21,8 +21,6 @@ interface StackTileProps {
   previewDamage?: number;
   fx?: StackFx;
   onClick: () => void;
-  onHoverStart?: () => void;
-  onHoverEnd?: () => void;
 }
 
 /** Disciples-style portrait slot: a bordered portrait square with HP printed below it. */
@@ -36,8 +34,6 @@ export function StackTile({
   previewDamage,
   fx,
   onClick,
-  onHoverStart,
-  onHoverEnd,
 }: StackTileProps) {
   if (!stack || stack.count === 0) {
     const classes = ['portrait-slot', side, 'empty'];
@@ -85,7 +81,7 @@ export function StackTile({
   if (fx?.debuff) frameClasses.push('fx-debuff');
 
   return (
-    <div className={classes.join(' ')} onMouseEnter={onHoverStart} onMouseLeave={onHoverEnd}>
+    <div className={classes.join(' ')}>
       <div className={frameClasses.join(' ')} onClick={selectable ? onClick : undefined} title={def.name}>
         <span className="portrait-art">{UNIT_ICONS[stack.unitId]}</span>
         <span className="portrait-role-badge">{UNIT_ROLE_ICONS[stack.unitId]}</span>

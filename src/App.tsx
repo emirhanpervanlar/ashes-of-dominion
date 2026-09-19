@@ -69,7 +69,6 @@ export default function App() {
   const [pending, setPending] = useState<PendingAction | null>(null);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const [historyOpen, setHistoryOpen] = useState(false);
-  const [hoveredStackId, setHoveredStackId] = useState<string | null>(null);
   const [droppingInstanceId, setDroppingInstanceId] = useState<string | null>(null);
   const [discardingIds, setDiscardingIds] = useState<string[] | null>(null);
   const [drawingIds, setDrawingIds] = useState<Set<string>>(new Set());
@@ -484,18 +483,6 @@ export default function App() {
     return stack.stackId === pending.actingStackId || stack.stackId === pending.targetStackId;
   }
 
-  /** Hovering my own unit highlights the enemy that intends to hit it, and vice versa; everything else fades. */
-  function hoverHighlightSet(): Set<string> | null {
-    if (!combat || pending || !hoveredStackId) return null;
-    const set = new Set([hoveredStackId]);
-    for (const intent of combat.enemyIntents) {
-      if (intent.kind !== 'attack') continue;
-      if (intent.targetStackId === hoveredStackId) set.add(intent.stackId);
-      if (intent.stackId === hoveredStackId && intent.targetStackId) set.add(intent.targetStackId);
-    }
-    return set;
-  }
-
   function isDimmed(stack: ArmyStack | undefined, side: 'player' | 'enemy'): boolean {
     if (!stack) return false;
     if (currentEnemyIntent) {
@@ -510,8 +497,7 @@ export default function App() {
       const chosen = stack.stackId === pending.actingStackId || stack.stackId === pending.targetStackId;
       return !selectable && !chosen;
     }
-    const highlight = hoverHighlightSet();
-    return highlight !== null && !highlight.has(stack.stackId);
+    return false;
   }
 
   function findPendingAttackEffect(): Extract<CardEffect, { kind: 'ATTACK' }> | undefined {
@@ -534,10 +520,6 @@ export default function App() {
       const attacker = combat.playerArmy.find((s) => s.stackId === pending.actingStackId);
       if (!attacker) return undefined;
       return previewAttackDamage(combat, attacker, stack, attackEffect);
-    }
-    if (side === 'player' && hoveredStackId === stack.stackId) {
-      const intent = combat.enemyIntents.find((i) => i.kind === 'attack' && i.targetStackId === stack.stackId);
-      return intent?.estimatedDamage;
     }
     return undefined;
   }
@@ -788,8 +770,6 @@ export default function App() {
                   fx={stackFx(s?.stackId)}
                   previewDamage={previewDamageFor(s, 'player')}
                   onClick={() => onArmyStackClick(s, p, 'player')}
-                  onHoverStart={() => s && setHoveredStackId(s.stackId)}
-                  onHoverEnd={() => setHoveredStackId(null)}
                 />
               );
             })}
@@ -809,8 +789,6 @@ export default function App() {
                   fx={stackFx(s?.stackId)}
                   previewDamage={previewDamageFor(s, 'player')}
                   onClick={() => onArmyStackClick(s, p, 'player')}
-                  onHoverStart={() => s && setHoveredStackId(s.stackId)}
-                  onHoverEnd={() => setHoveredStackId(null)}
                 />
               );
             })}
@@ -842,8 +820,6 @@ export default function App() {
                   fx={stackFx(s?.stackId)}
                   previewDamage={previewDamageFor(s, 'enemy')}
                   onClick={() => onArmyStackClick(s, p, 'enemy')}
-                  onHoverStart={() => s && setHoveredStackId(s.stackId)}
-                  onHoverEnd={() => setHoveredStackId(null)}
                 />
               );
             })}
@@ -863,8 +839,6 @@ export default function App() {
                   fx={stackFx(s?.stackId)}
                   previewDamage={previewDamageFor(s, 'enemy')}
                   onClick={() => onArmyStackClick(s, p, 'enemy')}
-                  onHoverStart={() => s && setHoveredStackId(s.stackId)}
-                  onHoverEnd={() => setHoveredStackId(null)}
                 />
               );
             })}
