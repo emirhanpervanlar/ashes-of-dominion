@@ -9,7 +9,14 @@ export interface CityBuildingDefinition {
   description: string;
   category: BuildingCategory;
   cost: number;
+  /** Army-wide combat modifiers, fed through the same RelicEffect pipeline as relics and doctrines. */
+  combatEffects?: RelicEffect[];
 }
+
+/** AO-D020 building numbers. */
+export const GOLD_MINE_DAILY_GOLD = 10;
+export const MAGE_TOWER_WISDOM = 2;
+export const SHRINE_REVIVE_RATIO = 0.1;
 
 export interface CityState {
   level: 1 | 2 | 3;
@@ -74,21 +81,21 @@ export const BUILDING_DEFINITIONS: Record<string, CityBuildingDefinition> = {
   gold_mine: {
     id: 'gold_mine',
     name: 'Gold Mine',
-    description: 'Immediately grants +100 Gold.',
+    description: `+${GOLD_MINE_DAILY_GOLD} Gold every day.`,
     category: 'economy',
     cost: 80,
   },
   mage_tower: {
     id: 'mage_tower',
     name: 'Mage Tower',
-    description: 'Unlocks Mage recruitment.',
+    description: `Hero Wisdom +${MAGE_TOWER_WISDOM} (stronger heals, more Mana past 10).`,
     category: 'army',
     cost: 80,
   },
   stable: {
     id: 'stable',
     name: 'Stable',
-    description: 'Unlocks Cavalier recruitment.',
+    description: 'Movement Food cost -25%.',
     category: 'army',
     cost: 80,
   },
@@ -102,14 +109,15 @@ export const BUILDING_DEFINITIONS: Record<string, CityBuildingDefinition> = {
   forge: {
     id: 'forge',
     name: 'Forge',
-    description: 'Hero max Mana +2, immediately.',
+    description: 'Army attack +5%.',
     category: 'hero',
     cost: 80,
+    combatEffects: [{ kind: 'PLAYER_DAMAGE_MULT', multiplier: 1.05 }],
   },
   shrine: {
     id: 'shrine',
     name: 'Shrine',
-    description: 'Heals the field army 20% of max HP every time you visit this city.',
+    description: 'After every battle, 10% of your casualties (rounded down) rise again.',
     category: 'special',
     cost: 80,
   },
@@ -124,6 +132,27 @@ export const RECRUIT_COSTS: Partial<Record<UnitId, { gold: number; food: number 
   knight: { gold: 15, food: 2 },
   priest: { gold: 12, food: 1 },
 };
+
+/**
+ * AO-D019 + AO-D020, run after every won battle: with a Shrine 10% of each
+ * stack's casualties revive (never past its pre-battle count), then every
+ * surviving unit is restored to full HP and the new count becomes the
+ * baseline for the next battle.
+ */
+export function settleArmyAfterVictory(army: ArmyStack[], city: CityState): { army: ArmyStack[]; revived: number } {
+  const hasShrine = city.buildings.includes('shrine');
+  let revived = 0;
+  const settled = army.map((stack) => {
+    const casualties = Math.max(0, stack.preBattleMaxCount - stack.count);
+    const back = hasShrine ? Math.floor(casualties * SHRINE_REVIVE_RATIO) : 0;
+    const count = stack.count + back;
+    if (count === 0) return stack;
+    revived += back;
+    const maxHp = count * UNIT_DEFINITIONS[stack.unitId].hpPerUnit;
+    return { ...stack, count, currentHp: maxHp, maxHp, startingCount: count, preBattleMaxCount: count };
+  });
+  return { army: settled, revived };
+}
 
 export function createInitialCityState(): CityState {
   return { level: 1, buildings: [], doctrine: null };

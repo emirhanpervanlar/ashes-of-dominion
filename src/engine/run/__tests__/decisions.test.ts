@@ -45,12 +45,11 @@ describe('AO-D007: starting armies per hero', () => {
 });
 
 describe('AO-D006: post-battle reward', () => {
-  it('never offers relics and never more than 3 card+upgrade choices, for every hero deck and many seeds', () => {
+  it('never more than 3 card+upgrade choices, for every hero deck and many seeds', () => {
     for (const hero of HEROES) {
       const deck = createRun(1, hero).masterDeck;
       for (let seed = 1; seed <= 40; seed++) {
         const reward = buildPendingReward(createRng(seed), [], deck);
-        expect(reward.relicOptions).toEqual([]);
         const total = reward.cardOptions.length + reward.upgradeOptions.length;
         expect(total).toBeGreaterThan(0);
         expect(total).toBeLessThanOrEqual(3);
@@ -60,7 +59,7 @@ describe('AO-D006: post-battle reward', () => {
     }
   });
 
-  it('a won battle in a real run carries that reward, and a relic claim is rejected', () => {
+  it('a won battle in a real run carries that reward', () => {
     let run = applyRunAction(createRun(21, 'rogue'), { type: 'CHOOSE_STARTING_RELIC', relicId: 'royal_banner' }).run;
     const current = run.worldMap.nodes.find((n) => n.id === run.worldMap.currentNodeId)!;
     const nextId = current.connectsTo[0]!;
@@ -71,12 +70,7 @@ describe('AO-D006: post-battle reward', () => {
 
     expect(run.phase).toBe('reward');
     const reward = run.pendingReward!;
-    expect(reward.relicOptions).toEqual([]);
     expect(reward.cardOptions.length + reward.upgradeOptions.length).toBeLessThanOrEqual(3);
-    const relicsBefore = run.relics.length;
-    const claim = applyRunAction(run, { type: 'CLAIM_RELIC', relicId: 'royal_banner' });
-    expect(claim.events.some((e) => e.type === 'ACTION_REJECTED')).toBe(true);
-    expect(applyRunAction(claim.run, { type: 'CONFIRM_REWARD' }).run.relics).toHaveLength(relicsBefore);
   });
 });
 

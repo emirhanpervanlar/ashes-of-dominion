@@ -35,11 +35,7 @@ export function buildPendingReward(rng: RngState, _owned: RelicDefinition[], mas
   const upgradeOptions = generateUpgradeOptions(rng, masterDeck, REWARD_OPTION_COUNT);
   const cardOptions = generateCardOptions(rng, REWARD_OPTION_COUNT - upgradeOptions.length);
   return {
-    relicOptions: [],
     cardOptions,
     upgradeOptions,
-    chosenRelicId: null,
-    chosenCardId: null,
-    chosenUpgradeInstanceId: null,
   };
 }

@@ -14,7 +14,7 @@ function resolveUntilOnMapOrCity(run: RunState): RunState {
       const wiped: CombatState = { ...combat, enemyArmy: combat.enemyArmy.map((s) => ({ ...s, count: 0, currentHp: 0 })) };
       current = applyRunAction({ ...current, combat: wiped }, { type: 'COMBAT_ACTION', action: { type: 'END_TURN' } }).run;
       if (current.phase === 'reward') {
-        current = applyRunAction(current, { type: 'CONFIRM_REWARD' }).run;
+        current = applyRunAction(current, { type: 'SKIP_REWARD' }).run;
       }
       continue;
     }
@@ -120,13 +120,6 @@ describe('buildings', () => {
     expect(lastResult.events.some((e) => e.type === 'ACTION_REJECTED')).toBe(true);
   });
 
-  it('Gold Mine grants +100 Gold immediately', () => {
-    let run = reachCity(9);
-    run = { ...run, gold: 100, food: 200 };
-    const result = applyRunAction(run, { type: 'BUILD_BUILDING', buildingId: 'gold_mine' });
-    expect(result.run.gold).toBe(100 - 80 + 100);
-  });
-
   it('Training Hall permanently raises Hero max Mana', () => {
     let run = reachCity(10);
     run = { ...run, gold: 200, food: 200 };
@@ -161,22 +154,12 @@ describe('leaving the city', () => {
   });
 });
 
-describe('shrine', () => {
-  it('heals the army on every subsequent visit once built', () => {
-    let run = reachCity(15);
-    run = { ...run, gold: 500, food: 200 };
-    run = applyRunAction(run, { type: 'BUILD_BUILDING', buildingId: 'shrine' }).run;
-    // Damage a stack, leave, come back.
-    run = {
-      ...run,
-      army: run.army.map((s, i) => (i === 0 ? { ...s, currentHp: Math.floor(s.maxHp * 0.5) } : s)),
-    };
-    const left = applyRunAction(run, { type: 'LEAVE_CITY' }).run;
-    const hpBefore = left.army[0]!.currentHp;
+describe('re-entering the city', () => {
+  it('a city you are standing on can be re-entered without moving', () => {
+    const left = applyRunAction(reachCity(15), { type: 'LEAVE_CITY' }).run;
     const revisit = applyRunAction(left, { type: 'ENTER_CITY' });
     expect(revisit.events.some((e) => e.type === 'ACTION_REJECTED')).toBe(false);
     expect(revisit.run.phase).toBe('city');
-    expect(revisit.run.army[0]!.currentHp).toBeGreaterThan(hpBefore);
   });
 });
 

@@ -20,7 +20,7 @@ function reachBoss(seed: number): RunState {
       const combat = run.combat!;
       const wiped: CombatState = { ...combat, enemyArmy: combat.enemyArmy.map((s) => ({ ...s, count: 0, currentHp: 0 })) };
       const won = applyRunAction({ ...run, combat: wiped }, { type: 'COMBAT_ACTION', action: { type: 'END_TURN' } }).run;
-      run = won.phase === 'reward' ? applyRunAction(won, { type: 'CONFIRM_REWARD' }).run : won;
+      run = won.phase === 'reward' ? applyRunAction(won, { type: 'SKIP_REWARD' }).run : won;
     } else if (run.phase === 'event') {
       const optionId = run.pendingEvent!.eventId === 'abandoned_camp' ? 'rest' : 'pay';
       run = applyRunAction(run, { type: 'CHOOSE_EVENT_OPTION', optionId }).run;
@@ -46,7 +46,7 @@ describe('boss encounter generation', () => {
 });
 
 describe('run completion via the boss', () => {
-  it('defeating the boss offers a final reward whose confirmation ends the run (run_complete)', () => {
+  it('defeating the boss offers a final reward whose resolution ends the run (run_complete)', () => {
     const run = reachBoss(50);
     expect(run.phase).toBe('in_battle');
     expect(run.finalBattle).toBe(true);
@@ -56,7 +56,7 @@ describe('run completion via the boss', () => {
     const won = applyRunAction({ ...run, combat: wiped }, { type: 'COMBAT_ACTION', action: { type: 'END_TURN' } });
     expect(won.run.phase).toBe('reward');
 
-    const confirmed = applyRunAction(won.run, { type: 'CONFIRM_REWARD' });
+    const confirmed = applyRunAction(won.run, { type: 'SKIP_REWARD' });
     expect(confirmed.run.phase).toBe('run_complete');
     expect(confirmed.events.some((e) => e.type === 'RUN_COMPLETE')).toBe(true);
   });

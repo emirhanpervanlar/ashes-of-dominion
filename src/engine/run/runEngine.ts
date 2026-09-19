@@ -4,25 +4,31 @@ import { HERO_DEFINITIONS } from '../data/heroes.js';
 import { RELIC_DEFINITIONS, STARTING_RELIC_DEFINITIONS } from '../data/relics.js';
 import { UNIT_DEFINITIONS } from '../data/units.js';
 import { applyPlayerAction, startBattle } from '../combat.js';
+import { maxManaFromWisdom } from '../heroStats.js';
 import { buildHeroStartingArmy, createHero } from '../scenario.js';
 import { createRng, nextInt, shuffle } from '../rng.js';
 import type { ArmyStack, CardInstance, CombatState, Hero, HeroId, PlayerAction, Position, RelicDefinition, RelicEffect, UnitId } from '../types.js';
+import { cardRemovalQuote, createCardRemovalState } from './cardRemoval.js';
 import { CARD_UPGRADES } from './cardUpgrades.js';
 import {
   BUILDING_DEFINITIONS,
   DOCTRINE_DEFINITIONS,
+  GOLD_MINE_DAILY_GOLD,
   LEVEL_SLOTS,
   LEVEL_UP_COST,
+  MAGE_TOWER_WISDOM,
   addUnitsToArmy,
   canRecruitUnit,
   createInitialCityState,
   recruitCost,
+  settleArmyAfterVictory,
 } from './city.js';
 import { generateBattleEncounter, generateBossEncounter } from './encounters.js';
 import { EVENT_DEFINITIONS, EVENT_IDS } from './events.js';
 import { applyStarvation, moveFoodCost } from './food.js';
 import { generateMerchantInventory } from './merchant.js';
 import { buildPendingReward } from './rewards.js';
+import { createRunStats, tallyCombatEvents } from './stats.js';
 import type { RunAction, RunApplyResult, RunEvent, RunState } from './types.js';
 import { findNode, generateWorldMap, visitNode } from './worldMap.js';
 
@@ -31,6 +37,44 @@ const STARTING_FOOD = 50;
 
 function cloneRun(run: RunState): RunState {
   return JSON.parse(JSON.stringify(run)) as RunState;
+}
+
+/**
+ * Fills in fields that runs saved by older versions do not have (stats,
+ * card-removal counters). Call it on anything loaded from storage; the
+ * reducer also applies it, so an old run keeps working on its first action.
+ */
+export function migrateRun(run: RunState): RunState {
+  return { ...run, stats: { ...createRunStats(), ...run.stats }, cardRemoval: run.cardRemoval ?? createCardRemovalState() };
+}
+
+function changeGold(run: RunState, delta: number): void {
+  const next = Math.max(0, run.gold + delta);
+  const actual = next - run.gold;
+  run.gold = next;
+  if (actual > 0) run.stats.goldGathered += actual;
+  else run.stats.goldSpent -= actual;
+}
+
+function changeFood(run: RunState, delta: number): void {
+  const next = Math.max(0, run.food + delta);
+  if (next > run.food) run.stats.foodGathered += next - run.food;
+  run.food = next;
+}
+
+/** Instance ids must stay unique now that cards can leave the deck (deck length is no longer a safe counter). */
+function newInstanceId(deck: CardInstance[], cardId: string, tag: string): string {
+  const taken = new Set(deck.map((c) => c.instanceId));
+  let n = deck.length;
+  while (taken.has(`${cardId}#${tag}${n}`)) n += 1;
+  return `${cardId}#${tag}${n}`;
+}
+
+function noteLargestStack(run: RunState): void {
+  const armies = run.combat ? [run.army, run.combat.playerArmy] : [run.army];
+  for (const army of armies) {
+    for (const s of army) run.stats.largestStack = Math.max(run.stats.largestStack, s.count);
+  }
 }
 
 function buildStartingDeck(heroId: HeroId): CardInstance[] {
@@ -52,6 +96,8 @@ export function createRun(seed: number, heroId: HeroId = 'warlord', heroName?: s
     food: STARTING_FOOD,
     day: 1,
     battlesWon: 0,
+    stats: createRunStats(),
+    cardRemoval: createCardRemovalState(),
     worldMap: generateWorldMap(rng),
     city: createInitialCityState(),
     finalBattle: false,
@@ -116,7 +162,9 @@ function grantRelic(run: RunState, def: RelicDefinition, events: RunEvent[]): vo
 
 function startBattleForRun(run: RunState, encounterArmy: ArmyStack[]): CombatState {
   const doctrine = run.city.doctrine ? DOCTRINE_DEFINITIONS[run.city.doctrine] : undefined;
-  const relicEffects: RelicEffect[] = [...run.relics.flatMap((r) => r.effects), ...(doctrine?.combatEffects ?? [])];
+  const buildingEffects = run.city.buildings.flatMap((id) => BUILDING_DEFINITIONS[id]?.combatEffects ?? []);
+  const relicEffects: RelicEffect[] = [...run.relics.flatMap((r) => r.effects), ...(doctrine?.combatEffects ?? []), ...buildingEffects];
+  run.stats.turnsPlayed += 1; // the first player turn starts inside startBattle
   const { state } = startBattle({
     seed: run.seed,
     rng: run.rng,
@@ -154,8 +202,8 @@ function resolveResourceNode(run: RunState, events: RunEvent[]): void {
   const econMult = run.city.doctrine === 'economic' ? 1.3 : 1;
   const gold = Math.round((20 + nextInt(run.rng, 21)) * econMult); // 20-40, +30% under Economic Doctrine
   const food = Math.round((10 + nextInt(run.rng, 11)) * econMult); // 10-20
-  run.gold += gold;
-  run.food += food;
+  changeGold(run, gold);
+  changeFood(run, food);
   events.push({ type: 'RESOURCE_FOUND', gold, food });
 }
 
@@ -171,15 +219,24 @@ function moveTo(run: RunState, nodeId: string, events: RunEvent[]): RunApplyResu
     return { run, events };
   }
 
-  const foodCost = moveFoodCost(run.army);
+  const foodCost = moveFoodCost(run.army, run.city);
+  run.stats.foodEaten += Math.min(run.food, foodCost);
   run.food -= foodCost;
   run.day += 1;
+  run.stats.daysElapsed += 1;
+  run.stats.nodesVisited += 1;
   events.push({ type: 'MOVED', nodeId, foodCost });
+
+  if (run.city.buildings.includes('gold_mine')) {
+    changeGold(run, GOLD_MINE_DAILY_GOLD);
+    events.push({ type: 'DAILY_INCOME', gold: GOLD_MINE_DAILY_GOLD });
+  }
 
   if (run.food < 0) {
     run.food = 0;
     const result = applyStarvation(run.army);
     run.army = result.army;
+    run.stats.unitsLost += result.unitsLost;
     if (result.unitsLost > 0) events.push({ type: 'STARVING', unitsLost: result.unitsLost });
   }
 
@@ -216,21 +273,11 @@ function moveTo(run: RunState, nodeId: string, events: RunEvent[]): RunApplyResu
       break;
     }
     case 'city':
-      enterCityEffects(run);
       run.phase = 'city';
       break;
   }
 
   return { run, events };
-}
-
-/** Shared by moveTo's 'city' arrival and re-entering a city you're already standing on. */
-function enterCityEffects(run: RunState): void {
-  if (run.city.buildings.includes('shrine')) {
-    run.army = run.army.map((s) =>
-      s.count > 0 ? { ...s, currentHp: Math.min(s.maxHp, s.currentHp + Math.round(s.maxHp * 0.2)) } : s
-    );
-  }
 }
 
 /**
@@ -244,26 +291,32 @@ function enterCity(run: RunState, events: RunEvent[]): RunApplyResult {
     reject(events, 'Not standing on a city.');
     return { run, events };
   }
-  enterCityEffects(run);
   run.phase = 'city';
   return { run, events };
 }
 
 function forwardCombatAction(run: RunState, action: PlayerAction, events: RunEvent[]): RunApplyResult {
-  if (run.phase !== 'in_battle' || !run.combat) {
+  const previous = run.combat;
+  if (run.phase !== 'in_battle' || !previous) {
     reject(events, 'No battle in progress.');
     return { run, events };
   }
 
-  const result = applyPlayerAction(run.combat, action);
+  const result = applyPlayerAction(previous, action);
   run.combat = result.state;
+  const playerStackIds = new Set([...previous.playerArmy, ...result.state.playerArmy].map((s) => s.stackId));
+  tallyCombatEvents(run.stats, result.events, playerStackIds);
 
   if (result.state.result === 'victory') {
+    const settled = settleArmyAfterVictory(result.state.playerArmy, run.city);
     run.hero = result.state.hero;
-    run.army = result.state.playerArmy;
+    run.army = settled.army;
     run.rng = { seed: result.state.rng.seed };
     run.battlesWon += 1;
+    run.stats.battlesWon += 1;
+    run.stats.unitsRevived += settled.revived;
     events.push({ type: 'BATTLE_WON' });
+    if (settled.revived > 0) events.push({ type: 'UNITS_REVIVED', count: settled.revived });
     run.pendingReward = buildPendingReward(run.rng, run.relics, run.masterDeck);
     run.phase = 'reward';
   } else if (result.state.result === 'defeat') {
@@ -277,17 +330,15 @@ function forwardCombatAction(run: RunState, action: PlayerAction, events: RunEve
   return { run, events };
 }
 
-function claimRelic(run: RunState, relicId: string, events: RunEvent[]): RunApplyResult {
-  if (run.phase !== 'reward' || !run.pendingReward) {
-    reject(events, 'No reward pending.');
-    return { run, events };
+/** Every reward pick (card, upgrade, removal, skip) ends the reward screen at once (AO-D026). */
+function finishReward(run: RunState, events: RunEvent[]): void {
+  run.pendingReward = null;
+  if (run.finalBattle) {
+    run.phase = 'run_complete';
+    events.push({ type: 'RUN_COMPLETE' });
+  } else {
+    run.phase = 'on_map';
   }
-  if (!run.pendingReward.relicOptions.includes(relicId)) {
-    reject(events, 'That relic is not one of the current options.');
-    return { run, events };
-  }
-  run.pendingReward.chosenRelicId = relicId;
-  return { run, events };
 }
 
 function claimCard(run: RunState, cardId: string, events: RunEvent[]): RunApplyResult {
@@ -295,12 +346,13 @@ function claimCard(run: RunState, cardId: string, events: RunEvent[]): RunApplyR
     reject(events, 'No reward pending.');
     return { run, events };
   }
-  if (!run.pendingReward.cardOptions.includes(cardId)) {
+  if (!run.pendingReward.cardOptions.includes(cardId) || !CARD_DEFINITIONS[cardId]) {
     reject(events, 'That card is not one of the current options.');
     return { run, events };
   }
-  run.pendingReward.chosenCardId = cardId;
-  run.pendingReward.chosenUpgradeInstanceId = null;
+  run.masterDeck.push({ instanceId: newInstanceId(run.masterDeck, cardId, 'reward'), cardId });
+  events.push({ type: 'CARD_REWARD_CLAIMED', cardId });
+  finishReward(run, events);
   return { run, events };
 }
 
@@ -313,50 +365,50 @@ function claimUpgrade(run: RunState, instanceId: string, events: RunEvent[]): Ru
     reject(events, 'That upgrade is not one of the current options.');
     return { run, events };
   }
-  run.pendingReward.chosenUpgradeInstanceId = instanceId;
-  run.pendingReward.chosenCardId = null;
+  const idx = run.masterDeck.findIndex((c) => c.instanceId === instanceId);
+  const card = run.masterDeck[idx];
+  const upgradedId = card && CARD_UPGRADES[card.cardId];
+  if (!card || !upgradedId) {
+    reject(events, 'That card can no longer be upgraded.');
+    return { run, events };
+  }
+  events.push({ type: 'CARD_UPGRADED', instanceId, fromCardId: card.cardId, toCardId: upgradedId });
+  run.masterDeck[idx] = { ...card, cardId: upgradedId };
+  finishReward(run, events);
   return { run, events };
 }
 
-function confirmReward(run: RunState, events: RunEvent[]): RunApplyResult {
+function skipReward(run: RunState, events: RunEvent[]): RunApplyResult {
   if (run.phase !== 'reward' || !run.pendingReward) {
     reject(events, 'No reward pending.');
     return { run, events };
   }
-  const reward = run.pendingReward;
+  events.push({ type: 'REWARD_SKIPPED' });
+  finishReward(run, events);
+  return { run, events };
+}
 
-  if (reward.chosenRelicId) {
-    const def = RELIC_DEFINITIONS[reward.chosenRelicId];
-    if (def) grantRelic(run, def, events);
+/** Card removal (AO-D026) at a reward, merchant or city; where it is allowed and what it costs lives in cardRemoval.ts. */
+function removeCard(run: RunState, instanceId: string, events: RunEvent[]): RunApplyResult {
+  const quote = cardRemovalQuote(run);
+  if (!quote.allowed) {
+    reject(events, quote.reason);
+    return { run, events };
   }
+  const idx = run.masterDeck.findIndex((c) => c.instanceId === instanceId);
+  if (idx === -1) {
+    reject(events, 'That card is not in your deck.');
+    return { run, events };
+  }
+  const card = run.masterDeck[idx]!;
+  run.masterDeck.splice(idx, 1);
+  changeGold(run, -quote.gold);
+  run.stats.cardsRemoved += 1;
+  events.push({ type: 'CARD_REMOVED', instanceId, cardId: card.cardId, goldPaid: quote.gold });
 
-  if (reward.chosenCardId && CARD_DEFINITIONS[reward.chosenCardId]) {
-    const instanceId = `${reward.chosenCardId}#reward${run.masterDeck.length}`;
-    run.masterDeck.push({ instanceId, cardId: reward.chosenCardId });
-    events.push({ type: 'CARD_REWARD_CLAIMED', cardId: reward.chosenCardId });
-  } else if (reward.chosenUpgradeInstanceId) {
-    const idx = run.masterDeck.findIndex((c) => c.instanceId === reward.chosenUpgradeInstanceId);
-    if (idx >= 0) {
-      const card = run.masterDeck[idx]!;
-      const upgradedId = CARD_UPGRADES[card.cardId];
-      if (upgradedId) {
-        events.push({ type: 'CARD_UPGRADED', instanceId: card.instanceId, fromCardId: card.cardId, toCardId: upgradedId });
-        run.masterDeck[idx] = { ...card, cardId: upgradedId };
-      }
-    }
-  }
-
-  if (!reward.chosenRelicId && !reward.chosenCardId && !reward.chosenUpgradeInstanceId) {
-    events.push({ type: 'REWARD_SKIPPED' });
-  }
-
-  run.pendingReward = null;
-  if (run.finalBattle) {
-    run.phase = 'run_complete';
-    events.push({ type: 'RUN_COMPLETE' });
-  } else {
-    run.phase = 'on_map';
-  }
+  if (run.phase === 'merchant') run.cardRemoval.merchantUses += 1;
+  else if (run.phase === 'city') run.cardRemoval.lastCityDay = run.day;
+  else finishReward(run, events);
   return { run, events };
 }
 
@@ -381,10 +433,10 @@ function chooseEventOption(run: RunState, optionId: string, events: RunEvent[]):
   let outcome = option.id;
   switch (option.effect.kind) {
     case 'GOLD_DELTA':
-      run.gold = Math.max(0, run.gold + option.effect.amount);
+      changeGold(run, option.effect.amount);
       break;
     case 'FOOD_DELTA':
-      run.food = Math.max(0, run.food + option.effect.amount);
+      changeFood(run, option.effect.amount);
       break;
     case 'HERO_HEAL_PERCENT':
       run.hero.hp = Math.min(run.hero.maxHp, run.hero.hp + Math.round((run.hero.maxHp * option.effect.percent) / 100));
@@ -397,11 +449,11 @@ function chooseEventOption(run: RunState, optionId: string, events: RunEvent[]):
           grantRelic(run, RELIC_DEFINITIONS[relicId]!, events);
           outcome = 'search_relic';
         } else {
-          run.gold += 30; // nothing left to find — modest consolation Gold
+          changeGold(run, 30); // nothing left to find — modest consolation Gold
           outcome = 'search_nothing_left';
         }
       } else {
-        run.gold = Math.max(0, run.gold - option.effect.trapGoldLoss);
+        changeGold(run, -option.effect.trapGoldLoss);
         outcome = 'search_trap';
       }
       break;
@@ -429,9 +481,8 @@ function buyCard(run: RunState, cardId: string, events: RunEvent[]): RunApplyRes
     reject(events, 'Not enough Gold.');
     return { run, events };
   }
-  run.gold -= offer.price;
-  const instanceId = `${cardId}#shop${run.masterDeck.length}`;
-  run.masterDeck.push({ instanceId, cardId });
+  changeGold(run, -offer.price);
+  run.masterDeck.push({ instanceId: newInstanceId(run.masterDeck, cardId, 'shop'), cardId });
   run.pendingMerchant.cardOffers.splice(offerIdx, 1);
   events.push({ type: 'ITEM_PURCHASED', itemId: cardId, price: offer.price });
   return { run, events };
@@ -456,7 +507,7 @@ function buyRelic(run: RunState, relicId: string, events: RunEvent[]): RunApplyR
     reject(events, 'Unknown relic.');
     return { run, events };
   }
-  run.gold -= offer.price;
+  changeGold(run, -offer.price);
   grantRelic(run, def, events);
   run.pendingMerchant.relicOffer = null;
   events.push({ type: 'ITEM_PURCHASED', itemId: relicId, price: offer.price });
@@ -501,9 +552,10 @@ function recruit(run: RunState, unitId: UnitId, count: number, events: RunEvent[
     reject(events, 'Field army is full (6 stacks) and has no matching stack to merge into.');
     return { run, events };
   }
-  run.gold -= cost.gold;
+  changeGold(run, -cost.gold);
   run.food -= cost.food;
   run.army = updatedArmy;
+  run.stats.unitsRecruited += count;
   events.push({ type: 'UNITS_RECRUITED', unitId, count });
   return { run, events };
 }
@@ -577,13 +629,19 @@ function buildBuilding(run: RunState, buildingId: string, events: RunEvent[]): R
     return { run, events };
   }
 
-  run.gold -= def.cost;
+  changeGold(run, -def.cost);
   run.city.buildings.push(buildingId);
 
-  if (buildingId === 'gold_mine') run.gold += 100;
-  if (buildingId === 'training_hall' || buildingId === 'forge') {
+  if (buildingId === 'training_hall') {
     run.hero.maxMana += 2;
     run.hero.mana += 2;
+  }
+  if (buildingId === 'mage_tower') {
+    const manaBefore = maxManaFromWisdom(run.hero.baseMana, run.hero.stats.wisdom);
+    run.hero.stats.wisdom += MAGE_TOWER_WISDOM;
+    const manaGained = maxManaFromWisdom(run.hero.baseMana, run.hero.stats.wisdom) - manaBefore;
+    run.hero.maxMana += manaGained;
+    run.hero.mana += manaGained;
   }
 
   events.push({ type: 'BUILDING_BUILT', buildingId });
@@ -605,7 +663,7 @@ function upgradeCity(run: RunState, events: RunEvent[]): RunApplyResult {
     reject(events, 'Not enough Gold.');
     return { run, events };
   }
-  run.gold -= cost;
+  changeGold(run, -cost);
   run.city.level = nextLevel;
   events.push({ type: 'CITY_LEVELED_UP', level: nextLevel });
   return { run, events };
@@ -639,7 +697,7 @@ function leaveCity(run: RunState, events: RunEvent[]): RunApplyResult {
 }
 
 export function applyRunAction(run: RunState, action: RunAction): RunApplyResult {
-  const working = cloneRun(run);
+  const working = migrateRun(cloneRun(run));
   // Wiped stacks (battle, starvation) are dropped so a later recruit/split can't reuse their stackId.
   working.army = working.army.filter((s) => s.count > 0);
   const events: RunEvent[] = [];
@@ -655,17 +713,17 @@ export function applyRunAction(run: RunState, action: RunAction): RunApplyResult
     case 'COMBAT_ACTION':
       result = forwardCombatAction(working, action.action, events);
       break;
-    case 'CLAIM_RELIC':
-      result = claimRelic(working, action.relicId, events);
-      break;
     case 'CLAIM_CARD':
       result = claimCard(working, action.cardId, events);
       break;
     case 'CLAIM_UPGRADE':
       result = claimUpgrade(working, action.instanceId, events);
       break;
-    case 'CONFIRM_REWARD':
-      result = confirmReward(working, events);
+    case 'SKIP_REWARD':
+      result = skipReward(working, events);
+      break;
+    case 'REMOVE_CARD':
+      result = removeCard(working, action.instanceId, events);
       break;
     case 'CHOOSE_EVENT_OPTION':
       result = chooseEventOption(working, action.optionId, events);
@@ -708,6 +766,7 @@ export function applyRunAction(run: RunState, action: RunAction): RunApplyResult
       break;
   }
 
+  noteLargestStack(result.run);
   result.run.log = [...result.run.log, ...result.events];
   return result;
 }
