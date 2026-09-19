@@ -244,6 +244,9 @@ export function CityScreen({ city, gold, food, hero, army, relics, log, onRecrui
           <div className="garrison-bar-stat">
             <span>🏗️</span> {slotsUsed}/{slotsMax}
           </div>
+          <button className="garrison-leave-btn" onClick={onLeave}>
+            Leave
+          </button>
         </div>
 
         <div className="garrison-bar-col garrison-bar-hero">
@@ -299,10 +302,6 @@ export function CityScreen({ city, gold, food, hero, army, relics, log, onRecrui
       </div>
 
       <HistoryDrawer open={historyOpen} onClose={() => setHistoryOpen(false)} title="History" lines={historyLines} />
-
-      <div className="merchant-leave-ribbon" onClick={onLeave}>
-        Leave
-      </div>
     </div>
   );
 }

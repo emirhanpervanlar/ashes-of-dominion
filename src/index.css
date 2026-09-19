@@ -1070,6 +1070,21 @@ button.primary {
   white-space: nowrap;
 }
 
+.garrison-leave-btn {
+  background: linear-gradient(180deg, #6b2a2a, #3a1414);
+  border: 2px solid #8a3a3a;
+  color: #f0d9d9;
+  font-weight: 800;
+  font-size: 13px;
+  padding: 5px 0;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.garrison-leave-btn:hover {
+  filter: brightness(1.15);
+}
+
 .garrison-bar-hero {
   align-items: center;
   justify-content: flex-start;
@@ -1089,6 +1104,7 @@ button.primary {
   background: linear-gradient(90deg, transparent, #8a3a2a, transparent);
   padding: 4px 2px;
   border-radius: 4px;
+  flex-shrink: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1111,13 +1127,12 @@ button.primary {
 .garrison-relic-grid {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
-  grid-template-rows: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 26px);
   gap: 3px;
   width: 100%;
 }
 
 .garrison-relic-cell {
-  aspect-ratio: 1;
   border-radius: 4px;
   background: #1a0f08;
   border: 1px solid #8a5a3a;
@@ -1193,8 +1208,8 @@ button.primary {
 
 .garrison-slot {
   position: relative;
-  width: 150px;
-  height: 150px;
+  width: 130px;
+  height: 130px;
   border-radius: 8px;
   background: radial-gradient(circle at 35% 30%, #4a2e1e, #1a0f08);
   border: 2px solid #8a5a3a;
@@ -1279,15 +1294,17 @@ button.primary {
 .path-choice-card {
   --pc-color: var(--accent);
   position: relative;
-  width: 168px;
-  min-height: 96px;
+  width: 250px;
+  height: 300px;
   background: linear-gradient(160deg, #3a2318, #1c130c);
   border: 2px solid var(--pc-color);
   border-radius: 10px;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 14px 16px 14px 40px;
+  gap: 22px;
+  padding: 20px;
   cursor: pointer;
   box-shadow: inset 0 0 10px #0008;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
@@ -1299,22 +1316,19 @@ button.primary {
 }
 
 .path-choice-badge {
-  position: absolute;
-  top: 10px;
-  left: 10px;
-  width: 22px;
-  height: 22px;
+  width: 120px;
+  height: 120px;
   border-radius: 50%;
   background: #0008;
-  border: 1px solid var(--pc-color);
+  border: 3px solid var(--pc-color);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
+  font-size: 60px;
 }
 
 .path-choice-name {
-  font-size: 15px;
+  font-size: 20px;
   font-weight: 700;
   text-align: center;
 }
@@ -1617,12 +1631,6 @@ button.primary {
 .city-building-popup h3 {
   margin: 0 0 8px;
   font-size: 16px;
-}
-
-/* City reuses .garrison-bar (see the Road screen's rules) but also has a fixed
-   Leave ribbon over the bottom-left corner, so its first column needs clearance. */
-.th-frame .garrison-bar {
-  padding-left: 150px;
 }
 
 .recruit-flourish {
