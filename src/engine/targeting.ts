@@ -37,9 +37,9 @@ const MELEE_LANE_TARGETS: Record<Lane, Lane[]> = {
  * Valid enemy targets for a stack's free basic action (or a card that
  * reuses the same geometry). Ranged units (rangedAllAccess) ignore lane
  * restriction entirely and can reach the backline. Melee units are limited
- * to their lane's front-row targets only — if the front slot in a lane is
- * empty/dead, that lane simply contributes no target, it does NOT fall
- * back to hitting the backline (only ranged units may hit the backline).
+ * to their lane's front-row targets only. AO-D013: only when the enemy front
+ * row (positions 1-3) has no living stack at all may melee hit the backline;
+ * a single dead front lane exposes nothing.
  */
 export function computeValidTargets(attacker: ArmyStack, enemyArmy: ArmyStack[], attackerDef?: UnitDefinition): ArmyStack[] {
   const def = attackerDef ?? UNIT_DEFINITIONS[attacker.unitId];
@@ -49,6 +49,10 @@ export function computeValidTargets(attacker: ArmyStack, enemyArmy: ArmyStack[],
   if (def.rangedAllAccess) {
     return alive;
   }
+
+  // AO-D013: "living" includes untargetable stacks — they still hold the front.
+  const frontHeld = enemyArmy.some((s) => s.count > 0 && isFrontPosition(s.position));
+  if (!frontHeld) return alive;
 
   const lane = laneOf(attacker.position);
   const targets: ArmyStack[] = [];

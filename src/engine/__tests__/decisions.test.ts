@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { createStack } from '../army.js';
 import { applyPlayerAction } from '../combat.js';
 import { applyDamageToStack, applyHealToStack } from '../damage.js';
+import { CARD_DEFINITIONS } from '../data/cards.js';
 import { UNIT_DEFINITIONS } from '../data/units.js';
 import { generateEnemyIntents } from '../intents.js';
 import { createVerticalSliceScenario } from '../scenario.js';
@@ -45,8 +46,8 @@ function stackOf(state: CombatState, stackId: string): ArmyStack {
 const enemyOrcs = () => [createStack('orc', 'enemy', 1, 10), createStack('orc', 'enemy', 2, 10), createStack('orc', 'enemy', 3, 10)];
 
 describe('AO-001 review gap: card path with no legal target', () => {
-  it('a unit card is rejected with "no target in reach" when the melee stack has no front target, spending nothing', () => {
-    const enemy = [dead(createStack('orc', 'enemy', 1, 10)), dead(createStack('orc', 'enemy', 2, 10)), dead(createStack('orc', 'enemy', 3, 10)), createStack('goblin', 'enemy', 4, 10)];
+  it('a unit card is rejected with "no target in reach" when a front stack lives but none in the melee lane, spending nothing', () => {
+    const enemy = [dead(createStack('orc', 'enemy', 1, 10)), dead(createStack('orc', 'enemy', 2, 10)), createStack('orc', 'enemy', 3, 10), createStack('goblin', 'enemy', 4, 10)];
     const state = battle([createStack('swordsman', 'player', 1, 6), createStack('knight', 'player', 2, 2)], enemy, ['charge']);
     const result = applyPlayerAction(state, {
       type: 'PLAY_CARD',
@@ -61,24 +62,33 @@ describe('AO-001 review gap: card path with no legal target', () => {
   });
 });
 
-describe('AO-D002: melee never reaches the backline, ranged does', () => {
+describe('AO-D002 / AO-D013: melee reaches the backline only when the front row is empty, ranged always', () => {
   const backline = () => [createStack('goblin', 'enemy', 4, 10), createStack('shaman', 'enemy', 5, 8), createStack('goblin', 'enemy', 6, 10)];
 
-  it('a player melee stack lists no target when every enemy front slot is dead, but an archer still lists the backline', () => {
+  it('a single dead front lane exposes nothing; a lane with no reachable front stack lists no target', () => {
+    const enemy = [dead(createStack('orc', 'enemy', 1, 10)), createStack('orc', 'enemy', 2, 10), createStack('orc', 'enemy', 3, 10), ...backline()];
+    const left = computeValidTargets(createStack('swordsman', 'player', 1, 5), enemy, UNIT_DEFINITIONS.swordsman);
+    expect(left.map((s) => s.position)).toEqual([2]);
+    const onlyRight = [dead(createStack('orc', 'enemy', 1, 10)), dead(createStack('orc', 'enemy', 2, 10)), createStack('orc', 'enemy', 3, 10), ...backline()];
+    expect(computeValidTargets(createStack('swordsman', 'player', 1, 5), onlyRight, UNIT_DEFINITIONS.swordsman)).toEqual([]);
+  });
+
+  it('a player melee stack lists the whole living backline when every enemy front slot is dead, and so does an archer', () => {
     const enemy = [...enemyOrcs().map(dead), ...backline()];
     for (const pos of [1, 2, 3] as Position[]) {
       const melee = computeValidTargets(createStack('swordsman', 'player', pos, 5), enemy, UNIT_DEFINITIONS.swordsman);
-      expect(melee).toEqual([]);
+      expect(melee.map((s) => s.position).sort()).toEqual([4, 5, 6]);
     }
     const archer = computeValidTargets(createStack('archer', 'player', 4, 5), enemy, UNIT_DEFINITIONS.archer);
     expect(archer.map((s) => s.position).sort()).toEqual([4, 5, 6]);
   });
 
-  it('an ENEMY melee stack never lists a player backline stack, even when the whole front is dead', () => {
+  it('an ENEMY melee stack lists the player backline once the whole player front is dead', () => {
     const player = [dead(createStack('swordsman', 'player', 1, 6)), dead(createStack('knight', 'player', 2, 2)), createStack('archer', 'player', 4, 4), createStack('priest', 'player', 5, 4)];
     for (const unit of ['orc', 'goblin', 'wolf', 'shaman'] as UnitId[]) {
       for (const pos of [1, 2, 3] as Position[]) {
-        expect(computeValidTargets(createStack(unit, 'enemy', pos, 5), player, UNIT_DEFINITIONS[unit])).toEqual([]);
+        const targets = computeValidTargets(createStack(unit, 'enemy', pos, 5), player, UNIT_DEFINITIONS[unit]);
+        expect(targets.map((s) => s.position).sort()).toEqual([4, 5]);
       }
     }
   });
@@ -96,11 +106,13 @@ describe('AO-D002: melee never reaches the backline, ranged does', () => {
     }
   });
 
-  it('a melee enemy with a dead front lane and no front target plans no attack at all', () => {
+  it('with the whole player front dead, melee enemies plan attacks on the backline', () => {
     const player = [dead(createStack('swordsman', 'player', 1, 6)), dead(createStack('knight', 'player', 2, 2)), dead(createStack('swordsman', 'player', 3, 2)), createStack('archer', 'player', 4, 4)];
     const { state: base } = createVerticalSliceScenario(3, 'warlord', 'guarded_shaman');
     const intents = generateEnemyIntents({ ...base, playerArmy: player });
-    expect(intents.filter((i) => i.kind === 'attack')).toEqual([]);
+    const attacks = intents.filter((i) => i.kind === 'attack');
+    expect(attacks.length).toBeGreaterThan(0);
+    for (const a of attacks) expect(a.targetStackId).toBe('player_archer_4');
   });
 });
 
@@ -118,15 +130,72 @@ describe('AO-001 review gap: melee enemy whose planned target died', () => {
     expect(stackOf(result.state, 'player_priest_5').currentHp).toBe(stackOf(state, 'player_priest_5').currentHp);
   });
 
-  it('never falls back to the backline when no front stack is reachable', () => {
+  it('retargets the backline only because the whole front row is dead', () => {
     const player = [dead(createStack('swordsman', 'player', 1, 6)), dead(createStack('knight', 'player', 2, 2)), dead(createStack('archer', 'player', 4, 4)), createStack('priest', 'player', 5, 4)];
     const state = {
       ...battle(player, [createStack('orc', 'enemy', 1, 10)]),
       enemyIntents: [{ stackId: 'enemy_orc_1', kind: 'attack' as const, targetStackId: 'player_archer_4' }],
     };
     const result = applyPlayerAction(state, { type: 'END_TURN' });
-    expect(attacksBy(result.events, 'enemy_orc_1')).toEqual([]);
-    expect(stackOf(result.state, 'player_priest_5').currentHp).toBe(stackOf(state, 'player_priest_5').currentHp);
+    const hits = attacksBy(result.events, 'enemy_orc_1');
+    expect(hits).toHaveLength(1);
+    expect(hits[0]!.targetStackId).toBe('player_priest_5');
+  });
+});
+
+describe('AO-006: effects after a lethal effect skip cleanly', () => {
+  const playerArmy = () => [
+    createStack('swordsman', 'player', 1, 50),
+    createStack('knight', 'player', 2, 50),
+    createStack('wolf', 'player', 3, 50),
+    createStack('archer', 'player', 4, 50),
+    createStack('priest', 'player', 5, 50),
+  ];
+  // Enemy centre stack has 1 HP so any attack kills it; the neighbours keep the battle running.
+  const enemyArmy = () => [
+    createStack('orc', 'enemy', 1, 40),
+    { ...createStack('orc', 'enemy', 2, 1), currentHp: 1 },
+    createStack('orc', 'enemy', 3, 40),
+    createStack('goblin', 'enemy', 4, 40),
+  ];
+
+  it.each(Object.values(CARD_DEFINITIONS).map((c) => [c.id, c] as const))('%s does not throw when its target is already dead or dies mid-card', (_id, card) => {
+    const acting = card.source.type === 'unit' ? `player_${card.source.unitId}_${{ swordsman: 1, knight: 2, wolf: 3, archer: 4, priest: 5 }[card.source.unitId as 'swordsman']}` : 'player_swordsman_1';
+    const state = battle(playerArmy(), enemyArmy(), [card.id]);
+    const action = {
+      type: 'PLAY_CARD' as const,
+      instanceId: state.hand[0]!.instanceId,
+      actingStackId: acting,
+      targetStackId: card.targeting === 'ally-stack+ally-stack' ? 'player_knight_2' : card.targeting.includes('enemy') ? 'enemy_orc_2' : undefined,
+      secondTargetStackId: card.targeting === 'ally-stack+ally-stack' ? 'player_knight_2' : undefined,
+      toPosition: 6 as Position,
+    };
+    expect(() => applyPlayerAction(state, action)).not.toThrow();
+  });
+
+  it('Shield Bash kills its target and skips the follow-up status', () => {
+    const state = battle(playerArmy(), enemyArmy(), ['shield_bash']);
+    const result = applyPlayerAction(state, { type: 'PLAY_CARD', instanceId: state.hand[0]!.instanceId, actingStackId: 'player_knight_2', targetStackId: 'enemy_orc_2' });
+    expect(rejection(result.events)).toBeUndefined();
+    expect(result.state.enemyArmy.find((s) => s.stackId === 'enemy_orc_2')!.count).toBe(0);
+    expect(result.events.some((e) => e.type === 'STATUS_APPLIED' && e.stackId === 'enemy_orc_2')).toBe(false);
+  });
+});
+
+describe('AO-006: healing never reduces HP', () => {
+  it('a stack whose HP already exceeds the cap keeps its HP and count, healedAmount 0', () => {
+    const over = { ...createStack('swordsman', 'player', 1, 10), preBattleMaxCount: 6 };
+    const hpPerUnit = UNIT_DEFINITIONS.swordsman.hpPerUnit;
+    const res = applyHealToStack(over, 50, hpPerUnit);
+    expect(res.healedAmount).toBe(0);
+    expect(res.stack.currentHp).toBe(over.currentHp);
+    expect(res.stack.count).toBe(10);
+  });
+
+  it('a heal of 0 (or a full-health stack) reports healedAmount 0', () => {
+    const full = createStack('knight', 'player', 1, 4);
+    expect(applyHealToStack(full, 0, 12).healedAmount).toBe(0);
+    expect(applyHealToStack(full, 30, 12).stack.currentHp).toBe(full.currentHp);
   });
 });
 
