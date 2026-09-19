@@ -573,6 +573,7 @@ function validateTargeting(state: CombatState, def: { id: string; targeting: Car
     if (def.targeting === 'ally-stack+enemy-stack') {
       const actor = findStack(state.playerArmy, action.actingStackId)!;
       const validTargets = computeValidTargets(actor, state.enemyArmy, UNIT_DEFINITIONS[actor.unitId]);
+      if (validTargets.length === 0) return `${UNIT_DEFINITIONS[actor.unitId].name} has no target in reach.`;
       if (!validTargets.some((t) => t.stackId === stack.stackId)) {
         return `${UNIT_DEFINITIONS[actor.unitId].name} cannot reach that target from its position.`;
       }
@@ -689,6 +690,10 @@ function basicAction(state: CombatState, action: Extract<PlayerAction, { type: '
       return { state, events };
     }
     const validTargets = computeValidTargets(actor, state.enemyArmy, def);
+    if (validTargets.length === 0) {
+      reject(events, `${def.name} has no target in reach.`);
+      return { state, events };
+    }
     if (!validTargets.some((t) => t.stackId === target.stackId)) {
       reject(events, `${def.name} cannot reach that target from its position.`);
       return { state, events };
@@ -747,7 +752,8 @@ function resolveEnemyTurn(state: CombatState, events: CombatEvent[]): void {
 
     let target = findStack(state.playerArmy, intent.targetStackId ?? undefined);
     if (!target || target.count <= 0) {
-      target = state.playerArmy.find((s) => s.count > 0);
+      // The planned target died mid-turn: re-pick, but only within what this attacker can reach.
+      target = computeValidTargets(actor, state.playerArmy, UNIT_DEFINITIONS[actor.unitId])[0];
     }
     if (!target) continue;
 

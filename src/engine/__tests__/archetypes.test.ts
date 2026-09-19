@@ -273,3 +273,57 @@ describe('"1 turn" self-lockdown flags (Brace) expire instead of sticking foreve
     expect(actedNextTurn.events.some((e) => e.type === 'ACTION_REJECTED')).toBe(false);
   });
 });
+
+describe('Protect redirect is consumed by the first redirected hit (AO-D005)', () => {
+  it('clears the explicit redirect flags after one redirected attack', () => {
+    let { state } = createVerticalSliceScenario(511);
+    state = withHand(state, ['protect']);
+    const knight = state.playerArmy.find((s) => s.unitId === 'knight')!;
+    const swordsman = state.playerArmy.find((s) => s.unitId === 'swordsman')!;
+    const protectedState = applyPlayerAction(state, {
+      type: 'PLAY_CARD',
+      instanceId: handCard(state, 'protect').instanceId,
+      actingStackId: knight.stackId,
+      targetStackId: swordsman.stackId,
+    }).state;
+    expect(protectedState.playerArmy.find((s) => s.stackId === swordsman.stackId)!.flags.redirectToStackId).toBe(knight.stackId);
+
+    const [first, ...rest] = protectedState.enemyIntents;
+    const oneHit: CombatState = {
+      ...protectedState,
+      enemyIntents: [
+        { ...first!, kind: 'attack', targetStackId: swordsman.stackId, estimatedDamage: 1 },
+        ...rest.map((i) => ({ ...i, kind: 'buff' as const, targetStackId: i.stackId, buffStatus: 'strength' as const, buffAmount: 1 })),
+      ],
+    };
+    const ended = applyPlayerAction(oneHit, { type: 'END_TURN' });
+    const after = ended.state.playerArmy.find((s) => s.stackId === swordsman.stackId)!;
+    expect(after.flags.redirectToStackId).toBeUndefined();
+    expect(after.flags.redirectPercent).toBeUndefined();
+  });
+});
+
+describe('melee enemies never reach the backline (AO-D002)', () => {
+  it('generates no attack intent for a melee enemy whose lanes have no living front target', () => {
+    const { state } = createVerticalSliceScenario(512, 'mage'); // Mage army is backline only
+    const melee = state.enemyArmy.filter((s) => s.unitId === 'orc');
+    expect(melee.length).toBeGreaterThan(0);
+    const intents = generateEnemyIntents(state);
+    for (const orc of melee) {
+      expect(intents.some((i) => i.stackId === orc.stackId && i.kind === 'attack')).toBe(false);
+    }
+  });
+
+  it('a melee enemy whose planned target died does not fall back to the backline', () => {
+    const { state } = createVerticalSliceScenario(513, 'mage');
+    const orc = state.enemyArmy.find((s) => s.unitId === 'orc')!;
+    const dead = state.playerArmy[0]!;
+    const forced: CombatState = {
+      ...state,
+      playerArmy: state.playerArmy.map((s) => (s.stackId === dead.stackId ? { ...s, count: 0, currentHp: 0 } : s)),
+      enemyIntents: [{ stackId: orc.stackId, kind: 'attack', targetStackId: dead.stackId, estimatedDamage: 1 }],
+    };
+    const ended = applyPlayerAction(forced, { type: 'END_TURN' });
+    expect(ended.events.some((e) => e.type === 'STACK_ATTACKED' && e.attackerStackId === orc.stackId)).toBe(false);
+  });
+});

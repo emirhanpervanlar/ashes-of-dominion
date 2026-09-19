@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyDamageToStack, computeRawDamage, effectiveCount } from '../damage.js';
+import { applyDamageToStack, applyHealToStack, computeRawDamage, effectiveCount } from '../damage.js';
 import type { ArmyStack } from '../types.js';
 
 function stack(overrides: Partial<ArmyStack> = {}): ArmyStack {
@@ -90,5 +90,18 @@ describe('applyDamageToStack', () => {
     const afterSecondHit = applyDamageToStack(afterHit.stack, 10, 65);
     expect(afterSecondHit.stack.currentHp).toBe(0);
     expect(afterSecondHit.stack.count).toBe(0);
+  });
+});
+
+describe('Heroes 3 style heal (AO-D004)', () => {
+  it('50 units / 500 HP reduced to 40 / 400: healing 10 restores exactly one unit, never above 50', () => {
+    const wounded = stack({ count: 40, currentHp: 400, maxHp: 500, preBattleMaxCount: 50 });
+    const healed = applyHealToStack(wounded, 10, 10);
+    expect(healed.stack.count).toBe(41);
+    expect(healed.stack.currentHp).toBe(410);
+
+    const overhealed = applyHealToStack(wounded, 1000, 10);
+    expect(overhealed.stack.count).toBe(50);
+    expect(overhealed.stack.currentHp).toBe(500);
   });
 });
