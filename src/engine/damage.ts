@@ -181,7 +181,8 @@ export function computeHealAmount(healer: ArmyStack, healPower: number, wisdomEf
 
 export function applyHealToStack(target: ArmyStack, amount: number, hpPerUnit: number): HealResolution {
   const capHp = target.preBattleMaxCount * hpPerUnit;
-  const newHp = Math.min(capHp, target.currentHp + amount);
+  // Healing never lowers HP, even when current HP already exceeds the cap.
+  const newHp = Math.max(target.currentHp, Math.min(capHp, target.currentHp + amount));
   const newCount = Math.max(target.count, Math.ceil(newHp / hpPerUnit));
   return { stack: { ...target, currentHp: newHp, count: newCount }, healedAmount: newHp - target.currentHp };
 }
