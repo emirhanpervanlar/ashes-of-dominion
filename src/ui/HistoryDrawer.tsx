@@ -1,3 +1,5 @@
+import { Icon } from './pixel/Icon.js';
+
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -17,7 +19,7 @@ export function HistoryDrawer({ open, onClose, title, lines }: Props) {
         <div className="history-drawer-header">
           <strong>{title}</strong>
           <button className="btn btn--s btn--sq" onClick={onClose}>
-            ✕
+            <Icon name="ui_close" />
           </button>
         </div>
         <div className="history-drawer-body">

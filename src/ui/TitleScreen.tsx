@@ -1,3 +1,5 @@
+import { Icon } from './pixel/Icon.js';
+
 interface Props {
   onStart: () => void;
   onContinue?: () => void;
@@ -7,7 +9,9 @@ interface Props {
 export function TitleScreen({ onStart, onContinue, onSettings }: Props) {
   return (
     <div className="screen title-screen" data-screen="title">
-      <div className="title-crest">🛡️</div>
+      <div className="title-crest">
+        <Icon name="crest" size={4} />
+      </div>
       <h1 className="title-name">ASHES OF DOMINION</h1>
       <div className="title-tagline">From the embers of a shattered crown, a new dominion shall rise.</div>
 

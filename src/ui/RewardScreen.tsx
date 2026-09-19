@@ -4,6 +4,7 @@ import type { CardRemovalQuote, PendingReward } from '../engine/run/index.js';
 import { CARD_DESCRIPTIONS } from './cardText.js';
 import { cardVisual } from './cardVisuals.js';
 import { CardRemovalPicker } from './CardRemovalPicker.js';
+import { Icon } from './pixel/Icon.js';
 
 interface Props {
   reward: PendingReward;
@@ -43,7 +44,9 @@ export function RewardScreen({ reward, deck, removalQuote, onClaimCard, onClaimU
           return (
             <div key={slot.key} className={`reward-card polarity-${visual.polarity}`} onClick={onClick}>
               <div className="reward-card-cost">{def.manaCost}</div>
-              <div className="reward-card-icon">{visual.icon}</div>
+              <div className="reward-card-icon">
+                <Icon name={visual.icon} size={3} />
+              </div>
               <div className="reward-card-name">{def.name}</div>
               {isUpgrade && <div className="reward-card-tag">Upgrade</div>}
               <div className="reward-card-desc">{CARD_DESCRIPTIONS[displayCardId] ?? displayCardId}</div>

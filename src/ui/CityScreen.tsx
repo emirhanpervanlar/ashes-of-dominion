@@ -3,7 +3,9 @@ import { BUILDING_DEFINITIONS, DOCTRINE_DEFINITIONS, LEVEL_SLOTS, LEVEL_UP_COST,
 import type { CardRemovalQuote, CityState, RunEvent } from '../engine/run/index.js';
 import { UNIT_DEFINITIONS } from '../engine/index.js';
 import type { ArmyStack, CardInstance, HeroId, Position, RelicDefinition, UnitId } from '../engine/index.js';
-import { UNIT_ICONS } from './unitIcons.js';
+import { BUILDING_ICONS } from './mapIcons.js';
+import { Icon } from './pixel/Icon.js';
+import { UnitArt } from './UnitArt.js';
 import { GarrisonBar } from './GarrisonBar.js';
 import { CardRemovalPicker } from './CardRemovalPicker.js';
 
@@ -85,7 +87,9 @@ export function CityScreen({ city, gold, food, hero, army, relics, log, deck, re
             style={HOTSPOTS[id]}
             onClick={() => togglePanel(id)}
           >
-            <span className="th-hotspot-icon">{id === 'townhall' ? '🏛️' : id === 'barracks' ? '⚔️' : '⛩️'}</span>
+            <span className="th-hotspot-icon">
+              <Icon name={BUILDING_ICONS[id]!} size={2} />
+            </span>
             <span className="th-hotspot-name">{id === 'townhall' ? 'Town Hall' : id === 'barracks' ? 'Barracks' : 'Temple'}</span>
             <span className="th-hotspot-sub">
               {id === 'townhall' && 'Level up'}
@@ -105,7 +109,9 @@ export function CityScreen({ city, gold, food, hero, army, relics, log, deck, re
               style={pos}
               onClick={() => togglePanel(building.id)}
             >
-              <span className="th-hotspot-icon">{BUILDING_ICONS[building.id] ?? '🏚️'}</span>
+              <span className="th-hotspot-icon">
+                <Icon name={BUILDING_ICONS[building.id]!} size={2} />
+              </span>
               <span className="th-hotspot-name">{building.name}</span>
               <span className="th-hotspot-sub">{built ? (building.id === 'mage_tower' ? `Tier ${ROMAN[city.mageTowerTier - 1]}` : 'Built') : `${building.cost}g`}</span>
             </div>
@@ -118,12 +124,14 @@ export function CityScreen({ city, gold, food, hero, army, relics, log, deck, re
           <div className="modal-backdrop" onClick={() => setPanel(null)} />
           <div className="popup panel panel--wood step-8 city-building-popup">
             <button className="btn modal-close" onClick={() => setPanel(null)}>
-              ✕
+              <Icon name="ui_close" />
             </button>
 
             {panel === 'townhall' && (
               <>
-                <h3>🏛️ Town Hall</h3>
+                <h3>
+                  <Icon name="bld_townhall" /> Town Hall
+                </h3>
                 <p className="subtitle">
                   City Level {city.level} — {slotsMax} building slots.
                 </p>
@@ -142,7 +150,9 @@ export function CityScreen({ city, gold, food, hero, army, relics, log, deck, re
 
             {panel === 'barracks' && (
               <>
-                <h3>⚔️ Barracks — Recruit</h3>
+                <h3>
+                  <Icon name="bld_barracks" /> Barracks — Recruit
+                </h3>
                 <div className="option-row">
                   {RECRUITABLE.map((unitId) => {
                     const unlocked = canRecruitUnit(city, unitId);
@@ -153,7 +163,7 @@ export function CityScreen({ city, gold, food, hero, army, relics, log, deck, re
                       <div key={unitId} className="option-tile">
                         <div className="option-name">
                           <span>
-                            {UNIT_ICONS[unitId]} {UNIT_DEFINITIONS[unitId].name}
+                            <UnitArt unitId={unitId} size={1} /> {UNIT_DEFINITIONS[unitId].name}
                           </span>
                         </div>
                         {!unlocked ? (
@@ -187,7 +197,9 @@ export function CityScreen({ city, gold, food, hero, army, relics, log, deck, re
 
             {panel === 'temple' && (
               <>
-                <h3>⛩️ Temple — Doctrine</h3>
+                <h3>
+                  <Icon name="bld_temple" /> Temple — Doctrine
+                </h3>
                 <div className="option-row">
                   {Object.values(DOCTRINE_DEFINITIONS).map((doctrine) => {
                     const chosen = city.doctrine === doctrine.id;
@@ -218,7 +230,7 @@ export function CityScreen({ city, gold, food, hero, army, relics, log, deck, re
               return (
                 <div key={building.id}>
                   <h3>
-                    {BUILDING_ICONS[building.id] ?? '🏚️'} {building.name}
+                    <Icon name={BUILDING_ICONS[building.id]!} /> {building.name}
                   </h3>
                   <p className="subtitle">{building.id === 'mage_tower' ? mageTowerDescription(city.mageTowerTier) : building.description}</p>
                   {built && building.id === 'mage_tower' ? (
@@ -239,9 +251,9 @@ export function CityScreen({ city, gold, food, hero, army, relics, log, deck, re
 
       <GarrisonBar
         stats={[
-          { icon: '💰', text: String(gold) },
-          { icon: '🌾', text: String(food) },
-          { icon: '🏗️', text: `${slotsUsed}/${slotsMax}` },
+          { icon: 'gold', text: String(gold) },
+          { icon: 'food', text: String(food) },
+          { icon: 'slots', text: `${slotsUsed}/${slotsMax}` },
         ]}
         onLeave={onLeave}
         hero={hero}
@@ -275,13 +287,3 @@ function MageTowerUpgrade({ tier, gold, onUpgrade }: { tier: 0 | 1 | 2 | 3; gold
     </>
   );
 }
-
-const BUILDING_ICONS: Record<string, string> = {
-  market: '🏪',
-  gold_mine: '⛏️',
-  mage_tower: '🗼',
-  stable: '🐴',
-  training_hall: '🥋',
-  forge: '🔨',
-  shrine: '⛲',
-};

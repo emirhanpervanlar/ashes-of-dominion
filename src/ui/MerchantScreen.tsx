@@ -4,6 +4,7 @@ import { RELIC_DEFINITIONS } from '../engine/run/index.js';
 import type { CardRemovalQuote, MerchantInventory } from '../engine/run/index.js';
 import { CARD_DESCRIPTIONS } from './cardText.js';
 import { cardVisual } from './cardVisuals.js';
+import { Icon } from './pixel/Icon.js';
 import { relicIcon } from './relicIcons.js';
 import { CardRemovalPicker } from './CardRemovalPicker.js';
 
@@ -24,7 +25,7 @@ export function MerchantScreen({ gold, inventory, deck, removalQuote, onBuyCard,
       <div className="merchant-topbar">
         <div className="plaque plaque--ribbon">Merchant</div>
         <div className="pill pill--gold">
-          <span>💰</span> {gold}
+          <Icon name="gold" /> {gold}
         </div>
       </div>
 
@@ -41,7 +42,9 @@ export function MerchantScreen({ gold, inventory, deck, removalQuote, onBuyCard,
               onClick={affordable ? () => onBuyCard(offer.cardId) : undefined}
             >
               <div className="reward-card-cost">{cardDef.manaCost}</div>
-              <div className="reward-card-icon">{visual.icon}</div>
+              <div className="reward-card-icon">
+                <Icon name={visual.icon} size={3} />
+              </div>
               <div className="reward-card-name">{cardDef.name}</div>
               <div className="reward-card-desc">{CARD_DESCRIPTIONS[offer.cardId] ?? offer.cardId}</div>
               <div className="merchant-price">{offer.price}g</div>
@@ -60,7 +63,9 @@ export function MerchantScreen({ gold, inventory, deck, removalQuote, onBuyCard,
                 onClick={affordable ? () => onBuyRelic(inventory.relicOffer!.relicId) : undefined}
               >
                 <div className="reward-card-tag">Relic</div>
-                <div className="reward-card-icon">{relicIcon(inventory.relicOffer.relicId)}</div>
+                <div className="reward-card-icon">
+                  <Icon name={relicIcon(inventory.relicOffer.relicId)} size={3} />
+                </div>
                 <div className="reward-card-name">{relic.name}</div>
                 <div className="reward-card-desc">{relic.description}</div>
                 <div className="merchant-price">{inventory.relicOffer.price}g</div>

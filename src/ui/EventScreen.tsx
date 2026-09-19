@@ -1,4 +1,5 @@
 import { EVENT_DEFINITIONS } from '../engine/run/index.js';
+import { Icon } from './pixel/Icon.js';
 
 interface Props {
   eventId: string;
@@ -11,7 +12,9 @@ export function EventScreen({ eventId, onChoose }: Props) {
 
   return (
     <div className="screen event-overlay" data-screen="vault">
-      <div className="event-badge">?</div>
+      <div className="event-badge">
+        <Icon name="node_event" size={3} />
+      </div>
       <div className="plaque plaque--ribbon">{def.title}</div>
       <div className="panel panel--parch step-8 event-description">{def.description}</div>
 

@@ -3,7 +3,8 @@ import { HERO_DEFINITIONS } from '../engine/index.js';
 import type { HeroId } from '../engine/index.js';
 import { STARTING_RELIC_DEFINITIONS } from '../engine/run/index.js';
 import { relicIcon } from './relicIcons.js';
-import { HERO_PORTRAITS } from './heroIcons.js';
+import { HERO_ICONS } from './heroIcons.js';
+import { Icon } from './pixel/Icon.js';
 
 interface Props {
   onBack: () => void;
@@ -43,14 +44,20 @@ export function CommanderSetupScreen({ onBack, onBegin }: Props) {
         <div className="commander-select-row">
           {heroes.map((hero) => (
             <div key={hero.id} className={`commander-card${heroId === hero.id ? ' selected' : ''}`} onClick={() => setHeroId(hero.id)}>
-              <div className="commander-card-portrait">{HERO_PORTRAITS[hero.id]}</div>
+              <div className="commander-card-portrait">
+                <Icon name={HERO_ICONS[hero.id]} size={4} />
+              </div>
               <div className="commander-card-name">{hero.name}</div>
               <div className="commander-card-desc">{HERO_TAGLINES[hero.id]}</div>
               <div className="hero-stat-line">
                 STR {hero.stats.strength} · DEX {hero.stats.dexterity} · INT {hero.stats.intelligence} · VIT {hero.stats.vitality} · WIS{' '}
                 {hero.stats.wisdom}
               </div>
-              {heroId === hero.id && <div className="commander-selected-badge">✓ Selected</div>}
+              {heroId === hero.id && (
+                <div className="commander-selected-badge">
+                  <Icon name="ui_check" /> Selected
+                </div>
+              )}
             </div>
           ))}
         </div>
@@ -77,10 +84,16 @@ export function CommanderSetupScreen({ onBack, onBegin }: Props) {
       <div className="commander-select-row">
         {relics.map((relic) => (
           <div key={relic.id} className={`commander-card${relicId === relic.id ? ' selected' : ''}`} onClick={() => setRelicId(relic.id)}>
-            <div className="commander-card-portrait">{relicIcon(relic.id)}</div>
+            <div className="commander-card-portrait">
+              <Icon name={relicIcon(relic.id)} size={3} />
+            </div>
             <div className="commander-card-name">{relic.name}</div>
             <div className="commander-card-desc">{relic.description}</div>
-            {relicId === relic.id && <div className="commander-selected-badge">✓ Selected</div>}
+            {relicId === relic.id && (
+              <div className="commander-selected-badge">
+                <Icon name="ui_check" /> Selected
+              </div>
+            )}
           </div>
         ))}
       </div>

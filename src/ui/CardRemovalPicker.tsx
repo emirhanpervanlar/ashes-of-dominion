@@ -5,6 +5,7 @@ import type { CardInstance } from '../engine/index.js';
 import type { CardRemovalQuote } from '../engine/run/index.js';
 import { CARD_DESCRIPTIONS } from './cardText.js';
 import { cardVisual } from './cardVisuals.js';
+import { Icon } from './pixel/Icon.js';
 
 interface Props {
   deck: CardInstance[];
@@ -34,7 +35,7 @@ export function CardRemovalPicker({ deck, quote, onRemove }: Props) {
           <div className="modal-backdrop" onClick={() => setOpen(false)} />
           <div className="popup panel panel--stone step-8 card-removal-popup">
             <button className="btn modal-close" onClick={() => setOpen(false)}>
-              ✕
+              <Icon name="ui_close" />
             </button>
             <h3>Remove a card {quote.gold > 0 ? `— ${quote.gold} Gold` : '— free'}</h3>
             <div className="card-removal-grid">
@@ -52,7 +53,9 @@ export function CardRemovalPicker({ deck, quote, onRemove }: Props) {
                     }}
                   >
                     <div className="reward-card-cost">{def.manaCost}</div>
-                    <div className="reward-card-icon">{visual.icon}</div>
+                    <div className="reward-card-icon">
+                      <Icon name={visual.icon} size={3} />
+                    </div>
                     <div className="reward-card-name">{def.name}</div>
                     <div className="reward-card-desc">{CARD_DESCRIPTIONS[instance.cardId] ?? instance.cardId}</div>
                   </div>

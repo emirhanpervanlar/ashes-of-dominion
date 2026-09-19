@@ -1,8 +1,9 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { UNIT_DEFINITIONS } from '../engine/index.js';
 import type { ArmyStack, Position } from '../engine/index.js';
-import { UNIT_ICONS } from './unitIcons.js';
-import { UNIT_ROLE_ICONS } from './unitShapes.js';
+import { Icon } from './pixel/Icon.js';
+import { UnitArt } from './UnitArt.js';
+import { UNIT_ROLE_ICONS } from './unitIcons.js';
 
 const POSITIONS: Position[] = [1, 2, 3, 4, 5, 6];
 const LANES = ['Left', 'Center', 'Right'];
@@ -117,14 +118,18 @@ export function ArmyGrid({ army, recentRecruit, onMoveStack, onInspect }: Props)
                       else iconRefs.current.delete(s.stackId);
                     }}
                   >
-                    {UNIT_ICONS[s.unitId]}
-                    <span className="army-slot-role">{UNIT_ROLE_ICONS[s.unitId]}</span>
+                    <UnitArt unitId={s.unitId} />
+                    <span className="army-slot-role">
+                      <Icon name={UNIT_ROLE_ICONS[s.unitId]} />
+                    </span>
                   </span>
                   <span className="army-slot-text">
                     <span className="army-slot-count">×{s.count}</span>
                     <span className="army-slot-name">{UNIT_DEFINITIONS[s.unitId].name}</span>
                   </span>
-                  <span className="army-slot-swap">⇄</span>
+                  <span className="army-slot-swap">
+                    <Icon name="ui_swap" />
+                  </span>
                   {recentRecruit?.unitId === s.unitId && <span className="recruit-flourish">+{recentRecruit.amount}</span>}
                 </>
               ) : (

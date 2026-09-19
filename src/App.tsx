@@ -20,6 +20,9 @@ import { CityScreen } from './ui/CityScreen.js';
 import { describeEvent } from './ui/eventText.js';
 import { describeRunEvent } from './ui/runEventText.js';
 import { relicIcon } from './ui/relicIcons.js';
+import { HERO_ICONS } from './ui/heroIcons.js';
+import { Icon } from './ui/pixel/Icon.js';
+import type { IconName } from './ui/pixel/icons.js';
 import { CARD_DESCRIPTIONS } from './ui/cardText.js';
 import { HistoryDrawer } from './ui/HistoryDrawer.js';
 import { ToastStack } from './ui/Toast.js';
@@ -206,7 +209,7 @@ export default function App() {
     return result;
   }
 
-  function pushToast(icon: string, text: string) {
+  function pushToast(icon: IconName, text: string) {
     setToasts((t) => [...t, { id: nextToastId.current++, icon, text }]);
   }
 
@@ -218,7 +221,7 @@ export default function App() {
   function toastsForRunEvents(events: RunEvent[], before: RunState, after: RunState) {
     for (const e of events) {
       if (e.type === 'RESOURCE_FOUND') {
-        pushToast('💰', `+${e.gold} Gold, +${e.food} Food`);
+        pushToast('gold', `+${e.gold} Gold, +${e.food} Food`);
       }
       if (e.type === 'EVENT_RESOLVED') {
         const goldDelta = after.gold - before.gold;
@@ -230,20 +233,20 @@ export default function App() {
         if (hpDelta !== 0) parts.push(`${hpDelta > 0 ? '+' : ''}${hpDelta} HP`);
         if (e.outcome === 'search_relic') parts.push('a relic!');
         if (e.outcome === 'search_trap') parts.push('a trap!');
-        const icon = e.outcome === 'search_relic' ? '★' : e.outcome === 'search_trap' ? '⚠️' : hpDelta > 0 ? '❤️' : '✨';
+        const icon: IconName = e.outcome === 'search_relic' ? 'relic' : e.outcome === 'search_trap' ? 'ui_warn' : hpDelta > 0 ? 'hp' : 'fx_sparkle';
         pushToast(icon, parts.length ? parts.join(', ') : 'Nothing happened.');
       }
       if (e.type === 'STARVING') {
-        pushToast('💀', `Starving! Lost ${e.unitsLost} unit(s).`);
+        pushToast('fx_skull', `Starving! Lost ${e.unitsLost} unit(s).`);
       }
       if (e.type === 'CARD_REMOVED') {
-        pushToast('🗑️', describeRunEvent(e) ?? 'Card removed.');
+        pushToast('discard', describeRunEvent(e) ?? 'Card removed.');
       }
       if (e.type === 'MAGE_TOWER_UPGRADED') {
-        pushToast('🗼', describeRunEvent(e) ?? 'Mage Tower upgraded.');
+        pushToast('bld_mage_tower', describeRunEvent(e) ?? 'Mage Tower upgraded.');
       }
       if (e.type === 'ACTION_REJECTED') {
-        pushToast('⚠️', e.reason);
+        pushToast('ui_warn', e.reason);
       }
     }
   }
@@ -275,7 +278,7 @@ export default function App() {
     if (result.run.combat) {
       const newEvents = result.run.combat.log.slice(logLengthBefore);
       // The engine rejects illegal actions with a reason in the combat log; surface it instead of failing silently.
-      for (const e of newEvents) if (e.type === 'ACTION_REJECTED') pushToast('⚠️', e.reason);
+      for (const e of newEvents) if (e.type === 'ACTION_REJECTED') pushToast('ui_warn', e.reason);
       if (action.type !== 'END_TURN') spawnFloaters(floatersFromEvents(newEvents, result.run.combat));
     }
     setPending(null);
@@ -611,7 +614,7 @@ export default function App() {
   const toastLayer = <ToastStack toasts={toasts} onDismiss={dismissToast} />;
   const menuButton = (
     <button className="btn btn--sq pause-menu-btn" onClick={() => setMenuOpen(true)} title="Menu">
-      ☰
+      <Icon name="ui_menu" />
     </button>
   );
   const pauseMenuOverlay = menuOpen ? (
@@ -645,6 +648,7 @@ export default function App() {
       <>
         {gameChrome}
         <StartingRelicScreen
+          heroId={run.hero.heroType}
           heroName={run.hero.name}
           onChoose={(relicId) => dispatchRun({ type: 'CHOOSE_STARTING_RELIC', relicId })}
         />
@@ -771,22 +775,24 @@ export default function App() {
       {gameChromeNoMenuBtn}
 
       <span className="frame-ornament corner-tl" aria-hidden="true">
-        🐉
+        <Icon name="ornament_dragon" size={3} />
       </span>
       <span className="frame-ornament corner-tr" aria-hidden="true">
-        🐉
+        <Icon name="ornament_dragon" size={3} />
       </span>
 
       <div className="frame-topbar">
         <div className="frame-hero-chip">
-          <div className="hero-portrait">🤴</div>
+          <div className="hero-portrait">
+            <Icon name={HERO_ICONS[run.hero.heroType]} size={2} />
+          </div>
           <div className="hero-info">
             <div className="hero-name-row">
               <span>{combat.hero.name}</span>
               <div className="relic-icons">
                 {run.relics.map((r) => (
                   <span key={r.id} className="relic-icon" title={`${r.name} — ${r.description}`}>
-                    {relicIcon(r.id)}
+                    <Icon name={relicIcon(r.id)} />
                   </span>
                 ))}
               </div>
@@ -861,7 +867,7 @@ export default function App() {
         <div className="frame-scene">
           {pending?.targeting === 'none' && (
             <div className="drop-zone" onClick={() => finalize({})}>
-              <div className="drop-zone-icon">🃏</div>
+              <Icon name="deck" size={2} />
               <div className="drop-zone-label">{pending.kind === 'card' ? 'Drop Card' : 'Confirm'}</div>
             </div>
           )}
@@ -915,7 +921,9 @@ export default function App() {
 
       <div className="frame-bottombar">
         <div className="frame-pile deck-pile" title={`Deck: ${combat.deck.length} cards`}>
-          <div className="pile-card-back">🂠</div>
+          <div className="pile-card-back">
+            <Icon name="deck" size={2} />
+          </div>
           <div className="pile-count">{combat.deck.length}</div>
           <div className="pile-label">Deck</div>
         </div>
@@ -948,20 +956,22 @@ export default function App() {
         </div>
 
         <div className="frame-pile discard-pile" title={`Discard: ${combat.discard.length} cards`}>
-          <div className="pile-card-back discard">🂠</div>
+          <div className="pile-card-back discard">
+            <Icon name="discard" size={2} />
+          </div>
           <div className="pile-count">{combat.discard.length}</div>
           <div className="pile-label">Discard</div>
         </div>
 
         <div className="frame-round-buttons">
           <button className="btn btn--primary round-btn round-btn-main" disabled={!canAct} onClick={handleEndTurn} title="End Turn">
-            ⚔️
+            <Icon name="node_battle" size={2} />
           </button>
           <button className="btn round-btn" onClick={() => setHistoryOpen(true)} title="Battle Log">
-            📜
+            <Icon name="ui_log" size={2} />
           </button>
           <button className="btn round-btn" onClick={() => setMenuOpen(true)} title="Menu">
-            ⚙️
+            <Icon name="ui_menu" size={2} />
           </button>
         </div>
       </div>
