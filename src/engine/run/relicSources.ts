@@ -44,3 +44,16 @@ export function pickBossRelicChoices(rng: RngState, owned: readonly RelicDefinit
     .slice(0, BOSS_RELIC_CHOICES)
     .map((r) => r.id);
 }
+
+/** Picks a rarity by `weights` among rarities that still have an unowned relic, then a relic of it uniformly; null when none is left. */
+export function pickRelicByRarity(rng: RngState, weights: Record<RelicRarity, number>, owned: readonly RelicDefinition[]): string | null {
+  const ownedIds = new Set(owned.map((r) => r.id));
+  const candidates = Object.values(RELIC_DEFINITIONS).filter((r) => !ownedIds.has(r.id));
+  const rarities = (Object.keys(weights) as RelicRarity[]).filter((rarity) => weights[rarity] > 0 && candidates.some((r) => r.rarity === rarity));
+  const total = rarities.reduce((sum, rarity) => sum + weights[rarity], 0);
+  if (total === 0) return null;
+  let roll = nextInt(rng, total);
+  const rarity = rarities.find((r) => (roll -= weights[r]) < 0)!;
+  const pool = candidates.filter((r) => r.rarity === rarity);
+  return pool[nextInt(rng, pool.length)]!.id;
+}

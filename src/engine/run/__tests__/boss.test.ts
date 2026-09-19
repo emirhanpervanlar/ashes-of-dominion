@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { applyRunAction, createRun } from '../runEngine.js';
+import { resolveEventToMap } from './eventHelpers.js';
 import { generateBossEncounter } from '../encounters.js';
 import type { CombatState } from '../../types.js';
 import type { RunState } from '../types.js';
@@ -22,8 +23,7 @@ function reachBoss(seed: number): RunState {
       const won = applyRunAction({ ...run, combat: wiped }, { type: 'COMBAT_ACTION', action: { type: 'END_TURN' } }).run;
       run = won.phase === 'reward' ? applyRunAction(won, { type: 'SKIP_REWARD' }).run : won;
     } else if (run.phase === 'event') {
-      const optionId = run.pendingEvent!.eventId === 'abandoned_camp' ? 'rest' : 'pay';
-      run = applyRunAction(run, { type: 'CHOOSE_EVENT_OPTION', optionId }).run;
+      run = resolveEventToMap(run);
     } else if (run.phase === 'merchant') {
       run = applyRunAction(run, { type: 'LEAVE_MERCHANT' }).run;
     } else if (run.phase === 'city') {

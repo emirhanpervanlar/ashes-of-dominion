@@ -6,7 +6,7 @@ import { UNIT_DEFINITIONS } from '../data/units.js';
 import { applyPlayerAction, startBattle } from '../combat.js';
 import { maxManaFromWisdom } from '../heroStats.js';
 import { buildHeroStartingArmy, createHero } from '../scenario.js';
-import { createRng, nextInt } from '../rng.js';
+import { createRng, nextInt, shuffle } from '../rng.js';
 import type { ArmyStack, CardInstance, CombatState, Hero, HeroId, PlayerAction, Position, RelicDefinition, RelicEffect, UnitId } from '../types.js';
 import { cardRemovalQuote, createCardRemovalState, type CardRemovalState } from './cardRemoval.js';
 import { CARD_UPGRADES } from './cardUpgrades.js';
@@ -18,6 +18,7 @@ import {
   LEVEL_SLOTS,
   LEVEL_UP_COST,
   MAGE_TOWER_TIERS,
+  RECRUIT_COSTS,
   addUnitsToArmy,
   canRecruitUnit,
   createInitialCityState,
@@ -26,14 +27,25 @@ import {
 } from './city.js';
 import { THREAT_PER_CITY_VISIT, TOTAL_CHAPTERS } from './chapters.js';
 import { generateBattleEncounter, generateBossEncounter } from './encounters.js';
-import { EVENT_DEFINITIONS, EVENT_IDS } from './events.js';
-import { applyStarvation, dailyProduction, moveFoodCost } from './food.js';
+import {
+  EVENT_TUNING,
+  optionAvailability,
+  optionCardAction,
+  optionNeedsUnitChoice,
+  pickEventId,
+  resolveEventOptions,
+  scaleEffects,
+  upgradableCardIds,
+  type EventEffect,
+  type EventOption,
+} from './events.js';
+import { applyStarvation, dailyProduction, dailyUpkeep, moveFoodCost, totalArmyCount } from './food.js';
 import { rollBattleLoot } from './loot.js';
 import { generateMerchantInventory } from './merchant.js';
-import { pickRelicId } from './relicSources.js';
-import { buildPendingReward } from './rewards.js';
+import { pickRelicByRarity, pickRelicId } from './relicSources.js';
+import { buildPendingReward, generateCardOptions } from './rewards.js';
 import { createRunStats, tallyCombatEvents } from './stats.js';
-import type { RunAction, RunApplyResult, RunEvent, RunState } from './types.js';
+import type { RunAction, RunApplyResult, RunEvent, RunState, UnitCount } from './types.js';
 import { findNode, generateWorldMap, visitNode } from './worldMap.js';
 
 const STARTING_GOLD = 100;
@@ -58,6 +70,10 @@ export function migrateRun(run: RunState): RunState {
     cardRemoval: legacyRemoval ? { merchantUses: legacyRemoval.merchantUses, cityUses: legacyRemoval.cityUses ?? (legacyRemoval.lastCityDay != null ? 1 : 0) } : createCardRemovalState(),
     chapter: run.chapter ?? 1,
     threat: run.threat ?? 0,
+    seenEventIds: run.seenEventIds ?? [],
+    lastCasualties: run.lastCasualties ?? [],
+    pendingUnitChoice: run.pendingUnitChoice ?? null,
+    pendingEvent: run.pendingEvent && { ...run.pendingEvent, choice: run.pendingEvent.choice ?? null, resolved: run.pendingEvent.resolved ?? null },
     bossBattle: run.bossBattle ?? legacy.finalBattle ?? false,
     pendingReward: run.pendingReward && { ...run.pendingReward, relicChoices: run.pendingReward.relicChoices ?? [] },
   };
@@ -134,11 +150,14 @@ export function createRun(seed: number, heroId: HeroId = 'warlord', heroName?: s
     city: createInitialCityState(),
     chapter: 1,
     threat: 0,
+    seenEventIds: [],
+    lastCasualties: [],
     bossBattle: false,
     phase: 'choosing_starting_relic',
     combat: null,
     pendingReward: null,
     pendingEvent: null,
+    pendingUnitChoice: null,
     pendingMerchant: null,
     log: [{ type: 'RUN_STARTED' }],
   };
@@ -313,8 +332,7 @@ function moveTo(run: RunState, nodeId: string, events: RunEvent[]): RunApplyResu
       run.phase = 'merchant';
       break;
     case 'event': {
-      const eventId = EVENT_IDS[nextInt(run.rng, EVENT_IDS.length)]!;
-      run.pendingEvent = { eventId };
+      run.pendingEvent = { eventId: pickEventId(run), choice: null, resolved: null };
       run.phase = 'event';
       break;
     }
@@ -358,6 +376,7 @@ function forwardCombatAction(run: RunState, action: PlayerAction, events: RunEve
     run.battlesWon += 1;
     run.stats.battlesWon += 1;
     run.stats.unitsRevived += settled.revived;
+    run.lastCasualties = tallyCasualties(result.state.playerArmy, settled.army);
     events.push({ type: 'BATTLE_WON' });
     if (settled.revived > 0) events.push({ type: 'UNITS_REVIVED', count: settled.revived });
     const arrivedAt = findNode(run.worldMap, run.worldMap.currentNodeId);
@@ -376,6 +395,13 @@ function forwardCombatAction(run: RunState, action: PlayerAction, events: RunEve
   }
 
   return { run, events };
+}
+
+/** What the battle cost, per unit type, after Shrine revival; the source for event revivals. */
+function tallyCasualties(before: ArmyStack[], after: ArmyStack[]): UnitCount[] {
+  const lost = new Map<UnitId, number>();
+  before.forEach((stack, i) => lost.set(stack.unitId, (lost.get(stack.unitId) ?? 0) + Math.max(0, stack.preBattleMaxCount - after[i]!.count)));
+  return [...lost].filter(([, count]) => count > 0).map(([unitId, count]) => ({ unitId, count }));
 }
 
 /** Every reward pick (card, upgrade, removal, skip) ends the reward screen at once (AO-D026). */
@@ -483,59 +509,338 @@ function removeCard(run: RunState, instanceId: string, events: RunEvent[]): RunA
   return { run, events };
 }
 
-function chooseEventOption(run: RunState, optionId: string, events: RunEvent[]): RunApplyResult {
-  if (run.phase !== 'event' || !run.pendingEvent) {
-    reject(events, 'No event pending.');
-    return { run, events };
-  }
-  const def = EVENT_DEFINITIONS[run.pendingEvent.eventId];
-  const option = def?.options.find((o) => o.id === optionId);
-  if (!def || !option) {
-    reject(events, 'Unknown event option.');
-    return { run, events };
-  }
+// ---- Events (AO-D050, D054, D055, D056) ----
 
-  let outcome = option.id;
-  switch (option.effect.kind) {
+/** What the player picked in a sub-step, if the option needed one. */
+interface EventPick {
+  instanceId?: string;
+  unitId?: UnitId;
+}
+
+interface EventTally {
+  outcome: string;
+  texts: string[];
+  nothingLeft: boolean;
+  ambush: boolean;
+}
+
+function removeUnits(stack: ArmyStack, amount: number): ArmyStack {
+  const count = stack.count - amount;
+  const maxHp = count * UNIT_DEFINITIONS[stack.unitId].hpPerUnit;
+  return { ...stack, count, currentHp: Math.min(stack.currentHp, maxHp), maxHp, startingCount: count, preBattleMaxCount: count };
+}
+
+/** Losing units never wipes the army: at least one unit always survives. */
+function loseUnits(run: RunState, effect: Extract<EventEffect, { kind: 'UNIT_LOSS' }>, events: RunEvent[]): void {
+  const alive = run.army.filter((s) => s.count > 0);
+  if (alive.length === 0) return;
+  const target = effect.target === 'largest_stack' ? alive.reduce((a, b) => (b.count > a.count ? b : a)) : alive[nextInt(run.rng, alive.length)]!;
+  const wanted = effect.count ?? Math.max(1, Math.floor((target.count * (effect.percent ?? 0)) / 100));
+  const lost = Math.min(wanted, target.count, totalArmyCount(alive) - 1);
+  if (lost <= 0) return;
+  run.army = run.army.map((s) => (s.stackId === target.stackId ? removeUnits(s, lost) : s)).filter((s) => s.count > 0);
+  run.stats.unitsLost += lost;
+  events.push({ type: 'UNITS_LOST', unitId: target.unitId, count: lost });
+}
+
+function gainUnits(run: RunState, unitId: UnitId, count: number, events: RunEvent[]): void {
+  const updated = addUnitsToArmy(run.army, unitId, count);
+  if (updated) {
+    run.army = updated;
+    events.push({ type: 'UNITS_GAINED', unitId, count });
+    return;
+  }
+  // AO-D054: no room; the newcomer waits as a temporary 7th entry until the player dismisses a stack or declines.
+  const newcomer = addUnitsToArmy([], unitId, count)![0]!;
+  run.pendingUnitChoice = { newcomer: { ...newcomer, stackId: `player_${unitId}_pending`, position: 6 } };
+}
+
+function reviveCasualties(run: RunState, percent: number, events: RunEvent[]): void {
+  const remaining: UnitCount[] = [];
+  let revived = 0;
+  for (const fallen of run.lastCasualties) {
+    const count = Math.min(fallen.count, Math.ceil((fallen.count * percent) / 100));
+    const updated = addUnitsToArmy(run.army, fallen.unitId, count);
+    if (!updated) {
+      remaining.push(fallen);
+      continue;
+    }
+    run.army = updated;
+    revived += count;
+    if (fallen.count > count) remaining.push({ unitId: fallen.unitId, count: fallen.count - count });
+  }
+  run.lastCasualties = remaining;
+  if (revived > 0) {
+    run.stats.unitsRevived += revived;
+    events.push({ type: 'UNITS_REVIVED', count: revived });
+  }
+}
+
+function applyEventEffect(run: RunState, effect: EventEffect, pick: EventPick, tally: EventTally, events: RunEvent[]): void {
+  switch (effect.kind) {
     case 'GOLD_DELTA':
-      changeGold(run, option.effect.amount);
+      changeGold(run, effect.amount);
       break;
     case 'FOOD_DELTA':
-      changeFood(run, option.effect.amount);
+      changeFood(run, effect.amount);
       break;
-    case 'HERO_HEAL_PERCENT':
-      run.hero.hp = Math.min(run.hero.maxHp, run.hero.hp + Math.round((run.hero.maxHp * option.effect.percent) / 100));
+    case 'FOOD_UPKEEP_DELTA':
+      changeFood(run, effect.days * dailyUpkeep(run));
       break;
-    case 'RISKY_SEARCH': {
-      const roll = nextInt(run.rng, 100);
-      if (roll < Math.round(option.effect.successChance * 100)) {
-        const relicId = pickRelicId(run.rng, 'event', run.relics);
-        if (relicId) {
-          grantRelic(run, RELIC_DEFINITIONS[relicId]!, events);
-          outcome = 'search_relic';
-        } else {
-          changeGold(run, 30); // nothing left to find — modest consolation Gold
-          outcome = 'search_nothing_left';
-        }
+    case 'THREAT_DELTA': {
+      const next = Math.max(0, run.threat + effect.amount); // AO-D055: never below 0
+      if (next !== run.threat) events.push({ type: 'THREAT_CHANGED', threat: next, delta: next - run.threat });
+      run.threat = next;
+      break;
+    }
+    case 'DAY_COST':
+      for (let i = 0; i < effect.days; i++) advanceDay(run, events);
+      break;
+    case 'MAX_MANA_DELTA':
+      run.hero.maxMana = Math.max(MIN_HERO_MAX_MANA, run.hero.maxMana + effect.amount);
+      run.hero.mana = Math.min(run.hero.maxMana, Math.max(0, run.hero.mana + effect.amount));
+      break;
+    case 'UNIT_GAIN':
+      gainUnits(run, effect.unitId === 'chosen' ? pick.unitId! : effect.unitId, effect.count, events);
+      break;
+    case 'UNIT_GAIN_ALL_STACKS':
+      run.army = run.army.map((s) => {
+        if (s.count === 0) return s;
+        const hp = effect.count * UNIT_DEFINITIONS[s.unitId].hpPerUnit;
+        events.push({ type: 'UNITS_GAINED', unitId: s.unitId, count: effect.count });
+        return { ...s, count: s.count + effect.count, currentHp: s.currentHp + hp, maxHp: s.maxHp + hp, startingCount: s.startingCount + effect.count, preBattleMaxCount: s.preBattleMaxCount + effect.count };
+      });
+      break;
+    case 'UNIT_LOSS':
+      loseUnits(run, effect, events);
+      break;
+    case 'REVIVE_LAST_CASUALTIES':
+      reviveCasualties(run, effect.percent, events);
+      break;
+    case 'UPGRADE_CARD': {
+      const idx = run.masterDeck.findIndex((c) => c.instanceId === pick.instanceId);
+      const card = run.masterDeck[idx]!;
+      run.masterDeck[idx] = { ...card, upgraded: true };
+      events.push({ type: 'CARD_UPGRADED', instanceId: card.instanceId, fromCardId: card.cardId, toCardId: card.cardId });
+      break;
+    }
+    case 'REMOVE_CARD':
+    case 'GIVE_CARD': {
+      const idx = run.masterDeck.findIndex((c) => c.instanceId === pick.instanceId);
+      const card = run.masterDeck[idx]!;
+      run.masterDeck.splice(idx, 1);
+      if (effect.kind === 'REMOVE_CARD') run.stats.cardsRemoved += 1;
+      events.push({ type: 'CARD_REMOVED', instanceId: card.instanceId, cardId: card.cardId, goldPaid: 0 });
+      break;
+    }
+    case 'GAIN_CARD': {
+      const cardId = generateCardOptions(run.rng, 1)[0]!;
+      run.masterDeck.push({ instanceId: newInstanceId(run.masterDeck, cardId, 'event'), cardId });
+      events.push({ type: 'CARD_REWARD_CLAIMED', cardId });
+      break;
+    }
+    case 'RELIC': {
+      const relicId = typeof effect.source === 'string' ? pickRelicId(run.rng, effect.source, run.relics) : pickRelicByRarity(run.rng, effect.source, run.relics);
+      if (relicId) {
+        grantRelic(run, RELIC_DEFINITIONS[relicId]!, events);
       } else {
-        changeGold(run, -option.effect.trapGoldLoss);
-        outcome = 'search_trap';
+        changeGold(run, EVENT_TUNING.relicFallbackGold); // nothing left to find: consolation Gold
+        tally.nothingLeft = true;
       }
       break;
     }
-  }
-
-  if (option.relicChance !== undefined && nextInt(run.rng, 100) < Math.round(option.relicChance * 100)) {
-    const relicId = pickRelicId(run.rng, 'event', run.relics);
-    if (relicId) {
-      grantRelic(run, RELIC_DEFINITIONS[relicId]!, events);
-      outcome = `${option.id}_relic`;
+    case 'REVEAL_MAP': {
+      const layer = findNode(run.worldMap, run.worldMap.currentNodeId)?.layer ?? 0;
+      run.worldMap.revealedUntilStep = layer + effect.steps;
+      break;
     }
   }
+}
 
-  events.push({ type: 'EVENT_RESOLVED', eventId: def.id, optionId, outcome });
+function executeEventOption(run: RunState, option: EventOption, pick: EventPick, events: RunEvent[]): EventTally {
+  const tally: EventTally = { outcome: option.id, texts: [option.result], nothingLeft: false, ambush: false };
+  const apply = (effects: EventEffect[]) => scaleEffects(effects, run.chapter).forEach((e) => applyEventEffect(run, e, pick, tally, events));
+  apply(option.effects);
+
+  const gamble = option.gamble;
+  if (gamble) {
+    const won = nextInt(run.rng, 100) < Math.round(gamble.successChance * 100);
+    tally.texts.push(won ? gamble.successText : gamble.failureText);
+    if (won) {
+      apply(gamble.success);
+      tally.outcome = gamble.successOutcome ?? `${option.id}_success`;
+    } else if (gamble.failure === 'ambush') {
+      tally.ambush = true; // AO-D056
+      tally.outcome = gamble.failureOutcome ?? `${option.id}_ambush`;
+    } else {
+      apply(gamble.failure);
+      tally.outcome = gamble.failureOutcome ?? `${option.id}_failure`;
+    }
+  }
+  if (tally.nothingLeft) {
+    tally.outcome = `${option.id}_nothing_left`;
+    tally.texts.push(`Nothing was left to find; you take ${EVENT_TUNING.relicFallbackGold} Gold instead.`);
+  }
+  return tally;
+}
+
+function closeEvent(run: RunState, resolved: { optionId: string; outcome: string; text: string }, events: RunEvent[]): void {
+  events.push({ type: 'EVENT_RESOLVED', eventId: run.pendingEvent!.eventId, ...resolved });
   run.pendingEvent = null;
   run.phase = 'on_map';
+}
+
+/** AO-D056: a failed gamble starts a normal battle of the current chapter; the usual reward flow follows it. */
+function startAmbush(run: RunState): void {
+  const layer = findNode(run.worldMap, run.worldMap.currentNodeId)?.layer ?? 1;
+  run.phase = 'in_battle';
+  run.combat = startBattleForRun(run, generateBattleEncounter(layer, false, run.chapter, run.threat));
+}
+
+function concludeEventOption(run: RunState, option: EventOption, pick: EventPick, events: RunEvent[]): void {
+  const tally = executeEventOption(run, option, pick, events);
+  const resolved = { optionId: option.id, outcome: tally.outcome, text: tally.texts.filter(Boolean).join(' ') };
+  run.pendingEvent!.choice = null;
+  if (run.pendingUnitChoice) {
+    run.pendingEvent!.resolved = resolved; // the event closes when the unit gain is settled
+    return;
+  }
+  closeEvent(run, resolved, events);
+  if (tally.ambush) startAmbush(run);
+}
+
+/** Closes an event whose option was applied earlier and only waited for a unit gain to settle. */
+function closeEventIfSettled(run: RunState, events: RunEvent[]): void {
+  const resolved = run.pendingEvent?.resolved;
+  if (resolved && !run.pendingUnitChoice) closeEvent(run, resolved, events);
+}
+
+/** The waiting newcomer joins the army as soon as a slot is free (after a dismissal or a merge). */
+function placePendingUnit(run: RunState, events: RunEvent[]): void {
+  const pending = run.pendingUnitChoice;
+  if (!pending) return;
+  const updated = addUnitsToArmy(run.army, pending.newcomer.unitId, pending.newcomer.count);
+  if (!updated) return;
+  run.army = updated;
+  run.pendingUnitChoice = null;
+  events.push({ type: 'UNITS_GAINED', unitId: pending.newcomer.unitId, count: pending.newcomer.count });
+  closeEventIfSettled(run, events);
+}
+
+function pendingOption(run: RunState, optionId: string): EventOption | undefined {
+  return resolveEventOptions(run.pendingEvent!.eventId, run.chapter).find((o) => o.id === optionId);
+}
+
+function chooseEventOption(run: RunState, optionId: string, events: RunEvent[]): RunApplyResult {
+  const pending = run.pendingEvent;
+  if (run.phase !== 'event' || !pending) {
+    reject(events, 'No event pending.');
+    return { run, events };
+  }
+  if (pending.choice || pending.resolved) {
+    reject(events, 'Finish the current choice first.');
+    return { run, events };
+  }
+  const option = pendingOption(run, optionId);
+  if (!option) {
+    reject(events, 'Unknown event option.');
+    return { run, events };
+  }
+  const availability = optionAvailability(run, option);
+  if (!availability.available) {
+    reject(events, availability.reason!);
+    return { run, events };
+  }
+
+  const cardAction = optionCardAction(option);
+  if (cardAction) {
+    const instanceIds = cardAction === 'upgrade' ? upgradableCardIds(run) : run.masterDeck.map((c) => c.instanceId);
+    pending.choice = { kind: 'card', optionId, action: cardAction, instanceIds };
+  } else if (optionNeedsUnitChoice(option)) {
+    const unitIds = shuffle(run.rng, Object.keys(RECRUIT_COSTS) as UnitId[]).slice(0, EVENT_TUNING.mercenary_camp.offers);
+    pending.choice = { kind: 'unit', optionId, unitIds };
+  } else {
+    concludeEventOption(run, option, {}, events);
+  }
+  return { run, events };
+}
+
+function chooseEventCard(run: RunState, instanceId: string, events: RunEvent[]): RunApplyResult {
+  const choice = run.pendingEvent?.choice;
+  if (run.phase !== 'event' || choice?.kind !== 'card' || !choice.instanceIds.includes(instanceId)) {
+    reject(events, 'That card is not one of the current options.');
+    return { run, events };
+  }
+  concludeEventOption(run, pendingOption(run, choice.optionId)!, { instanceId }, events);
+  return { run, events };
+}
+
+function chooseEventUnit(run: RunState, unitId: UnitId, events: RunEvent[]): RunApplyResult {
+  const choice = run.pendingEvent?.choice;
+  if (run.phase !== 'event' || choice?.kind !== 'unit' || !choice.unitIds.includes(unitId)) {
+    reject(events, 'That unit is not on offer.');
+    return { run, events };
+  }
+  concludeEventOption(run, pendingOption(run, choice.optionId)!, { unitId }, events);
+  return { run, events };
+}
+
+function cancelEventChoice(run: RunState, events: RunEvent[]): RunApplyResult {
+  if (run.phase !== 'event' || !run.pendingEvent?.choice) {
+    reject(events, 'Nothing to cancel.');
+    return { run, events };
+  }
+  run.pendingEvent.choice = null;
+  return { run, events };
+}
+
+const DISMISS_PHASES: ReadonlySet<string> = new Set(['on_map', 'city', 'merchant', 'reward', 'event']);
+
+/** AO-D054: release units outside battle. The waiting newcomer (if any) can be dismissed too; the last unit type can never go. */
+function dismissStack(run: RunState, stackId: string, count: number | undefined, events: RunEvent[]): RunApplyResult {
+  if (!DISMISS_PHASES.has(run.phase)) {
+    reject(events, 'Units can only be dismissed outside battle.');
+    return { run, events };
+  }
+  const newcomer = run.pendingUnitChoice?.newcomer;
+  const isNewcomer = newcomer?.stackId === stackId;
+  const target = isNewcomer ? newcomer : run.army.find((s) => s.stackId === stackId);
+  if (!target || target.count <= 0) {
+    reject(events, 'Unknown stack.');
+    return { run, events };
+  }
+  const amount = count ?? target.count;
+  if (!Number.isInteger(amount) || amount < 1 || amount > target.count) {
+    reject(events, 'Invalid dismiss amount.');
+    return { run, events };
+  }
+  const whole = amount === target.count;
+  const others = [...run.army, ...(newcomer ? [newcomer] : [])].filter((s) => s.stackId !== stackId && s.count > 0);
+  if (whole && others.length === 0) {
+    reject(events, 'At least one unit type must remain in the army.');
+    return { run, events };
+  }
+
+  events.push({ type: 'UNITS_DISMISSED', unitId: target.unitId, count: amount });
+  if (isNewcomer) {
+    run.pendingUnitChoice = whole ? null : { newcomer: removeUnits(target, amount) };
+    closeEventIfSettled(run, events);
+  } else {
+    run.army = whole ? run.army.filter((s) => s.stackId !== stackId) : run.army.map((s) => (s.stackId === stackId ? removeUnits(s, amount) : s));
+    placePendingUnit(run, events);
+  }
+  return { run, events };
+}
+
+function declineUnitGain(run: RunState, events: RunEvent[]): RunApplyResult {
+  const pending = run.pendingUnitChoice;
+  if (!pending) {
+    reject(events, 'No unit gain is waiting.');
+    return { run, events };
+  }
+  events.push({ type: 'UNIT_GAIN_DECLINED', unitId: pending.newcomer.unitId, count: pending.newcomer.count });
+  run.pendingUnitChoice = null;
+  closeEventIfSettled(run, events);
   return { run, events };
 }
 
@@ -676,6 +981,7 @@ function mergeStacksAction(run: RunState, stackIdA: string, stackIdB: string, ev
     return { run, events };
   }
   run.army = updatedArmy;
+  placePendingUnit(run, events);
   return { run, events };
 }
 
@@ -853,6 +1159,21 @@ export function applyRunAction(run: RunState, action: RunAction): RunApplyResult
       break;
     case 'CHOOSE_EVENT_OPTION':
       result = chooseEventOption(working, action.optionId, events);
+      break;
+    case 'CHOOSE_EVENT_CARD':
+      result = chooseEventCard(working, action.instanceId, events);
+      break;
+    case 'CHOOSE_EVENT_UNIT':
+      result = chooseEventUnit(working, action.unitId, events);
+      break;
+    case 'CANCEL_EVENT_CHOICE':
+      result = cancelEventChoice(working, events);
+      break;
+    case 'DISMISS_STACK':
+      result = dismissStack(working, action.stackId, action.count, events);
+      break;
+    case 'DECLINE_UNIT_GAIN':
+      result = declineUnitGain(working, events);
       break;
     case 'BUY_CARD':
       result = buyCard(working, action.cardId, events);

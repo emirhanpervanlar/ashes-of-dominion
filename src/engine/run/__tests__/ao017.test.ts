@@ -4,7 +4,9 @@ import { createRng } from '../../rng.js';
 import type { CombatState } from '../../types.js';
 import { generateMerchantInventory } from '../merchant.js';
 import { pickRelicId, RELIC_PRICE_BY_RARITY, RELIC_WEIGHTS } from '../relicSources.js';
+import { dailyUpkeep } from '../food.js';
 import { applyRunAction, createRun } from '../runEngine.js';
+import { pendingEventOf } from './eventHelpers.js';
 import type { RunState } from '../types.js';
 import { generateWorldMap } from '../worldMap.js';
 import type { NodeType } from '../worldMap.js';
@@ -71,7 +73,7 @@ describe('AO-D043: relic tweaks', () => {
     let relics = 0;
     const trials = 400;
     for (let seed = 1; seed <= trials; seed++) {
-      const run: RunState = { ...onMap(seed), phase: 'event', pendingEvent: { eventId: 'abandoned_camp' } };
+      const run: RunState = { ...onMap(seed), phase: 'event', pendingEvent: pendingEventOf('abandoned_camp') };
       const result = applyRunAction(run, { type: 'CHOOSE_EVENT_OPTION', optionId: 'search' });
       if (result.events.some((e) => e.type === 'EVENT_RESOLVED' && e.outcome === 'search_relic')) relics++;
     }
@@ -202,14 +204,14 @@ describe('AO-D037: elite relic reward', () => {
 
 describe('AO-D037: event relics', () => {
   function bandits(seed: number): RunState {
-    return { ...onMap(seed), phase: 'event', pendingEvent: { eventId: 'bandit_toll' }, food: 50 };
+    return { ...onMap(seed), phase: 'event', pendingEvent: pendingEventOf('bandit_toll'), food: 50 };
   }
 
   it('Bandit Toll: refusing keeps its Food cost and only rarely also yields a relic; paying never does', () => {
     let relics = 0;
     for (let seed = 1; seed <= 400; seed++) {
       const refused = applyRunAction(bandits(seed), { type: 'CHOOSE_EVENT_OPTION', optionId: 'refuse' }).run;
-      expect(refused.food).toBe(40);
+      expect(refused.food).toBe(50 - 2 * dailyUpkeep(refused));
       expect(refused.relics.length).toBeLessThanOrEqual(2);
       if (refused.relics.length === 2) relics++;
 
