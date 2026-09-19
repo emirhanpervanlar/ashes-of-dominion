@@ -27,3 +27,6 @@ Every measurable criterion in AO-008-bar-spec.md verified with getBoundingClient
 
 ## Verification
 puppeteer-core in the scratchpad node_modules; dev server on a port other than 5173; inject a run into localStorage `aod_run_state_v1` (phase `on_map` for Road, `city` for City), wait ~1.5s, click Continue on the title. LOOK at every screenshot.
+
+## Status
+- 2026-09-19 ACCEPTED (Director reviewed screenshots; measurements per report: bar 200h, slots 240x86, no h-scroll at 1280/1600). Follow-up questions: wounded stacks show no health cue on Road/City; drag-and-drop not built (click only).
