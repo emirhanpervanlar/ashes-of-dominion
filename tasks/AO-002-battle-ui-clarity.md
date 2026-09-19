@@ -31,3 +31,6 @@ src/engine/**. If a needed value is missing from engine events, raise a DDR.
 
 ## Verification
 puppeteer run: enter battle, attack, play a defense card, play a no-target card, right-click a stack; attach screenshots.
+
+## Status
+- 2026-09-19 ACCEPTED after REVISION-1 (killing-blow floaters). Reviewer + Director verified screenshots; tsc clean, 82/82.
