@@ -41,10 +41,9 @@ const T = EVENT_TUNING;
 export type EventEffect =
   | { kind: 'GOLD_DELTA'; amount: number }
   | { kind: 'FOOD_DELTA'; amount: number }
-  /** Food equal to `days` days of the army's current upkeep (negative = a loss that scales with the army). */
-  | { kind: 'FOOD_UPKEEP_DELTA'; days: number }
   | { kind: 'THREAT_DELTA'; amount: number }
-  | { kind: 'DAY_COST'; days: number }
+  /** The Food the army eats in `days` days is paid at once (no clock change, AO-D051 spirit); a shortfall starves the army. */
+  | { kind: 'UPKEEP_DAYS'; days: number }
   | { kind: 'MAX_MANA_DELTA'; amount: number }
   | { kind: 'UNIT_GAIN'; unitId: UnitId | 'chosen'; count: number }
   | { kind: 'UNIT_GAIN_ALL_STACKS'; count: number }
@@ -162,8 +161,8 @@ const EVENT_LIST: EventDefinition[] = [
       {
         id: 'refuse',
         label: 'Refuse and push through',
-        description: `The detour costs ${T.bandit_toll.refuseUpkeepDays} days of Food upkeep. Small chance to loot a relic from the fleeing bandits.`,
-        effects: [{ kind: 'FOOD_UPKEEP_DELTA', days: -T.bandit_toll.refuseUpkeepDays }],
+        description: `The detour costs ${T.bandit_toll.refuseUpkeepDays} days of food. Small chance to loot a relic from the fleeing bandits.`,
+        effects: [{ kind: 'UPKEEP_DAYS', days: T.bandit_toll.refuseUpkeepDays }],
         gamble: {
           successChance: T.bandit_toll.refuseRelicChance / 100,
           success: [relic('event')],
@@ -250,9 +249,9 @@ const EVENT_LIST: EventDefinition[] = [
       {
         id: 'join_hunt',
         label: 'Join the hunt',
-        description: `Needs an Archer. +${a(T.hunters_lodge.joinFood)} Food, +${T.hunters_lodge.joinDays} day.`,
+        description: `Needs an Archer. +${a(T.hunters_lodge.joinFood)} Food, costs ${T.hunters_lodge.joinDays} day of food.`,
         requires: { unit: 'archer' },
-        effects: [food(T.hunters_lodge.joinFood), { kind: 'DAY_COST', days: T.hunters_lodge.joinDays }],
+        effects: [food(T.hunters_lodge.joinFood), { kind: 'UPKEEP_DAYS', days: T.hunters_lodge.joinDays }],
         result: 'A day of hunting fills the wagons.',
       },
       {
@@ -429,8 +428,8 @@ const EVENT_LIST: EventDefinition[] = [
       {
         id: 'wait',
         label: 'Wait out the fog',
-        description: `Costs ${T.fogbound_ford.waitDays} day.`,
-        effects: [{ kind: 'DAY_COST', days: T.fogbound_ford.waitDays }],
+        description: `Costs ${T.fogbound_ford.waitDays} day of food.`,
+        effects: [{ kind: 'UPKEEP_DAYS', days: T.fogbound_ford.waitDays }],
         result: 'By morning the fog has lifted.',
       },
       {

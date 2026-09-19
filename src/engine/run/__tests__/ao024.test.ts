@@ -217,15 +217,15 @@ describe('effects', () => {
     expect(choose(atEvent('deserter_knight', 1, { threat: 0 }), 'dispatch').run.threat).toBe(0);
   });
 
-  it('DAY_COST passes days and charges the army upkeep', () => {
+  it('UPKEEP_DAYS charges the army upkeep but does not move the calendar', () => {
     const run = atEvent('fogbound_ford', 1, { food: 100 });
     const upkeep = dailyUpkeep(run);
     const waited = choose(run, 'wait').run;
-    expect(waited.day).toBe(run.day + 1);
+    expect(waited.day).toBe(run.day);
     expect(waited.food).toBe(100 - upkeep);
   });
 
-  it('FOOD_UPKEEP_DELTA scales the Bandit Toll loss with the army', () => {
+  it('UPKEEP_DAYS scales the Bandit Toll loss with the army', () => {
     const small = withUnits(atEvent('bandit_toll', 5, { food: 100 }), ['swordsman']);
     const large = withUnits(atEvent('bandit_toll', 5, { food: 100 }), ['swordsman', 'knight', 'orc', 'archer', 'priest']);
     const lostSmall = 100 - choose(small, 'refuse').run.food;

@@ -21,7 +21,7 @@ function withArmy(run: RunState, counts: Array<[UnitId, number]>): RunState {
   return { ...run, army: counts.map(([unitId, count], i) => createStack(unitId, 'player', ((i + 1) as 1 | 2 | 3 | 4 | 5 | 6), count)) };
 }
 
-function withFarm(run: RunState, tier: 0 | 1 | 2 | 3): RunState {
+function withFarm(run: RunState, tier: 0 | 1 | 2 | 3 | 4 | 5): RunState {
   return { ...run, city: { ...run.city, farmTier: tier, buildings: tier > 0 ? [...run.city.buildings, 'farm'] : run.city.buildings } };
 }
 
@@ -69,7 +69,7 @@ describe('AO-D048: per-unit Food upkeep', () => {
   // Balance targets (director follow-up): Food stays pressure, and a Farm lets the player answer it.
   const MID = [['swordsman', 13], ['archer', 9], ['knight', 8], ['priest', 8]] as Array<[UnitId, number]>; // 38 units
   const BIG = [['swordsman', 20], ['archer', 14], ['knight', 14], ['priest', 12]] as Array<[UnitId, number]>; // 60 units
-  const net = (run: RunState, tier: 0 | 1 | 2 | 3) => dailyFoodNet(withFarm(run, tier));
+  const net = (run: RunState, tier: 0 | 1 | 2 | 3 | 4 | 5) => dailyFoodNet(withFarm(run, tier));
 
   it('(1) a starting army, with or without Royal Banner, lasts at least 15 days on the starting Food with no Farm and no loot', () => {
     for (const hero of ['warlord', 'rogue', 'mage'] as const) {
@@ -117,23 +117,28 @@ describe('AO-D048: per-unit Food upkeep', () => {
 describe('AO-D048: Farm', () => {
   const atCity = (gold: number): RunState => ({ ...act(onMap(4), { type: 'TRAVEL_TO_CITY' }).run, gold });
 
-  it('tiers are cumulative +3/+6/+9 Food per day for 60/140/320 Gold in one slot', () => {
-    expect(FARM_TIERS.map((t) => t.food)).toEqual([3, 6, 9]);
-    expect(FARM_TIERS.map((t) => t.cost)).toEqual([60, 140, 320]);
-    let run = atCity(1000);
+  it('tiers are cumulative +3/+6/+9/+11/+13 Food per day for 60/140/320/560/900 Gold in one slot', () => {
+    expect(FARM_TIERS.map((t) => t.food)).toEqual([3, 6, 9, 11, 13]);
+    expect(FARM_TIERS.map((t) => t.cost)).toEqual([60, 140, 320, 560, 900]);
+    let run = atCity(3000);
     run = act(run, { type: 'BUILD_BUILDING', buildingId: 'farm' }).run;
     expect(run.city.farmTier).toBe(1);
-    expect(run.gold).toBe(940);
+    expect(run.gold).toBe(2940);
     expect(dailyProduction(run)).toBe(3);
     run = act(run, { type: 'UPGRADE_FARM' }).run;
     expect(run.city.farmTier).toBe(2);
-    expect(run.gold).toBe(800);
+    expect(run.gold).toBe(2800);
     expect(dailyProduction(run)).toBe(6);
     const t3 = act(run, { type: 'UPGRADE_FARM' });
     expect(t3.events.some((e) => e.type === 'FARM_UPGRADED' && e.tier === 3)).toBe(true);
     run = t3.run;
-    expect(run.gold).toBe(480);
+    expect(run.gold).toBe(2480);
     expect(dailyProduction(run)).toBe(9);
+    run = act(run, { type: 'UPGRADE_FARM' }).run;
+    run = act(run, { type: 'UPGRADE_FARM' }).run;
+    expect(run.city.farmTier).toBe(5);
+    expect(run.gold).toBe(2480 - 560 - 900);
+    expect(dailyProduction(run)).toBe(13);
     expect(run.city.buildings.filter((b) => b === 'farm')).toHaveLength(1);
     expect(rejected(act(run, { type: 'UPGRADE_FARM' }).events)).toBe(true);
   });
@@ -149,12 +154,14 @@ describe('AO-D048: Farm', () => {
   it('descriptions state the real numbers', () => {
     expect(BUILDING_DEFINITIONS.farm!.cost).toBe(60);
     expect(farmDescription(0)).toContain('+3 Food every day');
-    expect(farmDescription(0)).toContain('+9');
+    expect(farmDescription(0)).toContain('+13');
     expect(farmDescription(1)).toContain('Tier I');
     expect(farmDescription(1)).toContain('140 Gold');
     expect(farmDescription(2)).toContain('+9 total');
     expect(farmDescription(2)).toContain('320 Gold');
-    expect(farmDescription(3)).toContain('Max tier');
+    expect(farmDescription(4)).toContain('900 Gold');
+    expect(farmDescription(5)).toContain('Tier V');
+    expect(farmDescription(5)).toContain('Max tier');
   });
 
   it('produces Food on every move through the daily hook and reports it in DAILY_INCOME', () => {
@@ -167,10 +174,11 @@ describe('AO-D048: Farm', () => {
 
   it('production is added before the army eats, so a Farm can stop this day starving', () => {
     const upkeep = dailyUpkeep(onMap(5));
-    const starving = step({ ...onMap(5), food: upkeep - 1 }).run;
-    expect(starving.army.some((s) => s.morale < 100)).toBe(true);
-    const fed = step({ ...withFarm(onMap(5), 1), food: upkeep - 1 }).run;
-    expect(fed.army.every((s) => s.morale === 100)).toBe(true);
+    const starving = step({ ...onMap(5), food: upkeep - 1 });
+    expect(starving.events.some((e) => e.type === 'STARVED')).toBe(true);
+    const fed = step({ ...withFarm(onMap(5), 1), food: upkeep - 1 });
+    expect(fed.events.some((e) => e.type === 'STARVED')).toBe(false);
+    expect(fed.run.starvationDays).toBe(0);
   });
 
   it('Gold Mine and Farm both show up in one DAILY_INCOME event', () => {
@@ -212,18 +220,16 @@ describe('AO-D048: net Food and the warning', () => {
     expect(safeDays).toBe(Math.floor(14 / upkeep));
     for (let i = 0; i < safeDays; i++) {
       run = step(run).run;
-      expect(run.army.every((s) => s.morale === 100)).toBe(true);
+      expect(run.starvationDays).toBe(0);
     }
     run = step(run).run;
-    expect(run.army.some((s) => s.morale < 100)).toBe(true);
+    expect(run.starvationDays).toBe(1);
   });
 
-  it('starvation stays gradual: a small starving army keeps its units and only loses HP and Morale', () => {
-    const run = step({ ...onMap(8), food: 0 });
-    expect(run.events.some((e) => e.type === 'STARVING')).toBe(false);
-    expect(run.run.food).toBe(0);
-    expect(run.run.army.reduce((n, s) => n + s.count, 0)).toBe(onMap(8).army.reduce((n, s) => n + s.count, 0));
-    expect(run.run.army.every((s) => s.morale === 99 && s.currentHp < s.maxHp)).toBe(true);
+  it('the foodWarning also stays on while the army is already starving', () => {
+    const run = withFarm(withArmy(onMap(7), [['swordsman', 5]]), 1);
+    expect(foodWarning({ ...run, food: 0 })).toBe(false);
+    expect(foodWarning({ ...run, food: 0, starvationDays: 1 })).toBe(true);
   });
 });
 

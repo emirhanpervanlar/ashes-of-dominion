@@ -39,7 +39,7 @@ import {
   type EventEffect,
   type EventOption,
 } from './events.js';
-import { applyStarvation, dailyProduction, dailyUpkeep, moveFoodCost, totalArmyCount } from './food.js';
+import { dailyProduction, dailyUpkeep, moveFoodCost, removeUnits, starvationMoraleMalus, starveArmy, totalArmyCount } from './food.js';
 import { rollBattleLoot } from './loot.js';
 import { generateMerchantInventory } from './merchant.js';
 import { pickRelicByRarity, pickRelicId } from './relicSources.js';
@@ -70,6 +70,7 @@ export function migrateRun(run: RunState): RunState {
     cardRemoval: legacyRemoval ? { merchantUses: legacyRemoval.merchantUses, cityUses: legacyRemoval.cityUses ?? (legacyRemoval.lastCityDay != null ? 1 : 0) } : createCardRemovalState(),
     chapter: run.chapter ?? 1,
     threat: run.threat ?? 0,
+    starvationDays: run.starvationDays ?? 0,
     seenEventIds: run.seenEventIds ?? [],
     lastCasualties: run.lastCasualties ?? [],
     pendingUnitChoice: run.pendingUnitChoice ?? null,
@@ -142,6 +143,7 @@ export function createRun(seed: number, heroId: HeroId = 'warlord', heroName?: s
     relics: [],
     gold: STARTING_GOLD,
     food: STARTING_FOOD,
+    starvationDays: 0,
     day: 1,
     battlesWon: 0,
     stats: createRunStats(),
@@ -223,12 +225,13 @@ function startBattleForRun(run: RunState, encounterArmy: ArmyStack[]): CombatSta
   const doctrine = run.city.doctrine ? DOCTRINE_DEFINITIONS[run.city.doctrine] : undefined;
   const buildingEffects = run.city.buildings.flatMap((id) => BUILDING_DEFINITIONS[id]?.combatEffects ?? []);
   const relicEffects: RelicEffect[] = [...run.relics.flatMap((r) => r.effects), ...(doctrine?.combatEffects ?? []), ...buildingEffects];
+  const malus = starvationMoraleMalus(run.starvationDays); // AO-D057: hungry armies fight demoralised; the run army keeps its own Morale
   run.stats.turnsPlayed += 1; // the first player turn starts inside startBattle
   const { state } = startBattle({
     seed: run.seed,
     rng: run.rng,
     hero: run.hero,
-    playerArmy: run.army,
+    playerArmy: run.army.map((s) => ({ ...s, morale: s.morale - malus })),
     enemyArmy: encounterArmy,
     deck: run.masterDeck,
     activeRelicEffects: relicEffects,
@@ -272,22 +275,35 @@ function advanceDay(run: RunState, events: RunEvent[]): number {
   const farmFood = dailyProduction(run);
   const mineGold = run.city.buildings.includes('gold_mine') ? GOLD_MINE_DAILY_GOLD : 0;
   changeFood(run, farmFood); // produced before the army eats, so a Farm can prevent this day's starvation
-  run.stats.foodEaten += Math.min(run.food, foodCost);
-  run.food -= foodCost;
   run.day += 1;
   run.stats.daysElapsed += 1;
 
   if (mineGold > 0) changeGold(run, mineGold);
   if (mineGold > 0 || farmFood > 0) events.push({ type: 'DAILY_INCOME', gold: mineGold, food: farmFood });
 
-  if (run.food < 0) {
-    run.food = 0;
-    const result = applyStarvation(run.army);
-    run.army = result.army;
-    run.stats.unitsLost += result.unitsLost;
-    if (result.unitsLost > 0) events.push({ type: 'STARVING', unitsLost: result.unitsLost });
-  }
+  if (payUpkeep(run, foodCost, events) === 'fed') run.starvationDays = 0;
   return foodCost;
+}
+
+/**
+ * Eats `need` Food. Enough in the stockpile: paid. Otherwise the stockpile empties (the army is NOT cut down to what it can feed)
+ * and units starve by the shortage share (AO-D057), one more consecutive starving day.
+ */
+function payUpkeep(run: RunState, need: number, events: RunEvent[]): 'fed' | 'starved' {
+  if (run.food >= need) {
+    run.food -= need;
+    run.stats.foodEaten += need;
+    return 'fed';
+  }
+  const shortageRatio = (need - run.food) / need;
+  run.stats.foodEaten += run.food;
+  run.food = 0;
+  run.starvationDays += 1;
+  const result = starveArmy(run.army, run.rng, shortageRatio, run.starvationDays);
+  run.army = result.army;
+  run.stats.unitsLost += result.deaths.reduce((n, d) => n + d.count, 0);
+  events.push({ type: 'STARVED', deaths: result.deaths, day: run.day, consecutiveDays: run.starvationDays });
+  return 'starved';
 }
 
 function moveTo(run: RunState, nodeId: string, events: RunEvent[]): RunApplyResult {
@@ -371,7 +387,7 @@ function forwardCombatAction(run: RunState, action: PlayerAction, events: RunEve
   if (result.state.result === 'victory') {
     const settled = settleArmyAfterVictory(result.state.playerArmy, run.city);
     run.hero = result.state.hero;
-    run.army = settled.army;
+    run.army = settled.army.map((s) => ({ ...s, morale: run.army.find((p) => p.stackId === s.stackId)?.morale ?? 100 }));
     run.rng = { seed: result.state.rng.seed };
     run.battlesWon += 1;
     run.stats.battlesWon += 1;
@@ -524,12 +540,6 @@ interface EventTally {
   ambush: boolean;
 }
 
-function removeUnits(stack: ArmyStack, amount: number): ArmyStack {
-  const count = stack.count - amount;
-  const maxHp = count * UNIT_DEFINITIONS[stack.unitId].hpPerUnit;
-  return { ...stack, count, currentHp: Math.min(stack.currentHp, maxHp), maxHp, startingCount: count, preBattleMaxCount: count };
-}
-
 /** Losing units never wipes the army: at least one unit always survives. */
 function loseUnits(run: RunState, effect: Extract<EventEffect, { kind: 'UNIT_LOSS' }>, events: RunEvent[]): void {
   const alive = run.army.filter((s) => s.count > 0);
@@ -584,17 +594,14 @@ function applyEventEffect(run: RunState, effect: EventEffect, pick: EventPick, t
     case 'FOOD_DELTA':
       changeFood(run, effect.amount);
       break;
-    case 'FOOD_UPKEEP_DELTA':
-      changeFood(run, effect.days * dailyUpkeep(run));
-      break;
     case 'THREAT_DELTA': {
       const next = Math.max(0, run.threat + effect.amount); // AO-D055: never below 0
       if (next !== run.threat) events.push({ type: 'THREAT_CHANGED', threat: next, delta: next - run.threat });
       run.threat = next;
       break;
     }
-    case 'DAY_COST':
-      for (let i = 0; i < effect.days; i++) advanceDay(run, events);
+    case 'UPKEEP_DAYS':
+      payUpkeep(run, effect.days * dailyUpkeep(run), events);
       break;
     case 'MAX_MANA_DELTA':
       run.hero.maxMana = Math.max(MIN_HERO_MAX_MANA, run.hero.maxMana + effect.amount);
@@ -1047,7 +1054,7 @@ function upgradeFarm(run: RunState, events: RunEvent[]): RunApplyResult {
     return { run, events };
   }
   changeGold(run, -next.cost);
-  run.city.farmTier = (tier + 1) as 2 | 3;
+  run.city.farmTier = (tier + 1) as 2 | 3 | 4 | 5;
   events.push({ type: 'FARM_UPGRADED', tier: tier + 1 });
   return { run, events };
 }
