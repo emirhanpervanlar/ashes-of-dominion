@@ -13,6 +13,8 @@ interface Props {
   showBase?: boolean;
   /** Small gold label under the name ("Upgrade"). */
   tag?: string;
+  /** Copies behind this card (a picker groups duplicates): shows an "x3" chip. */
+  count?: number;
   /** Merchant price plate. */
   price?: number;
   disabled?: boolean;
@@ -25,7 +27,7 @@ interface Props {
 }
 
 /** The large card (reward, merchant, removal picker, info popup): cost gem with its tooltip, art, name, rules text, condition. */
-export function LargeCard({ cardId, upgraded, showBase, tag, price, disabled, onClick, inspectable = true, showRequirement = true, className }: Props) {
+export function LargeCard({ cardId, upgraded, showBase, tag, count, price, disabled, onClick, inspectable = true, showRequirement = true, className }: Props) {
   const cardInfo = useCardInfo();
   const view = cardView(cardId, upgraded);
   if (!view) return null;
@@ -67,6 +69,7 @@ export function LargeCard({ cardId, upgraded, showBase, tag, price, disabled, on
           <span>{requirement}</span>
         </div>
       )}
+      {count !== undefined && count > 1 && <span className="action-card-count">×{count}</span>}
       {price !== undefined && <div className="merchant-price">{price}g</div>}
     </div>
   );
