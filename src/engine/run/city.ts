@@ -1,4 +1,5 @@
 import { clearCombatState } from '../army.js';
+import { floorSafe, roundSafe } from '../floatSafe.js';
 import { UNIT_DEFINITIONS } from '../data/units.js';
 import type { ArmyStack, Position, RelicEffect, UnitId } from '../types.js';
 
@@ -190,7 +191,7 @@ export function settleArmyAfterVictory(army: ArmyStack[], city: CityState): { ar
   let revived = 0;
   const settled = army.map((stack) => {
     const casualties = Math.max(0, stack.preBattleMaxCount - stack.count);
-    const back = hasShrine ? Math.floor(casualties * SHRINE_REVIVE_RATIO) : 0;
+    const back = hasShrine ? floorSafe(casualties * SHRINE_REVIVE_RATIO) : 0;
     const count = stack.count + back;
     if (count === 0) return clearCombatState(stack);
     revived += back;
@@ -213,7 +214,7 @@ export function recruitCost(city: CityState, unitId: UnitId, count: number): { g
   if (!base) return null;
   const discount = city.buildings.includes('market') ? 0.85 : 1;
   return {
-    gold: Math.round(base.gold * count * discount),
+    gold: roundSafe(base.gold * count * discount),
     food: base.food * count,
   };
 }

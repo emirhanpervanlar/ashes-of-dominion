@@ -1,5 +1,6 @@
 import { isUpgradable } from '../cardUpgrades.js';
 import { UNIT_DEFINITIONS } from '../data/units.js';
+import { roundSafe } from '../floatSafe.js';
 import { nextInt } from '../rng.js';
 import type { RelicRarity, UnitId } from '../types.js';
 import { CARD_REMOVAL } from './cardRemoval.js';
@@ -615,13 +616,13 @@ export const EVENT_IDS = EVENT_LIST.map((e) => e.id);
 /** An event's options with every Gold/Food amount scaled to the chapter. */
 export function resolveEventOptions(eventId: string, chapter: number): EventOption[] {
   const scale = chapterScale(chapter);
-  return EVENT_DEFINITIONS[eventId]!.options((amount) => Math.round(amount * scale));
+  return EVENT_DEFINITIONS[eventId]!.options((amount) => roundSafe(amount * scale));
 }
 
 /** Every Gold/Food amount inside an option's effects is base-valued; this returns the chapter-scaled copy the engine applies. */
 export function scaleEffects(effects: EventEffect[], chapter: number): EventEffect[] {
   const scale = chapterScale(chapter);
-  return effects.map((e) => (e.kind === 'GOLD_DELTA' || e.kind === 'FOOD_DELTA' ? { ...e, amount: Math.round(e.amount * scale) } : e));
+  return effects.map((e) => (e.kind === 'GOLD_DELTA' || e.kind === 'FOOD_DELTA' ? { ...e, amount: roundSafe(e.amount * scale) } : e));
 }
 
 export function upgradableCardIds(run: Pick<RunState, 'masterDeck'>): string[] {

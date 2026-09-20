@@ -6,6 +6,7 @@ import { UNIT_DEFINITIONS } from '../data/units.js';
 import { applyPlayerAction, startBattle } from '../combat.js';
 import { maxManaFromWisdom } from '../heroStats.js';
 import { buildHeroStartingArmy, createHero } from '../scenario.js';
+import { floorSafe, roundSafe } from '../floatSafe.js';
 import { createRng, nextInt, shuffle } from '../rng.js';
 import type { ArmyStack, CardInstance, CombatState, Hero, HeroId, PlayerAction, Position, RelicDefinition, RelicEffect, UnitId } from '../types.js';
 import { cardRemovalQuote, createCardRemovalState, type CardRemovalState } from './cardRemoval.js';
@@ -193,7 +194,7 @@ const MIN_HERO_MAX_MANA = 1;
 function rescaleStack(stack: ArmyStack, multiplier: number): ArmyStack {
   if (stack.count <= 0) return stack;
   const def = UNIT_DEFINITIONS[stack.unitId];
-  const newCount = Math.max(1, Math.floor(stack.count * multiplier));
+  const newCount = Math.max(1, floorSafe(stack.count * multiplier));
   const newMaxHp = newCount * def.hpPerUnit;
   return { ...stack, count: newCount, currentHp: Math.min(stack.currentHp, newMaxHp), maxHp: newMaxHp, startingCount: newCount, preBattleMaxCount: newCount };
 }
@@ -270,8 +271,8 @@ function reject(events: RunEvent[], reason: string): void {
 /** A modest, deterministic one-time pickup — see AGENT.md §35 (ongoing per-day production is future work). */
 function resolveResourceNode(run: RunState, events: RunEvent[]): void {
   const econMult = run.city.doctrine === 'economic' ? 1.3 : 1;
-  const gold = Math.round((20 + nextInt(run.rng, 21)) * econMult); // 20-40, +30% under Economic Doctrine
-  const food = Math.round((10 + nextInt(run.rng, 11)) * econMult); // 10-20
+  const gold = roundSafe((20 + nextInt(run.rng, 21)) * econMult); // 20-40, +30% under Economic Doctrine
+  const food = roundSafe((10 + nextInt(run.rng, 11)) * econMult); // 10-20
   changeGold(run, gold);
   changeFood(run, food);
   events.push({ type: 'RESOURCE_FOUND', gold, food });
@@ -682,7 +683,7 @@ function executeEventOption(run: RunState, option: EventOption, pick: EventPick,
 
   const gamble = option.gamble;
   if (gamble) {
-    const won = nextInt(run.rng, 100) < Math.round(gamble.successChance * 100);
+    const won = nextInt(run.rng, 100) < roundSafe(gamble.successChance * 100);
     tally.texts.push(won ? gamble.successText : gamble.failureText);
     if (won) {
       apply(gamble.success);

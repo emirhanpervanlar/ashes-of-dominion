@@ -1,3 +1,4 @@
+import { roundSafe } from '../floatSafe.js';
 import { nextInt, type RngState } from '../rng.js';
 import { DAYS_PER_CHAPTER, threatMultiplier } from './chapters.js';
 
@@ -42,7 +43,7 @@ export function battleLootBands(ctx: LootContext): LootBands {
   const dayMult = 1 + BATTLE_LOOT.dayBonus * progress;
   const threat = threatMultiplier(ctx.threat);
   const elite = ctx.elite ? BATTLE_LOOT.elite : { gold: 1, foodChance: 1, food: 1 };
-  const scale = (n: number, m: number) => Math.round(n * m);
+  const scale = (n: number, m: number) => roundSafe(n * m);
   return {
     gold: [scale(base.gold[0], dayMult * threat * elite.gold), scale(base.gold[1], dayMult * threat * elite.gold)],
     foodChance: Math.min(BATTLE_LOOT.maxFoodChance, base.foodChance * dayMult * elite.foodChance),
@@ -54,7 +55,7 @@ export function battleLootBands(ctx: LootContext): LootBands {
 export function rollBattleLoot(rng: RngState, ctx: LootContext): { gold: number; food: number } {
   const bands = battleLootBands(ctx);
   const gold = bands.gold[0] + nextInt(rng, bands.gold[1] - bands.gold[0] + 1);
-  const dropped = nextInt(rng, 100) < Math.round(bands.foodChance * 100);
+  const dropped = nextInt(rng, 100) < roundSafe(bands.foodChance * 100);
   const foodRoll = bands.food[0] + nextInt(rng, bands.food[1] - bands.food[0] + 1);
   return { gold, food: dropped ? foodRoll : 0 };
 }

@@ -1,4 +1,5 @@
 import { UNIT_DEFINITIONS } from '../data/units.js';
+import { ceilSafe, floorSafe, roundSafe } from '../floatSafe.js';
 import { nextInt, type RngState } from '../rng.js';
 import type { ArmyStack, UnitId } from '../types.js';
 import { FARM_TIERS, type CityState } from './city.js';
@@ -16,15 +17,15 @@ export const FOOD_WARNING_DAYS = 3;
 
 /** What one stack eats per day: count x the unit's foodPerUnit (AO-D048). Fractional; the daily total is rounded to the nearest whole Food. */
 export function stackUpkeep(stack: Pick<ArmyStack, 'unitId' | 'count'>): number {
-  return Math.round(stack.count * UNIT_DEFINITIONS[stack.unitId].foodPerUnit * 100) / 100;
+  return roundSafe(stack.count * UNIT_DEFINITIONS[stack.unitId].foodPerUnit * 100) / 100;
 }
 
 /** Whole Food the army eats in one day (also what one map move costs): sum of the stacks, rounded to nearest (at least 1 for a living army), Stable -25% (round down, min 1). */
 export function moveFoodCost(army: ArmyStack[], city?: CityState): number {
   const sum = army.reduce((total, s) => total + stackUpkeep(s), 0);
-  const raw = totalArmyCount(army) === 0 ? 0 : Math.max(1, Math.round(Math.round(sum * 100) / 100));
+  const raw = totalArmyCount(army) === 0 ? 0 : Math.max(1, roundSafe(sum));
   if (raw === 0 || !city?.buildings.includes('stable')) return raw;
-  return Math.max(1, Math.floor(raw * (1 - STABLE_FOOD_DISCOUNT)));
+  return Math.max(1, floorSafe(raw * (1 - STABLE_FOOD_DISCOUNT)));
 }
 
 export function dailyUpkeep(run: Pick<RunState, 'army' | 'city'>): number {
@@ -119,7 +120,7 @@ export function starvationForecast(run: Pick<RunState, 'army' | 'city' | 'food' 
 }
 
 function starvationDeaths(total: number, lossRate: number): number {
-  return Math.min(Math.max(0, total - 1), Math.max(1, Math.ceil(lossRate * total)));
+  return Math.min(Math.max(0, total - 1), Math.max(1, ceilSafe(lossRate * total)));
 }
 
 /** A stack after losing `amount` units (HP capped to the smaller pool, the stack's baselines follow the new size). */

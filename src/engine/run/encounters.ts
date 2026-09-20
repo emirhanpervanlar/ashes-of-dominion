@@ -1,4 +1,5 @@
 import { createStack } from '../army.js';
+import { roundSafe } from '../floatSafe.js';
 import type { ArmyStack, Position, UnitId } from '../types.js';
 import { BOSS_CHAPTER_MULTIPLIER, CHAPTER_DEPTH_BONUS, LAYERS_PER_DEPTH, threatMultiplier } from './chapters.js';
 
@@ -9,7 +10,7 @@ import { BOSS_CHAPTER_MULTIPLIER, CHAPTER_DEPTH_BONUS, LAYERS_PER_DEPTH, threatM
  */
 function scale(base: number, depth: number, eliteMultiplier: number, threat: number): number {
   const depthMultiplier = 1 + depth * 0.18;
-  return Math.max(1, Math.round(base * depthMultiplier * eliteMultiplier * threatMultiplier(threat)));
+  return Math.max(1, roundSafe(base * depthMultiplier * eliteMultiplier * threatMultiplier(threat)));
 }
 
 /** A chapter is ~30 layers, so difficulty depth advances every LAYERS_PER_DEPTH layers and jumps by CHAPTER_DEPTH_BONUS per later chapter. */
@@ -72,5 +73,5 @@ export function generateBossEncounter(chapter = 1, threat = 0): ArmyStack[] {
     ['wolf', 6, 30],
   ];
   const multiplier = (BOSS_CHAPTER_MULTIPLIER[chapter - 1] ?? BOSS_CHAPTER_MULTIPLIER[BOSS_CHAPTER_MULTIPLIER.length - 1]!) * threatMultiplier(threat);
-  return positions.map(([unitId, position, count]) => createStack(unitId, 'enemy', position, Math.max(1, Math.round(count * multiplier))));
+  return positions.map(([unitId, position, count]) => createStack(unitId, 'enemy', position, Math.max(1, roundSafe(count * multiplier))));
 }
