@@ -5,6 +5,7 @@ import { UNIT_DEFINITIONS } from '../../data/units.js';
 import { nextCityVisitRaisesThreat } from '../chapters.js';
 import { BARRACKS_TIERS } from '../city.js';
 import { garrisonCap, garrisonUnits } from '../garrison.js';
+import { FOOD_MARKET, foodMarketQuote, foodPackPrice } from '../marketplace.js';
 import { buildPendingReward } from '../rewards.js';
 import { CURRENT_SAVE_VERSION, applyRunAction, createRun, migrateRun } from '../runEngine.js';
 import type { RunAction, RunState } from '../types.js';
@@ -274,5 +275,56 @@ describe('AO-046 item 4 (AO-D071): tiered Barracks and the weekly garrison', () 
     delete old.garrison;
     const loaded = validateSave(old)!;
     expect([loaded.city.barracksTier, loaded.city.buildings, loaded.garrison]).toEqual([4, ['barracks'], {}]);
+  });
+});
+
+describe('AO-046 item 5 (AO-D071): the city Marketplace', () => {
+  const shop = (gold: number, food = 20): RunState => ({ ...createRun(30), phase: 'city', gold, food });
+
+  it('prices follow 12 x 1.08^purchases rounded; a quote for several packs charges each pack at its own price', () => {
+    expect([0, 1, 2, 3, 4, 5, 10, 20].map(foodPackPrice)).toEqual([12, 13, 14, 15, 16, 18, 26, 56]);
+    const quote = foodMarketQuote(shop(500), 3);
+    expect(quote).toMatchObject({ packs: 3, food: 30, gold: 12 + 13 + 14, packPrice: 12, nextPackPrice: 15 });
+    expect(foodMarketQuote(shop(5000)).maxAffordable).toBe(FOOD_MARKET.maxPacksPerAction);
+    expect(foodMarketQuote(shop(40)).maxAffordable).toBe(3); // 12 + 13 + 14 = 39
+    expect(foodMarketQuote(shop(11)).maxAffordable).toBe(0);
+  });
+
+  it('BUY_FOOD spends Gold, adds 10 Food per pack, raises the run-wide price and reports what it did', () => {
+    let run = shop(200);
+    const first = act(run, { type: 'BUY_FOOD', packs: 1 });
+    expect(first.events).toContainEqual({ type: 'FOOD_PURCHASED', packs: 1, food: 10, gold: 12 });
+    run = first.run;
+    expect([run.gold, run.food, run.foodPurchases, run.stats.goldSpent, run.stats.foodGathered]).toEqual([188, 30, 1, 12, 10]);
+    run = act(run, { type: 'BUY_FOOD', packs: 3 }).run;
+    expect([run.gold, run.food, run.foodPurchases]).toEqual([188 - (13 + 14 + 15), 60, 4]);
+    expect(foodMarketQuote(run).packPrice).toBe(16);
+    // The price belongs to the run, not to the visit.
+    const back = act(act(run, { type: 'LEAVE_CITY' }).run, { type: 'TRAVEL_TO_CITY' }).run;
+    expect(foodMarketQuote(back).packPrice).toBe(16);
+  });
+
+  it('is rejected without enough Gold or outside the city, and changes nothing', () => {
+    const poor = act(shop(11), { type: 'BUY_FOOD', packs: 1 });
+    expect(reason(poor.events)).toBe('Not enough Gold.');
+    expect([poor.run.gold, poor.run.food, poor.run.foodPurchases]).toEqual([11, 20, 0]);
+    expect(rejected(act({ ...shop(500), phase: 'on_map' }, { type: 'BUY_FOOD', packs: 1 }).events)).toBe(true);
+    expect(rejected(act(shop(30), { type: 'BUY_FOOD', packs: 3 }).events)).toBe(true); // 39 Gold
+  });
+
+  it('validates the pack count as a whole number from 1 to the per-action cap', () => {
+    const run = shop(100000);
+    for (const packs of [0, -1, 1.5, NaN, Infinity, '2', null, undefined, FOOD_MARKET.maxPacksPerAction + 1, Number.MAX_SAFE_INTEGER + 2]) {
+      const result = act(run, { type: 'BUY_FOOD', packs } as unknown as RunAction);
+      expect(rejected(result.events), String(packs)).toBe(true);
+      expect(result.run.gold).toBe(100000);
+    }
+    expect(rejected(act(run, { type: 'BUY_FOOD', packs: FOOD_MARKET.maxPacksPerAction }).events)).toBe(false);
+  });
+
+  it('old saves start with no purchases', () => {
+    const old = roundTrip({ ...createRun(31), saveVersion: 2 }) as unknown as Record<string, unknown>;
+    delete old.foodPurchases;
+    expect(validateSave(old)!.foodPurchases).toBe(0);
   });
 });

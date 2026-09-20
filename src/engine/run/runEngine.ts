@@ -31,6 +31,7 @@ import {
 } from './city.js';
 import { actionProblem } from './actionValidation.js';
 import { garrisonUnits, growGarrison, isGarrisonDay } from './garrison.js';
+import { foodMarketQuote } from './marketplace.js';
 import { THREAT_PER_CITY_VISIT, TOTAL_CHAPTERS, nextCityVisitRaisesThreat } from './chapters.js';
 import { generateBattleEncounter, generateBossEncounter } from './encounters.js';
 import {
@@ -147,6 +148,7 @@ function fromVersion2(run: RunState): RunState {
     ...run,
     city: { ...run.city, barracksTier, buildings: barracksTier > 0 && !run.city.buildings.includes('barracks') ? [...run.city.buildings, 'barracks'] : run.city.buildings },
     garrison: run.garrison ?? {},
+    foodPurchases: run.foodPurchases ?? 0,
     // A run that already carries Threat has used its free visit; a run without any is treated as not having visited yet.
     cityVisitsThisChapter: run.cityVisitsThisChapter ?? (run.threat > 0 ? 1 : 0),
   };
@@ -264,6 +266,7 @@ export function createRun(seed: number, heroId: HeroId = 'warlord', heroName?: s
     worldMap: generateWorldMap(rng),
     city: createInitialCityState(),
     garrison: {},
+    foodPurchases: 0,
     chapter: 1,
     threat: 0,
     cityVisitsThisChapter: 0,
@@ -1190,6 +1193,24 @@ function collectGarrison(run: RunState, unitId: UnitId | undefined, events: RunE
   return { run, events };
 }
 
+/** AO-D071: the Marketplace is part of the city, needs no building; the quote is the one the UI shows. */
+function buyFood(run: RunState, packs: number, events: RunEvent[]): RunApplyResult {
+  if (run.phase !== 'city') {
+    reject(events, 'Not at the city.');
+    return { run, events };
+  }
+  const quote = foodMarketQuote(run, packs);
+  if (run.gold < quote.gold) {
+    reject(events, 'Not enough Gold.');
+    return { run, events };
+  }
+  changeGold(run, -quote.gold);
+  changeFood(run, quote.food);
+  run.foodPurchases += packs;
+  events.push({ type: 'FOOD_PURCHASED', packs, food: quote.food, gold: quote.gold });
+  return { run, events };
+}
+
 function upgradeMageTower(run: RunState, events: RunEvent[]): RunApplyResult {
   if (run.phase !== 'city') {
     reject(events, 'Not at the city.');
@@ -1312,6 +1333,8 @@ function dispatchAction(working: RunState, action: RunAction, events: RunEvent[]
       return upgradeBarracks(working, events);
     case 'COLLECT_GARRISON':
       return collectGarrison(working, action.unitId, events);
+    case 'BUY_FOOD':
+      return buyFood(working, action.packs, events);
     case 'UPGRADE_CITY':
       return upgradeCity(working, events);
     case 'CHOOSE_DOCTRINE':

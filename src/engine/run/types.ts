@@ -72,6 +72,7 @@ export type RunEvent =
   | { type: 'BATTLE_LOOT'; gold: number; food: number }
   | { type: 'FARM_UPGRADED'; tier: number }
   | { type: 'BARRACKS_UPGRADED'; tier: number }
+  | { type: 'FOOD_PURCHASED'; packs: number; food: number; gold: number }
   /** AO-D071: the weekly garrison growth (only the units that actually fit under the cap). */
   | { type: 'GARRISON_GROWN'; units: UnitCount[] }
   | { type: 'GARRISON_COLLECTED'; unitId: UnitId; count: number }
@@ -117,6 +118,8 @@ export interface RunState {
   city: CityState;
   /** Free soldiers waiting in the city (AO-D071): grows every 7 days by Barracks tier, collected with COLLECT_GARRISON. */
   garrison: Garrison;
+  /** Food packs bought at the city Marketplace this run (AO-D071); each one raises the next price. */
+  foodPurchases: number;
   /** 1-3 (AO-D046): the boss is due on day 30 x chapter. */
   chapter: number;
   /** Raised by each city visit after the free one (AO-D047, AO-D070); scales enemy unit counts. */
@@ -161,6 +164,8 @@ export type RunAction =
   | { type: 'UPGRADE_MAGE_TOWER' }
   | { type: 'UPGRADE_FARM' }
   | { type: 'UPGRADE_BARRACKS' }
+  /** Marketplace (AO-D071): buys `packs` Food packs with Gold, each at the rising price. */
+  | { type: 'BUY_FOOD'; packs: number }
   /** Moves the waiting garrison into the army (one unit type, or all when `unitId` is omitted); what does not fit stays. */
   | { type: 'COLLECT_GARRISON'; unitId?: UnitId }
   | { type: 'CHOOSE_DOCTRINE'; doctrineId: string }

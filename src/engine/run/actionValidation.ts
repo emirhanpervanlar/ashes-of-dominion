@@ -1,6 +1,7 @@
 import { MAX_ARMY_STACKS } from '../army.js';
 import { UNIT_DEFINITIONS } from '../data/units.js';
 import { BUILDING_DEFINITIONS, DOCTRINE_DEFINITIONS, RECRUIT_COSTS } from './city.js';
+import { FOOD_MARKET } from './marketplace.js';
 
 /** Own-property test: ids come from untrusted input and must never resolve to inherited keys such as "constructor". */
 function isKeyOf(table: object, key: unknown): boolean {
@@ -71,6 +72,8 @@ export function actionProblem(action: unknown): string | null {
     case 'RECRUIT':
       if (!isKeyOf(RECRUIT_COSTS, action.unitId)) return 'Unknown recruitable unit.';
       return isPositiveCount(action.count) ? null : 'Invalid recruit count.';
+    case 'BUY_FOOD':
+      return isPositiveCount(action.packs) && action.packs <= FOOD_MARKET.maxPacksPerAction ? null : `Buy 1-${FOOD_MARKET.maxPacksPerAction} packs.`;
     case 'COLLECT_GARRISON':
       return action.unitId === undefined || isKeyOf(UNIT_DEFINITIONS, action.unitId) ? null : 'Unknown unit.';
     case 'BUILD_BUILDING':
