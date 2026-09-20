@@ -1100,6 +1100,12 @@ p { margin: 0; }
   box-shadow: inset 2px 2px 0 var(--bev-light), inset -2px -2px 0 var(--bev-dark);
 }
 
+/* The stepped clip removes an outer outline, so keyboard focus is an inner gold ring on the frame. */
+.portrait-frame:focus-visible {
+  outline: none;
+  box-shadow: inset 0 0 0 3px var(--focus), inset 2px 2px 0 var(--bev-light), inset -2px -2px 0 var(--bev-dark);
+}
+
 /* Only accent on the tile: 4px team line on top. */
 .portrait-frame::before {
   content: '';
