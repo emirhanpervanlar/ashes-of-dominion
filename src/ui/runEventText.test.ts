@@ -15,6 +15,10 @@ describe('run event texts', () => {
     expect(text).toBe('3 Swordsmen, 1 Archer starved (starving day 2).');
   });
 
+  it('says which card an upgrade improved', () => {
+    expect(describeRunEvent({ type: 'CARD_UPGRADED', instanceId: 'c1', cardId: 'charge' })).toBe('Upgraded Charge.');
+  });
+
   it('pluralises regular and irregular unit names', () => {
     expect(unitCountText('wolf', 2)).toBe('2 Wolves');
     expect(unitCountText('knight', 1)).toBe('1 Knight');
