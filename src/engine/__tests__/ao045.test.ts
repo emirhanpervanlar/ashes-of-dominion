@@ -142,3 +142,35 @@ describe('AO-D067 battle end window', () => {
     expect(applyRunAction(run, { type: 'COMBAT_ACTION', action: { type: 'END_TURN' } }).run.phase).toBe('reward');
   });
 });
+
+describe('AO-D069 reach: back-row melee vs any front ally; healers never blocked', () => {
+  it('owner repro: front row holds only a right-lane unit, back centre + right melee are blocked', () => {
+    const enemy = [foe('orc', 3, 5), foe('goblin', 5, 5), foe('goblin', 6, 5)];
+    const state = battle([big('swordsman', 1, 50)], enemy);
+    expect(state.enemyIntents.map((i) => i.stackId)).toEqual(['enemy_orc_3']);
+    const result = applyPlayerAction(state, { type: 'END_TURN' });
+    expect(attacksBy(result.events, 'enemy_goblin_5')).toHaveLength(0);
+    expect(attacksBy(result.events, 'enemy_goblin_6')).toHaveLength(0);
+    expect(attacksBy(result.events, 'enemy_orc_3').length).toBeGreaterThan(0);
+  });
+
+  it('a player back-row swordsman is blocked by a front stack in another lane', () => {
+    const state = battle([big('knight', 3, 5), big('swordsman', 4, 10)], [foe('orc', 1, 5)]);
+    const r = applyPlayerAction(state, { type: 'BASIC_ACTION', stackId: 'player_swordsman_4', targetStackId: 'enemy_orc_1' });
+    expect(rejection(r.events)).toContain('cannot attack while a friendly stack stands in front');
+  });
+
+  it('a Priest heals from the back row behind front allies, itself included', () => {
+    const priest = { ...big('priest', 5, 10), currentHp: 30 };
+    const state = battle([big('swordsman', 1, 10), priest], [foe('orc', 1, 5)]);
+    const self = applyPlayerAction(state, { type: 'BASIC_ACTION', stackId: 'player_priest_5', targetStackId: 'player_priest_5' });
+    expect(self.events.some((e) => e.type === 'STACK_HEALED')).toBe(true);
+    expect(self.state.playerArmy.find((s) => s.stackId === 'player_priest_5')!.currentHp).toBeGreaterThan(30);
+  });
+
+  it('the Heal card is not blocked by reach either', () => {
+    const state = battle([big('swordsman', 1, 10), { ...big('priest', 5, 10), currentHp: 30 }], [foe('orc', 1, 5)], ['heal']);
+    const r = applyPlayerAction(state, { type: 'PLAY_CARD', instanceId: 't_heal_0', actingStackId: 'player_priest_5', targetStackId: 'player_priest_5' });
+    expect(rejection(r.events)).toBeUndefined();
+  });
+});
