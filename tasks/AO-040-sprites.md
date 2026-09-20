@@ -24,3 +24,6 @@ src/engine/**.
 
 ## Acceptance criteria
 tsc clean, vitest green. Browser (port 5208, never 5173/4173; inject state BEFORE load): battle with all unit types on screen (player and enemy), army bar with 6 different stacks, Barracks, unit popup, hero plaque/hero popup/hero setup, end screen; zoomed crops of each sprite at its display scale to confirm crisp pixels and readable silhouettes; idle animation frames captured; no console errors. Report which sprites you consider weakest.
+
+## Status
+- 2026-09-20 ACCEPTED (570 tests, screenshots reviewed). Weakest: wolf tail/legs, shaman orb + crest, priest flat white, rogue cloak, ornament_dragon, st_weak; idle frame is a 1px bob for new sprites; enemy goblin/orc/shaman/wolf have no team colour keys; count badge covers sprite corner.
