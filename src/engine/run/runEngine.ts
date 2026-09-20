@@ -203,9 +203,9 @@ function addFlatToLargestStack(army: ArmyStack[], amount: number): ArmyStack[] {
   const def = UNIT_DEFINITIONS[largest.unitId];
   return army.map((s) => {
     if (s.stackId !== largest.stackId) return s;
-    const newCount = s.count + amount;
-    const newMaxHp = newCount * def.hpPerUnit;
-    return { ...s, count: newCount, currentHp: newMaxHp, maxHp: newMaxHp, startingCount: newCount, preBattleMaxCount: newCount };
+    // The new soldiers arrive healthy; the stack's existing wounds stay (same rule as the mid-run ARMY_SIZE_MULT).
+    const addedHp = amount * def.hpPerUnit;
+    return { ...s, count: s.count + amount, currentHp: s.currentHp + addedHp, maxHp: s.maxHp + addedHp, startingCount: s.startingCount + amount, preBattleMaxCount: s.preBattleMaxCount + amount };
   });
 }
 

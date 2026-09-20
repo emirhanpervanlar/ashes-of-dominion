@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { RELIC_DEFINITIONS, STARTING_RELIC_DEFINITIONS } from '../../data/relics.js';
 import type { RelicDefinition } from '../../types.js';
+import { createStack } from '../../army.js';
+import { UNIT_DEFINITIONS } from '../../data/units.js';
+import { applyRunAction, createRun } from '../runEngine.js';
+import type { RunState } from '../types.js';
 import { foundRelicInfo, foundRelicList, startingRelicList } from '../start.js';
 
 function hasDownside(def: RelicDefinition): boolean {
@@ -43,5 +47,27 @@ describe('AO-036: structured relic drawbacks', () => {
     expect(foundRelicInfo('cursed_crown')?.drawbacks).toEqual(['Army takes +20% damage.']);
     expect(foundRelicInfo('iron_bracers')?.drawbacks).toEqual([]);
     expect(foundRelicInfo('nope')).toBeUndefined();
+  });
+});
+
+describe('AO-036: Royal Banner mid-run', () => {
+  // The only mid-run route: a pre-AO-D029 save (phase choosing_starting_relic) is granted the default starting relic on load.
+  it('adds units to the largest stack without healing its wounds', () => {
+    const wounded = { ...createStack('swordsman', 'player', 1, 10), count: 5, currentHp: 45 }; // 5 of 10 soldiers left
+    const legacy = { ...createRun(3, 'warlord'), army: [wounded, createStack('archer', 'player', 4, 4)], relics: [], phase: 'choosing_starting_relic' } as unknown as RunState;
+    const { run } = applyRunAction(legacy, { type: 'SKIP_REWARD' });
+    const grown = run.army.find((s) => s.stackId === wounded.stackId)!;
+    const hp = UNIT_DEFINITIONS.swordsman.hpPerUnit;
+    expect(run.relics.map((r) => r.id)).toEqual(['royal_banner']);
+    expect(grown.currentHp).toBe(45 + 6 * hp);
+    expect(grown.count).toBe(5 + 6);
+    expect(grown.maxHp).toBe(16 * hp);
+    expect(grown.preBattleMaxCount).toBe(16);
+    expect(grown.startingCount).toBe(16);
+  });
+
+  it('a fresh run still starts the stack at full health', () => {
+    const run = createRun(3, 'warlord', undefined, 'royal_banner');
+    for (const s of run.army) expect(s.currentHp).toBe(s.maxHp);
   });
 });
