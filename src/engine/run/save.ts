@@ -5,7 +5,7 @@ import { EVENT_DEFINITIONS } from './events.js';
 import { CURRENT_SAVE_VERSION, migrateRun } from './runEngine.js';
 import type { RunPhase, RunState } from './types.js';
 
-const PHASES: ReadonlySet<string> = new Set<RunPhase>(['on_map', 'in_battle', 'reward', 'event', 'merchant', 'city', 'run_complete', 'defeat']);
+const PHASES: ReadonlySet<string> = new Set<RunPhase>(['on_map', 'in_battle', 'reward', 'event', 'merchant', 'village', 'city', 'run_complete', 'defeat']);
 
 type Rec = Record<string, unknown>;
 
@@ -58,6 +58,10 @@ function isMerchant(v: unknown): boolean {
   return isRec(v) && Array.isArray(v.cardOffers) && v.cardOffers.every((o) => isRec(o) && hasKey(CARD_DEFINITIONS, o.cardId) && isWhole(o.price)) && (v.relicOffer === null || (isRec(v.relicOffer) && isStr(v.relicOffer.relicId) && isWhole(v.relicOffer.price)));
 }
 
+function isVillage(v: unknown): boolean {
+  return isRec(v) && isRec(v.raid) && isWhole(v.raid.gold) && isWhole(v.raid.food) && isWhole(v.raid.threat) && isRec(v.help) && isWhole(v.help.gold) && isWhole(v.help.food);
+}
+
 function isEvent(v: unknown): boolean {
   return isRec(v) && hasKey(EVENT_DEFINITIONS, v.eventId) && (v.choice === null || isRec(v.choice)) && (v.resolved === null || isRec(v.resolved));
 }
@@ -65,7 +69,7 @@ function isEvent(v: unknown): boolean {
 /** True when the object has the current RunState shape well enough that the reducer, the UI and the summary can read it without crashing. */
 function isCurrentRun(r: Rec): boolean {
   if (!PHASES.has(r.phase as string) || !isRec(r.rng) || !isNum(r.rng.seed) || !isNum(r.seed)) return false;
-  const counters = [r.gold, r.food, r.day, r.battlesWon, r.chapter, r.threat, r.cityVisitsThisChapter, r.foodPurchases, r.starvationDays];
+  const counters = [r.gold, r.food, r.day, r.battlesWon, r.chapter, r.threat, r.cityVisitsThisChapter, r.foodPurchases, r.villages, r.starvationDays];
   if (!counters.every(isWhole) || (r.chapter as number) < 1 || (r.day as number) < 1) return false;
   if (!isHero(r.hero) || !allOf(r.army, isStack) || (r.army as unknown[]).length > MAX_ARMY_STACKS) return false;
   if (!allOf(r.masterDeck, isCard) || !allOf(r.relics, isRelic) || !isCity(r.city) || !isGarrison(r.garrison)) return false;
@@ -80,10 +84,11 @@ function isCurrentRun(r: Rec): boolean {
   if (r.pendingReward !== null && !isReward(r.pendingReward)) return false;
   if (r.pendingMerchant !== null && !isMerchant(r.pendingMerchant)) return false;
   if (r.pendingEvent !== null && !isEvent(r.pendingEvent)) return false;
+  if (r.pendingVillage !== null && !isVillage(r.pendingVillage)) return false;
   // The screen a phase shows must have the data it renders.
   return (
     (r.phase !== 'in_battle' || r.combat !== null) && (r.phase !== 'reward' || r.pendingReward !== null) &&
-    (r.phase !== 'merchant' || r.pendingMerchant !== null) && (r.phase !== 'event' || r.pendingEvent !== null)
+    (r.phase !== 'merchant' || r.pendingMerchant !== null) && (r.phase !== 'event' || r.pendingEvent !== null) && (r.phase !== 'village' || r.pendingVillage !== null)
   );
 }
 

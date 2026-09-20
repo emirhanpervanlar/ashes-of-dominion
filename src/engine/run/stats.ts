@@ -26,6 +26,9 @@ export interface RunStats {
   bossesDefeated: number;
   elitesDefeated: number;
   eventsResolved: number;
+  /** AO-D072 village choices. */
+  villagesHelped: number;
+  villagesRaided: number;
 }
 
 export function createRunStats(): RunStats {
@@ -51,6 +54,8 @@ export function createRunStats(): RunStats {
     bossesDefeated: 0,
     elitesDefeated: 0,
     eventsResolved: 0,
+    villagesHelped: 0,
+    villagesRaided: 0,
   };
 }
 

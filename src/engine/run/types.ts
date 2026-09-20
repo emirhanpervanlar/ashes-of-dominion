@@ -1,6 +1,7 @@
 import type { RngState } from '../rng.js';
 import type { ArmyStack, CardInstance, CombatState, EnemyStep, Hero, PlayerAction, Position, RelicDefinition, UnitId } from '../types.js';
 import type { CityState } from './city.js';
+import type { VillageOffer } from './villages.js';
 import type { Garrison } from './garrison.js';
 import type { CardRemovalState } from './cardRemoval.js';
 import type { MerchantInventory } from './merchant.js';
@@ -13,6 +14,7 @@ export type RunPhase =
   | 'reward'
   | 'event'
   | 'merchant'
+  | 'village'
   | 'city'
   | 'run_complete'
   | 'defeat';
@@ -31,6 +33,9 @@ export interface PendingReward {
 export type PendingEventChoice =
   | { kind: 'card'; optionId: string; action: 'upgrade' | 'remove' | 'give'; instanceIds: string[] }
   | { kind: 'unit'; optionId: string; unitIds: UnitId[] };
+
+/** A village node waits for the player's choice (AO-D072): what Raid and Help would pay, fixed on arrival. */
+export type PendingVillage = VillageOffer;
 
 export interface PendingEvent {
   eventId: string;
@@ -73,6 +78,10 @@ export type RunEvent =
   | { type: 'FARM_UPGRADED'; tier: number }
   | { type: 'BARRACKS_UPGRADED'; tier: number }
   | { type: 'FOOD_PURCHASED'; packs: number; food: number; gold: number }
+  /** AO-D072: Raid pays Gold and Food at once and raises Threat (a THREAT_CHANGED event follows). */
+  | { type: 'VILLAGE_RAIDED'; gold: number; food: number }
+  /** Help pays a small gift; `villages` is the number of helped villages now (each: Food every day, militia every week). */
+  | { type: 'VILLAGE_HELPED'; gold: number; food: number; villages: number }
   /** AO-D071: the weekly garrison growth (only the units that actually fit under the cap). */
   | { type: 'GARRISON_GROWN'; units: UnitCount[] }
   | { type: 'GARRISON_COLLECTED'; unitId: UnitId; count: number }
@@ -120,6 +129,8 @@ export interface RunState {
   garrison: Garrison;
   /** Food packs bought at the city Marketplace this run (AO-D071); each one raises the next price. */
   foodPurchases: number;
+  /** Helped villages (AO-D072): permanent, each gives Food every day and militia to the weekly garrison. */
+  villages: number;
   /** 1-3 (AO-D046): the boss is due on day 30 x chapter. */
   chapter: number;
   /** Raised by each city visit after the free one (AO-D047, AO-D070); scales enemy unit counts. */
@@ -138,6 +149,7 @@ export interface RunState {
   pendingEvent: PendingEvent | null;
   pendingUnitChoice: PendingUnitChoice | null;
   pendingMerchant: MerchantInventory | null;
+  pendingVillage: PendingVillage | null;
   log: RunEvent[];
 }
 
@@ -166,6 +178,9 @@ export type RunAction =
   | { type: 'UPGRADE_BARRACKS' }
   /** Marketplace (AO-D071): buys `packs` Food packs with Gold, each at the rising price. */
   | { type: 'BUY_FOOD'; packs: number }
+  /** Village choice (AO-D072), phase `village`. */
+  | { type: 'RAID_VILLAGE' }
+  | { type: 'HELP_VILLAGE' }
   /** Moves the waiting garrison into the army (one unit type, or all when `unitId` is omitted); what does not fit stays. */
   | { type: 'COLLECT_GARRISON'; unitId?: UnitId }
   | { type: 'CHOOSE_DOCTRINE'; doctrineId: string }

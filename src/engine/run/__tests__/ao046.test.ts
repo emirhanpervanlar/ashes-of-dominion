@@ -3,14 +3,17 @@ import { createRng } from '../../rng.js';
 import type { CombatState } from '../../types.js';
 import { UNIT_DEFINITIONS } from '../../data/units.js';
 import { nextCityVisitRaisesThreat } from '../chapters.js';
-import { BARRACKS_TIERS } from '../city.js';
-import { garrisonCap, garrisonUnits } from '../garrison.js';
+import { BARRACKS_TIERS, FARM_TIERS } from '../city.js';
+import { dailyProduction } from '../food.js';
+import { garrisonCap, garrisonUnits, weeklyGarrison } from '../garrison.js';
 import { FOOD_MARKET, foodMarketQuote, foodPackPrice } from '../marketplace.js';
 import { buildPendingReward } from '../rewards.js';
 import { CURRENT_SAVE_VERSION, applyRunAction, createRun, migrateRun } from '../runEngine.js';
 import type { RunAction, RunState } from '../types.js';
 import type { NodeType } from '../worldMap.js';
 import { validateSave } from '../save.js';
+import { VILLAGE, villageOffer } from '../villages.js';
+import { generateWorldMap } from '../worldMap.js';
 import { withBarracks } from './cityHelpers.js';
 import { pickReward } from './rewardHelpers.js';
 
@@ -326,5 +329,104 @@ describe('AO-046 item 5 (AO-D071): the city Marketplace', () => {
     const old = roundTrip({ ...createRun(31), saveVersion: 2 }) as unknown as Record<string, unknown>;
     delete old.foodPurchases;
     expect(validateSave(old)!.foodPurchases).toBe(0);
+  });
+});
+
+describe('AO-046 item 6 (AO-D072): villages', () => {
+  const atVillage = (seed = 40): RunState => arriveAt(createRun(seed), 'village');
+  const mapOf = (seed: number, chapter: number) => generateWorldMap(createRng(seed), chapter, (chapter - 1) * 30 + 1);
+
+  it('every third resource node of a chapter map is a village, deterministically per seed, never on the start or boss layer', () => {
+    let villages = 0;
+    let resources = 0;
+    for (let seed = 1; seed <= 60; seed++) {
+      for (const chapter of [1, 2, 3]) {
+        const first = mapOf(seed, chapter);
+        expect(mapOf(seed, chapter)).toEqual(first);
+        const v = first.nodes.filter((n) => n.type === 'village');
+        const r = first.nodes.filter((n) => n.type === 'resource');
+        villages += v.length;
+        resources += r.length;
+        expect(v.length).toBeGreaterThan(0);
+        expect(v.length).toBe(Math.floor((v.length + r.length) / 3));
+        expect(v.every((n) => n.layer > 0 && n.layer < first.nodes.find((x) => x.type === 'boss')!.layer)).toBe(true);
+      }
+    }
+    expect(villages / (villages + resources)).toBeGreaterThan(0.29);
+    expect(villages / (villages + resources)).toBeLessThan(0.34);
+  });
+
+  it('arriving opens the village choice with the numbers for this chapter', () => {
+    const run = atVillage();
+    expect(run.phase).toBe('village');
+    expect(run.pendingVillage).toEqual(villageOffer(1));
+    expect(run.log).toContainEqual({ type: 'ARRIVED_AT_NODE', nodeId: run.worldMap.currentNodeId, nodeType: 'village' });
+    expect(villageOffer(3).raid.gold).toBeGreaterThan(villageOffer(1).raid.gold);
+    expect(villageOffer(9)).toEqual(villageOffer(3));
+    // The map cannot be walked or the city entered until the village is decided.
+    expect(rejected(act(run, { type: 'TRAVEL_TO_CITY' }).events)).toBe(true);
+    expect(rejected(act(run, { type: 'MOVE_TO', nodeId: run.worldMap.nodes.find((n) => n.layer === 2)!.id }).events)).toBe(true);
+  });
+
+  it('Raid pays Gold and Food at once, raises Threat by 1 and counts as raided', () => {
+    const run = atVillage();
+    const offer = run.pendingVillage!;
+    const result = act(run, { type: 'RAID_VILLAGE' });
+    expect(result.run.phase).toBe('on_map');
+    expect(result.run.pendingVillage).toBeNull();
+    expect([result.run.gold - run.gold, result.run.food - run.food, result.run.threat - run.threat]).toEqual([offer.raid.gold, offer.raid.food, 1]);
+    expect(result.events).toContainEqual({ type: 'VILLAGE_RAIDED', gold: offer.raid.gold, food: offer.raid.food });
+    expect(result.events).toContainEqual({ type: 'THREAT_CHANGED', threat: run.threat + 1, delta: 1 });
+    expect([result.run.stats.villagesRaided, result.run.stats.villagesHelped, result.run.villages]).toEqual([1, 0, 0]);
+  });
+
+  it('Help pays a smaller gift and makes the village permanent: +3 Food a day each (stacking, in the daily hook with the Farm) and militia every week', () => {
+    const run = atVillage();
+    const offer = run.pendingVillage!;
+    expect(offer.help.gold).toBeLessThan(offer.raid.gold);
+    const helped = act(run, { type: 'HELP_VILLAGE' });
+    expect(helped.events).toContainEqual({ type: 'VILLAGE_HELPED', gold: offer.help.gold, food: offer.help.food, villages: 1 });
+    expect([helped.run.gold - run.gold, helped.run.threat - run.threat, helped.run.villages, helped.run.stats.villagesHelped]).toEqual([offer.help.gold, 0, 1, 1]);
+    expect(dailyProduction(helped.run)).toBe(VILLAGE.dailyFood);
+
+    const two = { ...helped.run, villages: 2, city: { ...helped.run.city, farmTier: 1 as const } };
+    expect(dailyProduction(two)).toBe(FARM_TIERS[0]!.food + 2 * VILLAGE.dailyFood);
+    const day = arriveAt(two, 'resource');
+    expect(day.log).toContainEqual({ type: 'DAILY_INCOME', gold: 0, food: FARM_TIERS[0]!.food + 2 * VILLAGE.dailyFood });
+  });
+
+  it('helped villages add Swordsman militia to the weekly garrison (capped) even without a Barracks, and the garrison cap follows', () => {
+    const three = { ...createRun(41), villages: 3 };
+    expect(weeklyGarrison(three)).toEqual({ swordsman: 3 });
+    expect(weeklyGarrison({ ...three, villages: VILLAGE.militiaVillageCap + 4 })).toEqual({ swordsman: VILLAGE.militiaVillageCap });
+    let run = three;
+    for (let i = 0; i < 6; i++) run = arriveAt(run, 'resource');
+    expect(run.day).toBe(7);
+    expect(run.garrison).toEqual({ swordsman: 3 });
+    const withBarracks = { ...three, city: { ...three.city, barracksTier: 1 as const } };
+    expect(weeklyGarrison(withBarracks)).toEqual({ swordsman: 4 + 3 });
+    expect(garrisonCap(withBarracks)).toEqual({ swordsman: 14 });
+  });
+
+  it('both choices are rejected outside a village and change nothing', () => {
+    const run = createRun(42);
+    for (const type of ['RAID_VILLAGE', 'HELP_VILLAGE'] as const) {
+      const result = act(run, { type });
+      expect(rejected(result.events)).toBe(true);
+      expect(result.run.gold).toBe(run.gold);
+    }
+  });
+
+  it('saves: a village phase needs its pending offer, old saves get 0 villages and the new stats', () => {
+    const run = atVillage();
+    expect(validateSave(roundTrip(run))).not.toBeNull();
+    expect(validateSave(roundTrip({ ...run, pendingVillage: null }))).toBeNull();
+    const old = roundTrip({ ...createRun(43), saveVersion: 2 }) as unknown as Record<string, unknown>;
+    delete old.villages;
+    delete old.pendingVillage;
+    delete (old.stats as Record<string, unknown>).villagesHelped;
+    delete (old.stats as Record<string, unknown>).villagesRaided;
+    const loaded = validateSave(old)!;
+    expect([loaded.villages, loaded.pendingVillage, loaded.stats.villagesHelped, loaded.stats.villagesRaided]).toEqual([0, null, 0, 0]);
   });
 });

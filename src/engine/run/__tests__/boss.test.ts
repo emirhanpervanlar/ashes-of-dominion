@@ -24,6 +24,8 @@ function reachBoss(seed: number): RunState {
       run = won.phase === 'reward' ? pickReward(won).run : won;
     } else if (run.phase === 'event') {
       run = resolveEventToMap(run);
+    } else if (run.phase === 'village') {
+      run = applyRunAction(run, { type: 'HELP_VILLAGE' }).run;
     } else if (run.phase === 'merchant') {
       run = applyRunAction(run, { type: 'LEAVE_MERCHANT' }).run;
     } else if (run.phase === 'city') {

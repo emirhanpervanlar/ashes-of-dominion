@@ -49,7 +49,7 @@ describe('chapter map generation (AO-D045, AO-D046, AO-D049)', () => {
   });
 
   it('has no road or city nodes and only the start node is neutral', () => {
-    const allowed = new Set(['start', 'battle', 'elite_battle', 'resource', 'merchant', 'event', 'boss']);
+    const allowed = new Set(['start', 'battle', 'elite_battle', 'resource', 'village', 'merchant', 'event', 'boss']);
     for (let seed = 1; seed <= 100; seed++) {
       for (const chapter of [1, 2, 3]) {
         for (const node of generateWorldMap(createRng(seed), chapter, (chapter - 1) * 30 + 1).nodes) {

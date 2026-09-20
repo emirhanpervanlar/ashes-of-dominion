@@ -1,19 +1,22 @@
 import type { UnitId } from '../types.js';
 import { BARRACKS_TIERS, GARRISON } from './city.js';
+import { VILLAGE, villageMilitiaPerWeek } from './villages.js';
 import type { RunState, UnitCount } from './types.js';
 
 /** Free soldiers waiting in the city (AO-D071), collected with COLLECT_GARRISON. */
 export type Garrison = Partial<Record<UnitId, number>>;
 
-/** Soldiers added to the garrison every GARRISON.intervalDays: every unlocked Barracks tier contributes its unit type. */
-export function weeklyGarrison(run: Pick<RunState, 'city'>): Garrison {
+/** Soldiers added to the garrison every GARRISON.intervalDays: every unlocked Barracks tier contributes its unit type, every helped village (AO-D072) some militia. */
+export function weeklyGarrison(run: Pick<RunState, 'city' | 'villages'>): Garrison {
   const weekly: Garrison = {};
   for (const tier of BARRACKS_TIERS.slice(0, run.city.barracksTier)) weekly[tier.unitId] = (weekly[tier.unitId] ?? 0) + tier.weekly;
+  const militia = villageMilitiaPerWeek(run);
+  if (militia > 0) weekly[VILLAGE.militiaUnit] = (weekly[VILLAGE.militiaUnit] ?? 0) + militia;
   return weekly;
 }
 
 /** The garrison never holds more than GARRISON.capWeeks weeks of any unit type. */
-export function garrisonCap(run: Pick<RunState, 'city'>): Garrison {
+export function garrisonCap(run: Pick<RunState, 'city' | 'villages'>): Garrison {
   const cap: Garrison = {};
   for (const [unitId, weekly] of Object.entries(weeklyGarrison(run)) as [UnitId, number][]) cap[unitId] = weekly * GARRISON.capWeeks;
   return cap;

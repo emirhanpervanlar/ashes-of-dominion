@@ -32,6 +32,7 @@ import {
 import { actionProblem } from './actionValidation.js';
 import { garrisonUnits, growGarrison, isGarrisonDay } from './garrison.js';
 import { foodMarketQuote } from './marketplace.js';
+import { villageOffer } from './villages.js';
 import { THREAT_PER_CITY_VISIT, TOTAL_CHAPTERS, nextCityVisitRaisesThreat } from './chapters.js';
 import { generateBattleEncounter, generateBossEncounter } from './encounters.js';
 import {
@@ -149,6 +150,9 @@ function fromVersion2(run: RunState): RunState {
     city: { ...run.city, barracksTier, buildings: barracksTier > 0 && !run.city.buildings.includes('barracks') ? [...run.city.buildings, 'barracks'] : run.city.buildings },
     garrison: run.garrison ?? {},
     foodPurchases: run.foodPurchases ?? 0,
+    villages: run.villages ?? 0,
+    pendingVillage: run.pendingVillage ?? null,
+    stats: { ...createRunStats(), ...run.stats },
     // A run that already carries Threat has used its free visit; a run without any is treated as not having visited yet.
     cityVisitsThisChapter: run.cityVisitsThisChapter ?? (run.threat > 0 ? 1 : 0),
   };
@@ -267,6 +271,7 @@ export function createRun(seed: number, heroId: HeroId = 'warlord', heroName?: s
     city: createInitialCityState(),
     garrison: {},
     foodPurchases: 0,
+    villages: 0,
     chapter: 1,
     threat: 0,
     cityVisitsThisChapter: 0,
@@ -279,6 +284,7 @@ export function createRun(seed: number, heroId: HeroId = 'warlord', heroName?: s
     pendingEvent: null,
     pendingUnitChoice: null,
     pendingMerchant: null,
+    pendingVillage: null,
     log: [{ type: 'RUN_STARTED' }],
   };
   grantRelic(run, relic, []);
@@ -454,6 +460,10 @@ function moveTo(run: RunState, nodeId: string, events: RunEvent[]): RunApplyResu
     }
     case 'resource':
       resolveResourceNode(run, events);
+      break;
+    case 'village':
+      run.pendingVillage = villageOffer(run.chapter);
+      run.phase = 'village';
       break;
     case 'merchant':
       run.pendingMerchant = generateMerchantInventory(run.rng, run.relics);
@@ -1004,6 +1014,32 @@ function buyRelic(run: RunState, relicId: string, events: RunEvent[]): RunApplyR
   return { run, events };
 }
 
+/** AO-D072: Raid = immediate loot and Threat; Help = a small gift and a permanent village (Food every day, militia every week). */
+function resolveVillage(run: RunState, choice: 'raid' | 'help', events: RunEvent[]): RunApplyResult {
+  const offer = run.pendingVillage;
+  if (run.phase !== 'village' || !offer) {
+    reject(events, 'No village to decide on.');
+    return { run, events };
+  }
+  if (choice === 'raid') {
+    changeGold(run, offer.raid.gold);
+    changeFood(run, offer.raid.food);
+    run.stats.villagesRaided += 1;
+    events.push({ type: 'VILLAGE_RAIDED', gold: offer.raid.gold, food: offer.raid.food });
+    run.threat += offer.raid.threat;
+    events.push({ type: 'THREAT_CHANGED', threat: run.threat, delta: offer.raid.threat });
+  } else {
+    changeGold(run, offer.help.gold);
+    changeFood(run, offer.help.food);
+    run.villages += 1;
+    run.stats.villagesHelped += 1;
+    events.push({ type: 'VILLAGE_HELPED', gold: offer.help.gold, food: offer.help.food, villages: run.villages });
+  }
+  run.pendingVillage = null;
+  run.phase = 'on_map';
+  return { run, events };
+}
+
 function leaveMerchant(run: RunState, events: RunEvent[]): RunApplyResult {
   if (run.phase !== 'merchant') {
     reject(events, 'Not at a merchant.');
@@ -1335,6 +1371,10 @@ function dispatchAction(working: RunState, action: RunAction, events: RunEvent[]
       return collectGarrison(working, action.unitId, events);
     case 'BUY_FOOD':
       return buyFood(working, action.packs, events);
+    case 'RAID_VILLAGE':
+      return resolveVillage(working, 'raid', events);
+    case 'HELP_VILLAGE':
+      return resolveVillage(working, 'help', events);
     case 'UPGRADE_CITY':
       return upgradeCity(working, events);
     case 'CHOOSE_DOCTRINE':

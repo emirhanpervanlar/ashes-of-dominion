@@ -3,6 +3,7 @@ import { ceilSafe, floorSafe, roundSafe } from '../floatSafe.js';
 import { nextInt, type RngState } from '../rng.js';
 import type { ArmyStack, UnitId } from '../types.js';
 import { FARM_TIERS, STABLE_FOOD_DISCOUNT, type CityState } from './city.js';
+import { villageDailyFood } from './villages.js';
 import type { RunState, UnitCount } from './types.js';
 
 export function totalArmyCount(army: ArmyStack[]): number {
@@ -29,25 +30,25 @@ export function dailyUpkeep(run: Pick<RunState, 'army' | 'city'>): number {
   return moveFoodCost(run.army, run.city);
 }
 
-/** Food the Farm produces each day (AO-D048); 0 without one. */
-export function dailyProduction(run: Pick<RunState, 'city'>): number {
+/** Food produced each day: the Farm (AO-D048, 0 without one) plus every helped village (AO-D072). */
+export function dailyProduction(run: Pick<RunState, 'city' | 'villages'>): number {
   const tier = run.city.farmTier;
-  return tier > 0 ? FARM_TIERS[tier - 1]!.food : 0;
+  return (tier > 0 ? FARM_TIERS[tier - 1]!.food : 0) + villageDailyFood(run);
 }
 
 /** Production minus upkeep; negative means the stockpile shrinks every day. */
-export function dailyFoodNet(run: Pick<RunState, 'army' | 'city'>): number {
+export function dailyFoodNet(run: Pick<RunState, 'army' | 'city' | 'villages'>): number {
   return dailyProduction(run) - dailyUpkeep(run);
 }
 
 /** Full days the army can still march before starving (Infinity when the net is not negative). */
-export function foodDaysLeft(run: Pick<RunState, 'army' | 'city' | 'food'>): number {
+export function foodDaysLeft(run: Pick<RunState, 'army' | 'city' | 'food' | 'villages'>): number {
   const net = dailyFoodNet(run);
   return net >= 0 ? Infinity : Math.floor(run.food / -net);
 }
 
 /** True while the army is already starving, or when Food will run out (starvation on a move) within FOOD_WARNING_DAYS days at the current net. */
-export function foodWarning(run: Pick<RunState, 'army' | 'city' | 'food' | 'starvationDays'>): boolean {
+export function foodWarning(run: Pick<RunState, 'army' | 'city' | 'food' | 'starvationDays' | 'villages'>): boolean {
   return run.starvationDays > 0 || foodDaysLeft(run) < FOOD_WARNING_DAYS;
 }
 
@@ -99,7 +100,7 @@ export interface StarvationForecast {
 }
 
 /** What starvation would do if the next day starves; for the UI warning. */
-export function starvationForecast(run: Pick<RunState, 'army' | 'city' | 'food' | 'starvationDays'>): StarvationForecast {
+export function starvationForecast(run: Pick<RunState, 'army' | 'city' | 'food' | 'starvationDays' | 'villages'>): StarvationForecast {
   const need = dailyUpkeep(run);
   const deficit = Math.max(0, need - (run.food + dailyProduction(run)));
   const shortageRatio = need > 0 ? deficit / need : 0;
