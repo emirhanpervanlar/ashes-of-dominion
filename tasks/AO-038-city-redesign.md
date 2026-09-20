@@ -29,3 +29,6 @@ src/engine/** (report gaps), changing building rules or numbers.
 
 ## Acceptance criteria
 tsc clean, vitest green (tests for pure helpers such as the effects list builder and recruit total calculation). Browser (puppeteer-core, dev server port 5206, never 5173/4173, inject state BEFORE load): city at level 1 with few buildings and at a rich late state; open every building panel; recruit with steppers (gold/food change, army merge and full-army cases); build and upgrade Mage Tower and Farm; choose a doctrine; card removal from Town Hall; active effects list; measurements of the bar at 1280/1366/1600. Screenshots looked at, no console errors.
+
+## Status
+- 2026-09-20 ACCEPTED (539 tests, screenshots reviewed). Engine gaps: Market 0.85, Stable discount, Economic doctrine +30%, Training Hall +2 Mana are hard-coded (not exported); no doctrine/building sprites yet; DESIGN_LANGUAGE section 9 City row names old classes.
