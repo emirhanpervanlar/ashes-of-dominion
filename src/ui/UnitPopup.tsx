@@ -115,7 +115,7 @@ export function UnitPopup({ stack, army, onClose, inBattle, onSplit, onMerge, on
                     onClose();
                   }}
                 >
-                  {confirmDismiss ? `Confirm: release ${dismissAmount}` : 'Dismiss'}
+                  {confirmDismiss ? 'Sure?' : 'Dismiss'}
                 </button>
                 {maxDismiss === stack.count && stack.count > 1 && (
                   <button className="btn" onClick={() => setDismissCount(stack.count)}>

@@ -56,7 +56,9 @@ export function FoodPopup({ run, onClose }: Props) {
             <span>{net > 0 ? `+${net}` : net}</span>
           </div>
         </div>
-        <p className="subtitle">{daysLeft === Infinity ? 'Your Food supply is stable.' : `Food lasts ${daysLeft} more ${daysLeft === 1 ? 'day' : 'days'}.`}</p>
+        {daysLeft > 0 && (
+          <p className="subtitle">{daysLeft === Infinity ? 'Your Food supply is stable.' : `Food lasts ${daysLeft} more ${daysLeft === 1 ? 'day' : 'days'}.`}</p>
+        )}
         <p className="subtitle">Every day of marching costs the upkeep; the Farm is added first. Unfed armies starve.</p>
         {(forecast.willStarve || forecast.consecutiveDays > 0) && (
           <div className="food-popup-warn">

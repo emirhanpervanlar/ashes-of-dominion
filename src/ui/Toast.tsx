@@ -6,6 +6,8 @@ export interface ToastItem {
   id: number;
   icon: IconName;
   text: string;
+  /** Milliseconds on screen; long outcome texts stay longer. */
+  ms?: number;
 }
 
 interface StackProps {
@@ -25,7 +27,7 @@ export function ToastStack({ toasts, onDismiss }: StackProps) {
 
 function ToastRow({ toast, onDismiss }: { toast: ToastItem; onDismiss: (id: number) => void }) {
   useEffect(() => {
-    const timer = setTimeout(() => onDismiss(toast.id), 3200);
+    const timer = setTimeout(() => onDismiss(toast.id), toast.ms ?? 3200);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [toast.id]);

@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { Position } from '../engine/index.js';
-import { CITY_VISIT_WARNING, THREAT_PER_CITY_VISIT, bossWarning, dailyFoodNet, enemyStrengthAfterCityVisits, foodDaysLeft, foodWarning, starvationForecast } from '../engine/run/index.js';
+import { CITY_VISIT_WARNING, THREAT_PER_CITY_VISIT, bossWarning, dailyFoodNet, daysUntilBoss, enemyStrengthAfterCityVisits, foodDaysLeft, foodWarning, starvationForecast } from '../engine/run/index.js';
 import type { MapNode, RunState } from '../engine/run/index.js';
 import { GarrisonBar } from './GarrisonBar.js';
 import { StarvationLines } from './FoodPopup.js';
@@ -64,7 +64,7 @@ export function WorldMapScreen({ run, onMoveTo, onEnterCity, onOpenMenu, onSplit
         {bannerOpen && (
           <div className="boss-banner" onClick={() => setBannerOpen(false)}>
             <Icon name="node_boss" size={2} />
-            <span>The boss draws near: {run.chapter === 3 ? 'the final battle' : 'the chapter boss'} awaits at the end of the road.</span>
+            <span>The boss draws near: {daysUntilBoss(run)} {daysUntilBoss(run) === 1 ? 'day' : 'days'} left.</span>
           </div>
         )}
 

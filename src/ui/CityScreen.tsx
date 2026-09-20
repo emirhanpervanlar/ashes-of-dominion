@@ -291,11 +291,11 @@ function FarmUpgrade({ tier, gold, onUpgrade }: { tier: number; gold: number; on
   return (
     <>
       <p className="mage-tower-tier">
-        Tier {ROMAN[tier - 1]} — +{FARM_TIERS[tier - 1]!.food} Food per day
+        Tier {ROMAN[tier - 1]}: +{FARM_TIERS[tier - 1]!.food} Food per day
       </p>
       {next ? (
         <button className="btn" disabled={gold < next.cost} onClick={onUpgrade}>
-          Upgrade to Tier {ROMAN[tier]} (+{next.food} Food per day) - {next.cost} Gold
+          Upgrade to Tier {ROMAN[tier]} - {next.cost} Gold
         </button>
       ) : (
         <p className="subtitle">Max tier</p>

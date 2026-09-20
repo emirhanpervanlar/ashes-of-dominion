@@ -8,6 +8,7 @@ import { cardVisual } from './cardVisuals.js';
 import { Icon } from './pixel/Icon.js';
 import { UnitArt } from './UnitArt.js';
 import { UnitPopup } from './UnitPopup.js';
+import { unitCountText } from './runEventText.js';
 import { UNIT_DESCRIPTIONS } from './unitText.js';
 
 interface Props {
@@ -59,6 +60,9 @@ export function EventScreen({ view, deck, army, newcomer, resolved, onChoose, on
         <>
           <div className="modal-backdrop" />
           <div className="popup panel panel--stone step-8 card-removal-popup">
+            <button className="btn modal-close" onClick={onCancelChoice} title="Cancel">
+              <Icon name="ui_close" />
+            </button>
             <h3>{CARD_ACTION_TITLES[choice.action]}</h3>
             <div className="card-removal-grid">
               {choice.instanceIds.map((instanceId) => {
@@ -77,11 +81,6 @@ export function EventScreen({ view, deck, army, newcomer, resolved, onChoose, on
                   </div>
                 );
               })}
-            </div>
-            <div className="toolbar">
-              <button className="btn" onClick={onCancelChoice}>
-                Cancel
-              </button>
             </div>
           </div>
         </>
@@ -121,7 +120,7 @@ export function EventScreen({ view, deck, army, newcomer, resolved, onChoose, on
             <h3>Your army is full</h3>
             {resolved && <p className="subtitle">{resolved.text}</p>}
             <p className="subtitle">
-              {newcomer.count} {UNIT_DEFINITIONS[newcomer.unitId].name} want to join, but an army holds 6 unit types. Dismiss any unit, or turn the newcomers away.
+              {unitCountText(newcomer.unitId, newcomer.count)} want to join, but an army holds 6 unit types. Dismiss any unit, or turn the newcomers away.
             </p>
             <div className="unit-gain-row">
               {gainArmy.map((stack) => (

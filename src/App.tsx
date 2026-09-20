@@ -69,6 +69,12 @@ function loadInitialRun(): RunState {
   return createRun(Date.now() & 0xffffffff);
 }
 
+/** The Gold and Food of the most recent battle's loot, or null when there was none. */
+function lastLoot(log: RunEvent[]): { gold: number; food: number } | null {
+  const loot = [...log].reverse().find((e): e is Extract<RunEvent, { type: 'BATTLE_LOOT' }> => e.type === 'BATTLE_LOOT');
+  return loot ? { gold: loot.gold, food: loot.food } : null;
+}
+
 function stackAt(army: ArmyStack[], position: Position): ArmyStack | undefined {
   return army.find((s) => s.position === position);
 }
@@ -209,8 +215,8 @@ export default function App() {
     return result;
   }
 
-  function pushToast(icon: IconName, text: string) {
-    setToasts((t) => [...t, { id: nextToastId.current++, icon, text }]);
+  function pushToast(icon: IconName, text: string, ms?: number) {
+    setToasts((t) => [...t, { id: nextToastId.current++, icon, text, ms }]);
   }
 
   function dismissToast(id: number) {
@@ -229,10 +235,10 @@ export default function App() {
           pushToast('gold', text ?? 'Loot');
           break;
         case 'EVENT_RESOLVED':
-          pushToast('fx_sparkle', text ?? 'Nothing happened.');
+          pushToast('fx_sparkle', text ?? 'Nothing happened.', 8000);
           break;
         case 'STARVED':
-          pushToast('fx_skull', text ?? 'The army starved.');
+          pushToast('fx_skull', text ?? 'The army starved.', 6000);
           break;
         case 'UNITS_LOST':
           pushToast('fx_skull', text ?? 'Units lost.');
@@ -680,6 +686,9 @@ export default function App() {
         {gameChrome}
         <RewardScreen
           reward={run.pendingReward}
+          loot={lastLoot(run.log)}
+          isBoss={run.bossBattle}
+          onClaimRelic={(relicId) => dispatchRun({ type: 'CLAIM_RELIC', relicId })}
           onClaimCard={(cardId) => dispatchRun({ type: 'CLAIM_CARD', cardId })}
           onClaimUpgrade={(instanceId) => dispatchRun({ type: 'CLAIM_UPGRADE', instanceId })}
           deck={run.masterDeck}
