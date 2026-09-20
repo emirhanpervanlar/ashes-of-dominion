@@ -8,6 +8,11 @@ export function statusAmount(stack: ArmyStack, type: StatusType): number {
   return stack.statuses.filter((s) => s.type === type).reduce((sum, s) => sum + s.amount, 0);
 }
 
+/** AO-D066: a Frozen stack (or one locked by a "cannot attack" flag) does not act, on either side. */
+export function cannotAct(stack: ArmyStack): boolean {
+  return !!stack.flags.cannotAttack || statusAmount(stack, 'freeze') > 0;
+}
+
 /** v3 §9 — Morale 0-100, starts at 100. PROTOTYPE curve: x0.7 at 0 morale up to x1.0 at 100. */
 export function moraleDamageMultiplier(morale: number): number {
   const clamped = Math.max(0, Math.min(100, morale));
@@ -33,9 +38,12 @@ export function fearDamageMultiplier(attacker: ArmyStack): number {
   return 1 - Math.min(FEAR_MAX_PERCENT, statusAmount(attacker, 'fear')) / 100;
 }
 
-/** Armor status — flat per-attack damage reduction, applied like extra Defense. */
+/** Armor from different sources adds up but never counts for more than this many Defense points. */
+export const ARMOR_MAX = 8;
+
+/** Armor status — flat per-attack damage reduction, applied like extra Defense (capped at ARMOR_MAX; negative armor is not capped). */
 export function armorReduction(target: ArmyStack): number {
-  return statusAmount(target, 'armor');
+  return Math.min(ARMOR_MAX, statusAmount(target, 'armor'));
 }
 
 export function relicDamageTakenMultiplier(relics: RelicEffect[]): number {

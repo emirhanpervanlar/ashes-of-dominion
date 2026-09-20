@@ -7,12 +7,12 @@ import {
   applyDamageToStack,
   applyHealToStack,
   armorReduction,
+  cannotAct,
   computeHealAmount,
   computeRawDamage,
   fearDamageMultiplier,
   moraleDamageMultiplier,
   moraleDefenseMultiplier,
-  necromancyRatio,
   passiveDamageBonusMultiplier,
   passiveDefenseBonus,
   relicDamageMultiplier,
@@ -24,6 +24,7 @@ import {
   statusAmount,
   veterancyDamageMultiplier,
 } from './damage.js';
+import { HERO_ATTACKER_ID, heroSpellDamage } from './heroSpells.js';
 import { computeValidHealTargets, computeValidTargets, isBlockedByFrontAlly, laneOf } from './targeting.js';
 import { generateEnemyIntents } from './intents.js';
 import { shuffle } from './rng.js';
@@ -39,13 +40,42 @@ import type {
   EnemyStep,
   EnemyStepHit,
   Hero,
+  HeroCastStat,
   PlayerAction,
   Position,
   RelicEffect,
   StackSnapshot,
+  StatusEffect,
   StatusType,
   UnitDefinition,
 } from './types.js';
+
+/** Buffs that refresh (rather than add a second copy) when the same card applies them again to a stack. */
+const REFRESHED_BUFFS: StatusType[] = ['armor', 'strength'];
+
+/** Adds a status to a stack; a repeat of the same buff from the same card only refreshes the entry's duration (and keeps the larger amount). */
+function withStatus(stack: ArmyStack, status: StatusEffect, sourceId: string): ArmyStack {
+  if (REFRESHED_BUFFS.includes(status.type)) {
+    const idx = stack.statuses.findIndex((s) => s.type === status.type && s.sourceId === sourceId);
+    if (idx >= 0) {
+      const statuses = stack.statuses.map((s, i) => (i === idx ? { ...s, amount: Math.max(s.amount, status.amount), duration: Math.max(s.duration, status.duration) } : s));
+      return { ...stack, statuses };
+    }
+  }
+  return { ...stack, statuses: [...stack.statuses, { ...status, sourceId }] };
+}
+
+/** What a hero-cast card carries into its effects: the scaling stat and the tags relics match on. */
+interface HeroCast {
+  stat: HeroCastStat;
+  tags: string[];
+}
+
+/** The card being resolved: its id (status source) and, for hero-cast cards, the spell context. */
+interface EffectContext {
+  cardId: string;
+  cast?: HeroCast;
+}
 
 type TargetedAction = { actingStackId?: string; targetStackId?: string; secondTargetStackId?: string; toPosition?: Position };
 
@@ -78,6 +108,19 @@ function checkBattleResult(state: CombatState): 'ongoing' | 'victory' | 'defeat'
   return 'ongoing';
 }
 
+/**
+ * AO-D067: killing the last enemy does not end the battle: the player keeps acting (cards, heals) until END_TURN,
+ * which then resolves the win with no enemy turn. Only the player's own wipe ends it at once.
+ */
+function settleAfterPlayerAction(state: CombatState, events: CombatEvent[]): void {
+  state.enemiesCleared = !state.enemyArmy.some((s) => s.count > 0);
+  if (checkBattleResult(state) === 'defeat') {
+    state.result = 'defeat';
+    state.phase = 'ended';
+    events.push({ type: 'BATTLE_ENDED', result: 'defeat' });
+  }
+}
+
 function drawCards(state: CombatState, amount: number, events: CombatEvent[]): void {
   for (let i = 0; i < amount; i++) {
     if (state.hand.length >= MAX_HAND) return;
@@ -92,11 +135,6 @@ function drawCards(state: CombatState, amount: number, events: CombatEvent[]): v
     state.hand.push(card);
     events.push({ type: 'CARD_DRAWN', instanceId: card.instanceId, cardId: card.cardId });
   }
-}
-
-function raiseSkeletons(_army: ArmyStack[], _count: number, _events: CombatEvent[]): void {
-  // Necromancy relics are not part of the v3 MVP roster (no Skeleton unit) — kept as a
-  // documented no-op so old NECROMANCY relic effects don't crash if one is still active.
 }
 
 /**
@@ -173,7 +211,10 @@ function resolveAttack(
   const passiveMult = passiveDamageBonusMultiplier(attacker, attackerDef, actualTarget.side, army, actualTarget);
   const heroEffectiveness = attacker.side === 'player' ? statEffectiveness(state.hero.stats[damageStatFor(attackerDef.tags)]) : 1;
 
-  const nextAttackBonus = attacker.flags.nextAttackDamageBonusPercent ? 1 + attacker.flags.nextAttackDamageBonusPercent / 100 : 1;
+  // Focus Fire: the first friendly attack of the player's turn consumes the army-wide bonus (counterattacks on the enemy turn do not).
+  const armyBonusPercent = attacker.side === 'player' && state.phase === 'player' ? state.nextFriendlyAttackBonusPercent : 0;
+  if (armyBonusPercent > 0) state.nextFriendlyAttackBonusPercent = 0;
+  const nextAttackBonus = (attacker.flags.nextAttackDamageBonusPercent ? 1 + attacker.flags.nextAttackDamageBonusPercent / 100 : 1) * (1 + armyBonusPercent / 100);
   const ignoresArmor = !!attacker.flags.nextAttackIgnoresArmor;
 
   let execMult = 1;
@@ -222,11 +263,6 @@ function resolveAttack(
   });
   if (resolution.unitsKilled > 0) {
     events.push({ type: 'UNITS_KILLED', stackId: actualTarget.stackId, count: resolution.unitsKilled });
-    if (actualTarget.side === 'player') {
-      const ratio = necromancyRatio(relics);
-      const raised = Math.floor(resolution.unitsKilled * ratio);
-      if (raised > 0) raiseSkeletons(army, raised, events);
-    }
   }
   if (resolution.stack.count === 0) {
     events.push({ type: 'STACK_DESTROYED', stackId: actualTarget.stackId });
@@ -311,13 +347,52 @@ function adjacentAllies(army: ArmyStack[], stack: ArmyStack): ArmyStack[] {
   return army.filter((s) => s.count > 0 && s.stackId !== stack.stackId && s.position <= 3 && Math.abs(s.position - stack.position) === 1);
 }
 
-function executeEffect(state: CombatState, effect: CardEffect, action: TargetedAction, events: CombatEvent[]): void {
+/** The living stacks in the same row directly left and right of `stack` (Fireball splash). */
+function adjacentInRow(army: ArmyStack[], stack: ArmyStack): ArmyStack[] {
+  return army.filter((s) => s.count > 0 && s.stackId !== stack.stackId && (s.position <= 3) === (stack.position <= 3) && Math.abs(s.position - stack.position) === 1);
+}
+
+/** AO-D064: one hero-cast hit on an enemy stack; independent of every friendly stack, scaled by the hero's stat. */
+function resolveHeroSpell(
+  state: CombatState,
+  cast: HeroCast,
+  target: ArmyStack,
+  multiplier: number,
+  events: CombatEvent[],
+  conditionalBonus?: { targetHpBelowPercent: number; multiplier: number }
+): void {
+  const targetDef = UNIT_DEFINITIONS[target.unitId];
+  const execMult = conditionalBonus && target.maxHp > 0 && (target.currentHp / target.maxHp) * 100 < conditionalBonus.targetHpBelowPercent ? conditionalBonus.multiplier : 1;
+  const relicMult = relicDamageMultiplier(state.activeRelicEffects, Number.POSITIVE_INFINITY, cast.tags);
+  const incomingReduction = target.flags.incomingDamageReductionPercent ? 1 - target.flags.incomingDamageReductionPercent / 100 : 1;
+  const targetDefense = (targetDef.defense + passiveDefenseBonus(target, targetDef, state.enemyArmy) + armorReduction(target)) / moraleDefenseMultiplier(target.morale);
+  const raw = heroSpellDamage({ stat: state.hero.stats[cast.stat], multiplier: multiplier * execMult * relicMult * incomingReduction, targetDefense });
+  const resolution = applyDamageToStack(target, targetDef.hpPerUnit, raw);
+  replaceStack(state.enemyArmy, resolution.stack);
+  events.push({
+    type: 'STACK_ATTACKED',
+    attackerStackId: HERO_ATTACKER_ID,
+    targetStackId: target.stackId,
+    rawDamage: raw,
+    finalDamage: resolution.finalDamage,
+    blocked: resolution.blocked,
+    unitsKilled: resolution.unitsKilled,
+    countAfter: resolution.stack.count,
+  });
+  if (resolution.unitsKilled > 0) events.push({ type: 'UNITS_KILLED', stackId: target.stackId, count: resolution.unitsKilled });
+  if (resolution.stack.count === 0) events.push({ type: 'STACK_DESTROYED', stackId: target.stackId });
+}
+
+function executeEffect(state: CombatState, effect: CardEffect, action: TargetedAction, events: CombatEvent[], { cardId, cast }: EffectContext): void {
   const actor = findStack(state.playerArmy, action.actingStackId);
+  /** One damaging hit: the hero's spell for hero-cast cards, otherwise the acting stack's attack. */
+  const strike = (target: ArmyStack, multiplier: number, conditionalBonus?: { targetHpBelowPercent: number; multiplier: number }): void => {
+    if (cast) resolveHeroSpell(state, cast, target, multiplier, events, conditionalBonus);
+    else resolveAttack(state, actor!, target, state.enemyArmy, multiplier, events, state.activeRelicEffects, conditionalBonus);
+  };
   switch (effect.kind) {
     case 'ATTACK': {
-      const attacker = actor!;
-      const target = findStack(state.enemyArmy, action.targetStackId)!;
-      resolveAttack(state, attacker, target, state.enemyArmy, effect.multiplier, events, state.activeRelicEffects, effect.conditionalBonus);
+      strike(findStack(state.enemyArmy, action.targetStackId)!, effect.multiplier, effect.conditionalBonus);
       return;
     }
     case 'ATTACK_ALL_WITH_TAG': {
@@ -330,12 +405,11 @@ function executeEffect(state: CombatState, effect: CardEffect, action: TargetedA
       return;
     }
     case 'ATTACK_SPLASH': {
-      const attacker = actor!;
       const primary = findStack(state.enemyArmy, action.targetStackId)!;
-      resolveAttack(state, attacker, primary, state.enemyArmy, effect.primaryMultiplier, events, state.activeRelicEffects);
-      const others = state.enemyArmy.filter((s) => s.count > 0 && s.stackId !== primary.stackId).slice(0, effect.maxSecondaryTargets);
-      for (const other of others) {
-        resolveAttack(state, attacker, other, state.enemyArmy, effect.secondaryMultiplier, events, state.activeRelicEffects);
+      strike(primary, effect.primaryMultiplier);
+      // Neighbours are picked by position, so a destroyed primary still splashes.
+      for (const other of adjacentInRow(state.enemyArmy, primary).slice(0, effect.maxSecondaryTargets)) {
+        strike(other, effect.secondaryMultiplier);
       }
       return;
     }
@@ -350,38 +424,33 @@ function executeEffect(state: CombatState, effect: CardEffect, action: TargetedA
       return;
     }
     case 'ATTACK_TWICE': {
-      const attacker = actor!;
-      const target0 = findStack(state.enemyArmy, action.targetStackId)!;
-      resolveAttack(state, attacker, target0, state.enemyArmy, effect.firstMultiplier, events, state.activeRelicEffects);
+      strike(findStack(state.enemyArmy, action.targetStackId)!, effect.firstMultiplier);
       const target1 = findStack(state.enemyArmy, action.targetStackId);
-      if (target1) resolveAttack(state, attacker, target1, state.enemyArmy, effect.secondMultiplier, events, state.activeRelicEffects);
+      if (target1) strike(target1, effect.secondMultiplier);
       return;
     }
     case 'DAMAGE_UP_TO_N_ENEMIES': {
-      const attacker = actor!;
       const targets = state.enemyArmy.filter((s) => s.count > 0).slice(0, effect.maxTargets);
       for (const target of targets) {
         const live = findStack(state.enemyArmy, target.stackId);
-        if (live) resolveAttack(state, attacker, live, state.enemyArmy, effect.multiplier, events, state.activeRelicEffects);
+        if (live) strike(live, effect.multiplier);
       }
       return;
     }
     case 'DAMAGE_ALL_ENEMIES': {
-      const attacker = actor!;
       const targets = state.enemyArmy.filter((s) => s.count > 0);
       targets.forEach((target, i) => {
         const live = findStack(state.enemyArmy, target.stackId);
-        if (live) resolveAttack(state, attacker, live, state.enemyArmy, i === 0 ? effect.multiplier + effect.primaryBonusMultiplier : effect.multiplier, events, state.activeRelicEffects);
+        if (live) strike(live, i === 0 ? effect.multiplier + effect.primaryBonusMultiplier : effect.multiplier);
       });
       return;
     }
     case 'CHAIN_DAMAGE': {
-      const attacker = actor!;
       const primary = findStack(state.enemyArmy, action.targetStackId)!;
-      resolveAttack(state, attacker, primary, state.enemyArmy, effect.primaryMultiplier, events, state.activeRelicEffects);
+      strike(primary, effect.primaryMultiplier);
       const others = state.enemyArmy.filter((s) => s.count > 0 && s.stackId !== primary.stackId).slice(0, effect.maxSecondaryTargets);
       for (const other of others) {
-        resolveAttack(state, attacker, other, state.enemyArmy, effect.secondaryMultiplier, events, state.activeRelicEffects);
+        strike(other, effect.secondaryMultiplier);
       }
       return;
     }
@@ -409,8 +478,7 @@ function executeEffect(state: CombatState, effect: CardEffect, action: TargetedA
           effect.stat === 'defense'
             ? defenseBuffAmount(stack.unitId, effect.amount)
             : Math.round((UNIT_DEFINITIONS[stack.unitId].attack * effect.amount) / 100);
-        const updated = { ...stack, statuses: [...stack.statuses, { type: statusType, amount, duration: effect.duration }] };
-        replaceStack(state.playerArmy, updated);
+        replaceStack(state.playerArmy, withStatus(stack, { type: statusType, amount, duration: effect.duration }, cardId));
         events.push({ type: 'STATUS_APPLIED', stackId: stack.stackId, status: statusType, amount, duration: effect.duration });
       }
       return;
@@ -419,20 +487,16 @@ function executeEffect(state: CombatState, effect: CardEffect, action: TargetedA
       for (const stack of state.playerArmy) {
         if (stack.count > 0 && stack.position <= 3) {
           const amount = defenseBuffAmount(stack.unitId, effect.amount);
-          const updated = { ...stack, statuses: [...stack.statuses, { type: 'armor' as const, amount, duration: effect.duration }] };
-          replaceStack(state.playerArmy, updated);
+          replaceStack(state.playerArmy, withStatus(stack, { type: 'armor', amount, duration: effect.duration }, cardId));
           events.push({ type: 'STATUS_APPLIED', stackId: stack.stackId, status: 'armor', amount, duration: effect.duration });
         }
       }
       return;
     }
-    case 'DEFENSE_BUFF_ADJACENT_THREE': {
-      const source = findStack(state.playerArmy, action.actingStackId)!;
-      const affected = [source, ...adjacentAllies(state.playerArmy, source)].slice(0, 3);
-      for (const stack of affected) {
+    case 'DEFENSE_BUFF_ALL': {
+      for (const stack of state.playerArmy.filter((s) => s.count > 0)) {
         const amount = defenseBuffAmount(stack.unitId, effect.amount);
-        const updated = { ...stack, statuses: [...stack.statuses, { type: 'armor' as const, amount, duration: effect.duration }] };
-        replaceStack(state.playerArmy, updated);
+        replaceStack(state.playerArmy, withStatus(stack, { type: 'armor', amount, duration: effect.duration }, cardId));
         events.push({ type: 'STATUS_APPLIED', stackId: stack.stackId, status: 'armor', amount, duration: effect.duration });
       }
       return;
@@ -441,28 +505,22 @@ function executeEffect(state: CombatState, effect: CardEffect, action: TargetedA
       for (const stack of state.playerArmy) {
         if (stack.count > 0 && UNIT_DEFINITIONS[stack.unitId].tags.includes(effect.tag)) {
           const amount = Math.round((UNIT_DEFINITIONS[stack.unitId].attack * effect.amount) / 100);
-          const updated = { ...stack, statuses: [...stack.statuses, { type: 'strength' as const, amount, duration: effect.duration }] };
-          replaceStack(state.playerArmy, updated);
+          replaceStack(state.playerArmy, withStatus(stack, { type: 'strength', amount, duration: effect.duration }, cardId));
           events.push({ type: 'STATUS_APPLIED', stackId: stack.stackId, status: 'strength', amount, duration: effect.duration });
         }
       }
       return;
     }
     case 'DAMAGE_AND_DEFENSE_BUFF': {
-      const target = findStack(state.playerArmy, action.targetStackId ?? action.actingStackId)!;
-      const dmgAmount = Math.round((UNIT_DEFINITIONS[target.unitId].attack * effect.damageAmount) / 100);
-      const defAmount = defenseBuffAmount(target.unitId, effect.defenseAmount);
-      const updated = {
-        ...target,
-        statuses: [
-          ...target.statuses,
-          { type: 'strength' as const, amount: dmgAmount, duration: effect.duration },
-          { type: 'armor' as const, amount: defAmount, duration: effect.duration },
-        ],
-      };
-      replaceStack(state.playerArmy, updated);
-      events.push({ type: 'STATUS_APPLIED', stackId: target.stackId, status: 'strength', amount: dmgAmount, duration: effect.duration });
-      events.push({ type: 'STATUS_APPLIED', stackId: target.stackId, status: 'armor', amount: defAmount, duration: effect.duration });
+      const targets = effect.scope === 'army' ? state.playerArmy.filter((s) => s.count > 0) : [findStack(state.playerArmy, action.targetStackId ?? action.actingStackId)!];
+      for (const target of targets) {
+        const dmgAmount = Math.round((UNIT_DEFINITIONS[target.unitId].attack * effect.damageAmount) / 100);
+        const defAmount = defenseBuffAmount(target.unitId, effect.defenseAmount);
+        const buffed = withStatus(withStatus(target, { type: 'strength', amount: dmgAmount, duration: effect.duration }, cardId), { type: 'armor', amount: defAmount, duration: effect.duration }, cardId);
+        replaceStack(state.playerArmy, buffed);
+        events.push({ type: 'STATUS_APPLIED', stackId: target.stackId, status: 'strength', amount: dmgAmount, duration: effect.duration });
+        events.push({ type: 'STATUS_APPLIED', stackId: target.stackId, status: 'armor', amount: defAmount, duration: effect.duration });
+      }
       return;
     }
     case 'APPLY_STATUS': {
@@ -470,8 +528,7 @@ function executeEffect(state: CombatState, effect: CardEffect, action: TargetedA
       // An earlier lethal effect of the same card may have removed the target.
       if (!target) return;
       const targetArmy = target.side === 'player' ? state.playerArmy : state.enemyArmy;
-      const updated = { ...target, statuses: [...target.statuses, { type: effect.status, amount: effect.amount, duration: effect.duration }] };
-      replaceStack(targetArmy, updated);
+      replaceStack(targetArmy, withStatus(target, { type: effect.status, amount: effect.amount, duration: effect.duration }, cardId));
       events.push({ type: 'STATUS_APPLIED', stackId: target.stackId, status: effect.status, amount: effect.amount, duration: effect.duration });
       return;
     }
@@ -506,12 +563,6 @@ function executeEffect(state: CombatState, effect: CardEffect, action: TargetedA
       events.push({ type: 'STACK_MOVED', stackId: stack.stackId, fromPosition: from, toPosition: to });
       return;
     }
-    case 'GAIN_MORALE': {
-      const stack = findStack(state.playerArmy, action.actingStackId)!;
-      stack.morale = Math.min(100, stack.morale + effect.amount);
-      events.push({ type: 'MORALE_CHANGED', stackId: stack.stackId, amount: effect.amount });
-      return;
-    }
     case 'GAIN_MORALE_ALL': {
       for (const stack of state.playerArmy) {
         if (stack.count > 0) {
@@ -519,6 +570,10 @@ function executeEffect(state: CombatState, effect: CardEffect, action: TargetedA
           events.push({ type: 'MORALE_CHANGED', stackId: stack.stackId, amount: effect.amount });
         }
       }
+      return;
+    }
+    case 'ARMY_NEXT_ATTACK_BONUS': {
+      state.nextFriendlyAttackBonusPercent += effect.percent;
       return;
     }
     case 'GAIN_MANA': {
@@ -582,6 +637,7 @@ function validateTargeting(state: CombatState, def: { id: string; targeting: Car
     if (!stack) return 'Invalid or dead enemy stack.';
     if (def.targeting === 'ally-stack+enemy-stack') {
       const actor = findStack(state.playerArmy, action.actingStackId)!;
+      if (cannotAct(actor)) return `${UNIT_DEFINITIONS[actor.unitId].name} cannot act this turn.`;
       if (isBlockedByFrontAlly(actor, state.playerArmy)) return `${UNIT_DEFINITIONS[actor.unitId].name} cannot attack while a friendly stack stands in front of it.`;
       const validTargets = computeValidTargets(actor, state.enemyArmy, UNIT_DEFINITIONS[actor.unitId], state.playerArmy);
       if (validTargets.length === 0) return `${UNIT_DEFINITIONS[actor.unitId].name} has no target in reach.`;
@@ -642,6 +698,11 @@ function playCard(state: CombatState, action: Extract<PlayerAction, { type: 'PLA
     return { state, events };
   }
 
+  if (cardDef.cast === 'hero' && !state.enemyArmy.some((s) => s.count > 0)) {
+    reject(events, 'No enemy to target.');
+    return { state, events };
+  }
+
   const targetingError = validateTargeting(state, cardDef, action);
   if (targetingError) {
     reject(events, targetingError);
@@ -660,16 +721,17 @@ function playCard(state: CombatState, action: Extract<PlayerAction, { type: 'PLA
     events.push({ type: 'CARD_DISCARDED', instanceId: instance.instanceId, cardId: instance.cardId });
   }
 
+  const cast: HeroCast | undefined = cardDef.cast === 'hero' ? { stat: cardDef.scalesWith ?? 'intelligence', tags: cardDef.tags } : undefined;
   for (const effect of cardDef.effects) {
-    executeEffect(state, effect, action, events);
+    executeEffect(state, effect, action, events, { cardId: instance.cardId, cast });
   }
+  // A stack frozen by this card no longer acts this round, so its intent disappears from the plan the player sees.
+  state.enemyIntents = state.enemyIntents.filter((intent) => {
+    const stack = findStack(state.enemyArmy, intent.stackId);
+    return !!stack && !cannotAct(stack);
+  });
 
-  const result = checkBattleResult(state);
-  if (result !== 'ongoing') {
-    state.result = result;
-    state.phase = 'ended';
-    events.push({ type: 'BATTLE_ENDED', result });
-  }
+  settleAfterPlayerAction(state, events);
 
   return { state, events };
 }
@@ -685,7 +747,7 @@ function basicAction(state: CombatState, action: Extract<PlayerAction, { type: '
     reject(events, 'That stack has already acted this turn.');
     return { state, events };
   }
-  if (actor.flags.cannotAttack || statusAmount(actor, 'freeze') > 0) {
+  if (cannotAct(actor)) {
     reject(events, 'That stack cannot act this turn.');
     return { state, events };
   }
@@ -725,12 +787,7 @@ function basicAction(state: CombatState, action: Extract<PlayerAction, { type: '
   const stillActor = findStack(state.playerArmy, actor.stackId) ?? actor;
   replaceStack(state.playerArmy, { ...stillActor, actedThisTurn: true });
 
-  const result = checkBattleResult(state);
-  if (result !== 'ongoing') {
-    state.result = result;
-    state.phase = 'ended';
-    events.push({ type: 'BATTLE_ENDED', result });
-  }
+  settleAfterPlayerAction(state, events);
 
   return { state, events };
 }
@@ -790,6 +847,8 @@ function resolveEnemyTurn(state: CombatState, events: CombatEvent[]): EnemyStep[
     // Intents are captured at the start of the player's turn — if the player kills this
     // stack (or its buff target) mid-turn, its stale intent must not still resolve.
     if (!actor || actor.count <= 0) continue;
+    // AO-D066: frozen (or locked) stacks skip their turn, including a plan made before they were frozen.
+    if (cannotAct(actor)) continue;
     const start = events.length;
 
     if (intent.kind === 'buff') {
@@ -841,6 +900,7 @@ function startPlayerTurn(state: CombatState, events: CombatEvent[], isFirstTurn:
     stack.actedThisTurn = false;
   }
 
+  state.enemiesCleared = !state.enemyArmy.some((s) => s.count > 0); // a DoT tick can clear the field at the turn start
   state.enemyIntents = generateEnemyIntents(state);
   events.push({ type: 'INTENTS_GENERATED', intents: state.enemyIntents });
 
@@ -851,6 +911,14 @@ function startPlayerTurn(state: CombatState, events: CombatEvent[], isFirstTurn:
 }
 
 function endPlayerTurn(state: CombatState, events: CombatEvent[]): ApplyResult {
+  if (!state.enemyArmy.some((s) => s.count > 0)) {
+    state.enemiesCleared = true;
+    state.result = 'victory';
+    state.phase = 'ended';
+    events.push({ type: 'BATTLE_ENDED', result: 'victory' });
+    return { state, events };
+  }
+
   const kept: CardInstance[] = [];
   for (const card of state.hand) {
     const def = CARD_DEFINITIONS[card.cardId];
@@ -913,6 +981,8 @@ interface StartBattleParams {
 }
 
 export function startBattle(params: StartBattleParams): ApplyResult {
+  // AO-D065: a battle always opens at full Mana; what the hero had left after the previous battle never carries over.
+  const hero: Hero = { ...params.hero, mana: params.hero.maxMana };
   const events: CombatEvent[] = [{ type: 'BATTLE_STARTED' }];
 
   const state: CombatState = {
@@ -921,13 +991,15 @@ export function startBattle(params: StartBattleParams): ApplyResult {
     turnNumber: 0,
     phase: 'enemy',
     result: 'ongoing',
-    hero: params.hero,
+    hero,
     playerArmy: params.playerArmy.map(clearCombatState),
     enemyArmy: params.enemyArmy,
     deck: shuffle(params.rng, params.deck),
     hand: [],
     discard: [],
     exhausted: [],
+    enemiesCleared: false,
+    nextFriendlyAttackBonusPercent: 0,
     enemyIntents: [],
     activeRelicEffects: params.activeRelicEffects ?? [],
     log: [],

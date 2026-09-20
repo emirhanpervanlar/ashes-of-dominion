@@ -3,6 +3,7 @@ import { CARD_DEFINITIONS } from './data/cards.js';
 import { resolveCard } from './cardUpgrades.js';
 import { UNIT_DEFINITIONS } from './data/units.js';
 import { inactiveCardReason, isCardActive } from './combat.js';
+import { cannotAct } from './damage.js';
 import { computeValidTargets } from './targeting.js';
 import type { CardDefinition, CardEffect, CombatState } from './types.js';
 
@@ -29,12 +30,11 @@ function requirementParts(card: CardDefinition): string[] {
       if (names.length > 0 && !parts.includes(part)) parts.push(part);
     }
   }
-  if (card.targeting === 'ally-stack+enemy-stack') parts.push('an enemy in reach');
   if (card.targeting === 'ally-stack+position') parts.push('a free position');
   return parts;
 }
 
-/** Short player-facing condition text ("Needs a living Knight and an enemy in reach"), or null when the card is unconditional. */
+/** Short player-facing condition text ("Needs a living Knight"), or null when the card is unconditional. */
 export function cardRequirement(cardId: string): string | null {
   const card = CARD_DEFINITIONS[cardId];
   if (!card) return null;
@@ -66,9 +66,10 @@ export function cardPlayability(cardId: string, state: CombatState, upgraded = f
 
   const living = state.playerArmy.filter((s) => s.count > 0);
   const livingEnemies = state.enemyArmy.filter((s) => s.count > 0);
+  if (card.cast === 'hero' && livingEnemies.length === 0) return no('No enemy to target.');
   switch (card.targeting) {
     case 'ally-stack+enemy-stack':
-      if (!living.some((s) => computeValidTargets(s, state.enemyArmy, UNIT_DEFINITIONS[s.unitId], state.playerArmy).length > 0)) {
+      if (!living.some((s) => !cannotAct(s) && computeValidTargets(s, state.enemyArmy, UNIT_DEFINITIONS[s.unitId], state.playerArmy).length > 0)) {
         return no('No stack has an enemy in reach.');
       }
       break;

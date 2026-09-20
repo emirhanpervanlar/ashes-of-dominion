@@ -38,7 +38,7 @@ function meleeCandidates(enemyArmy: ArmyStack[]): ArmyStack[] {
  * AO-D013 (front row while any enemy front stack lives, otherwise the backline); among it the
  * attacker uses those in its own/adjacent lane (AO-D021), and if none is within lane reach the
  * nearest lane's candidates become legal, so a stranded unit is always hittable and can always fight.
- * AO-D033: with `ownArmy`, a back-row melee stack with a living friendly stack directly in front has no targets.
+ * AO-D069: with `ownArmy`, a back-row melee stack with any living friendly stack in the front row has no targets.
  */
 export function computeValidTargets(attacker: ArmyStack, enemyArmy: ArmyStack[], attackerDef?: UnitDefinition, ownArmy?: ArmyStack[]): ArmyStack[] {
   const def = attackerDef ?? UNIT_DEFINITIONS[attacker.unitId];
@@ -51,12 +51,14 @@ export function computeValidTargets(attacker: ArmyStack, enemyArmy: ArmyStack[],
   return candidates.filter((s) => laneDistance(lane, laneOf(s.position)) <= reach);
 }
 
-/** AO-D033 "disciples": a melee unit in the back row cannot attack while a living friendly stack stands directly in front of it. */
+/**
+ * AO-D069 (amends AO-D033): a back-row MELEE stack cannot attack while ANY living friendly stack stands in the front row,
+ * whatever the lane. Ranged units and support/healer units are never blocked (a Priest heals from the back row, itself included).
+ */
 export function isBlockedByFrontAlly(attacker: ArmyStack, ownArmy: ArmyStack[], attackerDef?: UnitDefinition): boolean {
   const def = attackerDef ?? UNIT_DEFINITIONS[attacker.unitId];
-  if (def.rangedAllAccess || isFrontPosition(attacker.position)) return false;
-  const frontPosition = attacker.position - 3;
-  return ownArmy.some((s) => s.count > 0 && s.stackId !== attacker.stackId && s.position === frontPosition);
+  if (def.rangedAllAccess || def.basicAction === 'heal' || def.tags.includes('support') || isFrontPosition(attacker.position)) return false;
+  return ownArmy.some((s) => s.count > 0 && s.stackId !== attacker.stackId && isFrontPosition(s.position));
 }
 
 /** Any living friendly stack is a valid heal target (Priest's basic action). */

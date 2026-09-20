@@ -99,7 +99,7 @@ describe('heroStatRows', () => {
   });
 
   it('derives effects from the engine formulas', () => {
-    const rows = heroStatRows({ ...stats, strength: 20, dexterity: 15, wisdom: 14 }, 3);
+    const rows = heroStatRows({ ...stats, strength: 20, dexterity: 15, wisdom: 18 }, 3);
     expect(rows[0]!.effect).toContain('+20%');
     expect(rows[1]!.effect).toContain('5% Dodge');
     expect(rows[4]!.effect).toContain('Max Mana +2');

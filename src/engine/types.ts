@@ -5,7 +5,7 @@ export type Side = 'player' | 'enemy';
 /** 1-3 = front row, 4-6 = back row (v3 canonical doc §4). */
 export type Position = 1 | 2 | 3 | 4 | 5 | 6;
 
-export type UnitId = 'swordsman' | 'archer' | 'knight' | 'priest' | 'goblin' | 'orc' | 'shaman' | 'wolf';
+export type UnitId = 'swordsman' | 'archer' | 'knight' | 'priest' | 'skeleton' | 'goblin' | 'orc' | 'shaman' | 'wolf';
 
 export type HeroId = 'warlord' | 'rogue' | 'mage';
 
@@ -55,6 +55,8 @@ export interface StatusEffect {
   amount: number;
   /** Turns remaining, ticked down (and DoT/control resolved) at the start of the owning side's turn. */
   duration: number;
+  /** The card that applied a buff: playing the same card again refreshes this entry instead of adding a copy. */
+  sourceId?: string;
 }
 
 /**
@@ -145,6 +147,9 @@ export type Rarity = 'common' | 'uncommon' | 'rare' | 'legendary';
 
 export type CardSource = { type: 'unit'; unitId: UnitId } | { type: 'hero'; heroId: HeroId } | { type: 'neutral' };
 
+/** Which hero stat scales a hero-cast card's damage (AO-D064). */
+export type HeroCastStat = 'strength' | 'dexterity' | 'intelligence';
+
 export type CardTargeting =
   | 'none'
   | 'ally-stack'
@@ -175,7 +180,6 @@ export type CardEffect =
   | { kind: 'MODIFY_STAT'; stat: 'attack' | 'defense'; amount: number; duration: number; scope: 'self' | 'adjacent-allies' }
   | { kind: 'APPLY_STATUS'; status: StatusType; amount: number; duration: number }
   | { kind: 'REMOVE_STATUSES'; statuses: StatusType[] }
-  | { kind: 'GAIN_MORALE'; amount: number }
   | { kind: 'GAIN_MORALE_ALL'; amount: number }
   | { kind: 'GAIN_MANA'; amount: number }
   | { kind: 'DRAW'; amount: number }
@@ -184,9 +188,13 @@ export type CardEffect =
   | { kind: 'GAIN_BLOCK'; amount: number }
   | { kind: 'GAIN_BLOCK_ALL_FRONT'; amount: number }
   | { kind: 'DEFENSE_BUFF_ALL_FRONTLINE'; amount: number; duration: number }
-  | { kind: 'DEFENSE_BUFF_ADJACENT_THREE'; amount: number; duration: number }
+  /** Formation - every living friendly stack, no target needed. */
+  | { kind: 'DEFENSE_BUFF_ALL'; amount: number; duration: number }
+  /** Focus Fire - the next friendly attack (any stack) deals +percent damage; consumed by the first attack. */
+  | { kind: 'ARMY_NEXT_ATTACK_BONUS'; percent: number }
   | { kind: 'DAMAGE_BUFF_ALL_WITH_TAG'; tag: string; amount: number; duration: number }
-  | { kind: 'DAMAGE_AND_DEFENSE_BUFF'; damageAmount: number; defenseAmount: number; duration: number }
+  /** `scope` 'army' (Battle Hardened) buffs every living friendly stack; the default buffs the chosen one. */
+  | { kind: 'DAMAGE_AND_DEFENSE_BUFF'; damageAmount: number; defenseAmount: number; duration: number; scope?: 'target' | 'army' }
   | { kind: 'SET_FLAGS'; target: 'self' | 'other'; flags: Partial<StackFlags> }
   /** Venomous Army — applies the flags to every living friendly stack carrying `tag` (e.g. all ranged stacks). */
   | { kind: 'SET_FLAGS_ALL_WITH_TAG'; tag: string; flags: Partial<StackFlags> }
@@ -210,6 +218,9 @@ export interface CardDefinition {
   tags: string[];
   targeting: CardTargeting;
   effects: CardEffect[];
+  /** AO-D064: 'hero' = the HERO casts it on the chosen enemy: no acting stack, no unit-type requirement, damage scales with `scalesWith`. */
+  cast?: 'hero';
+  scalesWith?: HeroCastStat;
   unique?: boolean;
   exhaust?: boolean;
   retain?: boolean;
@@ -311,6 +322,10 @@ export interface CombatState {
   turnNumber: number;
   phase: 'player' | 'enemy' | 'ended';
   result: 'ongoing' | 'victory' | 'defeat';
+  /** AO-D067: every enemy stack is dead; the battle still runs until the player ends the turn (a last window for cards and heals). */
+  enemiesCleared: boolean;
+  /** Pending Focus Fire bonus: the next friendly attack deals this much extra damage, then it resets to 0. */
+  nextFriendlyAttackBonusPercent: number;
   hero: Hero;
   playerArmy: ArmyStack[];
   enemyArmy: ArmyStack[];

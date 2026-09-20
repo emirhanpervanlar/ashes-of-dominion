@@ -132,7 +132,7 @@ describe('AO-034 B3: Arcane Crystal mid-run', () => {
 describe('AO-034 B4: PLAY_CARD validates target sides', () => {
   it('rejects an ally-stack card aimed at an enemy stack instead of throwing', () => {
     const { state } = createVerticalSliceScenario(1);
-    const res = play({ ...state, hero: { ...state.hero, mana: 5 } }, 'battle_hardened', { actingStackId: state.playerArmy[0]!.stackId, targetStackId: state.enemyArmy[0]!.stackId });
+    const res = play({ ...state, hero: { ...state.hero, mana: 5 } }, 'last_stand', { actingStackId: state.playerArmy[0]!.stackId, targetStackId: state.enemyArmy[0]!.stackId });
     expect(res.events.some((e) => e.type === 'ACTION_REJECTED')).toBe(true);
     expect(res.state.hero.mana).toBe(5);
   });

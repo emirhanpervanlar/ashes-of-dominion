@@ -50,12 +50,18 @@ describe('AO-D044 per-attacker melee fallback in battle (no softlock)', () => {
 
 describe('AO-D040 card requirements and playability', () => {
   it('derives condition text from card data', () => {
-    expect(cardRequirement('charge')).toBe('Needs a living Knight and an enemy in reach');
+    expect(cardRequirement('charge')).toBe('Needs a living Knight');
     expect(cardRequirement('mass_charge')).toBe('Needs a living Knight');
     expect(cardRequirement('venomous_army')).toBe('Needs a living Archer');
     expect(cardRequirement('reposition')).toBe('Needs a free position');
     expect(cardRequirement('tactical_insight')).toBeNull();
     expect(cardRequirement('nope')).toBeNull();
+  });
+
+  it('AO-D075: no requirement text talks about reach, only real unit-type / position conditions', () => {
+    for (const card of Object.values(CARD_DEFINITIONS)) expect(cardRequirement(card.id) ?? '', card.id).not.toMatch(/reach|enemy/i);
+    expect(cardRequirement('ambush')).toBeNull();
+    expect(cardRequirement('fireball')).toBeNull();
   });
 
   it('every unit-sourced card mentions its source unit', () => {

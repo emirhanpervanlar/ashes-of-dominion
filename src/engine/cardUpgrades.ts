@@ -85,6 +85,10 @@ export const CARD_UPGRADES: Record<string, CardUpgradeDefinition> = {
   divine_protection: { description: 'Next lethal hit leaves the stack at 1 soldier instead. +20% Defense.', manaCost: 2 },
 
   // Warlord
+  command_strike: {
+    description: 'Hero attack on the enemy stack with +31% power. Scales with Strength.',
+    effects: [{ kind: 'ATTACK', multiplier: 1.05 }],
+  },
   blood_rage: {
     description: 'Next attack +55% damage; loses 5% of its own count after.',
     effects: [{ kind: 'SET_FLAGS', target: 'self', flags: { nextAttackDamageBonusPercent: 55, selfCasualtyPercentAfterAttack: 5 } }],
@@ -99,9 +103,9 @@ export const CARD_UPGRADES: Record<string, CardUpgradeDefinition> = {
   },
   brutal_command: { description: 'Next attack +100% damage; cannot be redirected.', manaCost: 1 },
   rally: {
-    description: 'Restore more morale; draw 1 card.',
+    description: 'All friendly stacks regain more morale; draw 1 card.',
     effects: [
-      { kind: 'GAIN_MORALE', amount: 40 },
+      { kind: 'GAIN_MORALE_ALL', amount: 40 },
       { kind: 'DRAW', amount: 1 },
     ],
   },
@@ -110,8 +114,8 @@ export const CARD_UPGRADES: Record<string, CardUpgradeDefinition> = {
     effects: [{ kind: 'DAMAGE_AND_DEFENSE_BUFF', damageAmount: 65, defenseAmount: 40, duration: 1 }],
   },
   formation: {
-    description: 'Three adjacent friendly stacks +20% Defense.',
-    effects: [{ kind: 'DEFENSE_BUFF_ADJACENT_THREE', amount: 20, duration: 1 }],
+    description: 'All friendly stacks +20% Defense this turn.',
+    effects: [{ kind: 'DEFENSE_BUFF_ALL', amount: 20, duration: 1 }],
   },
   execution_order: {
     description: '+160% damage if the target is below 30% HP.',
@@ -119,6 +123,10 @@ export const CARD_UPGRADES: Record<string, CardUpgradeDefinition> = {
   },
 
   // Rogue
+  volley: {
+    description: 'Hero attack on the enemy stack with +31% power. Scales with Dexterity.',
+    effects: [{ kind: 'ATTACK', multiplier: 1.05 }],
+  },
   poison_arrow: {
     description: 'Next Archer attack applies stronger Poison.',
     effects: [{ kind: 'SET_FLAGS', target: 'self', flags: { nextAttackAppliesStatus: { status: 'poison', amount: 5, duration: 3 } } }],
@@ -151,8 +159,8 @@ export const CARD_UPGRADES: Record<string, CardUpgradeDefinition> = {
 
   // Mage
   fireball: {
-    description: 'Very high single-target magic damage with small splash.',
-    effects: [{ kind: 'ATTACK_SPLASH', primaryMultiplier: 2.3, secondaryMultiplier: 0.5, maxSecondaryTargets: 1 }],
+    description: 'Damages the target and 50% to adjacent stacks.',
+    effects: [{ kind: 'ATTACK_SPLASH', primaryMultiplier: 1.8, secondaryMultiplier: 0.5, maxSecondaryTargets: 2 }],
   },
   frost: {
     description: 'Full magic damage and applies Freeze.',
@@ -189,7 +197,7 @@ export const CARD_UPGRADES: Record<string, CardUpgradeDefinition> = {
   // Neutral
   focus_fire: {
     description: 'Next friendly attack +65% damage.',
-    effects: [{ kind: 'SET_FLAGS', target: 'self', flags: { nextAttackDamageBonusPercent: 65 } }],
+    effects: [{ kind: 'ARMY_NEXT_ATTACK_BONUS', percent: 65 }],
   },
   reposition: {
     description: 'Move a friendly stack; its next attack +20% damage.',
@@ -208,8 +216,8 @@ export const CARD_UPGRADES: Record<string, CardUpgradeDefinition> = {
     effects: [{ kind: 'RESTORE_SOLDIERS_PERCENT', percent: 14 }],
   },
   battle_hardened: {
-    description: '+26% Damage, +26% Defense. 1 turn.',
-    effects: [{ kind: 'DAMAGE_AND_DEFENSE_BUFF', damageAmount: 26, defenseAmount: 26, duration: 1 }],
+    description: '+26% Damage, +26% Defense to all friendly stacks. 1 turn.',
+    effects: [{ kind: 'DAMAGE_AND_DEFENSE_BUFF', damageAmount: 26, defenseAmount: 26, duration: 1, scope: 'army' }],
   },
 };
 

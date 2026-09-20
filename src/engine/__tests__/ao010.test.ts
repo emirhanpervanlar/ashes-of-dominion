@@ -211,19 +211,22 @@ describe('AO-D023 enemy step list', () => {
   });
 });
 
-describe('AO-D033 back-row melee behind a living friendly stack cannot attack', () => {
+describe('AO-D033 / AO-D069 back-row melee behind any living front-row friendly cannot attack', () => {
   const own = (): ArmyStack[] => [createStack('orc', 'enemy', 1, 5), createStack('orc', 'enemy', 2, 5), createStack('goblin', 'enemy', 4, 5), createStack('goblin', 'enemy', 5, 5), createStack('goblin', 'enemy', 6, 5)];
   const player = (): ArmyStack[] => [createStack('swordsman', 'player', 1, 6), createStack('knight', 'player', 2, 2), createStack('swordsman', 'player', 3, 6)];
 
-  it('has no targets when the front slot of its lane is alive, and does once that slot is empty', () => {
+  it('has no targets while any front-row stack lives (any lane), and does once the whole front row is empty', () => {
     const army = own();
     const [, , g4, g5, g6] = army;
     expect(isBlockedByFrontAlly(g4!, army)).toBe(true);
     expect(computeValidTargets(g4!, player(), undefined, army)).toEqual([]);
-    expect(isBlockedByFrontAlly(g6!, army)).toBe(false); // lane 3 front slot is empty
-    expect(computeValidTargets(g6!, player(), undefined, army).length).toBeGreaterThan(0);
-    const frontDead = army.map((s) => (s.position === 2 ? dead(s) : s));
+    expect(isBlockedByFrontAlly(g6!, army)).toBe(true); // lane 3 front slot is empty, but positions 1-2 are alive
+    expect(computeValidTargets(g6!, player(), undefined, army)).toEqual([]);
+    const onlyLeftFront = army.map((s) => (s.position === 2 ? dead(s) : s));
+    expect(isBlockedByFrontAlly(g5!, onlyLeftFront)).toBe(true);
+    const frontDead = army.map((s) => (s.position <= 3 ? dead(s) : s));
     expect(isBlockedByFrontAlly(g5!, frontDead)).toBe(false);
+    expect(computeValidTargets(g5!, player(), undefined, frontDead).length).toBeGreaterThan(0);
   });
 
   it('ranged units are unaffected', () => {
