@@ -44,3 +44,6 @@ tsc clean, vitest green (add tests for pure helpers and the tile-not-covered mea
 22. Battle tray layout jump: the field must not change size when cards are played or drawn (the owner's tray height fix should hold: verify with measurements for hand sizes 0..8 and keep the layout stable during enemy playback).
 23. Barracks quantity control (city recruit): replace typing with a big [-] number [+] control (left/right buttons with the number in the middle, hold to repeat, Max button stays), and show the current Gold (and Food) in a persistent strip on that panel.
 24. Resource change feedback: when a day ends (move, battle loot, events, resource nodes, starvation) show floating "+N"/"-N" texts with the resource icon rising from the bottom-bar pills (gold, food) like the battle damage floaters; read the deltas from run events (BATTLE_LOOT, RESOURCE_FOUND, MOVED foodCost, DAILY_INCOME, STARVED, purchases); no duplicate toasts.
+
+## Status
+- 2026-09-20 ACCEPTED locally (2 UI tests fail against the new combat engine; fixed by AO-048). Ideas: cards overlap at 7+ hand size; HERO_STAT_INFO wording pass; engine has no "biggest hit" stat; resource deltas are computed from state differences (recruit/purchase events carry no amounts).
