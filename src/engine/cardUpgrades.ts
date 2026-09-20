@@ -85,6 +85,10 @@ export const CARD_UPGRADES: Record<string, CardUpgradeDefinition> = {
   divine_protection: { description: 'Next lethal hit leaves the stack at 1 soldier instead. +20% Defense.', manaCost: 2 },
 
   // Warlord
+  command_strike: {
+    description: 'Hero attack on the enemy stack with +31% power. Scales with Strength.',
+    effects: [{ kind: 'ATTACK', multiplier: 1.05 }],
+  },
   blood_rage: {
     description: 'Next attack +55% damage; loses 5% of its own count after.',
     effects: [{ kind: 'SET_FLAGS', target: 'self', flags: { nextAttackDamageBonusPercent: 55, selfCasualtyPercentAfterAttack: 5 } }],
@@ -119,6 +123,10 @@ export const CARD_UPGRADES: Record<string, CardUpgradeDefinition> = {
   },
 
   // Rogue
+  volley: {
+    description: 'Hero attack on the enemy stack with +31% power. Scales with Dexterity.',
+    effects: [{ kind: 'ATTACK', multiplier: 1.05 }],
+  },
   poison_arrow: {
     description: 'Next Archer attack applies stronger Poison.',
     effects: [{ kind: 'SET_FLAGS', target: 'self', flags: { nextAttackAppliesStatus: { status: 'poison', amount: 5, duration: 3 } } }],
@@ -151,8 +159,8 @@ export const CARD_UPGRADES: Record<string, CardUpgradeDefinition> = {
 
   // Mage
   fireball: {
-    description: 'Very high single-target magic damage with small splash.',
-    effects: [{ kind: 'ATTACK_SPLASH', primaryMultiplier: 2.3, secondaryMultiplier: 0.5, maxSecondaryTargets: 1 }],
+    description: 'Damages the target and 50% to adjacent stacks.',
+    effects: [{ kind: 'ATTACK_SPLASH', primaryMultiplier: 1.6, secondaryMultiplier: 0.5, maxSecondaryTargets: 2 }],
   },
   frost: {
     description: 'Full magic damage and applies Freeze.',

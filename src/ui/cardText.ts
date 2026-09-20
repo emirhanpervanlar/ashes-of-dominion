@@ -7,7 +7,7 @@ export const CARD_DESCRIPTIONS: Record<string, string> = {
   brace: '+50% Defense, incoming damage -40%, cannot attack. 1 turn.',
   focus_shot: 'Next basic attack +60% damage.',
   piercing_arrow: 'Primary target 125% damage; the target behind it takes 50%.',
-  arrow_rain: 'Hits up to 3 enemy stacks for 55% damage each.',
+  arrow_rain: 'Hits up to 3 enemy stacks for 55% damage each. Scales with Dexterity.',
   covering_fire: 'Immediate 60% damage attack.',
   charge: 'Attack with +50% damage.',
   shield_wall: '+60% Defense self, +20% adjacent allies. Cannot move. 1 turn.',
@@ -19,6 +19,7 @@ export const CARD_DESCRIPTIONS: Record<string, string> = {
   divine_protection: 'Next lethal hit leaves the stack at 1 soldier instead. +20% Defense.',
 
   // Hero Cards — Warlord
+  command_strike: 'Hero attack on the enemy stack. Scales with Strength.',
   blood_rage: 'Next attack +40% damage; loses 5% of its own count after.',
   mass_charge: 'All Knight stacks +30% damage this turn.',
   hold_the_line: 'All frontline stacks +25% Defense this turn.',
@@ -29,6 +30,7 @@ export const CARD_DESCRIPTIONS: Record<string, string> = {
   execution_order: '+100% damage if the target is below 30% HP.',
 
   // Hero Cards — Rogue
+  volley: 'Hero attack on the enemy stack. Scales with Dexterity.',
   poison_arrow: 'Next Archer attack applies Poison.',
   double_shot: 'Attack twice: 100% then 60% damage.',
   evasion: 'Selected stack Dodge chance x1.25 this turn.',
@@ -39,9 +41,9 @@ export const CARD_DESCRIPTIONS: Record<string, string> = {
   execute: '+150% damage if the target is below 20% HP.',
 
   // Hero Cards — Mage
-  fireball: 'High single-target magic damage with small splash.',
-  frost: 'Magic damage (-20%) and applies Freeze.',
-  arcane_storm: 'Hits all enemy stacks; the first takes bonus damage.',
+  fireball: 'Damages the target and 40% to adjacent stacks. Scales with Intelligence.',
+  frost: 'Magic damage (-20%) and applies Freeze. Scales with Intelligence.',
+  arcane_storm: 'Hits all enemy stacks; the first takes bonus damage. Scales with Intelligence.',
   arcane_shield: 'Friendly stack incoming damage -35% this turn.',
   heal: 'Restores lost soldiers, capped at pre-battle max.',
   mana_surge: 'Gain +2 Mana this turn. Exhaust.',

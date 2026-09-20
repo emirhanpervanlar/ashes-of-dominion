@@ -67,6 +67,7 @@ export function cardPlayability(cardId: string, state: CombatState, upgraded = f
 
   const living = state.playerArmy.filter((s) => s.count > 0);
   const livingEnemies = state.enemyArmy.filter((s) => s.count > 0);
+  if (card.cast === 'hero' && livingEnemies.length === 0) return no('No enemy to target.');
   switch (card.targeting) {
     case 'ally-stack+enemy-stack':
       if (!living.some((s) => !cannotAct(s) && computeValidTargets(s, state.enemyArmy, UNIT_DEFINITIONS[s.unitId], state.playerArmy).length > 0)) {

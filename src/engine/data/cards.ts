@@ -8,6 +8,12 @@ import type { CardDefinition } from '../types.js';
  * "complex reactions/interrupts" are explicitly excluded from MVP (v3 §3), so
  * Covering Fire's "reacts to an attack" becomes an immediate attack instead.
  */
+/** AO-D074: Fireball (2 Mana) is tuned so that with Intelligence 18 it kills about 2-4 early units, never a whole stack (see heroSpells.ts for the base power). */
+export const FIREBALL_PRIMARY_MULTIPLIER = 1.2;
+export const FIREBALL_SPLASH_MULTIPLIER = 0.4;
+/** The 1-Mana basic hero attacks of each hero identity (AO-D075 starting decks). */
+export const HERO_STRIKE_MULTIPLIER = 0.8;
+
 export const CARD_DEFINITIONS: Record<string, CardDefinition> = {
   // ============ Unit Skill Cards — Swordsman ============
   shield_bash: {
@@ -84,11 +90,13 @@ export const CARD_DEFINITIONS: Record<string, CardDefinition> = {
   arrow_rain: {
     id: 'arrow_rain',
     name: 'Arrow Rain',
-    source: { type: 'unit', unitId: 'archer' },
+    source: { type: 'hero', heroId: 'rogue' },
     rarity: 'rare',
     manaCost: 3,
     tags: ['archer', 'ranged', 'aoe'],
-    targeting: 'ally-stack',
+    targeting: 'none',
+    cast: 'hero',
+    scalesWith: 'dexterity',
     effects: [{ kind: 'DAMAGE_UP_TO_N_ENEMIES', multiplier: 0.55, maxTargets: 3 }],
   },
   covering_fire: {
@@ -198,6 +206,18 @@ export const CARD_DEFINITIONS: Record<string, CardDefinition> = {
   },
 
   // ============ Hero Cards — Warlord ============
+  command_strike: {
+    id: 'command_strike',
+    name: 'Command: Strike',
+    source: { type: 'hero', heroId: 'warlord' },
+    rarity: 'common',
+    manaCost: 1,
+    tags: ['warlord', 'melee', 'damage'],
+    targeting: 'enemy-stack',
+    cast: 'hero',
+    scalesWith: 'strength',
+    effects: [{ kind: 'ATTACK', multiplier: HERO_STRIKE_MULTIPLIER }],
+  },
   blood_rage: {
     id: 'blood_rage',
     name: 'Blood Rage',
@@ -283,6 +303,18 @@ export const CARD_DEFINITIONS: Record<string, CardDefinition> = {
   },
 
   // ============ Hero Cards — Rogue ============
+  volley: {
+    id: 'volley',
+    name: 'Volley',
+    source: { type: 'hero', heroId: 'rogue' },
+    rarity: 'common',
+    manaCost: 1,
+    tags: ['rogue', 'ranged', 'damage'],
+    targeting: 'enemy-stack',
+    cast: 'hero',
+    scalesWith: 'dexterity',
+    effects: [{ kind: 'ATTACK', multiplier: HERO_STRIKE_MULTIPLIER }],
+  },
   poison_arrow: {
     id: 'poison_arrow',
     name: 'Poison Arrow',
@@ -375,8 +407,10 @@ export const CARD_DEFINITIONS: Record<string, CardDefinition> = {
     rarity: 'common',
     manaCost: 2,
     tags: ['mage', 'magic', 'elemental', 'damage'],
-    targeting: 'ally-stack+enemy-stack',
-    effects: [{ kind: 'ATTACK_SPLASH', primaryMultiplier: 1.8, secondaryMultiplier: 0.4, maxSecondaryTargets: 1 }],
+    targeting: 'enemy-stack',
+    cast: 'hero',
+    scalesWith: 'intelligence',
+    effects: [{ kind: 'ATTACK_SPLASH', primaryMultiplier: FIREBALL_PRIMARY_MULTIPLIER, secondaryMultiplier: FIREBALL_SPLASH_MULTIPLIER, maxSecondaryTargets: 2 }],
   },
   frost: {
     id: 'frost',
@@ -385,7 +419,9 @@ export const CARD_DEFINITIONS: Record<string, CardDefinition> = {
     rarity: 'common',
     manaCost: 2,
     tags: ['mage', 'magic', 'control'],
-    targeting: 'ally-stack+enemy-stack',
+    targeting: 'enemy-stack',
+    cast: 'hero',
+    scalesWith: 'intelligence',
     effects: [
       { kind: 'ATTACK', multiplier: 0.8 },
       { kind: 'APPLY_STATUS', status: 'freeze', amount: 1, duration: 1 },
@@ -398,7 +434,9 @@ export const CARD_DEFINITIONS: Record<string, CardDefinition> = {
     rarity: 'rare',
     manaCost: 4,
     tags: ['mage', 'magic', 'aoe'],
-    targeting: 'ally-stack',
+    targeting: 'none',
+    cast: 'hero',
+    scalesWith: 'intelligence',
     effects: [{ kind: 'DAMAGE_ALL_ENEMIES', multiplier: 0.5, primaryBonusMultiplier: 0.5 }],
   },
   arcane_shield: {
@@ -439,7 +477,9 @@ export const CARD_DEFINITIONS: Record<string, CardDefinition> = {
     rarity: 'rare',
     manaCost: 3,
     tags: ['mage', 'magic', 'damage'],
-    targeting: 'ally-stack+enemy-stack',
+    targeting: 'enemy-stack',
+    cast: 'hero',
+    scalesWith: 'intelligence',
     effects: [{ kind: 'CHAIN_DAMAGE', primaryMultiplier: 1.0, secondaryMultiplier: 0.5, maxSecondaryTargets: 2 }],
   },
   arcane_overload: {

@@ -28,6 +28,7 @@ export const CARD_VISUALS: Record<string, CardVisual> = {
   divine_protection: { icon: 'role_support', polarity: 'defense' },
 
   // Hero Cards — Warlord
+  command_strike: { icon: 'role_melee', polarity: 'attack' },
   blood_rage: { icon: 'st_bleed', polarity: 'attack' },
   mass_charge: { icon: 'fx_horse', polarity: 'buff' },
   hold_the_line: { icon: 'shield', polarity: 'defense' },
@@ -38,6 +39,7 @@ export const CARD_VISUALS: Record<string, CardVisual> = {
   execution_order: { icon: 'fx_skull', polarity: 'attack' },
 
   // Hero Cards — Rogue
+  volley: { icon: 'role_ranged', polarity: 'attack' },
   poison_arrow: { icon: 'st_poison', polarity: 'debuff' },
   double_shot: { icon: 'role_ranged', polarity: 'attack' },
   evasion: { icon: 'fx_wind', polarity: 'defense' },

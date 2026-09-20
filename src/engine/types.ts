@@ -145,6 +145,9 @@ export type Rarity = 'common' | 'uncommon' | 'rare' | 'legendary';
 
 export type CardSource = { type: 'unit'; unitId: UnitId } | { type: 'hero'; heroId: HeroId } | { type: 'neutral' };
 
+/** Which hero stat scales a hero-cast card's damage (AO-D064). */
+export type HeroCastStat = 'strength' | 'dexterity' | 'intelligence';
+
 export type CardTargeting =
   | 'none'
   | 'ally-stack'
@@ -210,6 +213,9 @@ export interface CardDefinition {
   tags: string[];
   targeting: CardTargeting;
   effects: CardEffect[];
+  /** AO-D064: 'hero' = the HERO casts it on the chosen enemy: no acting stack, no unit-type requirement, damage scales with `scalesWith`. */
+  cast?: 'hero';
+  scalesWith?: HeroCastStat;
   unique?: boolean;
   exhaust?: boolean;
   retain?: boolean;
