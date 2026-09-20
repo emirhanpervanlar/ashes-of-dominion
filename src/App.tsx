@@ -627,8 +627,8 @@ export default function App() {
   if (run.phase === 'run_complete' || run.phase === 'defeat') {
     return (
       <>
-        {gameChrome}
-        <RunEndScreen run={run} onNewRun={newRun} />
+        {gameChromeNoMenuBtn}
+        <RunEndScreen run={run} onNewRun={newRun} onMainMenu={() => setAppStage('title')} />
       </>
     );
   }

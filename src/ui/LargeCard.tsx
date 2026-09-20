@@ -58,7 +58,7 @@ export function LargeCard({ cardId, upgraded, showBase, tag, price, disabled, on
       <div className="reward-card-desc">{view.description}</div>
       {base && (
         <div className="reward-card-was">
-          Now ({base.manaCost} Mana): {base.description}
+          Now{base.manaCost !== view.manaCost ? ` (${base.manaCost} Mana)` : ''}: {base.description}
         </div>
       )}
       {requirement && (

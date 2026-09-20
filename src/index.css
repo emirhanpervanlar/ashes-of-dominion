@@ -2973,8 +2973,30 @@ button.frame-pile:hover .pile-card-back::before { --bev-light: var(--gold-400); 
   align-items: center;
   justify-content: center;
   text-align: center;
-  gap: var(--s-2);
   padding: var(--s-4);
+}
+
+.title-skyline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 40%;
+  pointer-events: none;
+}
+
+.title-skyline .sk-far { fill: var(--stone-900); }
+.title-skyline .sk-near { fill: var(--stone-800); }
+.title-skyline .sk-roof { fill: var(--blood-900); }
+.title-skyline .sk-window { fill: var(--gold-700); }
+
+.title-content {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-2);
 }
 
 .title-crest {
@@ -2982,17 +3004,21 @@ button.frame-pile:hover .pile-card-back::before { --bev-light: var(--gold-400); 
   filter: drop-shadow(0 4px 0 var(--stone-950));
 }
 
-.title-name {
+.title-plaque {
+  height: 96px;
+  padding: 0 88px;
   font: var(--t-title);
-  text-transform: uppercase;
+  line-height: 96px;
   letter-spacing: 4px;
-  color: var(--gold-200);
-  text-shadow: 0 4px 0 var(--stone-950);
+  text-shadow: 0 4px 0 var(--gold-200);
 }
+
+.title-plaque::before,
+.title-plaque::after { top: 44px; }
 
 .title-tagline {
   max-width: 480px;
-  margin: var(--s-2) 0 var(--s-6);
+  margin: var(--s-2) 0 var(--s-5);
   font-style: italic;
   color: var(--text-dim);
 }
@@ -3001,11 +3027,18 @@ button.frame-pile:hover .pile-card-back::before { --bev-light: var(--gold-400); 
   display: flex;
   flex-direction: column;
   gap: var(--s-3);
-  width: 320px;
+  width: 360px;
+}
+
+.title-menu-note {
+  margin-top: calc(-1 * var(--s-2));
+  font: var(--t-small);
+  color: var(--text-dim);
 }
 
 .title-footer {
-  margin-top: var(--s-6);
+  position: absolute;
+  bottom: var(--s-3);
   font: var(--t-label);
   text-transform: uppercase;
   letter-spacing: 1px;
@@ -3141,9 +3174,9 @@ button.frame-pile:hover .pile-card-back::before { --bev-light: var(--gold-400); 
 .hero-stat-value { font: var(--t-num); color: var(--gold-200); }
 
 .relic-choice-list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s-2);
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-3);
 }
 
 .relic-choice {
@@ -3232,6 +3265,8 @@ button.frame-pile:hover .pile-card-back::before { --bev-light: var(--gold-400); 
   color: var(--stone-100);
   text-shadow: 0 2px 0 var(--stone-950);
 }
+
+.preview-slot .preview-count { position: static; }
 
 .preview-unit {
   font: var(--t-small);
@@ -3401,46 +3436,68 @@ button.frame-pile:hover .pile-card-back::before { --bev-light: var(--gold-400); 
 
 .run-end {
   display: flex;
-  align-items: center;
-  justify-content: center;
+  justify-content: safe center;
+  align-items: safe center;
   padding: var(--s-5);
 }
 
 .run-end-body {
-  width: min(720px, 100%);
+  width: min(1040px, 100%);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--s-4);
+  gap: var(--s-3);
 }
 
-.run-end-body .panel { width: 100%; text-align: center; }
-
-.run-summary {
-  width: 100%;
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--s-2) var(--s-5);
-  padding: var(--s-3) var(--s-4);
+.run-end-cause {
+  font: var(--t-h2);
+  color: var(--text-strong);
 }
 
-.stat {
-  display: flex;
-  gap: var(--s-2);
-  align-items: center;
-}
-
-.stat-label {
-  font: var(--t-label);
-  text-transform: uppercase;
-  letter-spacing: 1px;
+.run-end-hero {
   color: var(--text-dim);
 }
 
-.stat-value {
-  font: var(--t-num);
-  color: var(--text-strong);
+.run-end-groups {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--s-3);
+  align-items: start;
+  margin-top: var(--s-2);
 }
+
+.run-end-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  min-width: 0;
+}
+
+.run-end-row-label { flex: 1; }
+.run-end-row-value { font: var(--t-num); color: var(--gold-200); }
+
+.run-end-relics,
+.run-end-army {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  min-height: 64px;
+  align-items: center;
+}
+
+.run-end-stack {
+  position: relative;
+  display: flex;
+  width: 64px;
+  height: 64px;
+  align-items: center;
+  justify-content: center;
+  background: var(--stone-900);
+  box-shadow: inset 0 0 0 2px var(--iron-500);
+}
+
+.run-end-none { color: var(--text-dim); }
 
 @media (prefers-reduced-motion: reduce) {
   .portrait-slot.selectable .portrait-frame::after,
