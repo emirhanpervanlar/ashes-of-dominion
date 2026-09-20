@@ -4,6 +4,7 @@ import {
   GOLD_MINE_DAILY_GOLD,
   LEVEL_SLOTS,
   THREAT_PER_CITY_VISIT,
+  TOTAL_CHAPTERS,
   bossDay,
   dailyFoodNet,
   dailyProduction,
@@ -132,7 +133,7 @@ export function dayTip(run: Pick<RunState, 'day'>): TipContent {
 }
 
 export function chapterTip(run: Pick<RunState, 'chapter'>): TipContent {
-  return { title: `Chapter ${run.chapter}`, body: `Chapter ${run.chapter} of 3. Each chapter ends in a boss; the run is won after the third.` };
+  return { title: `Chapter ${run.chapter}`, body: `Chapter ${run.chapter} of ${TOTAL_CHAPTERS}. Each chapter ends in a boss; the run is won after the third.` };
 }
 
 export function bossTip(run: Pick<RunState, 'chapter' | 'day'>): TipContent {

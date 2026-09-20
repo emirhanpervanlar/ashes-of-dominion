@@ -1,10 +1,10 @@
-import { BUILDING_DEFINITIONS, LEVEL_SLOTS, dailyFoodNet, dailyProduction, dailyUpkeep } from '../../engine/run/index.js';
+import { BUILDING_DEFINITIONS, LEVEL_SLOTS, ROMAN, dailyFoodNet, dailyProduction, dailyUpkeep } from '../../engine/run/index.js';
 import type { RunState } from '../../engine/run/index.js';
 import { BUILDING_ICONS } from '../mapIcons.js';
 import { Icon } from '../pixel/Icon.js';
 import { Modal } from '../Modal.js';
 import { BuildAction } from './BuildAction.js';
-import { ROMAN, freeSlots, tierRows } from './cityView.js';
+import { freeSlots, tierRows } from './cityView.js';
 
 interface Props {
   kind: 'mage_tower' | 'farm';

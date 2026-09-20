@@ -108,6 +108,14 @@ function TipBubble({ shown, onGone }: { shown: Shown; onGone: () => void }) {
   );
 }
 
+/** Until this time (ms, performance.now) a focus event does not open a tooltip: focus handed back to an opener is not the player asking for its tip. */
+let quietUntil = 0;
+
+/** Called by popups right before they return focus to the element that opened them, so that element's tip does not pop up again. */
+export function quietTipsBriefly(): void {
+  quietUntil = performance.now() + 200;
+}
+
 const NATIVELY_FOCUSABLE = new Set(['button', 'a', 'input', 'select', 'textarea']);
 
 interface TipProps {
@@ -151,7 +159,7 @@ export function Tip({ tip, children }: TipProps) {
       props.onFocus?.(e);
       // Only keyboard focus (focus-visible) shows the tip; a mouse click that focuses a button must not.
       hovered.current = e.currentTarget;
-      if (e.currentTarget.matches(':focus-visible')) api.show(e.currentTarget, content);
+      if (performance.now() > quietUntil && e.currentTarget.matches(':focus-visible')) api.show(e.currentTarget, content);
     },
     onBlur: (e: FocusEvent<HTMLElement>) => {
       props.onBlur?.(e);

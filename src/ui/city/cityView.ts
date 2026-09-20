@@ -1,4 +1,4 @@
-import { UNIT_DEFINITIONS } from '../../engine/index.js';
+import { MAX_ARMY_STACKS, UNIT_DEFINITIONS } from '../../engine/index.js';
 import type { Position, UnitId } from '../../engine/index.js';
 import {
   BUILDING_DEFINITIONS,
@@ -9,6 +9,7 @@ import {
   LEVEL_UP_COST,
   MAGE_TOWER_TIERS,
   RECRUIT_COSTS,
+  ROMAN,
   SHRINE_REVIVE_RATIO,
   addUnitsToArmy,
   dailyFoodNet,
@@ -19,8 +20,6 @@ import {
 import type { RunState } from '../../engine/run/index.js';
 import { BUILDING_ICONS, DOCTRINE_ICONS } from '../mapIcons.js';
 import type { IconName } from '../pixel/icons.js';
-
-export const ROMAN = ['I', 'II', 'III', 'IV', 'V'];
 
 /** Units the Barracks sells, in display order. */
 export const RECRUITABLE_UNITS: UnitId[] = (['swordsman', 'archer', 'knight', 'priest'] as UnitId[]).filter((id) => id in RECRUIT_COSTS);
@@ -99,7 +98,7 @@ export function recruitQuote(run: Pick<RunState, 'city' | 'gold' | 'food' | 'arm
   const slot = placement === 'free' ? joined!.find((s) => !run.army.includes(s))?.position ?? null : null;
 
   let blocker: string | null = null;
-  if (placement === 'full') blocker = 'Army full: 6 stacks and no stack of this type to join.';
+  if (placement === 'full') blocker = `Army full: ${MAX_ARMY_STACKS} stacks and no stack of this type to join.`;
   else if (count < 1) blocker = 'Choose how many to recruit.';
   else if (run.gold < many.gold) blocker = 'Not enough Gold.';
   else if (run.food < many.food) blocker = 'Not enough Food.';
@@ -121,7 +120,7 @@ export function recruitQuote(run: Pick<RunState, 'city' | 'gold' | 'food' | 'arm
 export function placementText(quote: Pick<RecruitQuote, 'placement' | 'slot'>, existing: number, unitName: string): string {
   if (quote.placement === 'merge') return `Joins your ${unitName} stack (${existing} now).`;
   if (quote.placement === 'free') return `Forms a new stack in slot ${quote.slot}.`;
-  return 'Your army is full: 6 stacks and none of this type to join.';
+  return `Your army is full: ${MAX_ARMY_STACKS} stacks and none of this type to join.`;
 }
 
 export interface TierRow {

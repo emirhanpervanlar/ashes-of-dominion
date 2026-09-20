@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App.js';
 import { CardInfoProvider } from './ui/CardInfo.js';
+import { ErrorBoundary } from './ui/ErrorBoundary.js';
 import { TipProvider } from './ui/Tip.js';
 import './index.css';
 
@@ -12,7 +13,9 @@ ReactDOM.createRoot(rootEl).render(
   <React.StrictMode>
     <TipProvider>
       <CardInfoProvider>
-        <App />
+        <ErrorBoundary>
+          <App />
+        </ErrorBoundary>
       </CardInfoProvider>
     </TipProvider>
   </React.StrictMode>

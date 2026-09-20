@@ -165,7 +165,6 @@
   --bg-gold: var(--grain), linear-gradient(180deg, rgba(255, 255, 255, 0.18) 0 2px, transparent 2px),
     linear-gradient(180deg, var(--gold-400), var(--gold-500) 55%, var(--gold-700));
   --bg-hatch: repeating-linear-gradient(45deg, transparent 0 4px, rgba(0, 0, 0, 0.25) 4px 6px);
-  --divider: linear-gradient(180deg, var(--stone-900) 0 2px, var(--stone-600) 2px 4px);
   --win-player: linear-gradient(180deg, #1f1a15, #2b231b);
   --win-enemy: linear-gradient(180deg, #161b21, #1d252d);
 }
@@ -314,12 +313,6 @@ p { margin: 0; }
   .px-sprite { animation: none; }
 }
 
-/* Bevel helpers: light top-left, dark bottom-right. Materials set --bev-light / --bev-dark. */
-.bevel-2 { box-shadow: inset 2px 2px 0 var(--bev-light), inset -2px -2px 0 var(--bev-dark); }
-.bevel-4 { box-shadow: inset 4px 4px 0 var(--bev-light), inset -4px -4px 0 var(--bev-dark); }
-.bevel-in { box-shadow: inset 2px 2px 0 var(--bev-dark), inset -2px -2px 0 var(--bev-light); }
-.trim-gold { box-shadow: inset 0 0 0 2px var(--gold-900), inset 0 0 0 4px var(--gold-500), inset 0 0 0 6px var(--gold-900); }
-
 /* clip-path also clips outer shadows, so the hard drop shadow goes on a wrapper around the stepped element */
 .shadowed { display: inline-block; filter: drop-shadow(var(--shadow-2)); }
 .shadowed-1 { display: inline-block; filter: drop-shadow(var(--shadow-1)); }
@@ -348,13 +341,6 @@ p { margin: 0; }
   --bev-light: var(--iron-500);
   --bev-dark: var(--iron-900);
   background: var(--bg-iron);
-}
-
-.panel--gold {
-  --bev-light: var(--gold-200);
-  --bev-dark: var(--gold-900);
-  color: var(--gold-900);
-  background: var(--bg-gold);
 }
 
 /* Panel: bevelled material surface. */
@@ -606,6 +592,9 @@ p { margin: 0; }
 }
 
 .modal-plaque {
+  max-width: calc(100vw - 2 * var(--s-4));
+  overflow: hidden;
+  text-overflow: ellipsis;
   position: absolute;
   left: 50%;
   top: -24px;
@@ -795,14 +784,6 @@ p { margin: 0; }
 }
 
 .tab:focus-visible { outline: 2px solid var(--focus); outline-offset: -4px; }
-
-/* Sunken divider line used between sections of a panel */
-.divider {
-  height: 4px;
-  background: var(--divider);
-  border: 0;
-  margin: var(--s-3) 0;
-}
 
 /* ---------- 4a. battle screen ---------- */
 
@@ -1666,18 +1647,6 @@ p { margin: 0; }
   pointer-events: none;
 }
 
-.pile-count {
-  font: var(--t-num);
-  color: var(--stone-100);
-}
-
-.pile-label {
-  font: var(--t-label);
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  color: var(--stone-300);
-}
-
 .frame-round-buttons {
   height:100%;
   display: flex;
@@ -2191,6 +2160,63 @@ button.pill {
   cursor: pointer;
 }
 
+/* "+N" / "-N" with the resource icon rise from the top of the bar's Gold and Food pills, stepped like the battle floaters. */
+.resource-float {
+  position: absolute;
+  left: var(--s-2);
+  z-index: 30;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  padding: 4px 8px;
+  font: var(--t-num);
+  background: var(--stone-950);
+  pointer-events: none;
+  opacity: 0;
+  animation: resource-rise 1.8s steps(12, end) both;
+}
+
+/* Start just above the resource pills (Gold left, Food beside it) and rise from there, so the numbers underneath stay readable. */
+.resource-float--gold { top: -32px; }
+.resource-float--food { top: -32px; left: 112px; }
+.resource-float--gain { color: var(--moss-300); box-shadow: inset 0 0 0 2px var(--moss-500); }
+.resource-float--loss { color: var(--blood-300); box-shadow: inset 0 0 0 2px var(--blood-500); }
+
+@keyframes resource-rise {
+  0% { opacity: 0; transform: translateY(0); }
+  10% { opacity: 1; }
+  75% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-40px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .resource-float { animation-name: resource-fade; }
+  @keyframes resource-fade { 0%, 80% { opacity: 1; } 100% { opacity: 0; } }
+}
+
+/* Crash panel (ErrorBoundary): a plain stone panel that needs nothing from the game to draw. */
+.crash-screen {
+  z-index: 3000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--s-5);
+}
+
+.crash-panel {
+  width: min(560px, 100%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-4);
+  padding: var(--s-6) var(--s-5) var(--s-5);
+  text-align: center;
+}
+
+.crash-text { margin: 0; color: var(--text); }
+.crash-detail { width: 100%; max-height: 96px; margin: 0; padding: var(--s-2); overflow: auto; white-space: pre-wrap; text-align: left; font: var(--t-small); color: var(--blood-300); }
+.crash-actions { flex-wrap: wrap; justify-content: center; }
+
 .garrison-food-net {
   margin-left: auto;
   font: var(--t-label);
@@ -2482,9 +2508,11 @@ button.pill {
 }
 
 /* A same-type stack takes the dragged one in: green (moss) frame and a Merge tag instead of the swap glyph. */
-.army-grid.holding .army-slot.drop-merge { --bev-light: var(--moss-500); }
+.army-grid.holding .army-slot.drop-merge,
+.army-grid.placing .army-slot.drop-merge { --bev-light: var(--moss-500); }
 
 .army-grid.holding .army-slot.drop-merge:hover .army-slot-merge-label,
+.army-grid.placing .army-slot.drop-merge:hover .army-slot-merge-label,
 .army-grid.dragging .army-slot.drop-merge.over .army-slot-merge-label {
   display: block;
   position: absolute;
@@ -2496,10 +2524,30 @@ button.pill {
 }
 
 /* Split-off part in hand: only empty slots take it. */
-.army-grid.placing .army-slot.filled:not(.held) { opacity: 0.55; cursor: not-allowed; }
+.army-grid.placing .army-slot.filled:not(.held):not(.drop-merge) { opacity: 0.55; cursor: not-allowed; }
+.army-grid.placing .army-slot.drop-merge { cursor: pointer; }
 .army-grid.placing .army-slot.empty { cursor: pointer; }
 
-.army-slot.merged { animation: army-slot-merged 0.9s steps(6, end); }
+.army-slot.merged { animation: army-slot-merged 0.5s steps(4, end); }
+
+/* One short pulse, not the 2.2s recruit float: a merge is instant, so its feedback is too. */
+.merge-flourish { animation-duration: 0.5s; animation-timing-function: steps(4, end); }
+
+/* On-screen hint while a split-off part is held: says what a click does and how to back out. */
+.army-hint {
+  position: fixed;
+  left: 50%;
+  bottom: 212px;
+  z-index: 1001;
+  transform: translateX(-50%);
+  padding: var(--s-2) var(--s-4);
+  font: var(--t-body);
+  color: var(--gold-200);
+  white-space: nowrap;
+  pointer-events: none;
+  background: var(--stone-950);
+  box-shadow: inset 0 0 0 2px var(--gold-500);
+}
 
 @keyframes army-slot-merged {
   0%, 40% { --bev-light: var(--moss-500); box-shadow: inset 0 0 0 4px var(--moss-500); }

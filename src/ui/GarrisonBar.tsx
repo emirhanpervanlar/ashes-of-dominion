@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { Position } from '../engine/index.js';
-import { LEVEL_SLOTS, bossWarning, dailyFoodNet, daysUntilBoss, foodWarning, starvationForecast } from '../engine/run/index.js';
+import { LEVEL_SLOTS, TOTAL_CHAPTERS, bossWarning, dailyFoodNet, daysUntilBoss, foodWarning, starvationForecast } from '../engine/run/index.js';
 import type { RunState } from '../engine/run/index.js';
 import { ArmyGrid } from './ArmyGrid.js';
 import type { PlacingSplit } from './ArmyGrid.js';
@@ -12,6 +12,7 @@ import { HeroArt } from './HeroArt.js';
 import { HeroPopup } from './HeroPopup.js';
 import { Icon } from './pixel/Icon.js';
 import { relicIcon } from './relicIcons.js';
+import { useResourceDeltas } from './resourceDeltas.js';
 import { describeRunEvent } from './runEventText.js';
 import { Tip } from './Tip.js';
 import { bossTip, chapterTip, dayTip, foodTip, goldTip, relicTip, slotsTip, threatTip } from './tipContent.js';
@@ -30,13 +31,15 @@ interface Props {
   onMoveStack: (stackId: string, toPosition: Position) => void;
   /** Splits splitCount off the stack and puts the new stack on the empty slot toPosition. */
   onSplitStack: (stackId: string, splitCount: number, toPosition: Position) => void;
+  /** Splits splitCount off the stack and merges it straight into the stack targetStackId of the same unit type. */
+  onSplitMerge: (stackId: string, splitCount: number, targetStackId: string) => void;
   /** The absorbed stack joins the kept one, which stays where it is. */
   onMergeStacks: (keepStackId: string, absorbStackId: string) => void;
   onDismissStack: (stackId: string, count?: number) => void;
 }
 
 /** The bottom bar shared by Road and City (AO-D010/D016): resources | hero | army 3x2 | Log + Menu. */
-export function GarrisonBar({ run, onLeave, onOpenCardRemoval, recentRecruit, onOpenMenu, onMoveStack, onSplitStack, onMergeStacks, onDismissStack }: Props) {
+export function GarrisonBar({ run, onLeave, onOpenCardRemoval, recentRecruit, onOpenMenu, onMoveStack, onSplitStack, onSplitMerge, onMergeStacks, onDismissStack }: Props) {
   const [popupStackId, setPopupStackId] = useState<string | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [foodOpen, setFoodOpen] = useState(false);
@@ -52,11 +55,19 @@ export function GarrisonBar({ run, onLeave, onOpenCardRemoval, recentRecruit, on
   const starving = starvationForecast(run).willStarve;
   const warning = bossWarning(run);
   const inCity = !!onLeave;
+  const deltas = useResourceDeltas(run);
 
   return (
     <>
       <div className="garrison-bar">
         <div className="garrison-bar-col garrison-bar-resources">
+          {deltas.map((d) => (
+            <span key={d.id} className={`resource-float resource-float--${d.resource} resource-float--${d.amount > 0 ? 'gain' : 'loss'}`} aria-hidden="true">
+              {d.amount > 0 ? '+' : ''}
+              {d.amount}
+              <Icon name={d.resource} />
+            </span>
+          ))}
           <div className="garrison-bar-row">
             <Tip tip={goldTip(run)}>
               <div className="pill pill--gold garrison-bar-stat">
@@ -97,7 +108,7 @@ export function GarrisonBar({ run, onLeave, onOpenCardRemoval, recentRecruit, on
                   </div>
                 </Tip>
                 <Tip tip={chapterTip(run)}>
-                  <div className="pill garrison-bar-stat">Ch. {run.chapter}/3</div>
+                  <div className="pill garrison-bar-stat">Ch. {run.chapter}/{TOTAL_CHAPTERS}</div>
                 </Tip>
               </div>
               <Tip tip={bossTip(run)}>
@@ -112,7 +123,7 @@ export function GarrisonBar({ run, onLeave, onOpenCardRemoval, recentRecruit, on
         <div className="garrison-bar-col garrison-bar-hero">
           <div className="plaque plaque--iron garrison-hero-plaque">{hero.name}</div>
           <Tip tip="Hero stats">
-            <button className="garrison-hero-portrait-rect" onClick={() => setHeroOpen(true)}>
+            <button className="garrison-hero-portrait-rect" aria-label="Hero stats" onClick={() => setHeroOpen(true)}>
               <HeroArt heroId={hero.heroType} />
             </button>
           </Tip>
@@ -144,6 +155,10 @@ export function GarrisonBar({ run, onLeave, onOpenCardRemoval, recentRecruit, on
               if (placing) onSplitStack(placing.stackId, placing.count, toPosition);
               setPlacing(null);
             }}
+            onMergeSplit={(targetStackId) => {
+              if (placing) onSplitMerge(placing.stackId, placing.count, targetStackId);
+              setPlacing(null);
+            }}
             onCancelPlacing={() => setPlacing(null)}
             onInspect={setPopupStackId}
           />
@@ -151,17 +166,17 @@ export function GarrisonBar({ run, onLeave, onOpenCardRemoval, recentRecruit, on
 
         <div className="garrison-bar-actions">
           <Tip tip="Deck">
-            <button className="btn garrison-bar-btn" onClick={() => setDeckOpen(true)}>
+            <button className="btn garrison-bar-btn" aria-label="Deck" onClick={() => setDeckOpen(true)}>
               <Icon name="deck" size={2} />
             </button>
           </Tip>
           <Tip tip="History">
-            <button className="btn garrison-bar-btn" onClick={() => setHistoryOpen(true)}>
+            <button className="btn garrison-bar-btn" aria-label="History" onClick={() => setHistoryOpen(true)}>
               <Icon name="ui_log" size={2} />
             </button>
           </Tip>
           <Tip tip="Menu">
-            <button className="btn garrison-bar-btn" onClick={onOpenMenu}>
+            <button className="btn garrison-bar-btn" aria-label="Menu" onClick={onOpenMenu}>
               <Icon name="ui_menu" size={2} />
             </button>
           </Tip>

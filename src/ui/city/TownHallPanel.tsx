@@ -1,9 +1,9 @@
-import { CARD_REMOVAL, LEVEL_SLOTS, cardRemovalQuote, cityRemovalPrice } from '../../engine/run/index.js';
+import { CARD_REMOVAL, LEVEL_SLOTS, ROMAN, cardRemovalQuote, cityRemovalPrice } from '../../engine/run/index.js';
 import type { RunState } from '../../engine/run/index.js';
 import { CardRemovalPicker } from '../CardRemovalPicker.js';
 import { Icon } from '../pixel/Icon.js';
 import { Modal } from '../Modal.js';
-import { ROMAN, levelRows } from './cityView.js';
+import { levelRows } from './cityView.js';
 
 interface Props {
   run: RunState;

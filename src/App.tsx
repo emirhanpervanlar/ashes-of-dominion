@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { CARD_DEFINITIONS, UNIT_DEFINITIONS, cardPlayability, cardRequirement, computeValidHealTargets, computeValidTargets, resolveCard } from './engine/index.js';
 import type { ArmyStack, CardTargeting, CombatState, PlayerAction, Position } from './engine/index.js';
-import { applyRunAction, cardRemovalQuote, createRun, enemyStrengthAfterCityVisits, eventView, migrateRun } from './engine/run/index.js';
+import { applyRunAction, cardRemovalQuote, createRun, enemyStrengthAfterCityVisits, eventView } from './engine/run/index.js';
 import type { RunEvent, RunState } from './engine/run/index.js';
 import { StackTile } from './ui/StackTile.js';
 import { UnitPopup } from './ui/UnitPopup.js';
@@ -38,8 +38,8 @@ import { HeroSetupScreen } from './ui/HeroSetupScreen.js';
 import { PauseMenu } from './ui/PauseMenu.js';
 import { SettingsPanel } from './ui/SettingsPanel.js';
 import { startMusic, setMusicVolume } from './ui/music.js';
-
-const STORAGE_KEY = 'aod_run_state_v1';
+import { Modal } from './ui/Modal.js';
+import { STORAGE_KEY, loadSavedRun } from './ui/saveLoad.js';
 
 type AppStage = 'title' | 'setup' | 'game';
 
@@ -54,16 +54,6 @@ interface PendingAction {
   targetStackId?: string;
 }
 
-function loadInitialRun(): RunState {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return migrateRun(JSON.parse(raw) as RunState);
-  } catch {
-    // corrupted save — fall through to a fresh run
-  }
-  return createRun(Date.now() & 0xffffffff);
-}
-
 /** The Gold and Food of the most recent battle's loot, or null when there was none. */
 function lastLoot(log: RunEvent[]): { gold: number; food: number } | null {
   const loot = [...log].reverse().find((e): e is Extract<RunEvent, { type: 'BATTLE_LOOT' }> => e.type === 'BATTLE_LOOT');
@@ -75,7 +65,9 @@ function stackAt(army: ArmyStack[], position: Position): ArmyStack | undefined {
 }
 
 export default function App() {
-  const [run, setRun] = useState<RunState>(loadInitialRun);
+  // A save the engine's validator rejects (corrupt, or from a newer game) counts as no save: title screen, Continue disabled.
+  const [savedRun] = useState(loadSavedRun);
+  const [run, setRun] = useState<RunState>(() => savedRun ?? createRun(Date.now() & 0xffffffff));
   const [pending, setPending] = useState<PendingAction | null>(null);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const [historyOpen, setHistoryOpen] = useState(false);
@@ -96,19 +88,19 @@ export default function App() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [titleSettingsOpen, setTitleSettingsOpen] = useState(false);
   const [musicVolume, setMusicVolumeState] = useState(0.5);
-  const [hasSave, setHasSave] = useState(() => {
-    try {
-      return !!localStorage.getItem(STORAGE_KEY);
-    } catch {
-      return false;
-    }
-  });
+  const [hasSave, setHasSave] = useState(savedRun !== null);
+  const [confirmAbandon, setConfirmAbandon] = useState(false);
   const nextToastId = useRef(1);
 
   function changeMusicVolume(v: number) {
     setMusicVolumeState(v);
     setMusicVolume(v);
   }
+
+  // Toasts about the run's last step must not linger over the end screens.
+  useEffect(() => {
+    if (run.phase === 'defeat' || run.phase === 'run_complete') setToasts([]);
+  }, [run.phase]);
 
   useEffect(() => {
     try {
@@ -217,12 +209,7 @@ export default function App() {
     for (const e of events) {
       const text = describeRunEvent(e);
       switch (e.type) {
-        case 'RESOURCE_FOUND':
-          pushToast('gold', `+${e.gold} Gold, +${e.food} Food`);
-          break;
-        case 'BATTLE_LOOT':
-          pushToast('gold', text ?? 'Loot');
-          break;
+        // Gold and Food changes are not toasted: the reward screen shows the loot pills and the bar floats the change (resourceDeltas).
         case 'EVENT_RESOLVED':
           pushToast('fx_sparkle', text ?? 'Nothing happened.', 8000);
           break;
@@ -300,6 +287,24 @@ export default function App() {
     }
     const placed = applyRunAction(split.run, { type: 'MOVE_STACK', stackId: created.stackId, toPosition });
     commitRun({ ...placed, events: [...split.events, ...placed.events] });
+  }
+
+  /** Split, then merge the new stack (the only id that did not exist before) into a stack of the same unit type; nothing changes if the merge is refused. */
+  function splitAndMerge(stackId: string, splitCount: number, targetStackId: string) {
+    const split = applyRunAction(run, { type: 'SPLIT_STACK', stackId, splitCount });
+    const known = new Set(run.army.map((s) => s.stackId));
+    const created = split.run.army.find((s) => !known.has(s.stackId));
+    if (!created) {
+      commitRun(split);
+      return;
+    }
+    const merged = applyRunAction(split.run, { type: 'MERGE_STACKS', stackIdA: targetStackId, stackIdB: created.stackId });
+    const refused = merged.events.filter((e) => e.type === 'ACTION_REJECTED');
+    if (refused.length > 0) {
+      toastsForRunEvents(refused);
+      return;
+    }
+    commitRun({ ...merged, events: [...split.events, ...merged.events] });
   }
 
   function handleCardClick(instanceId: string, cardId: string, upgraded: boolean) {
@@ -551,6 +556,11 @@ export default function App() {
       <>
         <TitleScreen
           onStart={() => {
+            // A finished run (defeat / complete) has nothing left to lose, so only a run in progress asks.
+            if (hasSave && run.phase !== 'defeat' && run.phase !== 'run_complete') {
+              setConfirmAbandon(true);
+              return;
+            }
             startMusic();
             setAppStage('setup');
           }}
@@ -566,6 +576,32 @@ export default function App() {
         />
         {titleSettingsOpen && (
           <SettingsPanel volume={musicVolume} onVolumeChange={changeMusicVolume} onClose={() => setTitleSettingsOpen(false)} />
+        )}
+        {confirmAbandon && (
+          <Modal
+            heading="Abandon your current run?"
+            onClose={() => setConfirmAbandon(false)}
+            width={520}
+            footer={
+              <>
+                <button className="btn" onClick={() => setConfirmAbandon(false)}>
+                  Cancel
+                </button>
+                <button
+                  className="btn btn--danger"
+                  onClick={() => {
+                    setConfirmAbandon(false);
+                    startMusic();
+                    setAppStage('setup');
+                  }}
+                >
+                  Confirm
+                </button>
+              </>
+            }
+          >
+            <p className="city-confirm-warning">Starting a new run replaces your saved run. It cannot be undone.</p>
+          </Modal>
         )}
       </>
     );
@@ -657,6 +693,7 @@ export default function App() {
           onEnterCity={() => dispatchRun({ type: 'TRAVEL_TO_CITY' })}
           onOpenMenu={() => setMenuOpen(true)}
           onSplitStack={splitAndPlace}
+          onSplitMerge={splitAndMerge}
           onMergeStacks={(keep, absorb) => dispatchRun({ type: 'MERGE_STACKS', stackIdA: keep, stackIdB: absorb })}
           onMoveStack={(stackId, toPosition) => dispatchRun({ type: 'MOVE_STACK', stackId, toPosition })}
           onDismissStack={(stackId, count) => dispatchRun({ type: 'DISMISS_STACK', stackId, count })}
@@ -681,6 +718,7 @@ export default function App() {
           onOpenMenu={() => setMenuOpen(true)}
           onLeave={() => dispatchRun({ type: 'LEAVE_CITY' })}
           onSplitStack={splitAndPlace}
+          onSplitMerge={splitAndMerge}
           onMergeStacks={(keep, absorb) => dispatchRun({ type: 'MERGE_STACKS', stackIdA: keep, stackIdB: absorb })}
           onMoveStack={(stackId, toPosition) => dispatchRun({ type: 'MOVE_STACK', stackId, toPosition })}
           onDismissStack={(stackId, count) => dispatchRun({ type: 'DISMISS_STACK', stackId, count })}
@@ -908,7 +946,6 @@ export default function App() {
 
         <div className="fx-layer" ref={fx.attach} aria-hidden="true" />
 
-        
       </div>
 
       <div className="frame-bottombar">
@@ -918,8 +955,6 @@ export default function App() {
               <div className="pile-card-back">
                 <Icon name="deck" size={2} />
               </div>
-              {/* <div className="pile-count">{combat.deck.length}</div>
-              <div className="pile-label">Deck</div> */}
             </button>
           </Tip>
         </div>
@@ -966,8 +1001,6 @@ export default function App() {
               <div className="pile-card-back discard">
                 <Icon name="discard" size={2} />
               </div>
-              {/* <div className="pile-count">{combat.discard.length}</div>
-              <div className="pile-label">Discard</div> */}
             </button>
           </Tip>
         </div>

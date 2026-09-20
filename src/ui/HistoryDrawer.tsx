@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { Icon } from './pixel/Icon.js';
+import { quietTipsBriefly } from './Tip.js';
 
 interface Props {
   open: boolean;
@@ -26,7 +27,10 @@ export function HistoryDrawer({ open, onClose, heading, lines }: Props) {
     window.addEventListener('keydown', onKeyDown, true);
     return () => {
       window.removeEventListener('keydown', onKeyDown, true);
-      if (opener?.isConnected) opener.focus();
+      if (opener?.isConnected) {
+        quietTipsBriefly();
+        opener.focus();
+      }
     };
   }, [open]);
 

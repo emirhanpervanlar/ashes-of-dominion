@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { STATUS_INFO, UNIT_DEFINITIONS } from '../engine/index.js';
+import { MAX_ARMY_STACKS, STATUS_INFO, UNIT_DEFINITIONS } from '../engine/index.js';
 import type { ArmyStack } from '../engine/index.js';
 import { stackUpkeep } from '../engine/run/index.js';
 import { Icon } from './pixel/Icon.js';
@@ -34,7 +34,7 @@ export function UnitPopup({ stack, army, onClose, inBattle, team, onSplit, onMer
   const [confirmDismiss, setConfirmDismiss] = useState(false);
 
   const aliveStacks = army.filter((s) => s.count > 0);
-  const armyFull = aliveStacks.length >= 6;
+  const armyFull = aliveStacks.length >= MAX_ARMY_STACKS;
   const canSplit = !!onSplit && stack.count > 1;
   const isLastStack = aliveStacks.every((s) => s.stackId === stack.stackId);
   const maxDismiss = isLastStack ? stack.count - 1 : stack.count;

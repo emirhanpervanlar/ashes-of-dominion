@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { UNIT_DEFINITIONS } from '../../engine/index.js';
+import { MAX_ARMY_STACKS, UNIT_DEFINITIONS } from '../../engine/index.js';
 import type { UnitId } from '../../engine/index.js';
 import { dailyUpkeep, totalArmyCount } from '../../engine/run/index.js';
 import type { RunState } from '../../engine/run/index.js';
@@ -39,13 +39,13 @@ export function BarracksPanel({ run, recent, onRecruit, onClose }: Props) {
           <Icon name="food" size={2} /> {run.food} Food
         </span>
         <span className="city-strip-item">
-          <Icon name="slots" /> Army {stacks.length} of 6 stacks, {totalArmyCount(stacks)} units
+          <Icon name="slots" /> Army {stacks.length} of {MAX_ARMY_STACKS} stacks, {totalArmyCount(stacks)} units
         </span>
         <span className="city-strip-item">
           <Icon name="food" /> Eats {dailyUpkeep(run)} a day
         </span>
       </div>
-      <p className="city-note">A recruit joins the stack of its type, or takes the first free slot. With 6 stacks and no stack of that type there is no room.</p>
+      <p className="city-note">A recruit joins the stack of its type, or takes the first free slot. With {MAX_ARMY_STACKS} stacks and no stack of that type there is no room.</p>
 
       <div className="city-recruits">
         {RECRUITABLE_UNITS.map((unitId) => {
