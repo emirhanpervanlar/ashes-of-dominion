@@ -55,6 +55,8 @@ export interface StatusEffect {
   amount: number;
   /** Turns remaining, ticked down (and DoT/control resolved) at the start of the owning side's turn. */
   duration: number;
+  /** The card that applied a buff: playing the same card again refreshes this entry instead of adding a copy. */
+  sourceId?: string;
 }
 
 /**

@@ -38,9 +38,12 @@ export function fearDamageMultiplier(attacker: ArmyStack): number {
   return 1 - Math.min(FEAR_MAX_PERCENT, statusAmount(attacker, 'fear')) / 100;
 }
 
-/** Armor status — flat per-attack damage reduction, applied like extra Defense. */
+/** Armor from different sources adds up but never counts for more than this many Defense points. */
+export const ARMOR_MAX = 8;
+
+/** Armor status — flat per-attack damage reduction, applied like extra Defense (capped at ARMOR_MAX; negative armor is not capped). */
 export function armorReduction(target: ArmyStack): number {
-  return statusAmount(target, 'armor');
+  return Math.min(ARMOR_MAX, statusAmount(target, 'armor'));
 }
 
 export function relicDamageTakenMultiplier(relics: RelicEffect[]): number {

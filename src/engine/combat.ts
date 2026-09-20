@@ -46,14 +46,36 @@ import type {
   Position,
   RelicEffect,
   StackSnapshot,
+  StatusEffect,
   StatusType,
   UnitDefinition,
 } from './types.js';
+
+/** Buffs that refresh (rather than add a second copy) when the same card applies them again to a stack. */
+const REFRESHED_BUFFS: StatusType[] = ['armor', 'strength'];
+
+/** Adds a status to a stack; a repeat of the same buff from the same card only refreshes the entry's duration (and keeps the larger amount). */
+function withStatus(stack: ArmyStack, status: StatusEffect, sourceId: string): ArmyStack {
+  if (REFRESHED_BUFFS.includes(status.type)) {
+    const idx = stack.statuses.findIndex((s) => s.type === status.type && s.sourceId === sourceId);
+    if (idx >= 0) {
+      const statuses = stack.statuses.map((s, i) => (i === idx ? { ...s, amount: Math.max(s.amount, status.amount), duration: Math.max(s.duration, status.duration) } : s));
+      return { ...stack, statuses };
+    }
+  }
+  return { ...stack, statuses: [...stack.statuses, { ...status, sourceId }] };
+}
 
 /** What a hero-cast card carries into its effects: the scaling stat and the tags relics match on. */
 interface HeroCast {
   stat: HeroCastStat;
   tags: string[];
+}
+
+/** The card being resolved: its id (status source) and, for hero-cast cards, the spell context. */
+interface EffectContext {
+  cardId: string;
+  cast?: HeroCast;
 }
 
 type TargetedAction = { actingStackId?: string; targetStackId?: string; secondTargetStackId?: string; toPosition?: Position };
@@ -372,7 +394,7 @@ function resolveHeroSpell(
   if (resolution.stack.count === 0) events.push({ type: 'STACK_DESTROYED', stackId: target.stackId });
 }
 
-function executeEffect(state: CombatState, effect: CardEffect, action: TargetedAction, events: CombatEvent[], cast?: HeroCast): void {
+function executeEffect(state: CombatState, effect: CardEffect, action: TargetedAction, events: CombatEvent[], { cardId, cast }: EffectContext): void {
   const actor = findStack(state.playerArmy, action.actingStackId);
   /** One damaging hit: the hero's spell for hero-cast cards, otherwise the acting stack's attack. */
   const strike = (target: ArmyStack, multiplier: number, conditionalBonus?: { targetHpBelowPercent: number; multiplier: number }): void => {
@@ -467,8 +489,7 @@ function executeEffect(state: CombatState, effect: CardEffect, action: TargetedA
           effect.stat === 'defense'
             ? defenseBuffAmount(stack.unitId, effect.amount)
             : Math.round((UNIT_DEFINITIONS[stack.unitId].attack * effect.amount) / 100);
-        const updated = { ...stack, statuses: [...stack.statuses, { type: statusType, amount, duration: effect.duration }] };
-        replaceStack(state.playerArmy, updated);
+        replaceStack(state.playerArmy, withStatus(stack, { type: statusType, amount, duration: effect.duration }, cardId));
         events.push({ type: 'STATUS_APPLIED', stackId: stack.stackId, status: statusType, amount, duration: effect.duration });
       }
       return;
@@ -477,8 +498,7 @@ function executeEffect(state: CombatState, effect: CardEffect, action: TargetedA
       for (const stack of state.playerArmy) {
         if (stack.count > 0 && stack.position <= 3) {
           const amount = defenseBuffAmount(stack.unitId, effect.amount);
-          const updated = { ...stack, statuses: [...stack.statuses, { type: 'armor' as const, amount, duration: effect.duration }] };
-          replaceStack(state.playerArmy, updated);
+          replaceStack(state.playerArmy, withStatus(stack, { type: 'armor', amount, duration: effect.duration }, cardId));
           events.push({ type: 'STATUS_APPLIED', stackId: stack.stackId, status: 'armor', amount, duration: effect.duration });
         }
       }
@@ -487,8 +507,7 @@ function executeEffect(state: CombatState, effect: CardEffect, action: TargetedA
     case 'DEFENSE_BUFF_ALL': {
       for (const stack of state.playerArmy.filter((s) => s.count > 0)) {
         const amount = defenseBuffAmount(stack.unitId, effect.amount);
-        const updated = { ...stack, statuses: [...stack.statuses, { type: 'armor' as const, amount, duration: effect.duration }] };
-        replaceStack(state.playerArmy, updated);
+        replaceStack(state.playerArmy, withStatus(stack, { type: 'armor', amount, duration: effect.duration }, cardId));
         events.push({ type: 'STATUS_APPLIED', stackId: stack.stackId, status: 'armor', amount, duration: effect.duration });
       }
       return;
@@ -497,8 +516,7 @@ function executeEffect(state: CombatState, effect: CardEffect, action: TargetedA
       for (const stack of state.playerArmy) {
         if (stack.count > 0 && UNIT_DEFINITIONS[stack.unitId].tags.includes(effect.tag)) {
           const amount = Math.round((UNIT_DEFINITIONS[stack.unitId].attack * effect.amount) / 100);
-          const updated = { ...stack, statuses: [...stack.statuses, { type: 'strength' as const, amount, duration: effect.duration }] };
-          replaceStack(state.playerArmy, updated);
+          replaceStack(state.playerArmy, withStatus(stack, { type: 'strength', amount, duration: effect.duration }, cardId));
           events.push({ type: 'STATUS_APPLIED', stackId: stack.stackId, status: 'strength', amount, duration: effect.duration });
         }
       }
@@ -509,15 +527,8 @@ function executeEffect(state: CombatState, effect: CardEffect, action: TargetedA
       for (const target of targets) {
         const dmgAmount = Math.round((UNIT_DEFINITIONS[target.unitId].attack * effect.damageAmount) / 100);
         const defAmount = defenseBuffAmount(target.unitId, effect.defenseAmount);
-        const updated = {
-          ...target,
-          statuses: [
-            ...target.statuses,
-            { type: 'strength' as const, amount: dmgAmount, duration: effect.duration },
-            { type: 'armor' as const, amount: defAmount, duration: effect.duration },
-          ],
-        };
-        replaceStack(state.playerArmy, updated);
+        const buffed = withStatus(withStatus(target, { type: 'strength', amount: dmgAmount, duration: effect.duration }, cardId), { type: 'armor', amount: defAmount, duration: effect.duration }, cardId);
+        replaceStack(state.playerArmy, buffed);
         events.push({ type: 'STATUS_APPLIED', stackId: target.stackId, status: 'strength', amount: dmgAmount, duration: effect.duration });
         events.push({ type: 'STATUS_APPLIED', stackId: target.stackId, status: 'armor', amount: defAmount, duration: effect.duration });
       }
@@ -528,8 +539,7 @@ function executeEffect(state: CombatState, effect: CardEffect, action: TargetedA
       // An earlier lethal effect of the same card may have removed the target.
       if (!target) return;
       const targetArmy = target.side === 'player' ? state.playerArmy : state.enemyArmy;
-      const updated = { ...target, statuses: [...target.statuses, { type: effect.status, amount: effect.amount, duration: effect.duration }] };
-      replaceStack(targetArmy, updated);
+      replaceStack(targetArmy, withStatus(target, { type: effect.status, amount: effect.amount, duration: effect.duration }, cardId));
       events.push({ type: 'STATUS_APPLIED', stackId: target.stackId, status: effect.status, amount: effect.amount, duration: effect.duration });
       return;
     }
@@ -724,7 +734,7 @@ function playCard(state: CombatState, action: Extract<PlayerAction, { type: 'PLA
 
   const cast: HeroCast | undefined = cardDef.cast === 'hero' ? { stat: cardDef.scalesWith ?? 'intelligence', tags: cardDef.tags } : undefined;
   for (const effect of cardDef.effects) {
-    executeEffect(state, effect, action, events, cast);
+    executeEffect(state, effect, action, events, { cardId: instance.cardId, cast });
   }
   // A stack frozen by this card no longer acts this round, so its intent disappears from the plan the player sees.
   state.enemyIntents = state.enemyIntents.filter((intent) => {

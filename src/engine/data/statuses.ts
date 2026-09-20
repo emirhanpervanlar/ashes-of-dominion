@@ -1,4 +1,4 @@
-import { ATTACK_ADVANTAGE_PER_POINT, FEAR_MAX_PERCENT } from '../damage.js';
+import { ARMOR_MAX, ATTACK_ADVANTAGE_PER_POINT, FEAR_MAX_PERCENT } from '../damage.js';
 import type { StatusType } from '../types.js';
 
 export interface StatusInfo {
@@ -13,7 +13,7 @@ const attackPercentPerPoint = Math.round(ATTACK_ADVANTAGE_PER_POINT * 100);
 
 export const STATUS_INFO: Record<StatusType, StatusInfo> = {
   strength: { id: 'strength', name: 'Strength', kind: 'buff', effect: `+{n} Attack (about +${attackPercentPerPoint}% damage per point above the target's Defense).` },
-  armor: { id: 'armor', name: 'Armor', kind: 'buff', effect: 'Counts as +{n} Defense against attacks.' },
+  armor: { id: 'armor', name: 'Armor', kind: 'buff', effect: `Counts as +{n} Defense against attacks (armor from all sources counts up to +${ARMOR_MAX}).` },
   taunt: { id: 'taunt', name: 'Taunt', kind: 'buff', effect: 'Enemies must target this stack.' },
   weak: { id: 'weak', name: 'Weak', kind: 'debuff', effect: 'Deals {n}% less damage.' },
   fear: { id: 'fear', name: 'Fear', kind: 'debuff', effect: `Deals {n}% less damage (max ${FEAR_MAX_PERCENT}%).` },
