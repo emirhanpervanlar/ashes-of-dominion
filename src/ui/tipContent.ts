@@ -56,8 +56,19 @@ const RARITY_TAG: Record<RelicDefinition['rarity'], NonNullable<TipContent['tag'
   epic: { text: 'Epic', tone: 'epic' },
 };
 
-export function relicTip(relic: RelicDefinition, icon: IconName): TipContent {
-  return { title: relic.name, icon, tag: RARITY_TAG[relic.rarity], body: relic.description };
+/** The relic's benefit text: its description without the drawback sentences, which the UI shows as a separate red line. */
+export function relicBenefit(relic: Pick<RelicDefinition, 'description' | 'drawbacks'>): string {
+  return (relic.drawbacks ?? []).reduce((text, drawback) => text.replace(drawback, ''), relic.description).replace(/\s+/g, ' ').trim();
+}
+
+export function relicTip(relic: Pick<RelicDefinition, 'name' | 'rarity' | 'description' | 'drawbacks'>, icon: IconName): TipContent {
+  return {
+    title: relic.name,
+    icon,
+    tag: RARITY_TAG[relic.rarity],
+    body: relicBenefit(relic),
+    lines: relic.drawbacks?.map((text) => ({ text, tone: 'bad' as const })),
+  };
 }
 
 /** Role badge text keyed by the role icon; the icons come from unitIcons.ts. */

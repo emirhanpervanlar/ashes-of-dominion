@@ -3681,6 +3681,16 @@ button.frame-pile:hover .pile-card-back::before { --bev-light: var(--gold-400); 
 .rarity-rare { --trim: var(--steel-300); --rarity-text: var(--steel-300); }
 .rarity-epic { --trim: var(--rar-epic); --rarity-text: var(--arcane-300); }
 
+.relic-text { display: flex; flex-direction: column; gap: var(--s-1); }
+.relic-drawback { color: var(--blood-300); }
+.reward-card-desc .relic-text { align-items: center; text-align: center; }
+.reward-card-desc .relic-drawback { color: var(--blood-700); }
+
+.relic-info { display: flex; flex-direction: column; align-items: center; gap: var(--s-3); text-align: center; }
+.relic-info-frame { display: flex; align-items: center; justify-content: center; width: 96px; height: 96px; background: var(--stone-900); box-shadow: inset 0 0 0 4px var(--trim, var(--iron-500)); }
+.relic-info-rarity { font: var(--t-label); text-transform: uppercase; letter-spacing: 1px; color: var(--rarity-text); }
+.relic-info-text { margin: 0; font: var(--t-body); color: var(--text-strong); }
+
 .relic-offer::after { box-shadow: inset 0 0 0 4px var(--trim); }
 .relic-offer-rarity { color: var(--rarity-text); }
 

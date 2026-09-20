@@ -3,7 +3,7 @@ import { STATUS_INFO, UNIT_DEFINITIONS, statusEffectText } from '../engine/index
 import type { StatusType, UnitId } from '../engine/index.js';
 import { RELIC_DEFINITIONS, STARTING_RELIC_DEFINITIONS, createRun } from '../engine/run/index.js';
 import { STATUS_ICONS } from './stackStatus.js';
-import { blockTip, buildingTip, foodTip, heroStatRows, manaCostTip, pileTip, relicTip, roleTip, statusTip, threatTip } from './tipContent.js';
+import { blockTip, relicBenefit, buildingTip, foodTip, heroStatRows, manaCostTip, pileTip, relicTip, roleTip, statusTip, threatTip } from './tipContent.js';
 
 describe('status tips', () => {
   it('cover every status type with a name and a numeric effect', () => {
@@ -35,8 +35,16 @@ describe('relic tips', () => {
       const tip = relicTip(relic, 'relic');
       expect(tip.title).toBe(relic.name);
       expect(tip.tag?.tone).toBe(relic.rarity);
-      expect(tip.body).toBe(relic.description);
+      expect(`${tip.body} ${(relic.drawbacks ?? []).join(' ')}`.trim()).toBe(relic.description);
     }
+  });
+
+  it('shows drawbacks as red lines and keeps them out of the benefit text', () => {
+    const relic = RELIC_DEFINITIONS.hawks_eye!;
+    const tip = relicTip(relic, 'relic');
+    expect(tip.lines).toEqual([{ text: 'Infantry deal -10% damage.', tone: 'bad' }]);
+    expect(relicBenefit(relic)).toBe('Ranged units deal +20% damage.');
+    expect(relicTip(RELIC_DEFINITIONS.field_chaplains_charm!, 'relic').lines).toBeUndefined();
   });
 });
 

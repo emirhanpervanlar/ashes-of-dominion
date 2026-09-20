@@ -4,6 +4,7 @@ import type { HeroId } from '../engine/index.js';
 import { STARTING_RELIC_DEFINITIONS, previewStart, startingRelicList } from '../engine/run/index.js';
 import { HERO_ICONS } from './heroIcons.js';
 import { Icon } from './pixel/Icon.js';
+import { RelicText } from './RelicText.js';
 import { relicIcon } from './relicIcons.js';
 import { Tip } from './Tip.js';
 import { heroStatRows, relicTip } from './tipContent.js';
@@ -92,7 +93,9 @@ export function HeroSetupScreen({ onBack, onBegin }: Props) {
                   </Tip>
                   <span className="relic-choice-text">
                     <span className="relic-choice-name">{relic.name}</span>
-                    <span className="relic-choice-desc">{relic.description}</span>
+                    <span className="relic-choice-desc">
+                      <RelicText relic={relic} />
+                    </span>
                   </span>
                 </button>
               ))}
