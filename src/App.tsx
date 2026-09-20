@@ -892,24 +892,21 @@ export default function App() {
 
         <div className="fx-layer" ref={fx.attach} aria-hidden="true" />
 
-        <div className="endturn-bar shadowed-1">
-          <button className="btn btn--primary btn--l endturn-btn" disabled={!canAct} onClick={handleEndTurn}>
-            End Turn
-          </button>
-        </div>
+        
       </div>
 
       <div className="frame-bottombar">
-        <Tip tip={pileTip('draw', combat.deck.length)}>
-          <button className="frame-pile deck-pile" onClick={() => setPileOpen('draw')}>
-            <div className="pile-card-back">
-              <Icon name="deck" size={2} />
-            </div>
-            <div className="pile-count">{combat.deck.length}</div>
-            <div className="pile-label">Deck</div>
-          </button>
-        </Tip>
-
+        <div className="frame-pile-container">
+          <Tip tip={pileTip('draw', combat.deck.length)}>
+            <button className="frame-pile deck-pile" onClick={() => setPileOpen('draw')}>
+              <div className="pile-card-back">
+                <Icon name="deck" size={2} />
+              </div>
+              {/* <div className="pile-count">{combat.deck.length}</div>
+              <div className="pile-label">Deck</div> */}
+            </button>
+          </Tip>
+        </div>
         <div className="frame-hand-slots">
           {combat.hand.map((instance, i) => {
             const cardDef = resolveCard(instance.cardId, instance.upgraded);
@@ -940,27 +937,36 @@ export default function App() {
           })}
         </div>
 
-        <Tip tip={pileTip('discard', combat.discard.length)}>
-          <button className="frame-pile discard-pile" onClick={() => setPileOpen('discard')}>
-            <div className="pile-card-back discard">
-              <Icon name="discard" size={2} />
-            </div>
-            <div className="pile-count">{combat.discard.length}</div>
-            <div className="pile-label">Discard</div>
-          </button>
-        </Tip>
-
         <div className="frame-round-buttons">
-          <Tip tip="Battle Log">
-            <button className="btn round-btn" onClick={() => setHistoryOpen(true)}>
-              <Icon name="ui_log" size={2} />
+          <div className="endturn-bar shadowed-1">
+          <button className="btn btn--primary btn--sq endturn-btn" disabled={!canAct} onClick={handleEndTurn}>
+            End Turn
+          </button>
+        </div>
+        
+        <div className="frame-pile-container">
+          <Tip tip={pileTip('discard', combat.discard.length)}>
+            <button className="frame-pile discard-pile" onClick={() => setPileOpen('discard')}>
+              <div className="pile-card-back discard">
+                <Icon name="discard" size={2} />
+              </div>
+              {/* <div className="pile-count">{combat.discard.length}</div>
+              <div className="pile-label">Discard</div> */}
             </button>
           </Tip>
-          <Tip tip="Menu">
-            <button className="btn round-btn" onClick={() => setMenuOpen(true)}>
-              <Icon name="ui_menu" size={2} />
-            </button>
-          </Tip>
+        </div>
+        <div className="frame-round-buttons-end">
+            <Tip tip="Battle Log">
+              <button className="btn round-btn" onClick={() => setHistoryOpen(true)}>
+                <Icon name="ui_log" size={2} />
+              </button>
+            </Tip>
+            <Tip tip="Menu">
+              <button className="btn round-btn" onClick={() => setMenuOpen(true)}>
+                <Icon name="ui_menu" size={2} />
+              </button>
+            </Tip>
+          </div>
         </div>
       </div>
 

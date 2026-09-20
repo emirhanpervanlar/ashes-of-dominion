@@ -961,7 +961,7 @@ p { margin: 0; }
   z-index: 5;
 }
 
-.endturn-btn { width: 100%; }
+.endturn-btn { width: 150px; float: right; }
 
 .drop-zone {
   position: absolute;
@@ -1515,6 +1515,7 @@ p { margin: 0; }
   justify-content: center;
   /* room so a lifted card is not clipped */
   padding: 32px var(--s-1) var(--s-1);
+  height: 212px;
 }
 
 .frame-pile {
@@ -1573,10 +1574,17 @@ p { margin: 0; }
 }
 
 .frame-round-buttons {
+  height:100%;
   display: flex;
   flex-direction: column;
+  justify-content: space-between;
   gap: var(--s-2);
   flex-shrink: 0;
+}
+
+.frame-round-buttons-end {
+  display: flex;
+  justify-content: space-between;
 }
 
 .round-btn {
@@ -3339,6 +3347,13 @@ button.pill {
 }
 
 /* Portrait plates and piles that open a popup */
+.frame-pile-container {
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  flex-direction: column;
+  align-items: center;
+}
 button.hero-portrait,
 button.garrison-hero-portrait-rect,
 button.frame-pile {
