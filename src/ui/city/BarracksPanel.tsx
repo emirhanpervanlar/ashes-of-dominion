@@ -80,6 +80,7 @@ export function BarracksPanel({ run, recent, onRecruit, onClose }: Props) {
                 </span>
               </div>
               <div className="city-recruit-cost">
+                <span className="t-label-text city-recruit-costlabel">Cost per unit</span>
                 <span>
                   <Icon name="gold" /> {fmt(quote.goldPerUnit)} each
                 </span>
@@ -119,7 +120,10 @@ export function BarracksPanel({ run, recent, onRecruit, onClose }: Props) {
                 </span>
               </div>
               <p className="city-recruit-place">{placementText(quote, existing, def.name)}</p>
-              <button className="btn btn--primary city-recruit-btn" disabled={!!quote.blocker} onClick={() => onRecruit(unitId, count)}>
+              <button className="btn btn--primary city-recruit-btn" disabled={!!quote.blocker} onClick={() => {
+                  onRecruit(unitId, count);
+                  set(1);
+                }}>
                 Recruit {count}
               </button>
               <div className="city-blocker city-recruit-blocker">{quote.blocker && !(quote.placement === 'full') ? quote.blocker : ''}</div>

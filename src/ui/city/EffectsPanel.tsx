@@ -10,7 +10,7 @@ export function EffectsPanel({ run }: { run: Pick<RunState, 'city' | 'army'> }) 
   const daily = dailyChange(run);
   return (
     <aside className="city-effects panel panel--wood step-8" aria-label="Active effects">
-      <h3 className="city-effects-title">Active effects</h3>
+      <h3>Active effects</h3>
       <div className="city-effects-list well step">
         {effects.length === 0 ? (
           <p className="city-effects-empty">Nothing yet. Every building you raise, and the doctrine you choose, adds its effect here.</p>

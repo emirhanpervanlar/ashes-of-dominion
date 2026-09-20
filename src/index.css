@@ -2424,7 +2424,7 @@ button.pill {
   min-height: 0;
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  grid-template-rows: repeat(3, minmax(120px, 1fr));
+  grid-template-rows: repeat(3, minmax(156px, 1fr));
   gap: var(--s-4);
 }
 
@@ -2451,7 +2451,7 @@ button.pill {
 .city-plot-art {
   position: relative;
   flex: 1;
-  min-height: 0;
+  min-height: 88px;
   display: flex;
   align-items: flex-end;
   justify-content: center;
@@ -2876,6 +2876,7 @@ button.pill {
   color: var(--gold-200);
 }
 
+.city-recruit-costlabel { flex-basis: 100%; justify-content: center; }
 .city-recruit-upkeep { flex-basis: 100%; justify-content: center; color: var(--text-dim); }
 
 .city-stepper { display: flex; align-items: center; gap: var(--s-1); }
