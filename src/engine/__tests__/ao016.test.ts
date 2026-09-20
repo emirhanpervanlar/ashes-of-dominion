@@ -21,26 +21,26 @@ function battle(playerArmy: ArmyStack[], enemyArmy: ArmyStack[], cardIds: string
   };
 }
 
-describe('AO-D038 stalemate-only lane guard', () => {
-  it('an enemy right-lane melee unit never hits the last left-lane unit while another enemy unit can act', () => {
+describe('AO-D044 per-attacker melee fallback in battle (no softlock)', () => {
+  it('an enemy right-lane melee unit hits the last left-lane unit even while another enemy unit can act', () => {
     const player = [createStack('swordsman', 'player', 1, 500)];
     const rightOrc = createStack('orc', 'enemy', 3, 5);
-    const centerGoblin = createStack('goblin', 'enemy', 2, 5); // reaches the left lane
+    const centerGoblin = createStack('goblin', 'enemy', 2, 5);
     const state = {
       ...battle(player, [rightOrc, centerGoblin]),
       enemyIntents: [rightOrc, centerGoblin].map((s) => ({ stackId: s.stackId, kind: 'attack' as const, targetStackId: player[0]!.stackId })),
     };
     const result = applyPlayerAction(state, { type: 'END_TURN' });
-    const attackers = result.enemySteps!.map((s) => s.actorStackId);
-    expect(attackers).toEqual([centerGoblin.stackId]);
+    const attackers = result.enemySteps!.map((s) => s.actorStackId).sort();
+    expect(attackers).toEqual([centerGoblin.stackId, rightOrc.stackId].sort());
   });
 
-  it('a true stalemate still resolves: the battle ends instead of looping forever', () => {
+  it('a lone corner-vs-corner battle always resolves', () => {
     let state = battle([createStack('swordsman', 'player', 1, 60)], [createStack('orc', 'enemy', 3, 4)]);
     for (let turn = 0; turn < 20 && state.result === 'ongoing'; turn += 1) {
       const actor = state.playerArmy[0]!;
       const targets = computeValidTargets(actor, state.enemyArmy, UNIT_DEFINITIONS[actor.unitId], state.playerArmy);
-      expect(targets.length).toBeGreaterThan(0); // fallback opens because nobody can reach anybody
+      expect(targets.length).toBeGreaterThan(0);
       state = applyPlayerAction(state, { type: 'BASIC_ACTION', stackId: actor.stackId, targetStackId: targets[0]!.stackId }).state;
       if (state.result === 'ongoing') state = applyPlayerAction(state, { type: 'END_TURN' }).state;
     }
@@ -87,13 +87,11 @@ describe('AO-D040 card requirements and playability', () => {
     expect(cardPlayability('reposition', battle(frozenMove, enemyRightOnly, ['reposition'])).reason).toBe('No stack can move this turn.');
   });
 
-  it('a card whose acting stacks all lack an enemy in reach is unplayable while the board is not in a stalemate', () => {
-    // The untargetable center goblin can still hit the left knight, so the guard stays closed and the knight reaches nothing.
+  it('a card is playable when the fallback gives a stranded acting stack a target (AO-D044)', () => {
     const player = [createStack('knight', 'player', 1, 2)];
     const goblin = { ...createStack('goblin', 'enemy', 2, 5), flags: { untargetable: true } };
     const enemy = [createStack('orc', 'enemy', 3, 5), goblin];
-    expect(cardPlayability('ambush', battle(player, enemy, ['ambush']))).toEqual({ playable: false, reason: 'No stack has an enemy in reach.' });
-    const lone = battle(player, [createStack('orc', 'enemy', 3, 5)], ['ambush']);
-    expect(cardPlayability('ambush', lone).playable).toBe(true); // true stalemate: fallback makes the orc reachable
+    expect(cardPlayability('ambush', battle(player, enemy, ['ambush'])).playable).toBe(true);
+    expect(cardPlayability('ambush', battle(player, [], ['ambush']))).toEqual({ playable: false, reason: 'No stack has an enemy in reach.' });
   });
 });

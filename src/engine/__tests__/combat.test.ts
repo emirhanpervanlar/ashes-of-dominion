@@ -263,9 +263,9 @@ describe('battle outcome', () => {
 });
 
 describe('melee reach vs the backline (AO-D013)', () => {
-  it('rejects a backline target while any front stack lives; an out-of-lane melee stack has no target while an ally can still act (AO-D038)', () => {
+  it('rejects a backline target while any front stack lives; an out-of-lane melee stack falls back to the only front stack (AO-D044)', () => {
     const { state } = createVerticalSliceScenario(8);
-    // Only the right front stack survives: the left-lane Swordsman reaches left+center only.
+    // Only the right front stack survives: the left-lane Swordsman has none in lane reach and falls back to it.
     const laneEmpty: CombatState = {
       ...state,
       enemyArmy: state.enemyArmy.map((s) => (s.position <= 2 ? { ...s, count: 0, currentHp: 0 } : s)),
@@ -274,7 +274,9 @@ describe('melee reach vs the backline (AO-D013)', () => {
     const result = applyPlayerAction(laneEmpty, { type: 'BASIC_ACTION', stackId: 'player_swordsman_1', targetStackId: backline.stackId });
     const rejected = result.events.find((e) => e.type === 'ACTION_REJECTED');
     expect(rejected).toBeDefined();
-    expect(JSON.stringify(rejected)).toContain('has no target in reach');
+    const front = laneEmpty.enemyArmy.find((s) => s.position === 3)!;
+    const hit = applyPlayerAction(laneEmpty, { type: 'BASIC_ACTION', stackId: 'player_swordsman_1', targetStackId: front.stackId });
+    expect(hit.events.some((e) => e.type === 'STACK_ATTACKED' && e.targetStackId === front.stackId)).toBe(true);
   });
 
   it('a melee army can finish a lone backline goblin once the front row is empty (softlock fixed)', () => {
