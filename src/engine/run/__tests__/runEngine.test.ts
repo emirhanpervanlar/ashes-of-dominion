@@ -157,13 +157,10 @@ describe('battle -> reward -> back to map loop', () => {
     expect(claimed.run.masterDeck.length).toBe(11);
   });
 
-  // The v3 canonical doc's upgrade model (§15) modifies a card's own state rather than
-  // swapping to a "_plus" card id — that system isn't implemented yet (Phase 3 "Deck /
-  // Build"), so the id-swap CARD_UPGRADES map is intentionally empty for now and no
-  // upgrade options are offered.
-  it('offers no upgrade options while CARD_UPGRADES is empty (pending the v3 upgrade system)', () => {
+  it('offers one upgrade of a deck card and two new cards (AO-D060)', () => {
     const won = forceVictory(reachBattle(21));
-    expect(won.pendingReward!.upgradeOptions).toHaveLength(0);
+    expect(won.pendingReward!.upgradeOptions).toHaveLength(1);
+    expect(won.pendingReward!.cardOptions).toHaveLength(2);
   });
 
   it('losing a battle moves to defeat, not run_complete', () => {

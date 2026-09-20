@@ -1,4 +1,4 @@
-import { CARD_DEFINITIONS } from '../data/cards.js';
+import { isUpgradable } from '../cardUpgrades.js';
 import { UNIT_DEFINITIONS } from '../data/units.js';
 import { nextInt } from '../rng.js';
 import type { RelicRarity, UnitId } from '../types.js';
@@ -625,7 +625,7 @@ export function scaleEffects(effects: EventEffect[], chapter: number): EventEffe
 }
 
 export function upgradableCardIds(run: Pick<RunState, 'masterDeck'>): string[] {
-  return run.masterDeck.filter((c) => CARD_DEFINITIONS[c.cardId]?.upgrade && !c.upgraded).map((c) => c.instanceId);
+  return run.masterDeck.filter(isUpgradable).map((c) => c.instanceId);
 }
 
 function effectsOf(option: EventOption): EventEffect[] {

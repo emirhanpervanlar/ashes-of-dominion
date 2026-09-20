@@ -1,4 +1,5 @@
 import { CARD_DEFINITIONS } from './data/cards.js';
+import { resolveCard } from './cardUpgrades.js';
 import { UNIT_DEFINITIONS } from './data/units.js';
 import { damageStatFor, statEffectiveness } from './heroStats.js';
 import {
@@ -630,7 +631,7 @@ function playCard(state: CombatState, action: Extract<PlayerAction, { type: 'PLA
     return { state, events };
   }
   const instance = state.hand[cardIndex]!;
-  const cardDef = CARD_DEFINITIONS[instance.cardId];
+  const cardDef = resolveCard(instance.cardId, instance.upgraded);
   if (!cardDef) {
     reject(events, 'Unknown card definition.');
     return { state, events };

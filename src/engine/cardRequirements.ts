@@ -1,4 +1,5 @@
 import { CARD_DEFINITIONS } from './data/cards.js';
+import { resolveCard } from './cardUpgrades.js';
 import { UNIT_DEFINITIONS } from './data/units.js';
 import { inactiveCardReason, isCardActive } from './combat.js';
 import { computeValidTargets } from './targeting.js';
@@ -55,8 +56,8 @@ const no = (reason: string): CardPlayability => ({ playable: false, reason });
  * rejections `applyPlayerAction` would issue (inactive source unit, Mana, no reachable target,
  * no possible move). Which exact stack/target the player then picks is still validated per action.
  */
-export function cardPlayability(cardId: string, state: CombatState): CardPlayability {
-  const card = CARD_DEFINITIONS[cardId];
+export function cardPlayability(cardId: string, state: CombatState, upgraded = false): CardPlayability {
+  const card = resolveCard(cardId, upgraded);
   if (!card) return no('Unknown card.');
   if (state.phase !== 'player' || state.result !== 'ongoing') return no('Not your turn.');
   if (!isCardActive(state, cardId)) return no(inactiveCardReason(card));
