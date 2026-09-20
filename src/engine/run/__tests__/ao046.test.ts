@@ -4,7 +4,8 @@ import type { CombatState } from '../../types.js';
 import { UNIT_DEFINITIONS } from '../../data/units.js';
 import { nextCityVisitRaisesThreat } from '../chapters.js';
 import { BARRACKS_TIERS, FARM_TIERS } from '../city.js';
-import { dailyProduction } from '../food.js';
+import { dailyProduction, dailyUpkeep } from '../food.js';
+import { BATTLE_LOOT, battleLootBands, rollBattleLoot } from '../loot.js';
 import { garrisonCap, garrisonUnits, weeklyGarrison } from '../garrison.js';
 import { FOOD_MARKET, foodMarketQuote, foodPackPrice } from '../marketplace.js';
 import { buildPendingReward } from '../rewards.js';
@@ -428,5 +429,34 @@ describe('AO-046 item 6 (AO-D072): villages', () => {
     delete (old.stats as Record<string, unknown>).villagesRaided;
     const loaded = validateSave(old)!;
     expect([loaded.villages, loaded.pendingVillage, loaded.stats.villagesHelped, loaded.stats.villagesRaided]).toEqual([0, null, 0, 0]);
+  });
+});
+
+describe('AO-046 item 7 (AO-D074): Food balance', () => {
+  const ctx = { chapter: 1, day: 1, elite: false, threat: 0 };
+
+  it('the Food chance after a battle is about 45% early and rises with chapter, day and elites; the amounts are unchanged', () => {
+    expect(battleLootBands(ctx).foodChance).toBe(0.45);
+    expect(battleLootBands(ctx).food).toEqual([5, 10]);
+    expect(battleLootBands({ ...ctx, day: 29 }).foodChance).toBeGreaterThan(0.6);
+    expect(battleLootBands({ ...ctx, chapter: 2, day: 31 }).foodChance).toBeGreaterThan(battleLootBands(ctx).foodChance);
+    expect(battleLootBands({ ...ctx, chapter: 3, day: 61 }).foodChance).toBeGreaterThan(battleLootBands({ ...ctx, chapter: 2, day: 31 }).foodChance);
+    expect(battleLootBands({ ...ctx, elite: true }).foodChance).toBeGreaterThan(battleLootBands(ctx).foodChance);
+    expect(battleLootBands({ ...ctx, chapter: 3, day: 89, elite: true }).foodChance).toBe(BATTLE_LOOT.maxFoodChance);
+  });
+
+  it('measured over many rolls, an early battle drops Food about 45% of the time', () => {
+    let drops = 0;
+    const rng = createRng(99);
+    for (let i = 0; i < 2000; i++) if (rollBattleLoot(rng, ctx).food > 0) drops += 1;
+    expect(drops / 2000).toBeGreaterThan(0.41);
+    expect(drops / 2000).toBeLessThan(0.49);
+  });
+
+  it('every hero starts with enough Food to march 15 days with no income at all (no starvation before day 15)', () => {
+    for (const hero of ['warlord', 'rogue', 'mage'] as const) {
+      const run = createRun(1, hero);
+      expect(dailyUpkeep(run) * 15, hero).toBeLessThan(run.food);
+    }
   });
 });

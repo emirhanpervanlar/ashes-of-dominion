@@ -3,23 +3,23 @@ import { nextInt, type RngState } from '../rng.js';
 import { DAYS_PER_CHAPTER, threatMultiplier } from './chapters.js';
 
 /**
- * AO-D053 battle loot. Gold is common, Food is a low-probability drop. Both grow with the
+ * AO-D053 battle loot (Food chance raised by AO-D074). Gold is common, Food is a drop that is likely early and a gamble at the edges. Both grow with the
  * chapter, the day inside the chapter, Threat (stronger enemies) and elite/boss fights.
  * Every number is a first-pass tuning value for qa-playtest; nothing else in the engine hard-codes them.
  */
 export const BATTLE_LOOT = {
   /** Base bands by chapter (index 0 = chapter 1), at day 1 of the chapter, normal enemy, Threat 0. */
   chapters: [
-    { gold: [12, 24], foodChance: 0.2, food: [5, 10] },
-    { gold: [25, 45], foodChance: 0.25, food: [8, 16] },
-    { gold: [40, 70], foodChance: 0.3, food: [12, 22] },
+    { gold: [12, 24], foodChance: 0.45, food: [5, 10] },
+    { gold: [25, 45], foodChance: 0.5, food: [8, 16] },
+    { gold: [40, 70], foodChance: 0.55, food: [12, 22] },
   ] as ReadonlyArray<{ gold: readonly [number, number]; foodChance: number; food: readonly [number, number] }>,
   /** Gold amount and Food chance are multiplied by 1 + dayBonus x (share of the chapter's days already gone). */
   dayBonus: 0.5,
   /** Elite battles and bosses pay more. */
   elite: { gold: 1.75, foodChance: 2, food: 1.5 },
   /** Food chance never exceeds this, so Food stays a gamble. */
-  maxFoodChance: 0.6,
+  maxFoodChance: 0.75,
 } as const;
 
 /** One-time pickup at a resource node: inclusive Gold and Food ranges (the Economic Doctrine scales them). */
