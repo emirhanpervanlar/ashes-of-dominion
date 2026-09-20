@@ -1,10 +1,8 @@
-import { CARD_DEFINITIONS } from '../engine/index.js';
 import type { CardInstance } from '../engine/index.js';
 import type { CardRemovalQuote, PendingReward } from '../engine/run/index.js';
-import { CARD_DESCRIPTIONS } from './cardText.js';
-import { cardVisual } from './cardVisuals.js';
 import { CardRemovalPicker } from './CardRemovalPicker.js';
 import { Icon } from './pixel/Icon.js';
+import { LargeCard } from './LargeCard.js';
 import { RelicOfferCard } from './RelicOfferCard.js';
 
 interface Props {
@@ -69,21 +67,14 @@ export function RewardScreen({ reward, deck, removalQuote, loot, isBoss, onClaim
         {slots.length === 0 && <div className="reward-empty">No cards available.</div>}
         {slots.map((slot) => {
           const isUpgrade = slot.kind === 'upgrade';
-          const displayCardId = isUpgrade ? slot.upgradedCardId : slot.cardId;
-          const def = CARD_DEFINITIONS[displayCardId];
-          if (!def) return null;
-          const visual = cardVisual(slot.cardId);
-          const onClick = isUpgrade ? () => onClaimUpgrade(slot.instanceId) : () => onClaimCard(slot.cardId);
           return (
-            <div key={slot.key} className={`reward-card polarity-${visual.polarity}`} onClick={onClick}>
-              <div className="reward-card-cost">{def.manaCost}</div>
-              <div className="reward-card-icon">
-                <Icon name={visual.icon} size={3} />
-              </div>
-              <div className="reward-card-name">{def.name}</div>
-              {isUpgrade && <div className="reward-card-tag">Upgrade</div>}
-              <div className="reward-card-desc">{CARD_DESCRIPTIONS[displayCardId] ?? displayCardId}</div>
-            </div>
+            <LargeCard
+              key={slot.key}
+              cardId={isUpgrade ? slot.upgradedCardId : slot.cardId}
+              visualId={slot.cardId}
+              tag={isUpgrade ? 'Upgrade' : undefined}
+              onClick={isUpgrade ? () => onClaimUpgrade(slot.instanceId) : () => onClaimCard(slot.cardId)}
+            />
           );
         })}
       </div>

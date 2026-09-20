@@ -6,6 +6,10 @@ import { Icon } from './pixel/Icon.js';
 import { UnitArt } from './UnitArt.js';
 import { UNIT_DESCRIPTIONS } from './unitText.js';
 import { STATUS_ICONS } from './stackStatus.js';
+import { Modal } from './Modal.js';
+import { Tip } from './Tip.js';
+import { STATUS_INFO, blockTip, roleTip, statusTip } from './tipContent.js';
+import { UNIT_ROLE_ICONS } from './unitIcons.js';
 
 interface Props {
   stack: ArmyStack;
@@ -34,17 +38,19 @@ export function UnitPopup({ stack, army, onClose, inBattle, onSplit, onMerge, on
   const dismissAmount = Math.min(Math.max(1, dismissCount), Math.max(1, maxDismiss));
   const otherMatchingStacks = onMerge ? aliveStacks.filter((s) => s.unitId === stack.unitId && s.stackId !== stack.stackId) : [];
 
+  const role = roleTip(stack.unitId);
+
   return (
-    <>
-      <div className="modal-backdrop" onClick={onClose} />
-      <div className="popup panel panel--stone step-8 unit-popup-card">
-        <button className="btn modal-close" onClick={onClose}>
-          <Icon name="ui_close" />
-        </button>
+    <Modal heading={def.name} trim onClose={onClose} width={320}>
+      <div className="unit-popup-card">
         <div className="unit-popup-icon">
           <UnitArt unitId={stack.unitId} size={4} />
         </div>
-        <div className="unit-popup-name">{def.name}</div>
+        <Tip tip={role}>
+          <div className="unit-popup-role">
+            <Icon name={UNIT_ROLE_ICONS[stack.unitId]} /> {role.title}
+          </div>
+        </Tip>
         <div className="unit-popup-desc">{UNIT_DESCRIPTIONS[stack.unitId]}</div>
 
         <div className="unit-popup-stats-row">
@@ -63,9 +69,11 @@ export function UnitPopup({ stack, army, onClose, inBattle, onSplit, onMerge, on
             <div className="unit-popup-count">×{stack.count}</div>
             <div className="unit-popup-total">Total HP {totalHp}</div>
             {!inBattle && (
-              <div className="unit-popup-total" title="Food this stack eats every day">
-                <Icon name="food" /> {stackUpkeep(stack).toFixed(1)}/day
-              </div>
+              <Tip tip="Food this stack eats every day">
+                <div className="unit-popup-total">
+                  <Icon name="food" /> {stackUpkeep(stack).toFixed(1)}/day
+                </div>
+              </Tip>
             )}
           </div>
         </div>
@@ -74,14 +82,20 @@ export function UnitPopup({ stack, army, onClose, inBattle, onSplit, onMerge, on
           <div className="unit-popup-battle">
             <div>Morale {stack.morale}</div>
             <div>Veterancy {stack.veterancy}</div>
-            <div>Block {stack.block}</div>
+            <Tip tip={blockTip(stack.block)}>
+              <div>
+                <Icon name="shield" /> Block {stack.block}
+              </div>
+            </Tip>
             {stack.statuses.length === 0 ? (
               <div className="unit-popup-hint">No active statuses.</div>
             ) : (
               stack.statuses.map((st) => (
-                <div key={st.type}>
-                  <Icon name={STATUS_ICONS[st.type]} /> {st.type} {st.amount} ({st.duration} {st.duration === 1 ? 'turn' : 'turns'})
-                </div>
+                <Tip key={st.type} tip={statusTip(st.type, st.amount, st.duration)}>
+                  <div>
+                    <Icon name={STATUS_ICONS[st.type]} /> {STATUS_INFO[st.type].name} {st.amount} ({st.duration} {st.duration === 1 ? 'turn' : 'turns'})
+                  </div>
+                </Tip>
               ))
             )}
           </div>
@@ -153,6 +167,6 @@ export function UnitPopup({ stack, army, onClose, inBattle, onSplit, onMerge, on
           </div>
         )}
       </div>
-    </>
+    </Modal>
   );
 }

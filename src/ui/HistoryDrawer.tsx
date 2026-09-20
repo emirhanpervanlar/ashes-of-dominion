@@ -3,11 +3,11 @@ import { Icon } from './pixel/Icon.js';
 interface Props {
   open: boolean;
   onClose: () => void;
-  title: string;
+  heading: string;
   lines: string[];
 }
 
-export function HistoryDrawer({ open, onClose, title, lines }: Props) {
+export function HistoryDrawer({ open, onClose, heading, lines }: Props) {
   if (!open) return null;
   const numbered = lines.map((line, i) => `${i + 1}. ${line}`);
   const newestFirst = [...numbered].reverse();
@@ -17,7 +17,7 @@ export function HistoryDrawer({ open, onClose, title, lines }: Props) {
       <div className="modal-backdrop" onClick={onClose} />
       <div className="history-drawer">
         <div className="history-drawer-header">
-          <strong>{title}</strong>
+          <strong>{heading}</strong>
           <button className="btn btn--s btn--sq" onClick={onClose}>
             <Icon name="ui_close" />
           </button>

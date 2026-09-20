@@ -2,6 +2,8 @@ import { UNIT_DEFINITIONS } from '../engine/index.js';
 import type { ArmyStack } from '../engine/index.js';
 import { Icon } from './pixel/Icon.js';
 import { chainsUrl } from './pixel/chains.js';
+import { Tip } from './Tip.js';
+import { blockTip, roleTip, statusTip } from './tipContent.js';
 import { UnitArt } from './UnitArt.js';
 import { UNIT_ROLE_ICONS } from './unitIcons.js';
 import { STATUS_ICONS, stackStates } from './stackStatus.js';
@@ -71,7 +73,6 @@ export function StackTile({ stack, side, ownArmy, selectable, selected, dimmed, 
           e.preventDefault();
           onInspect();
         }}
-        title={def.name}
       >
         <span className="portrait-art">
           <UnitArt unitId={stack.unitId} />
@@ -85,32 +86,40 @@ export function StackTile({ stack, side, ownArmy, selectable, selected, dimmed, 
           {states.chained && <span className="unit-chains" aria-hidden="true" style={{ backgroundImage: CHAINS }} />}
         </span>
         <span className="portrait-count">×{stack.count}</span>
-        <span className="portrait-role-badge">
-          <Icon name={UNIT_ROLE_ICONS[stack.unitId]} />
-        </span>
+        <Tip tip={roleTip(stack.unitId)}>
+          <span className="portrait-role-badge">
+            <Icon name={UNIT_ROLE_ICONS[stack.unitId]} />
+          </span>
+        </Tip>
         {selected && (
           <span className="portrait-select-badge">
             <Icon name="ui_check" />
           </span>
         )}
         {states.blocked && (
-          <span className="portrait-blocked-badge" title="Blocked by the ally in front">
-            <Icon name="ui_blocked" />
-          </span>
+          <Tip tip={{ title: 'Blocked', icon: 'ui_blocked', body: 'A melee stack in the back row cannot attack while an ally stands directly in front of it.' }}>
+            <span className="portrait-blocked-badge">
+              <Icon name="ui_blocked" />
+            </span>
+          </Tip>
         )}
         {(stack.block > 0 || stack.statuses.length > 0) && (
           <div className="portrait-statuses">
             {stack.block > 0 && (
-              <span className="portrait-status" title="Block">
-                <Icon name="shield" />
-                <b>{stack.block}</b>
-              </span>
+              <Tip tip={blockTip(stack.block)}>
+                <span className="portrait-status">
+                  <Icon name="shield" />
+                  <b>{stack.block}</b>
+                </span>
+              </Tip>
             )}
             {stack.statuses.map((st, i) => (
-              <span className="portrait-status" key={`${st.type}-${i}`} title={st.type}>
-                <Icon name={STATUS_ICONS[st.type]} />
-                <b>{st.amount}</b>
-              </span>
+              <Tip key={`${st.type}-${i}`} tip={statusTip(st.type, st.amount, st.duration)}>
+                <span className="portrait-status">
+                  <Icon name={STATUS_ICONS[st.type]} />
+                  <b>{st.amount}</b>
+                </span>
+              </Tip>
             ))}
           </div>
         )}

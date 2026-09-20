@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { CARD_DEFINITIONS, UNIT_DEFINITIONS, applyPlayerAction, computeValidHealTargets, computeValidTargets } from './engine/index.js';
+import { CARD_DEFINITIONS, UNIT_DEFINITIONS, applyPlayerAction, cardPlayability, cardRequirement, computeValidHealTargets, computeValidTargets } from './engine/index.js';
 import type { ArmyStack, CardTargeting, CombatState, PlayerAction, Position } from './engine/index.js';
 import { applyRunAction, cardRemovalQuote, createRun, enemyStrengthAfterCityVisits, eventView, migrateRun } from './engine/run/index.js';
 import type { RunEvent, RunState } from './engine/run/index.js';
@@ -26,8 +26,11 @@ import { relicIcon } from './ui/relicIcons.js';
 import { HERO_ICONS } from './ui/heroIcons.js';
 import { Icon } from './ui/pixel/Icon.js';
 import type { IconName } from './ui/pixel/icons.js';
-import { CARD_DESCRIPTIONS } from './ui/cardText.js';
 import { HistoryDrawer } from './ui/HistoryDrawer.js';
+import { DeckViewer } from './ui/DeckViewer.js';
+import { HeroPopup } from './ui/HeroPopup.js';
+import { Tip } from './ui/Tip.js';
+import { cardBlockedTip, pileTip, relicTip } from './ui/tipContent.js';
 import { ToastStack } from './ui/Toast.js';
 import type { ToastItem } from './ui/Toast.js';
 import { TitleScreen } from './ui/TitleScreen.js';
@@ -79,6 +82,8 @@ export default function App() {
   const [flyingCard, setFlyingCard] = useState<FlyingCardState | null>(null);
   const [playedInstanceId, setPlayedInstanceId] = useState<string | null>(null);
   const [inspectStackId, setInspectStackId] = useState<string | null>(null);
+  const [pileOpen, setPileOpen] = useState<'draw' | 'discard' | null>(null);
+  const [heroOpen, setHeroOpen] = useState(false);
   const { floaters, spawn: spawnFloaters } = useFloatingText();
   const [discardingIds, setDiscardingIds] = useState<string[] | null>(null);
   const [drawingIds, setDrawingIds] = useState<Set<string>>(new Set());
@@ -126,7 +131,8 @@ export default function App() {
     }
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === 'Escape') setPending(null);
-      if (e.code === 'Space' && !e.repeat && !typing(e.target) && (skipPlayback.current ?? spaceEndTurn.current)) {
+      // Any open modal (card info, deck viewer, hero popup...) owns the keyboard.
+      if (e.code === 'Space' && !e.repeat && !typing(e.target) && !document.querySelector('.modal-layer') && (skipPlayback.current ?? spaceEndTurn.current)) {
         e.preventDefault();
         (skipPlayback.current ?? spaceEndTurn.current)?.();
       }
@@ -283,13 +289,6 @@ export default function App() {
     return result;
   }
 
-  function hasResource(cardId: string): boolean {
-    if (!combat) return false;
-    const cardDef = CARD_DEFINITIONS[cardId];
-    if (!cardDef) return false;
-    return combat.hero.mana >= cardDef.manaCost;
-  }
-
   function handleCardClick(instanceId: string, cardId: string) {
     if (!combat || combat.phase !== 'player' || combat.result !== 'ongoing') return;
     if (pending?.kind === 'card' && pending.id === instanceId) {
@@ -297,7 +296,13 @@ export default function App() {
       return;
     }
     const cardDef = CARD_DEFINITIONS[cardId];
-    if (!cardDef || !hasResource(cardId)) return;
+    if (!cardDef) return;
+    // Says why a card cannot be played (AO-D040) instead of ignoring the click; nothing to say while an effect sequence runs.
+    const playable = cardPlayability(cardId, combat);
+    if (!playable.playable) {
+      if (!fxBusy && !flyingCard && playable.reason) pushToast('ui_warn', playable.reason);
+      return;
+    }
     // No-target cards no longer play instantly — they require a Drop Card confirmation
     // in the middle of the battlefield, same as any other pending selection.
     setPending({ kind: 'card', id: instanceId, name: cardDef.name, targeting: cardDef.targeting });
@@ -370,9 +375,6 @@ export default function App() {
     setPlayedInstanceId(instanceId);
     setFlyingCard({
       cardId: def.id,
-      name: def.name,
-      description: CARD_DESCRIPTIONS[def.id] ?? def.id,
-      manaCost: def.manaCost,
       from: { left: from.left, top: from.top, width: from.width, height: from.height },
       to: { x: sceneRect.left + sceneRect.width / 2, y: sceneRect.top + sceneRect.height / 2 },
     });
@@ -571,9 +573,11 @@ export default function App() {
 
   const toastLayer = <ToastStack toasts={toasts} onDismiss={dismissToast} />;
   const menuButton = (
-    <button className="btn btn--sq pause-menu-btn" onClick={() => setMenuOpen(true)} title="Menu">
-      <Icon name="ui_menu" />
-    </button>
+    <Tip tip="Menu">
+      <button className="btn btn--sq pause-menu-btn" onClick={() => setMenuOpen(true)}>
+        <Icon name="ui_menu" />
+      </button>
+    </Tip>
   );
   const pauseMenuOverlay = menuOpen ? (
     <PauseMenu
@@ -758,17 +762,21 @@ export default function App() {
 
       <div className="frame-topbar">
         <div className="frame-hero-chip">
-          <div className="hero-portrait">
-            <Icon name={HERO_ICONS[run.hero.heroType]} size={2} />
-          </div>
+          <Tip tip="Hero stats">
+            <button className="hero-portrait" onClick={() => setHeroOpen(true)}>
+              <Icon name={HERO_ICONS[run.hero.heroType]} size={2} />
+            </button>
+          </Tip>
           <div className="hero-info">
             <div className="hero-name-row">
               <span>{combat.hero.name}</span>
               <div className="relic-icons">
                 {run.relics.map((r) => (
-                  <span key={r.id} className="relic-icon" title={`${r.name} — ${r.description}`}>
-                    <Icon name={relicIcon(r.id)} />
-                  </span>
+                  <Tip key={r.id} tip={relicTip(r, relicIcon(r.id))}>
+                    <span className="relic-icon">
+                      <Icon name={relicIcon(r.id)} />
+                    </span>
+                  </Tip>
                 ))}
               </div>
             </div>
@@ -895,18 +903,22 @@ export default function App() {
       </div>
 
       <div className="frame-bottombar">
-        <div className="frame-pile deck-pile" title={`Deck: ${combat.deck.length} cards`}>
-          <div className="pile-card-back">
-            <Icon name="deck" size={2} />
-          </div>
-          <div className="pile-count">{combat.deck.length}</div>
-          <div className="pile-label">Deck</div>
-        </div>
+        <Tip tip={pileTip('draw', combat.deck.length)}>
+          <button className="frame-pile deck-pile" onClick={() => setPileOpen('draw')}>
+            <div className="pile-card-back">
+              <Icon name="deck" size={2} />
+            </div>
+            <div className="pile-count">{combat.deck.length}</div>
+            <div className="pile-label">Deck</div>
+          </button>
+        </Tip>
 
         <div className="frame-hand-slots">
           {combat.hand.map((instance, i) => {
             const cardDef = CARD_DEFINITIONS[instance.cardId];
             if (!cardDef) return null;
+            const play = cardPlayability(instance.cardId, combat);
+            const blocked = canAct && !play.playable;
             const isPlayed = playedInstanceId === instance.instanceId;
             const isDiscarding = discardingIds?.includes(instance.instanceId) ?? false;
             const isDrawing = drawingIds.has(instance.instanceId);
@@ -918,10 +930,11 @@ export default function App() {
               <div key={instance.instanceId} className={slotClass} style={slotStyle} data-instance-id={instance.instanceId}>
                 <ActionCardTile
                   id={cardDef.id}
-                  name={cardDef.name}
-                  description={CARD_DESCRIPTIONS[cardDef.id] ?? cardDef.id}
-                  manaCost={cardDef.manaCost}
-                  affordable={canAct && hasResource(cardDef.id)}
+                  upgraded={instance.upgraded}
+                  affordable={canAct && play.playable}
+                  conditionBlocked={blocked && combat.hero.mana >= cardDef.manaCost}
+                  playability={combat.phase === 'player' ? play : undefined}
+                  tip={blocked ? cardBlockedTip(cardDef.name, cardRequirement(instance.cardId), play.reason) : null}
                   pending={pending?.kind === 'card' && pending.id === instance.instanceId}
                   onClick={() => handleCardClick(instance.instanceId, instance.cardId)}
                 />
@@ -930,21 +943,27 @@ export default function App() {
           })}
         </div>
 
-        <div className="frame-pile discard-pile" title={`Discard: ${combat.discard.length} cards`}>
-          <div className="pile-card-back discard">
-            <Icon name="discard" size={2} />
-          </div>
-          <div className="pile-count">{combat.discard.length}</div>
-          <div className="pile-label">Discard</div>
-        </div>
+        <Tip tip={pileTip('discard', combat.discard.length)}>
+          <button className="frame-pile discard-pile" onClick={() => setPileOpen('discard')}>
+            <div className="pile-card-back discard">
+              <Icon name="discard" size={2} />
+            </div>
+            <div className="pile-count">{combat.discard.length}</div>
+            <div className="pile-label">Discard</div>
+          </button>
+        </Tip>
 
         <div className="frame-round-buttons">
-          <button className="btn round-btn" onClick={() => setHistoryOpen(true)} title="Battle Log">
-            <Icon name="ui_log" size={2} />
-          </button>
-          <button className="btn round-btn" onClick={() => setMenuOpen(true)} title="Menu">
-            <Icon name="ui_menu" size={2} />
-          </button>
+          <Tip tip="Battle Log">
+            <button className="btn round-btn" onClick={() => setHistoryOpen(true)}>
+              <Icon name="ui_log" size={2} />
+            </button>
+          </Tip>
+          <Tip tip="Menu">
+            <button className="btn round-btn" onClick={() => setMenuOpen(true)}>
+              <Icon name="ui_menu" size={2} />
+            </button>
+          </Tip>
         </div>
       </div>
 
@@ -958,10 +977,26 @@ export default function App() {
         />
       )}
 
+      {heroOpen && <HeroPopup run={run} onClose={() => setHeroOpen(false)} />}
+      {pileOpen && (
+        <DeckViewer
+          heading="Cards"
+          initialTab={pileOpen}
+          tabs={[
+            { id: 'draw', label: 'Draw', cards: combat.deck, heading: `Draw pile - ${combat.deck.length}`, note: 'The order is hidden. Cards are listed by cost.' },
+            { id: 'discard', label: 'Discard', cards: combat.discard, heading: `Discard pile - ${combat.discard.length}`, note: 'Reshuffled into the draw pile when it runs out.' },
+            ...(combat.exhausted.length > 0
+              ? [{ id: 'exhausted', label: 'Exhausted', cards: combat.exhausted, heading: `Exhausted - ${combat.exhausted.length}`, note: 'Gone for the rest of this battle.' }]
+              : []),
+          ]}
+          onClose={() => setPileOpen(null)}
+        />
+      )}
+
       <HistoryDrawer
         open={historyOpen}
         onClose={() => setHistoryOpen(false)}
-        title={`Battle Log (Deck ${combat.deck.length} · Discard ${combat.discard.length} · Exhausted ${combat.exhausted.length})`}
+        heading={`Battle Log (Deck ${combat.deck.length} · Discard ${combat.discard.length} · Exhausted ${combat.exhausted.length})`}
         lines={combatHistory}
       />
     </div>

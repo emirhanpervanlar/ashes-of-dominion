@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { HERO_DEFINITIONS } from '../engine/index.js';
-import type { HeroId, HeroStats } from '../engine/index.js';
+import type { HeroId } from '../engine/index.js';
 import { STARTING_RELIC_DEFINITIONS } from '../engine/run/index.js';
 import { relicIcon } from './relicIcons.js';
 import { HERO_ICONS } from './heroIcons.js';
 import { Icon } from './pixel/Icon.js';
-import type { IconName } from './pixel/icons.js';
+import { Tip } from './Tip.js';
+import { heroStatRows } from './tipContent.js';
 
 interface Props {
   onBack: () => void;
@@ -17,14 +18,6 @@ const HERO_TAGLINES: Record<HeroId, string> = {
   rogue: 'Ranged damage, Dodge, Poison and Execute.',
   mage: 'Magic, control, Mana and healing.',
 };
-
-const HERO_STAT_ROWS: { key: keyof HeroStats; label: string; icon: IconName; hint: string }[] = [
-  { key: 'strength', label: 'Strength', icon: 'role_melee', hint: 'Melee damage' },
-  { key: 'dexterity', label: 'Dexterity', icon: 'role_ranged', hint: 'Ranged damage and Dodge' },
-  { key: 'intelligence', label: 'Intelligence', icon: 'role_caster', hint: 'Magic damage' },
-  { key: 'vitality', label: 'Vitality', icon: 'hp', hint: 'Toughness' },
-  { key: 'wisdom', label: 'Wisdom', icon: 'role_support', hint: 'Healing and max Mana' },
-];
 
 export function CommanderSetupScreen({ onBack, onBegin }: Props) {
   const [step, setStep] = useState<'hero' | 'relic'>('hero');
@@ -60,12 +53,14 @@ export function CommanderSetupScreen({ onBack, onBegin }: Props) {
               <div className="commander-card-name">{hero.name}</div>
               <div className="commander-card-desc">{HERO_TAGLINES[hero.id]}</div>
               <div className="hero-stat-table">
-                {HERO_STAT_ROWS.map((row) => (
-                  <div key={row.key} className="hero-stat-row" title={row.hint}>
-                    <Icon name={row.icon} />
-                    <span className="hero-stat-label">{row.label}</span>
-                    <span className="hero-stat-value">{hero.stats[row.key]}</span>
-                  </div>
+                {heroStatRows(hero.stats, hero.baseMana).map((row) => (
+                  <Tip key={row.key} tip={{ title: row.label, icon: row.icon, body: row.effect }}>
+                    <div className="hero-stat-row">
+                      <Icon name={row.icon} />
+                      <span className="hero-stat-label">{row.label}</span>
+                      <span className="hero-stat-value">{row.value}</span>
+                    </div>
+                  </Tip>
                 ))}
               </div>
               {heroId === hero.id && (
