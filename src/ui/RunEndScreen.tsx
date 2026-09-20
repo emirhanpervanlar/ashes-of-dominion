@@ -103,7 +103,7 @@ export function RunEndScreen({ run, onNewRun, onMainMenu }: Props) {
               {army.map((s) => (
                 <Tip key={s.stackId} tip={UNIT_DEFINITIONS[s.unitId].name}>
                   <span className="run-end-stack">
-                    <UnitArt unitId={s.unitId} size={2} />
+                    <UnitArt unitId={s.unitId} size={1} />
                     <span className="preview-count">x{s.count}</span>
                     <span className="run-end-stack-name">{UNIT_DEFINITIONS[s.unitId].name}</span>
                   </span>

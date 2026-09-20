@@ -42,7 +42,7 @@ export function StackTile({ stack, side, ownArmy, selectable, selected, dimmed, 
         <div className="portrait-frame" onClick={selectable ? onClick : undefined}>
           {stack && (
             <span className="portrait-art">
-              <UnitArt unitId={stack.unitId} />
+              <UnitArt unitId={stack.unitId} team={side} seed={stack.stackId} />
             </span>
           )}
           <span className="unit-name">{stack ? 'Wiped' : 'Empty'}</span>
@@ -75,7 +75,7 @@ export function StackTile({ stack, side, ownArmy, selectable, selected, dimmed, 
         }}
       >
         <span className="portrait-art">
-          <UnitArt unitId={stack.unitId} />
+          <UnitArt unitId={stack.unitId} team={side} seed={stack.stackId} />
           {states.frozen && (
             <span className="unit-ice" aria-hidden="true">
               <b />

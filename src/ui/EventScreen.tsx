@@ -93,7 +93,7 @@ export function EventScreen({ view, deck, army, newcomer, resolved, onChoose, on
             {choice.unitIds.map((unitId) => (
               <div key={unitId} className="option-tile" onClick={() => onChooseUnit(unitId)}>
                 <div className="event-unit-art">
-                  <UnitArt unitId={unitId} size={3} />
+                  <UnitArt unitId={unitId} />
                 </div>
                 <div className="option-name">
                   <span>{UNIT_DEFINITIONS[unitId].name}</span>
@@ -128,7 +128,7 @@ export function EventScreen({ view, deck, army, newcomer, resolved, onChoose, on
                   onClick={() => setInspectId(stack.stackId)}
                 >
                   {stack.stackId === newcomer.stackId && <span className="unit-gain-tag">New</span>}
-                  <UnitArt unitId={stack.unitId} size={2} />
+                  <UnitArt unitId={stack.unitId} size={1} />
                   <div className="unit-gain-count">×{stack.count}</div>
                   <div className="unit-gain-name">{UNIT_DEFINITIONS[stack.unitId].name}</div>
                   <div className="unit-gain-food">

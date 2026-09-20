@@ -56,7 +56,7 @@ export function BarracksPanel({ run, recent, onRecruit, onClose }: Props) {
           return (
             <div key={unitId} className="city-recruit step">
               <div className="city-recruit-art well step">
-                <UnitArt unitId={unitId} size={3} />
+                <UnitArt unitId={unitId} />
                 <Tip tip={roleTip(unitId)}>
                   <span className="city-recruit-role">
                     <Icon name={UNIT_ROLE_ICONS[unitId]} />

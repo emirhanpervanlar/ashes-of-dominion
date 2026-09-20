@@ -1,13 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { CARD_DEFINITIONS, HERO_DEFINITIONS, UNIT_DEFINITIONS } from '../../engine/index.js';
+import { CARD_DEFINITIONS, UNIT_DEFINITIONS } from '../../engine/index.js';
 import { RELIC_DEFINITIONS, STARTING_RELIC_DEFINITIONS } from '../../engine/data/relics.js';
 import { BUILDING_DEFINITIONS } from '../../engine/run/city.js';
 import { CARD_VISUALS, POLARITY_ICONS } from '../cardVisuals.js';
 import { BUILDING_ICONS, NODE_ICONS } from '../mapIcons.js';
-import { HERO_ICONS } from '../heroIcons.js';
 import { relicIcon } from '../relicIcons.js';
 import { STATUS_ICONS } from '../stackStatus.js';
-import { UNIT_ICONS, UNIT_ROLE_ICONS } from '../unitIcons.js';
+import { UNIT_ROLE_ICONS } from '../unitIcons.js';
 import { ICONS } from './icons.js';
 import type { IconName } from './icons.js';
 import { MASTER } from './palette.js';
@@ -35,11 +34,8 @@ describe('game ids have icons', () => {
     for (const name of names) expect(registered(name), `${label}: missing icon "${name}"`).toBe(true);
   };
 
-  it('units, unit roles and heroes', () => {
-    for (const id of Object.keys(UNIT_DEFINITIONS)) {
-      expectAll(`unit ${id}`, [UNIT_ICONS[id as keyof typeof UNIT_ICONS], UNIT_ROLE_ICONS[id as keyof typeof UNIT_ROLE_ICONS]]);
-    }
-    for (const id of Object.keys(HERO_DEFINITIONS)) expectAll(`hero ${id}`, [HERO_ICONS[id as keyof typeof HERO_ICONS]]);
+  it('unit role badges', () => {
+    for (const id of Object.keys(UNIT_DEFINITIONS)) expectAll(`unit ${id}`, [UNIT_ROLE_ICONS[id as keyof typeof UNIT_ROLE_ICONS]]);
   });
 
   it('every engine status type', () => {
