@@ -56,7 +56,3 @@ export const CARD_DESCRIPTIONS: Record<string, string> = {
   second_wind: 'Restore 10% of lost soldiers. Exhaust.',
   battle_hardened: '+20% Damage, +20% Defense. 1 turn.',
 };
-
-export const CARD_COST_LABEL: Record<string, string> = {
-  MANA: 'Mana',
-};

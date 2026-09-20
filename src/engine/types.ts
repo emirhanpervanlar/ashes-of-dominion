@@ -194,10 +194,6 @@ export type CardEffect =
   | { kind: 'DAMAGE_UP_TO_N_ENEMIES'; multiplier: number; maxTargets: number }
   | { kind: 'CHAIN_DAMAGE'; primaryMultiplier: number; secondaryMultiplier: number; maxSecondaryTargets: number };
 
-export interface CardRequirement {
-  minCount?: number;
-}
-
 /** The "+" version of a card (AO-D060): shown text plus whatever it replaces (cost and/or effects). */
 export interface CardUpgradeDefinition {
   description: string;
@@ -237,8 +233,7 @@ export type RelicEffect =
   | { kind: 'PLAYER_DAMAGE_TAKEN_MULT'; multiplier: number }
   | { kind: 'NECROMANCY'; ratio: number }
   | { kind: 'DODGE_BONUS_PERCENT'; amount: number }
-  | { kind: 'HEALING_MULT'; multiplier: number }
-  | { kind: 'FIRST_CARD_DISCOUNT'; amount: number };
+  | { kind: 'HEALING_MULT'; multiplier: number };
 
 export type RelicRarity = 'common' | 'rare' | 'epic';
 

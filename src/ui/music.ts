@@ -23,7 +23,3 @@ export function setMusicVolume(v: number): void {
   audio.volume = userVolume;
   if (userVolume > 0 && audio.paused) void audio.play().catch(() => {});
 }
-
-export function getMusicVolume(): number {
-  return userVolume;
-}

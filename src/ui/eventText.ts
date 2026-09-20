@@ -5,7 +5,7 @@ function findStackAnywhere(state: CombatState, stackId: string): ArmyStack | und
   return state.playerArmy.find((s) => s.stackId === stackId) ?? state.enemyArmy.find((s) => s.stackId === stackId);
 }
 
-export function stackLabel(state: CombatState, stackId: string | null | undefined): string {
+function stackLabel(state: CombatState, stackId: string | null | undefined): string {
   if (!stackId) return 'unknown';
   const stack = findStackAnywhere(state, stackId);
   if (!stack) return stackId;

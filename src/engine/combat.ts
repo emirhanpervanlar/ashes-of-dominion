@@ -70,7 +70,7 @@ function reject(events: CombatEvent[], reason: string): void {
   events.push({ type: 'ACTION_REJECTED', reason });
 }
 
-export function checkBattleResult(state: CombatState): 'ongoing' | 'victory' | 'defeat' {
+function checkBattleResult(state: CombatState): 'ongoing' | 'victory' | 'defeat' {
   const playerAlive = state.playerArmy.some((s) => s.count > 0);
   const enemyAlive = state.enemyArmy.some((s) => s.count > 0);
   if (state.hero.hp <= 0 || !playerAlive) return 'defeat';
@@ -902,7 +902,7 @@ export function applyPlayerAction(state: CombatState, action: PlayerAction): App
   return result;
 }
 
-export interface StartBattleParams {
+interface StartBattleParams {
   seed: number;
   rng: CombatState['rng'];
   hero: Hero;
