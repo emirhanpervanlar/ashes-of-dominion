@@ -9,6 +9,7 @@ import type { ArmyStack, CombatState, HeroId, Position } from '../../types.js';
 import { applyRunAction, createRun } from '../runEngine.js';
 import { buildPendingReward } from '../rewards.js';
 import type { RunState } from '../types.js';
+import { withBarracks } from './cityHelpers.js';
 
 const HEROES: HeroId[] = ['warlord', 'rogue', 'mage'];
 
@@ -22,14 +23,14 @@ function startedRun(seed: number, relicId: string): RunState {
 }
 
 function inCity(run: RunState, army: ArmyStack[]): RunState {
-  return { ...run, phase: 'city', army, gold: 1000, food: 1000 };
+  return withBarracks({ ...run, phase: 'city', army, gold: 1000, food: 1000 });
 }
 
-describe('AO-D007: starting armies per hero', () => {
+describe('AO-D007 (amended by AO-D074): starting armies per hero', () => {
   const expected: Record<HeroId, Array<[string, number]>> = {
-    warlord: [['swordsman', 6], ['knight', 2]],
-    rogue: [['archer', 6], ['knight', 2]],
-    mage: [['archer', 4], ['priest', 4]],
+    warlord: [['swordsman', 4], ['knight', 4]],
+    rogue: [['swordsman', 3], ['knight', 1], ['archer', 4]],
+    mage: [['swordsman', 4], ['archer', 2], ['priest', 2]],
   };
 
   for (const hero of HEROES) {
@@ -59,10 +60,10 @@ describe('AO-D006: post-battle reward', () => {
       const deck = createRun(1, hero).masterDeck;
       for (let seed = 1; seed <= 40; seed++) {
         const reward = buildPendingReward(createRng(seed), [], deck, false);
-        expect(reward.relicOffer).toBeNull();
+        expect(reward.relicGained).toBeNull();
         const total = reward.cardOptions.length + reward.upgradeOptions.length;
-        expect(total).toBeGreaterThan(0);
-        expect(total).toBeLessThanOrEqual(3);
+        expect(total).toBe(3);
+        expect(reward.cardOptions.length).toBeGreaterThanOrEqual(2);
         expect(new Set(reward.cardOptions).size).toBe(reward.cardOptions.length);
         expect(reward.cardOptions.every((id) => CARD_DEFINITIONS[id] && !id.endsWith('_plus'))).toBe(true);
       }
@@ -123,10 +124,8 @@ describe('AO-D008: recruits join the field army directly (max 6 stacks)', () => 
     expect(new Set(result.run.army.map((s) => s.position)).size).toBe(result.run.army.length);
   });
 
-  it('there is no garrison: the run state has no garrison field and recruiting is rejected outside the city', () => {
-    const run = createRun(34);
-    expect(Object.keys(run)).not.toContain('garrison');
-    expect(Object.keys(run.city)).not.toContain('garrison');
+  it('recruiting is rejected outside the city (the AO-D008 "no garrison" rule is superseded by AO-D071: the garrison lives in run.garrison and needs a Barracks)', () => {
+    const run = withBarracks(createRun(34));
     const result = applyRunAction({ ...run, phase: 'on_map' }, { type: 'RECRUIT', unitId: 'swordsman', count: 1 });
     expect(result.events.some((e) => e.type === 'ACTION_REJECTED')).toBe(true);
   });
@@ -201,7 +200,7 @@ describe('recruited units are fully usable in battle (healer-cannot-heal-Swordsm
     expect(run.phase).toBe('reward');
     unique();
 
-    run = { ...run, phase: 'city', gold: 1000, food: 1000 };
+    run = withBarracks({ ...run, phase: 'city', gold: 1000, food: 1000 });
     run = applyRunAction(run, { type: 'RECRUIT', unitId: 'swordsman', count: 6 }).run;
     unique();
     const recruited = run.army.find((s) => s.unitId === 'swordsman')!;
@@ -243,12 +242,12 @@ describe('Royal Banner / Arcane Crystal keep the heal cap consistent (AO-D004)',
     }
   });
 
-  it('a full-health Royal Banner Swordsman x12 is not changed by a Priest heal (never negative)', () => {
+  it('a full-health Royal Banner Swordsman x10 is not changed by a Priest heal (never negative)', () => {
     const { sword, after, event } = healed('royal_banner', 0);
-    expect(sword.count).toBe(12);
+    expect(sword.count).toBe(10);
     if (event && event.type === 'STACK_HEALED') expect(event.amount).toBe(0);
     expect(after.currentHp).toBe(sword.maxHp);
-    expect(after.count).toBe(12);
+    expect(after.count).toBe(10);
   });
 
   it('a wounded Royal Banner Swordsman heals, but only up to the boosted cap', () => {

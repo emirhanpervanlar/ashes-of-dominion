@@ -1,6 +1,8 @@
 import type { RngState } from '../rng.js';
 import type { ArmyStack, CardInstance, CombatState, EnemyStep, Hero, PlayerAction, Position, RelicDefinition, UnitId } from '../types.js';
 import type { CityState } from './city.js';
+import type { VillageOffer } from './villages.js';
+import type { Garrison } from './garrison.js';
 import type { CardRemovalState } from './cardRemoval.js';
 import type { MerchantInventory } from './merchant.js';
 import type { RunStats } from './stats.js';
@@ -12,16 +14,17 @@ export type RunPhase =
   | 'reward'
   | 'event'
   | 'merchant'
+  | 'village'
   | 'city'
   | 'run_complete'
   | 'defeat';
 
-/** One pick resolves the reward (AO-D026): a card, an upgrade, a removal or a skip. */
+/** One pick resolves the reward (AO-D026): a new card or an upgrade (AO-D068: no skip, no removal). */
 export interface PendingReward {
   cardOptions: string[];
   upgradeOptions: { instanceId: string; cardId: string }[];
-  /** Elite victories only (AO-D037): one extra relic, claimed separately; leaving the reward screen forfeits it. */
-  relicOffer: string | null;
+  /** Elite victories only (AO-D068): the relic already granted for the win (RELIC_CLAIMED), shown as a "Relic gained" banner. */
+  relicGained: string | null;
   /** Boss victories before the last chapter (AO-D046): pick one via CLAIM_RELIC; the rest are forfeited. */
   relicChoices: string[];
 }
@@ -30,6 +33,9 @@ export interface PendingReward {
 export type PendingEventChoice =
   | { kind: 'card'; optionId: string; action: 'upgrade' | 'remove' | 'give'; instanceIds: string[] }
   | { kind: 'unit'; optionId: string; unitIds: UnitId[] };
+
+/** A village node waits for the player's choice (AO-D072): what Raid and Help would pay, fixed on arrival. */
+export type PendingVillage = VillageOffer;
 
 export interface PendingEvent {
   eventId: string;
@@ -65,7 +71,6 @@ export type RunEvent =
   | { type: 'RELIC_CLAIMED'; relicId: string }
   | { type: 'CARD_REWARD_CLAIMED'; cardId: string }
   | { type: 'CARD_UPGRADED'; instanceId: string; cardId: string }
-  | { type: 'REWARD_SKIPPED' }
   | { type: 'CARD_REMOVED'; instanceId: string; cardId: string; goldPaid: number }
   | { type: 'UNITS_REVIVED'; count: number }
   /** AO-D073: Skeletons raised from this battle's casualties by the Necromantic Doctrine (or a Necromancy relic). */
@@ -73,6 +78,15 @@ export type RunEvent =
   | { type: 'DAILY_INCOME'; gold: number; food: number }
   | { type: 'BATTLE_LOOT'; gold: number; food: number }
   | { type: 'FARM_UPGRADED'; tier: number }
+  | { type: 'BARRACKS_UPGRADED'; tier: number }
+  | { type: 'FOOD_PURCHASED'; packs: number; food: number; gold: number }
+  /** AO-D072: Raid pays Gold and Food at once and raises Threat (a THREAT_CHANGED event follows). */
+  | { type: 'VILLAGE_RAIDED'; gold: number; food: number }
+  /** Help pays a small gift; `villages` is the number of helped villages now (each: Food every day, militia every week). */
+  | { type: 'VILLAGE_HELPED'; gold: number; food: number; villages: number }
+  /** AO-D071: the weekly garrison growth (only the units that actually fit under the cap). */
+  | { type: 'GARRISON_GROWN'; units: UnitCount[] }
+  | { type: 'GARRISON_COLLECTED'; unitId: UnitId; count: number }
   | { type: 'EVENT_RESOLVED'; eventId: string; optionId: string; outcome: string; text: string }
   | { type: 'THREAT_CHANGED'; threat: number; delta: number }
   | { type: 'UNITS_GAINED'; unitId: UnitId; count: number }
@@ -85,7 +99,8 @@ export type RunEvent =
   | { type: 'CITY_LEVELED_UP'; level: number }
   | { type: 'MAGE_TOWER_UPGRADED'; tier: number }
   | { type: 'DOCTRINE_CHOSEN'; doctrineId: string }
-  | { type: 'CITY_VISITED'; threat: number }
+  /** `free`: AO-D070, the first visit of the run or of the chapter did not raise Threat. */
+  | { type: 'CITY_VISITED'; threat: number; free: boolean }
   | { type: 'BOSS_DEFEATED'; chapter: number }
   | { type: 'CHAPTER_STARTED'; chapter: number }
   | { type: 'RUN_COMPLETE' }
@@ -112,10 +127,18 @@ export interface RunState {
   cardRemoval: CardRemovalState;
   worldMap: WorldMapState;
   city: CityState;
+  /** Free soldiers waiting in the city (AO-D071): grows every 7 days by Barracks tier, collected with COLLECT_GARRISON. */
+  garrison: Garrison;
+  /** Food packs bought at the city Marketplace this run (AO-D071); each one raises the next price. */
+  foodPurchases: number;
+  /** Helped villages (AO-D072): permanent, each gives Food every day and militia to the weekly garrison. */
+  villages: number;
   /** 1-3 (AO-D046): the boss is due on day 30 x chapter. */
   chapter: number;
-  /** Raised by each city visit (AO-D047); scales enemy unit counts. */
+  /** Raised by each city visit after the free one (AO-D047, AO-D070); scales enemy unit counts. */
   threat: number;
+  /** City visits made in the current chapter (AO-D070); the first one is free, reset when a chapter starts. */
+  cityVisitsThisChapter: number;
   /** Event ids already drawn (AO-D050); the pool resets when exhausted, keeping the last few excluded. */
   seenEventIds: string[];
   /** The last won battle's fallen units, net of Shrine revival; what event revivals draw from. */
@@ -128,6 +151,7 @@ export interface RunState {
   pendingEvent: PendingEvent | null;
   pendingUnitChoice: PendingUnitChoice | null;
   pendingMerchant: MerchantInventory | null;
+  pendingVillage: PendingVillage | null;
   log: RunEvent[];
 }
 
@@ -137,7 +161,6 @@ export type RunAction =
   | { type: 'CLAIM_CARD'; cardId: string }
   | { type: 'CLAIM_UPGRADE'; instanceId: string }
   | { type: 'CLAIM_RELIC'; relicId: string }
-  | { type: 'SKIP_REWARD' }
   | { type: 'REMOVE_CARD'; instanceId: string }
   | { type: 'CHOOSE_EVENT_OPTION'; optionId: string }
   | { type: 'CHOOSE_EVENT_CARD'; instanceId: string }
@@ -154,6 +177,14 @@ export type RunAction =
   | { type: 'UPGRADE_CITY' }
   | { type: 'UPGRADE_MAGE_TOWER' }
   | { type: 'UPGRADE_FARM' }
+  | { type: 'UPGRADE_BARRACKS' }
+  /** Marketplace (AO-D071): buys `packs` Food packs with Gold, each at the rising price. */
+  | { type: 'BUY_FOOD'; packs: number }
+  /** Village choice (AO-D072), phase `village`. */
+  | { type: 'RAID_VILLAGE' }
+  | { type: 'HELP_VILLAGE' }
+  /** Moves the waiting garrison into the army (one unit type, or all when `unitId` is omitted); what does not fit stays. */
+  | { type: 'COLLECT_GARRISON'; unitId?: UnitId }
   | { type: 'CHOOSE_DOCTRINE'; doctrineId: string }
   | { type: 'LEAVE_CITY' }
   | { type: 'SPLIT_STACK'; stackId: string; splitCount: number }

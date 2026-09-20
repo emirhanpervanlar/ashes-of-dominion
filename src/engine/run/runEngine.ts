@@ -13,6 +13,7 @@ import type { ArmyStack, CardInstance, CombatState, Hero, HeroId, PlayerAction, 
 import { cardRemovalQuote, createCardRemovalState, type CardRemovalState } from './cardRemoval.js';
 import { isUpgradable } from '../cardUpgrades.js';
 import {
+  BARRACKS_TIERS,
   BUILDING_DEFINITIONS,
   DOCTRINE_DEFINITIONS,
   ECONOMIC_DOCTRINE_MULTIPLIER,
@@ -24,14 +25,17 @@ import {
   RECRUIT_COSTS,
   TRAINING_HALL_MAX_MANA,
   addUnitsToArmy,
-  canRecruitUnit,
+  recruitBlocker,
   createInitialCityState,
   recruitCost,
   raiseSkeletons,
   settleArmyAfterVictory,
 } from './city.js';
 import { actionProblem } from './actionValidation.js';
-import { THREAT_PER_CITY_VISIT, TOTAL_CHAPTERS } from './chapters.js';
+import { garrisonUnits, growGarrison, isGarrisonDay } from './garrison.js';
+import { foodMarketQuote } from './marketplace.js';
+import { villageOffer } from './villages.js';
+import { THREAT_PER_CITY_VISIT, TOTAL_CHAPTERS, nextCityVisitRaisesThreat } from './chapters.js';
 import { generateBattleEncounter, generateBossEncounter } from './encounters.js';
 import {
   EVENT_TUNING,
@@ -51,7 +55,7 @@ import { generateMerchantInventory } from './merchant.js';
 import { pickRelicByRarity, pickRelicId } from './relicSources.js';
 import { buildPendingReward, generateCardOptions } from './rewards.js';
 import { createRunStats, tallyCombatEvents } from './stats.js';
-import type { RunAction, RunApplyResult, RunEvent, RunState, UnitCount } from './types.js';
+import type { PendingReward, RunAction, RunApplyResult, RunEvent, RunState, UnitCount } from './types.js';
 import { findNode, generateWorldMap, visitNode } from './worldMap.js';
 
 export const STARTING_GOLD = 100;
@@ -64,13 +68,13 @@ function cloneRun(run: RunState): RunState {
 }
 
 /** Version of the persisted RunState shape. A save without the field predates versioning and counts as version 1. */
-export const CURRENT_SAVE_VERSION = 2;
+export const CURRENT_SAVE_VERSION = 3;
 
 /**
  * Upgrades one version step. Every field-by-field guess for pre-versioning saves lives in `fromVersion1`;
  * a future format change adds `fromVersion2` here instead of another "field is undefined" check.
  */
-const MIGRATIONS: Record<number, (run: RunState) => RunState> = { 1: fromVersion1 };
+const MIGRATIONS: Record<number, (run: RunState) => RunState> = { 1: fromVersion1, 2: fromVersion2 };
 
 /**
  * Brings a run loaded from storage to the current save format (the reducer also applies it, so an old run keeps
@@ -139,6 +143,37 @@ function fromVersion1(run: RunState): RunState {
   return migrated;
 }
 
+/** Version 2 to 3 (AO-046): the elite relic is granted at victory (AO-D068), so an unclaimed offer in a saved reward is granted now. */
+function fromVersion2(run: RunState): RunState {
+  // Saves from before AO-D071 could recruit everything: they keep that as a free tier IV Barracks (it takes a building slot).
+  const barracksTier = run.city.barracksTier ?? 4;
+  const migrated: RunState = {
+    ...run,
+    city: { ...run.city, barracksTier, buildings: barracksTier > 0 && !run.city.buildings.includes('barracks') ? [...run.city.buildings, 'barracks'] : run.city.buildings },
+    garrison: run.garrison ?? {},
+    foodPurchases: run.foodPurchases ?? 0,
+    villages: run.villages ?? 0,
+    pendingVillage: run.pendingVillage ?? null,
+    stats: { ...createRunStats(), ...run.stats },
+    // A run that already carries Threat has used its free visit; a run without any is treated as not having visited yet.
+    cityVisitsThisChapter: run.cityVisitsThisChapter ?? (run.threat > 0 ? 1 : 0),
+  };
+  const legacy = run.pendingReward as (PendingReward & { relicOffer?: string | null }) | null;
+  if (legacy) {
+    const { relicOffer, ...reward } = legacy;
+    migrated.pendingReward = { ...reward, relicGained: reward.relicGained ?? null };
+    const def = relicOffer ? RELIC_DEFINITIONS[relicOffer] : undefined;
+    if (def && !run.relics.some((r) => r.id === def.id)) {
+      migrated.army = run.army.map((s) => ({ ...s }));
+      migrated.hero = { ...run.hero };
+      migrated.relics = [...run.relics];
+      grantRelic(migrated, def, []);
+      migrated.pendingReward.relicGained = def.id;
+    }
+  }
+  return migrated;
+}
+
 /** Rebuilds the encounter of the node the run stands on (boss, elite, normal; an event ambush is a normal battle) and starts it over. */
 function restartBattle(run: RunState): void {
   const node = findNode(run.worldMap, run.worldMap.currentNodeId);
@@ -149,6 +184,13 @@ function restartBattle(run: RunState): void {
   run.combat = startBattleForRun(run, encounter);
 }
 
+/** Builds the reward of a won battle; an elite's relic is granted on the spot (AO-D068). */
+function rollReward(run: RunState, elite: boolean, events: RunEvent[]): PendingReward {
+  const reward = buildPendingReward(run.rng, run.relics, run.masterDeck, elite, run.bossBattle && run.chapter < TOTAL_CHAPTERS);
+  if (reward.relicGained) grantRelic(run, RELIC_DEFINITIONS[reward.relicGained]!, events);
+  return reward;
+}
+
 /** Drops reward options that no longer exist; a reward left with no card and no upgrade is re-rolled so the player is never stuck on an empty screen. */
 function settlePendingReward(run: RunState): void {
   const reward = run.pendingReward!;
@@ -156,12 +198,16 @@ function settlePendingReward(run: RunState): void {
   const cardOptions = (reward.cardOptions ?? []).filter(known);
   const upgradeOptions = (reward.upgradeOptions ?? []).filter((o) => known(o?.cardId) && run.masterDeck.some((c) => c.instanceId === o.instanceId));
   if (cardOptions.length + upgradeOptions.length > 0) {
-    run.pendingReward = { cardOptions, upgradeOptions, relicOffer: reward.relicOffer ?? null, relicChoices: reward.relicChoices ?? [] };
+    // Version 1 still carries the pre-AO-D068 relic offer; fromVersion2 turns it into a granted relic.
+    run.pendingReward = { ...reward, cardOptions, upgradeOptions, relicChoices: reward.relicChoices ?? [] };
     return;
   }
   const node = findNode(run.worldMap, run.worldMap.currentNodeId);
   run.rng = { ...run.rng };
-  run.pendingReward = buildPendingReward(run.rng, run.relics, run.masterDeck, node?.type === 'elite_battle', run.bossBattle && run.chapter < TOTAL_CHAPTERS);
+  run.army = run.army.map((s) => ({ ...s }));
+  run.hero = { ...run.hero };
+  run.relics = [...run.relics];
+  run.pendingReward = rollReward(run, node?.type === 'elite_battle', []);
 }
 
 function changeGold(run: RunState, delta: number): void {
@@ -225,8 +271,12 @@ export function createRun(seed: number, heroId: HeroId = 'warlord', heroName?: s
     cardRemoval: createCardRemovalState(),
     worldMap: generateWorldMap(rng),
     city: createInitialCityState(),
+    garrison: {},
+    foodPurchases: 0,
+    villages: 0,
     chapter: 1,
     threat: 0,
+    cityVisitsThisChapter: 0,
     seenEventIds: [],
     lastCasualties: [],
     bossBattle: false,
@@ -236,6 +286,7 @@ export function createRun(seed: number, heroId: HeroId = 'warlord', heroName?: s
     pendingEvent: null,
     pendingUnitChoice: null,
     pendingMerchant: null,
+    pendingVillage: null,
     log: [{ type: 'RUN_STARTED' }],
   };
   grantRelic(run, relic, []);
@@ -332,7 +383,7 @@ function resolveResourceNode(run: RunState, events: RunEvent[]): void {
   events.push({ type: 'RESOURCE_FOUND', gold, food });
 }
 
-/** One world day: Farm production, per-unit food upkeep, Gold Mine income, starvation. Returns the food the day cost. */
+/** One world day: Farm production, per-unit food upkeep, Gold Mine income, the weekly garrison (AO-D071), starvation. Returns the food the day cost. */
 function advanceDay(run: RunState, events: RunEvent[]): number {
   const foodCost = moveFoodCost(run.army, run.city);
   const farmFood = dailyProduction(run);
@@ -343,6 +394,10 @@ function advanceDay(run: RunState, events: RunEvent[]): number {
 
   if (mineGold > 0) changeGold(run, mineGold);
   if (mineGold > 0 || farmFood > 0) events.push({ type: 'DAILY_INCOME', gold: mineGold, food: farmFood });
+  if (isGarrisonDay(run.day)) {
+    const grown = growGarrison(run);
+    if (grown.length > 0) events.push({ type: 'GARRISON_GROWN', units: grown });
+  }
 
   if (payUpkeep(run, foodCost, events) === 'fed') run.starvationDays = 0;
   return foodCost;
@@ -408,6 +463,10 @@ function moveTo(run: RunState, nodeId: string, events: RunEvent[]): RunApplyResu
     case 'resource':
       resolveResourceNode(run, events);
       break;
+    case 'village':
+      run.pendingVillage = villageOffer(run.chapter);
+      run.phase = 'village';
+      break;
     case 'merchant':
       run.pendingMerchant = generateMerchantInventory(run.rng, run.relics);
       run.phase = 'merchant';
@@ -423,17 +482,19 @@ function moveTo(run: RunState, nodeId: string, events: RunEvent[]): RunApplyResu
 }
 
 /**
- * The city is reachable from the map at any time (AO-D047, GDD "Teleport to Town"); each visit
- * raises Threat. It costs no days (AO-D051), and leaving returns to the same map node.
+ * The city is reachable from the map at any time (AO-D047, GDD "Teleport to Town"); each visit after the first
+ * of the chapter raises Threat (AO-D070). It costs no days (AO-D051), and leaving returns to the same map node.
  */
 function travelToCity(run: RunState, events: RunEvent[]): RunApplyResult {
   if (run.phase !== 'on_map') {
     reject(events, 'The city can only be reached from the map.');
     return { run, events };
   }
-  run.threat += THREAT_PER_CITY_VISIT;
+  const free = !nextCityVisitRaisesThreat(run);
+  if (!free) run.threat += THREAT_PER_CITY_VISIT;
+  run.cityVisitsThisChapter += 1;
   run.phase = 'city';
-  events.push({ type: 'CITY_VISITED', threat: run.threat });
+  events.push({ type: 'CITY_VISITED', threat: run.threat, free });
   return { run, events };
 }
 
@@ -470,7 +531,7 @@ function forwardCombatAction(run: RunState, action: PlayerAction, events: RunEve
     changeGold(run, loot.gold);
     changeFood(run, loot.food);
     events.push({ type: 'BATTLE_LOOT', gold: loot.gold, food: loot.food });
-    run.pendingReward = buildPendingReward(run.rng, run.relics, run.masterDeck, arrivedAt?.type === 'elite_battle', run.bossBattle && run.chapter < TOTAL_CHAPTERS);
+    run.pendingReward = rollReward(run, arrivedAt?.type === 'elite_battle', events);
     run.phase = 'reward';
   } else if (result.state.result === 'defeat') {
     run.hero = result.state.hero;
@@ -490,7 +551,7 @@ function tallyCasualties(before: ArmyStack[], after: ArmyStack[]): UnitCount[] {
   return [...lost].filter(([, count]) => count > 0).map(([unitId, count]) => ({ unitId, count }));
 }
 
-/** Every reward pick (card, upgrade, removal, skip) ends the reward screen at once (AO-D026). */
+/** Every reward pick (a new card or an upgrade) ends the reward screen at once (AO-D026, AO-D068). */
 function finishReward(run: RunState, events: RunEvent[]): void {
   run.pendingReward = null;
   if (!run.bossBattle) {
@@ -505,6 +566,7 @@ function finishReward(run: RunState, events: RunEvent[]): void {
     return;
   }
   run.chapter += 1;
+  run.cityVisitsThisChapter = 0;
   run.worldMap = generateWorldMap(run.rng, run.chapter, run.day);
   run.phase = 'on_map';
   events.push({ type: 'CHAPTER_STARTED', chapter: run.chapter });
@@ -525,16 +587,15 @@ function claimCard(run: RunState, cardId: string, events: RunEvent[]): RunApplyR
   return { run, events };
 }
 
-/** The elite relic / boss relic choice is an extra on top of the one card/upgrade/skip pick, so claiming it keeps the screen open. */
+/** The boss relic choice is an extra on top of the one card/upgrade pick, so claiming it keeps the screen open. */
 function claimRelic(run: RunState, relicId: string, events: RunEvent[]): RunApplyResult {
   const reward = run.pendingReward;
-  const onOffer = reward && (reward.relicOffer === relicId || reward.relicChoices.includes(relicId));
+  const onOffer = reward && reward.relicChoices.includes(relicId);
   if (run.phase !== 'reward' || !reward || !onOffer) {
     reject(events, 'That relic is not on offer.');
     return { run, events };
   }
   grantRelic(run, RELIC_DEFINITIONS[relicId]!, events);
-  reward.relicOffer = null;
   reward.relicChoices = [];
   return { run, events };
 }
@@ -560,17 +621,7 @@ function claimUpgrade(run: RunState, instanceId: string, events: RunEvent[]): Ru
   return { run, events };
 }
 
-function skipReward(run: RunState, events: RunEvent[]): RunApplyResult {
-  if (run.phase !== 'reward' || !run.pendingReward) {
-    reject(events, 'No reward pending.');
-    return { run, events };
-  }
-  events.push({ type: 'REWARD_SKIPPED' });
-  finishReward(run, events);
-  return { run, events };
-}
-
-/** Card removal (AO-D026) at a reward, merchant or city; where it is allowed and what it costs lives in cardRemoval.ts. */
+/** Card removal (AO-D026) at the merchant or the city (AO-D068: not at the reward); where it is allowed and what it costs lives in cardRemoval.ts. */
 function removeCard(run: RunState, instanceId: string, events: RunEvent[]): RunApplyResult {
   const quote = cardRemovalQuote(run);
   if (!quote.allowed) {
@@ -589,8 +640,7 @@ function removeCard(run: RunState, instanceId: string, events: RunEvent[]): RunA
   events.push({ type: 'CARD_REMOVED', instanceId, cardId: card.cardId, goldPaid: quote.gold });
 
   if (run.phase === 'merchant') run.cardRemoval.merchantUses += 1;
-  else if (run.phase === 'city') run.cardRemoval.cityUses += 1;
-  else finishReward(run, events);
+  else run.cardRemoval.cityUses += 1;
   return { run, events };
 }
 
@@ -969,6 +1019,32 @@ function buyRelic(run: RunState, relicId: string, events: RunEvent[]): RunApplyR
   return { run, events };
 }
 
+/** AO-D072: Raid = immediate loot and Threat; Help = a small gift and a permanent village (Food every day, militia every week). */
+function resolveVillage(run: RunState, choice: 'raid' | 'help', events: RunEvent[]): RunApplyResult {
+  const offer = run.pendingVillage;
+  if (run.phase !== 'village' || !offer) {
+    reject(events, 'No village to decide on.');
+    return { run, events };
+  }
+  if (choice === 'raid') {
+    changeGold(run, offer.raid.gold);
+    changeFood(run, offer.raid.food);
+    run.stats.villagesRaided += 1;
+    events.push({ type: 'VILLAGE_RAIDED', gold: offer.raid.gold, food: offer.raid.food });
+    run.threat += offer.raid.threat;
+    events.push({ type: 'THREAT_CHANGED', threat: run.threat, delta: offer.raid.threat });
+  } else {
+    changeGold(run, offer.help.gold);
+    changeFood(run, offer.help.food);
+    run.villages += 1;
+    run.stats.villagesHelped += 1;
+    events.push({ type: 'VILLAGE_HELPED', gold: offer.help.gold, food: offer.help.food, villages: run.villages });
+  }
+  run.pendingVillage = null;
+  run.phase = 'on_map';
+  return { run, events };
+}
+
 function leaveMerchant(run: RunState, events: RunEvent[]): RunApplyResult {
   if (run.phase !== 'merchant') {
     reject(events, 'Not at a merchant.');
@@ -984,28 +1060,15 @@ function recruit(run: RunState, unitId: UnitId, count: number, events: RunEvent[
     reject(events, 'Not at the city.');
     return { run, events };
   }
-  if (!canRecruitUnit(run.city, unitId)) {
-    reject(events, 'That unit cannot be recruited yet (missing building).');
+  const blocker = recruitBlocker(run, unitId, count);
+  if (blocker) {
+    reject(events, blocker);
     return { run, events };
   }
-  const cost = recruitCost(run.city, unitId, count);
-  if (!cost) {
-    reject(events, 'Unknown recruitable unit.');
-    return { run, events };
-  }
-  if (run.gold < cost.gold || run.food < cost.food) {
-    reject(events, 'Not enough Gold/Food to recruit that many.');
-    return { run, events };
-  }
-
-  const updatedArmy = addUnitsToArmy(run.army, unitId, count);
-  if (!updatedArmy) {
-    reject(events, `Field army is full (${MAX_ARMY_STACKS} stacks) and has no matching stack to merge into.`);
-    return { run, events };
-  }
+  const cost = recruitCost(run.city, unitId, count)!;
   changeGold(run, -cost.gold);
   run.food -= cost.food;
-  run.army = updatedArmy;
+  run.army = addUnitsToArmy(run.army, unitId, count)!;
   run.stats.unitsRecruited += count;
   events.push({ type: 'UNITS_RECRUITED', unitId, count });
   return { run, events };
@@ -1091,6 +1154,7 @@ function buildBuilding(run: RunState, buildingId: string, events: RunEvent[]): R
   }
 
   if (buildingId === 'farm') run.city.farmTier = 1;
+  if (buildingId === 'barracks') run.city.barracksTier = 1;
 
   events.push({ type: 'BUILDING_BUILT', buildingId });
   return { run, events };
@@ -1118,6 +1182,73 @@ function upgradeFarm(run: RunState, events: RunEvent[]): RunApplyResult {
   changeGold(run, -next.cost);
   run.city.farmTier = (tier + 1) as 2 | 3 | 4 | 5;
   events.push({ type: 'FARM_UPGRADED', tier: tier + 1 });
+  return { run, events };
+}
+
+function upgradeBarracks(run: RunState, events: RunEvent[]): RunApplyResult {
+  if (run.phase !== 'city') {
+    reject(events, 'Not at the city.');
+    return { run, events };
+  }
+  const tier = run.city.barracksTier;
+  if (tier === 0) {
+    reject(events, 'Build the Barracks first.');
+    return { run, events };
+  }
+  const next = BARRACKS_TIERS[tier];
+  if (!next) {
+    reject(events, 'Barracks is already at max tier.');
+    return { run, events };
+  }
+  if (run.gold < next.cost) {
+    reject(events, 'Not enough Gold.');
+    return { run, events };
+  }
+  changeGold(run, -next.cost);
+  run.city.barracksTier = (tier + 1) as 2 | 3 | 4;
+  events.push({ type: 'BARRACKS_UPGRADED', tier: tier + 1 });
+  return { run, events };
+}
+
+/** AO-D071: free, uses the normal army rules (merge into the same type or take a free slot); a type that does not fit stays in the garrison. */
+function collectGarrison(run: RunState, unitId: UnitId | undefined, events: RunEvent[]): RunApplyResult {
+  if (run.phase !== 'city') {
+    reject(events, 'Not at the city.');
+    return { run, events };
+  }
+  const waiting = garrisonUnits(run.garrison).filter((u) => unitId === undefined || u.unitId === unitId);
+  if (waiting.length === 0) {
+    reject(events, 'No soldiers are waiting in the garrison.');
+    return { run, events };
+  }
+  let collected = 0;
+  for (const { unitId: type, count } of waiting) {
+    const updated = addUnitsToArmy(run.army, type, count);
+    if (!updated) continue;
+    run.army = updated;
+    delete run.garrison[type];
+    events.push({ type: 'GARRISON_COLLECTED', unitId: type, count });
+    collected += count;
+  }
+  if (collected === 0) reject(events, `Field army is full (${MAX_ARMY_STACKS} stacks) and has no matching stack to merge into.`);
+  return { run, events };
+}
+
+/** AO-D071: the Marketplace is part of the city, needs no building; the quote is the one the UI shows. */
+function buyFood(run: RunState, packs: number, events: RunEvent[]): RunApplyResult {
+  if (run.phase !== 'city') {
+    reject(events, 'Not at the city.');
+    return { run, events };
+  }
+  const quote = foodMarketQuote(run, packs);
+  if (run.gold < quote.gold) {
+    reject(events, 'Not enough Gold.');
+    return { run, events };
+  }
+  changeGold(run, -quote.gold);
+  changeFood(run, quote.food);
+  run.foodPurchases += packs;
+  events.push({ type: 'FOOD_PURCHASED', packs, food: quote.food, gold: quote.gold });
   return { run, events };
 }
 
@@ -1207,8 +1338,6 @@ function dispatchAction(working: RunState, action: RunAction, events: RunEvent[]
       return claimCard(working, action.cardId, events);
     case 'CLAIM_UPGRADE':
       return claimUpgrade(working, action.instanceId, events);
-    case 'SKIP_REWARD':
-      return skipReward(working, events);
     case 'REMOVE_CARD':
       return removeCard(working, action.instanceId, events);
     case 'CHOOSE_EVENT_OPTION':
@@ -1241,6 +1370,16 @@ function dispatchAction(working: RunState, action: RunAction, events: RunEvent[]
       return upgradeMageTower(working, events);
     case 'UPGRADE_FARM':
       return upgradeFarm(working, events);
+    case 'UPGRADE_BARRACKS':
+      return upgradeBarracks(working, events);
+    case 'COLLECT_GARRISON':
+      return collectGarrison(working, action.unitId, events);
+    case 'BUY_FOOD':
+      return buyFood(working, action.packs, events);
+    case 'RAID_VILLAGE':
+      return resolveVillage(working, 'raid', events);
+    case 'HELP_VILLAGE':
+      return resolveVillage(working, 'help', events);
     case 'UPGRADE_CITY':
       return upgradeCity(working, events);
     case 'CHOOSE_DOCTRINE':

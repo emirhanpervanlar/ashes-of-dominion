@@ -10,6 +10,12 @@ function withHand(state: CombatState, cardIds: string[]): CombatState {
   return { ...state, hand: cardIds.map((cardId, i) => ({ instanceId: `test_${cardId}_${i}`, cardId })) };
 }
 
+/** The Mage opens with a Swordsman front line (AO-D074); tests about an exposed backline drop it and re-plan the enemy intents. */
+function withoutFront(state: CombatState): CombatState {
+  const playerArmy = state.playerArmy.filter((s) => s.position > 3);
+  return { ...state, playerArmy, enemyIntents: generateEnemyIntents({ ...state, playerArmy }) };
+}
+
 function handCard(state: CombatState, cardId: string) {
   const card = state.hand.find((c) => c.cardId === cardId);
   if (!card) throw new Error(`Card ${cardId} not in hand`);
@@ -37,7 +43,9 @@ describe('v3 §9 Morale (0-100) affects damage and defense', () => {
 
 describe('v3 §8 Veterancy (flat tiers 0/3/5/8%)', () => {
   it('higher veterancy deals more damage', () => {
-    const { state } = createVerticalSliceScenario(501);
+    const scenario = createVerticalSliceScenario(501).state;
+    // A large stack, so the small veterancy bonus survives integer rounding.
+    const state: CombatState = { ...scenario, playerArmy: scenario.playerArmy.map((s) => (s.stackId === 'player_swordsman_1' ? { ...s, count: 40, currentHp: 400, maxHp: 400 } : s)) };
     const veteran: CombatState = { ...state, playerArmy: state.playerArmy.map((s) => (s.stackId === 'player_swordsman_1' ? { ...s, veterancy: 3 } : s)) };
 
     const baseDmg = attackEvent(applyPlayerAction(state, { type: 'BASIC_ACTION', stackId: 'player_swordsman_1', targetStackId: 'enemy_orc_1' }).events).rawDamage;
@@ -116,8 +124,8 @@ describe('Divine Protection', () => {
   it('a lethal hit leaves the shielded stack at 1 soldier instead of destroying it', () => {
     // divine_protection is Priest-sourced — use Mage (has a Priest, and no Knight, so
     // Guard's redirect passive can't move the hit to a different stack). Shield the Archer
-    // stack (Mage's reduced v3 roster has no Swordsman).
-    let { state } = createVerticalSliceScenario(504.5, 'mage');
+    // stack; the front Swordsmen are dropped so the backline is exposed to the attack below.
+    let state = withoutFront(createVerticalSliceScenario(504.5, 'mage').state);
     state = withHand(state, ['divine_protection']);
     const archer = state.playerArmy.find((s) => s.unitId === 'archer')!;
     const shielded = applyPlayerAction(state, {
@@ -317,7 +325,7 @@ describe('Protect redirect is consumed by the first redirected hit (AO-D005)', (
 
 describe('melee enemies reach the backline only once the front row is empty (AO-D013)', () => {
   it('an all-backline Mage army is attackable: every melee enemy plans an attack on it', () => {
-    const { state } = createVerticalSliceScenario(512, 'mage'); // Mage army is backline only
+    const state = withoutFront(createVerticalSliceScenario(512, 'mage').state); // backline only
     const melee = state.enemyArmy.filter((s) => s.unitId === 'orc');
     expect(melee.length).toBeGreaterThan(0);
     const intents = generateEnemyIntents(state);

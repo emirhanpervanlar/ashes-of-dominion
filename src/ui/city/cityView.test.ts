@@ -79,7 +79,8 @@ describe('building states', () => {
 
   it('every scene building exists in the engine and none is listed twice', () => {
     expect(new Set(SCENE_BUILDINGS).size).toBe(SCENE_BUILDINGS.length);
-    expect([...SCENE_BUILDINGS].sort()).toEqual(Object.keys(BUILDING_DEFINITIONS).sort());
+    // The Barracks (AO-D071) is a tiered building in the engine but its own fixed plot in the scene.
+    expect([...SCENE_BUILDINGS, 'barracks'].sort()).toEqual(Object.keys(BUILDING_DEFINITIONS).sort());
   });
 });
 

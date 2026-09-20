@@ -1,7 +1,7 @@
 import type { RunState } from './types.js';
 
 /**
- * Card removal prices and limits: AO-D035 (Reward, Merchant) and AO-D052 (City). Nothing else
+ * Card removal prices and limits: AO-D035 (Merchant; the Reward screen no longer removes, AO-D068) and AO-D052 (City). Nothing else
  * in the engine hard-codes these numbers.
  */
 export const CARD_REMOVAL = {
@@ -36,8 +36,6 @@ export function cardRemovalQuote(run: RunState): CardRemovalQuote {
     return { allowed: false, reason: `Deck cannot go below ${CARD_REMOVAL.minDeckSize} cards.` };
   }
   switch (run.phase) {
-    case 'reward':
-      return { allowed: true, gold: 0 };
     case 'merchant': {
       const gold = CARD_REMOVAL.merchant.baseGold + CARD_REMOVAL.merchant.stepGold * run.cardRemoval.merchantUses;
       return run.gold >= gold ? { allowed: true, gold } : { allowed: false, reason: 'Not enough Gold.' };
@@ -47,6 +45,6 @@ export function cardRemovalQuote(run: RunState): CardRemovalQuote {
       return run.gold >= gold ? { allowed: true, gold } : { allowed: false, reason: 'Not enough Gold.' };
     }
     default:
-      return { allowed: false, reason: 'Cards can only be removed at a reward, merchant or city.' };
+      return { allowed: false, reason: 'Cards can only be removed at a merchant or the city.' };
   }
 }

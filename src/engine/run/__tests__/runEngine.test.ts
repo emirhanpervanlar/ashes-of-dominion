@@ -53,7 +53,7 @@ describe('run creation', () => {
     const run = createRun(1);
     expect(run.phase).toBe('on_map');
     expect(run.relics.map((r) => r.id)).toEqual(['royal_banner']);
-    expect(run.army.map((s) => s.count)).toEqual([12, 2]);
+    expect(run.army.map((s) => s.count)).toEqual([10, 4]);
     expect(run.masterDeck.length).toBe(10);
     expect(run.combat).toBeNull();
     expect(run.gold).toBe(100);
@@ -70,7 +70,7 @@ describe('starting relic', () => {
   it('Royal Banner adds +6 to the largest starting stack and moves to the map', () => {
     const run = createRun(2, 'warlord', undefined, 'royal_banner');
     const swordsman = run.army.find((s) => s.unitId === 'swordsman')!;
-    expect(swordsman.count).toBe(12); // 6 (Warlord's largest starting stack) + 6 (AO-D014)
+    expect(swordsman.count).toBe(10); // 4 (Warlord's first largest starting stack) + 6 (AO-D014)
     expect(run.phase).toBe('on_map');
     expect(run.combat).toBeNull();
   });

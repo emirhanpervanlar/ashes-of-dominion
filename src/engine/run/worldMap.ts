@@ -1,8 +1,9 @@
 import { nextInt } from '../rng.js';
 import type { RngState } from '../rng.js';
 import { ELITE_FREE_STEPS, bossDay } from './chapters.js';
+import { VILLAGE } from './villages.js';
 
-export type NodeType = 'start' | 'battle' | 'elite_battle' | 'resource' | 'merchant' | 'event' | 'boss';
+export type NodeType = 'start' | 'battle' | 'elite_battle' | 'resource' | 'village' | 'merchant' | 'event' | 'boss';
 export type NodeVisibility = 'unknown' | 'revealed' | 'visited';
 
 export interface MapNode {
@@ -38,13 +39,14 @@ const STEP_TYPE_POOL: NodeType[] = [
 const ELITE_FREE_POOL = STEP_TYPE_POOL.filter((t) => t !== 'elite_battle');
 
 /**
- * One 30-day chapter (AO-D046). The start node is the current position on `startDay`;
+ * One 30-day chapter (AO-D046). AO-D072: every VILLAGE.resourceNodeShare-th resource node drawn for the map becomes a village (no extra RNG, so seeds keep their layout). The start node is the current position on `startDay`;
  * each layer is one day, so the boss layer lands on the chapter's boss day (30/60/90).
  * The first ELITE_FREE_STEPS steps of the whole run (chapter 1 only) never hold an elite (AO-D049).
  */
 export function generateWorldMap(rng: RngState, chapter = 1, startDay = 1): WorldMapState {
   const bossLayer = Math.max(1, bossDay(chapter) - startDay);
   const layers: MapNode[][] = [];
+  let resources = 0;
 
   for (let layer = 0; layer <= bossLayer; layer++) {
     const size = layer === 0 || layer === bossLayer ? 1 : CHOICES_PER_LAYER;
@@ -52,7 +54,8 @@ export function generateWorldMap(rng: RngState, chapter = 1, startDay = 1): Worl
     const pool = eliteFree ? ELITE_FREE_POOL : STEP_TYPE_POOL;
     const nodes: MapNode[] = [];
     for (let i = 0; i < size; i++) {
-      const type: NodeType = layer === 0 ? 'start' : layer === bossLayer ? 'boss' : pool[nextInt(rng, pool.length)]!;
+      let type: NodeType = layer === 0 ? 'start' : layer === bossLayer ? 'boss' : pool[nextInt(rng, pool.length)]!;
+      if (type === 'resource' && ++resources % VILLAGE.resourceNodeShare === 0) type = 'village';
       nodes.push({ id: `c${chapter}n${layer}_${i}`, type, layer, visibility: 'unknown', connectsTo: [] });
     }
     layers.push(nodes);
