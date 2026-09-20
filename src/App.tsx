@@ -1,13 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { CARD_DEFINITIONS, UNIT_DEFINITIONS, computeValidHealTargets, computeValidTargets } from './engine/index.js';
-import type { ArmyStack, CardTargeting, EnemyIntent, PlayerAction, Position } from './engine/index.js';
+import { CARD_DEFINITIONS, UNIT_DEFINITIONS, applyPlayerAction, computeValidHealTargets, computeValidTargets } from './engine/index.js';
+import type { ArmyStack, CardTargeting, CombatState, PlayerAction, Position } from './engine/index.js';
 import { applyRunAction, cardRemovalQuote, createRun, enemyStrengthAfterCityVisits, eventView, migrateRun } from './engine/run/index.js';
 import type { RunEvent, RunState } from './engine/run/index.js';
 import { StackTile } from './ui/StackTile.js';
 import { UnitPopup } from './ui/UnitPopup.js';
 import { FlyingCard } from './ui/FlyingCard.js';
 import type { FlyingCardState } from './ui/FlyingCard.js';
-import { floatersFromEvents, useFloatingText } from './ui/FloatingText.js';
+import { floatersFromCues, useFloatingText } from './ui/FloatingText.js';
+import { cuesFromEvents, enemyPhaseBoard, replayEnemySteps, replayMismatches } from './ui/battleCues.js';
+import { playCues, playEnemySteps } from './ui/battlePlayback.js';
+import { useBattleFx, useStatusTransitions } from './ui/useBattleFx.js';
 import { cannotAct } from './ui/stackStatus.js';
 import { ActionCardTile } from './ui/ActionCardTile.js';
 import { StartingRelicScreen } from './ui/StartingRelicScreen.js';
@@ -48,16 +51,6 @@ interface PendingAction {
   targetStackId?: string;
 }
 
-interface PlayerActionFx {
-  attackFrom?: string;
-  attackTo?: string;
-  blockStacks?: string[];
-  buffStacks?: string[];
-  debuffStacks?: string[];
-}
-
-const BUFF_EFFECT_KINDS = new Set(['GAIN_MORALE', 'GAIN_MORALE_ALL', 'GAIN_MANA', 'DRAW', 'GAIN_TAUNT']);
-
 function loadInitialRun(): RunState {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -90,9 +83,10 @@ export default function App() {
   const [discardingIds, setDiscardingIds] = useState<string[] | null>(null);
   const [drawingIds, setDrawingIds] = useState<Set<string>>(new Set());
   const prevHandIds = useRef<Set<string>>(new Set());
-  const [playerFx, setPlayerFx] = useState<PlayerActionFx | null>(null);
-  const [enemyAnimQueue, setEnemyAnimQueue] = useState<EnemyIntent[] | null>(null);
-  const [enemyAnimIndex, setEnemyAnimIndex] = useState(0);
+  // The board shown while an animated sequence runs ahead of the run state (enemy turn playback, a battle-ending blow).
+  const [playbackBoard, setPlaybackBoard] = useState<CombatState | null>(null);
+  const [fxBusy, setFxBusy] = useState(false);
+  const fx = useBattleFx();
   const [appStage, setAppStage] = useState<AppStage>('title');
   const [menuOpen, setMenuOpen] = useState(false);
   const [titleSettingsOpen, setTitleSettingsOpen] = useState(false);
@@ -122,6 +116,9 @@ export default function App() {
   // Set by the battle render only while Space may end the turn (nothing pending, no popup open); null everywhere else.
   const spaceEndTurn = useRef<(() => void) | null>(null);
   spaceEndTurn.current = null;
+  // Set by the render only while an effect sequence (an action, the enemy turn replay) runs: Space or a click skips to its end.
+  const skipPlayback = useRef<(() => void) | null>(null);
+  skipPlayback.current = null;
 
   useEffect(() => {
     function typing(t: EventTarget | null): boolean {
@@ -129,9 +126,9 @@ export default function App() {
     }
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === 'Escape') setPending(null);
-      if (e.code === 'Space' && !e.repeat && !typing(e.target) && spaceEndTurn.current) {
+      if (e.code === 'Space' && !e.repeat && !typing(e.target) && (skipPlayback.current ?? spaceEndTurn.current)) {
         e.preventDefault();
-        spaceEndTurn.current();
+        (skipPlayback.current ?? spaceEndTurn.current)?.();
       }
     }
     // A focused button would otherwise also "click" itself when Space is released.
@@ -146,24 +143,8 @@ export default function App() {
     };
   }, []);
 
-  // Steps through the enemy's intents one at a time (highlighting the acting stack and its
-  // target) before actually dispatching END_TURN — the engine resolves the whole enemy turn
-  // atomically, so this is a pre-resolution "preview playback," not a true step-by-step sim.
-  useEffect(() => {
-    if (!enemyAnimQueue) return;
-    if (enemyAnimIndex >= enemyAnimQueue.length) {
-      dispatchEndTurn();
-      setEnemyAnimQueue(null);
-      setEnemyAnimIndex(0);
-      return;
-    }
-    const t = setTimeout(() => setEnemyAnimIndex((i) => i + 1), 700);
-    return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enemyAnimQueue, enemyAnimIndex]);
-
-  const combat = run.combat;
-  const currentEnemyIntent = enemyAnimQueue ? enemyAnimQueue[enemyAnimIndex] : null;
+  const combat = playbackBoard ?? run.combat;
+  useStatusTransitions(fx, combat);
 
   // Cards newly present in hand (just drawn) play a slide-in-from-the-deck entrance once.
   useEffect(() => {
@@ -178,59 +159,43 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [combat?.hand]);
 
-  /** Plays the non-retained hand cards sliding out to the discard pile before END_TURN actually resolves. */
-  function dispatchEndTurn() {
-    if (!combat) return;
-    const leaving = combat.hand.filter((c) => !CARD_DEFINITIONS[c.cardId]?.retain).map((c) => c.instanceId);
-    if (leaving.length === 0) {
-      dispatchCombat({ type: 'END_TURN' });
-      return;
+  /** Runs the enemy phase as a replay of the engine's steps, then lands on the engine's final state. */
+  async function handleEndTurn() {
+    if (!run.combat || fxBusy) return;
+    const pre = run.combat;
+    const leaving = pre.hand.filter((c) => !CARD_DEFINITIONS[c.cardId]?.retain).map((c) => c.instanceId);
+    setFxBusy(true);
+    setPending(null);
+    fx.begin();
+    if (leaving.length > 0) {
+      setDiscardingIds(leaving);
+      await fx.wait(320);
     }
-    setDiscardingIds(leaving);
-    setTimeout(() => {
-      dispatchCombat({ type: 'END_TURN' });
+    // The run layer does not hand back the enemy steps, so the same deterministic engine call is repeated for them.
+    const played = applyPlayerAction(pre, { type: 'END_TURN' });
+    const steps = played.enemySteps ?? [];
+    const result = applyRunAction(run, { type: 'COMBAT_ACTION', action: { type: 'END_TURN' } });
+    if (import.meta.env.DEV && result.run.combat) {
+      const replayed = replayEnemySteps(pre, steps).at(-1) ?? enemyPhaseBoard(pre);
+      const bad = replayMismatches(replayed, result.run.combat);
+      if (bad.length > 0) console.error('Enemy playback diverged from the engine final state for', bad);
+    }
+    try {
+      setPlaybackBoard(enemyPhaseBoard(pre));
       setDiscardingIds(null);
-    }, 320);
-  }
-
-  function handleEndTurn() {
-    if (!combat) return;
-    // Intents are captured at the start of the turn — drop any whose actor (or, for a buff,
-    // its target) died to the player's own actions since then, so a dead stack doesn't still
-    // appear to "act" in the end-of-turn playback.
-    const liveIntents = combat.enemyIntents.filter((i) => {
-      const actor = combat.enemyArmy.find((s) => s.stackId === i.stackId);
-      if (!actor || actor.count <= 0) return false;
-      if (i.kind === 'buff') {
-        const target = combat.enemyArmy.find((s) => s.stackId === i.targetStackId);
-        return !!target && target.count > 0;
+      await playEnemySteps({ fx, spawnFloaters }, enemyPhaseBoard(pre), steps, setPlaybackBoard);
+    } finally {
+      setPlaybackBoard(null);
+      commitRun(result);
+      if (result.run.combat) {
+        const events = played.events;
+        const tail = events.slice(events.findIndex((e) => e.type === 'ENEMY_TURN_RESOLVED') + 1);
+        const dots = cuesFromEvents(tail, pre, result.run.combat).filter((c) => c.kind === 'dot');
+        dots.forEach((c) => fx.impact(c));
+        spawnFloaters(floatersFromCues(dots));
       }
-      return true;
-    });
-    if (liveIntents.length === 0) {
-      dispatchEndTurn();
-      return;
+      setFxBusy(false);
     }
-    setEnemyAnimIndex(0);
-    setEnemyAnimQueue(liveIntents);
-  }
-
-  function stackFx(stackId: string | undefined): { acting: boolean; hit: boolean; block: boolean; buff: boolean; debuff: boolean } {
-    const result = { acting: false, hit: false, block: false, buff: false, debuff: false };
-    if (!stackId) return result;
-    if (currentEnemyIntent) {
-      if (currentEnemyIntent.stackId === stackId) result.acting = true;
-      if (currentEnemyIntent.kind === 'attack' && currentEnemyIntent.targetStackId === stackId) result.hit = true;
-      if (currentEnemyIntent.kind === 'buff' && currentEnemyIntent.targetStackId === stackId) result.buff = true;
-    }
-    if (playerFx) {
-      if (playerFx.attackFrom === stackId) result.acting = true;
-      if (playerFx.attackTo === stackId) result.hit = true;
-      if (playerFx.blockStacks?.includes(stackId)) result.block = true;
-      if (playerFx.buffStacks?.includes(stackId)) result.buff = true;
-      if (playerFx.debuffStacks?.includes(stackId)) result.debuff = true;
-    }
-    return result;
   }
 
   function pushToast(icon: IconName, text: string, ms?: number) {
@@ -303,27 +268,19 @@ export default function App() {
     setAppStage('title');
   }
 
-  function dispatchRun(action: Parameters<typeof applyRunAction>[1]) {
-    const result = applyRunAction(run, action);
+  /** Applies a computed run result: toasts for its events, then the new run state. */
+  function commitRun(result: ReturnType<typeof applyRunAction>, action?: Parameters<typeof applyRunAction>[1]) {
     toastsForRunEvents(result.events);
-    if (action.type === 'LEAVE_CITY' && result.run.phase === 'on_map') {
+    if (action?.type === 'LEAVE_CITY' && result.run.phase === 'on_map') {
       pushToast('threat', `Enemies grew stronger: Threat ${result.run.threat} (x${enemyStrengthAfterCityVisits(result.run).toFixed(2)} enemy strength).`);
     }
     setRun(result.run);
-    return result;
   }
 
-  function dispatchCombat(action: PlayerAction) {
-    const logLengthBefore = combat?.log.length ?? 0;
-    const result = dispatchRun({ type: 'COMBAT_ACTION', action });
-    // Floating text is for the player's own actions only; the enemy turn is played back separately.
-    if (result.run.combat) {
-      const newEvents = result.run.combat.log.slice(logLengthBefore);
-      // The engine rejects illegal actions with a reason in the combat log; surface it instead of failing silently.
-      for (const e of newEvents) if (e.type === 'ACTION_REJECTED') pushToast('ui_warn', e.reason);
-      if (action.type !== 'END_TURN') spawnFloaters(floatersFromEvents(newEvents, result.run.combat));
-    }
-    setPending(null);
+  function dispatchRun(action: Parameters<typeof applyRunAction>[1]) {
+    const result = applyRunAction(run, action);
+    commitRun(result, action);
+    return result;
   }
 
   function hasResource(cardId: string): boolean {
@@ -346,65 +303,58 @@ export default function App() {
     setPending({ kind: 'card', id: instanceId, name: cardDef.name, targeting: cardDef.targeting });
   }
 
-  function finalize(extra: { actingStackId?: string; targetStackId?: string; toPosition?: Position }) {
-    if (!pending || !combat || flyingCard || playerFx) return;
+  /**
+   * Resolves the pending card / basic action. The engine result is computed at once; the effects derived from its events
+   * (lunge, projectile, block ring...) play first, and the new state is shown at the moment of contact.
+   */
+  async function finalize(extra: { actingStackId?: string; targetStackId?: string; toPosition?: Position }) {
+    if (!pending || !run.combat || flyingCard || fxBusy) return;
+    const before = run.combat;
     const current = pending;
-
-    function dispatchNow() {
-      if (current.kind === 'card') {
-        dispatchCombat({ type: 'PLAY_CARD', instanceId: current.id, ...extra });
-      } else {
-        dispatchCombat({ type: 'BASIC_ACTION', stackId: current.id, targetStackId: extra.targetStackId });
-      }
+    const action: PlayerAction =
+      current.kind === 'card'
+        ? { type: 'PLAY_CARD', instanceId: current.id, ...extra }
+        : { type: 'BASIC_ACTION', stackId: current.id, targetStackId: extra.targetStackId };
+    const result = applyRunAction(run, { type: 'COMBAT_ACTION', action });
+    const after = result.run.combat;
+    setPending(null);
+    // The engine rejects illegal actions with a reason in the combat log; surface it instead of failing silently.
+    const events = after ? after.log.slice(before.log.length) : [];
+    const rejected = events.find((e) => e.type === 'ACTION_REJECTED');
+    if (!after || rejected) {
+      if (rejected) pushToast('ui_warn', rejected.reason);
+      commitRun(result);
+      return;
     }
-
-    const fx: PlayerActionFx = {};
-
-    if (current.kind === 'basic') {
-      const actorStack = combat.playerArmy.find((s) => s.stackId === current.id);
-      const basicKind = actorStack ? UNIT_DEFINITIONS[actorStack.unitId].basicAction ?? 'attack' : 'attack';
-      if (basicKind === 'heal') {
-        if (extra.targetStackId) fx.buffStacks = [extra.targetStackId];
-      } else {
-        if (extra.actingStackId) fx.attackFrom = extra.actingStackId;
-        if (extra.targetStackId) fx.attackTo = extra.targetStackId;
-      }
-    } else {
-      const cardId = combat.hand.find((c) => c.instanceId === current.id)?.cardId;
-      const def = cardId ? CARD_DEFINITIONS[cardId] : undefined;
-      const effects = def?.effects ?? [];
-
-      if (effects.some((e) => e.kind === 'ATTACK' || e.kind === 'ATTACK_ALL_WITH_TAG')) {
-        if (extra.actingStackId) fx.attackFrom = extra.actingStackId;
-        if (extra.targetStackId) fx.attackTo = extra.targetStackId;
-      }
-      if (effects.some((e) => e.kind === 'GAIN_BLOCK_ALL_FRONT')) {
-        fx.blockStacks = combat.playerArmy.filter((s) => s.count > 0 && (s.position === 1 || s.position === 2 || s.position === 3)).map((s) => s.stackId);
-      } else if (effects.some((e) => e.kind === 'GAIN_BLOCK') && extra.actingStackId) {
-        fx.blockStacks = [extra.actingStackId];
-      }
-      if (effects.some((e) => e.kind === 'GAIN_MORALE_ALL')) {
-        fx.buffStacks = combat.playerArmy.filter((s) => s.count > 0).map((s) => s.stackId);
-      } else if (effects.some((e) => BUFF_EFFECT_KINDS.has(e.kind)) && extra.actingStackId) {
-        fx.buffStacks = [extra.actingStackId];
-      }
-      if (effects.some((e) => e.kind === 'APPLY_STATUS' && (e.status === 'weak' || e.status === 'freeze')) && extra.targetStackId) {
-        fx.debuffStacks = [extra.targetStackId];
-      }
-    }
-
-    const hasFx = fx.attackFrom || fx.attackTo || fx.blockStacks?.length || fx.buffStacks?.length || fx.debuffStacks?.length;
-    const launched = current.kind === 'card' && launchCardFlight(current.id);
-    if (hasFx || launched) {
-      if (hasFx) setPlayerFx(fx);
-      setTimeout(() => {
-        setPlayerFx(null);
-        setFlyingCard(null);
-        setPlayedInstanceId(null);
-        dispatchNow();
-      }, 420);
-    } else {
-      dispatchNow();
+    const cardId = current.kind === 'card' ? before.hand.find((c) => c.instanceId === current.id)?.cardId : undefined;
+    const cues = cuesFromEvents(events, before, after, cardId);
+    const flying = current.kind === 'card' && launchCardFlight(current.id);
+    // A blow that ends the battle keeps the battlefield on screen until its effects have played.
+    const endsBattle = result.run.phase !== 'in_battle';
+    let shown = false;
+    setFxBusy(true);
+    fx.begin();
+    try {
+      if (flying) await fx.wait(300);
+      await playCues(
+        { fx, spawnFloaters },
+        cues,
+        () => {
+          shown = true;
+          setFlyingCard(null);
+          setPlayedInstanceId(null);
+          if (endsBattle) setPlaybackBoard(after);
+          else commitRun(result);
+        },
+        false,
+      );
+      if (endsBattle && shown) await fx.wait(700);
+    } finally {
+      setFlyingCard(null);
+      setPlayedInstanceId(null);
+      setPlaybackBoard(null);
+      if (endsBattle || !shown) commitRun(result);
+      setFxBusy(false);
     }
   }
 
@@ -573,20 +523,10 @@ export default function App() {
   }
 
   function isDimmed(stack: ArmyStack | undefined, side: 'player' | 'enemy'): boolean {
-    if (!stack) return false;
-    if (currentEnemyIntent) {
-      return stack.stackId !== currentEnemyIntent.stackId && stack.stackId !== currentEnemyIntent.targetStackId;
-    }
-    if (playerFx) {
-      const fx = stackFx(stack.stackId);
-      return !fx.acting && !fx.hit && !fx.block && !fx.buff && !fx.debuff;
-    }
-    if (pending) {
-      const selectable = isSelectable(stack, side);
-      const chosen = stack.stackId === pending.actingStackId || stack.stackId === pending.targetStackId;
-      return !selectable && !chosen;
-    }
-    return false;
+    if (!stack || !pending) return false;
+    const selectable = isSelectable(stack, side);
+    const chosen = stack.stackId === pending.actingStackId || stack.stackId === pending.targetStackId;
+    return !selectable && !chosen;
   }
 
   if (appStage === 'title') {
@@ -794,18 +734,19 @@ export default function App() {
   const combatHistory = combat.log.map((e) => describeEvent(combat, e)).filter((line): line is string => line !== null);
   const manaPct = combat.hero.maxMana > 0 ? Math.min(100, (combat.hero.mana / combat.hero.maxMana) * 100) : 0;
   const inspectedStack = [...combat.playerArmy, ...combat.enemyArmy].find((s) => s.stackId === inspectStackId && s.count > 0);
-  const canAct = combat.phase === 'player' && combat.result === 'ongoing' && !enemyAnimQueue && !playerFx && !flyingCard;
+  const canAct = combat.phase === 'player' && combat.result === 'ongoing' && !playbackBoard && !fxBusy && !flyingCard;
   if (canAct && !pending && !menuOpen && !historyOpen && !inspectedStack) spaceEndTurn.current = handleEndTurn;
+  if (fxBusy) skipPlayback.current = fx.skip;
 
   /** Clicking bare battlefield (not a unit, the drop zone or End Turn) drops the selection and any pending card. */
   function onFieldClick(e: React.MouseEvent) {
-    if (flyingCard || playerFx || enemyAnimQueue) return;
+    if (flyingCard || fxBusy) return;
     if ((e.target as HTMLElement).closest('.portrait-slot:not(.empty), .portrait-slot.selectable, .drop-zone, .endturn-bar')) return;
     setPending(null);
   }
 
   return (
-    <div className="screen disciples-frame" data-screen="battle">
+    <div className="screen disciples-frame" data-screen="battle" onClick={() => skipPlayback.current?.()}>
       {gameChromeNoMenuBtn}
 
       <span className="frame-ornament corner-tl" aria-hidden="true">
@@ -866,7 +807,6 @@ export default function App() {
                   selectable={isSelectable(s, 'player')}
                   selected={isSelected(s)}
                   dimmed={isDimmed(s, 'player')}
-                  fx={stackFx(s?.stackId)}
                   floaters={floaters.filter((f) => f.stackId === s?.stackId)}
                   onClick={() => onArmyStackClick(s, p, 'player')}
                   onInspect={() => s && setInspectStackId(s.stackId)}
@@ -886,7 +826,6 @@ export default function App() {
                   selectable={isSelectable(s, 'player')}
                   selected={isSelected(s)}
                   dimmed={isDimmed(s, 'player')}
-                  fx={stackFx(s?.stackId)}
                   floaters={floaters.filter((f) => f.stackId === s?.stackId)}
                   onClick={() => onArmyStackClick(s, p, 'player')}
                   onInspect={() => s && setInspectStackId(s.stackId)}
@@ -918,7 +857,6 @@ export default function App() {
                   selectable={isSelectable(s, 'enemy')}
                   selected={isSelected(s)}
                   dimmed={isDimmed(s, 'enemy')}
-                  fx={stackFx(s?.stackId)}
                   floaters={floaters.filter((f) => f.stackId === s?.stackId)}
                   onClick={() => onArmyStackClick(s, p, 'enemy')}
                   onInspect={() => s && setInspectStackId(s.stackId)}
@@ -938,7 +876,6 @@ export default function App() {
                   selectable={isSelectable(s, 'enemy')}
                   selected={isSelected(s)}
                   dimmed={isDimmed(s, 'enemy')}
-                  fx={stackFx(s?.stackId)}
                   floaters={floaters.filter((f) => f.stackId === s?.stackId)}
                   onClick={() => onArmyStackClick(s, p, 'enemy')}
                   onInspect={() => s && setInspectStackId(s.stackId)}
@@ -947,6 +884,8 @@ export default function App() {
             })}
           </div>
         </div>
+
+        <div className="fx-layer" ref={fx.attach} aria-hidden="true" />
 
         <div className="endturn-bar shadowed-1">
           <button className="btn btn--primary btn--l endturn-btn" disabled={!canAct} onClick={handleEndTurn}>

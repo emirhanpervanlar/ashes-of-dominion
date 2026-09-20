@@ -141,6 +141,8 @@
   --ease-step2: steps(2, end);
   --ease-step4: steps(4, end);
   --ease-out: cubic-bezier(0.2, 0.8, 0.2, 1);
+  /* playback speed for battle effects: 1 = design-language durations, 2 = twice as fast */
+  --speed: 1;
 
   /* 16x16 noise tile reused by every material */
   --grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' shape-rendering='crispEdges'%3E%3Crect x='2' y='1' width='1' height='1' fill='%23000' fill-opacity='.18'/%3E%3Crect x='9' y='3' width='2' height='1' fill='%23fff' fill-opacity='.07'/%3E%3Crect x='5' y='7' width='1' height='2' fill='%23000' fill-opacity='.14'/%3E%3Crect x='13' y='6' width='1' height='1' fill='%23fff' fill-opacity='.08'/%3E%3Crect x='1' y='11' width='2' height='1' fill='%23fff' fill-opacity='.06'/%3E%3Crect x='10' y='12' width='1' height='2' fill='%23000' fill-opacity='.16'/%3E%3Crect x='14' y='14' width='1' height='1' fill='%23000' fill-opacity='.12'/%3E%3Crect x='6' y='14' width='2' height='1' fill='%23fff' fill-opacity='.05'/%3E%3C/svg%3E");
@@ -1115,37 +1117,223 @@ p { margin: 0; }
   100% { opacity: 0; transform: translate(-50%, -48px); }
 }
 
-/* Battle action fx */
-.portrait-frame.fx-acting { z-index: 45; transform: translateY(-4px); }
-.portrait-frame.fx-acting::after { box-shadow: inset 0 0 0 4px var(--gold-200); }
+/* Battle effects (DESIGN_LANGUAGE 8, AO-D023): one pointer-events-none layer over the battlefield, code-drawn, stepped. */
+.frame-body > .fx-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  overflow: hidden;
+  pointer-events: none;
+}
 
-.portrait-frame.fx-hit { animation: fx-hit-shake var(--dur-4) var(--ease-step4); }
-.portrait-frame.fx-hit::after { box-shadow: inset 0 0 0 4px var(--blood-500); animation: fx-ring var(--dur-4) var(--ease-step4); }
-.portrait-frame.fx-block::after { box-shadow: inset 0 0 0 4px var(--steel-300); animation: fx-ring var(--dur-4) var(--ease-step4); }
-.portrait-frame.fx-buff { animation: fx-buff-rise var(--dur-4) var(--ease-step4); }
-.portrait-frame.fx-buff::after { box-shadow: inset 0 0 0 4px var(--gold-200); animation: fx-ring var(--dur-4) var(--ease-step4); }
-.portrait-frame.fx-debuff { animation: fx-debuff-sink var(--dur-4) var(--ease-step4); }
-.portrait-frame.fx-debuff::after { box-shadow: inset 0 0 0 4px var(--arcane-500); animation: fx-ring var(--dur-4) var(--ease-step4); }
+.fx { position: absolute; }
+
+.fx-slash {
+  width: 120px;
+  height: 8px;
+  margin: -4px 0 0 -60px;
+  transform: rotate(-40deg);
+  background: linear-gradient(90deg, transparent, var(--stone-100) 20%, var(--gold-200) 60%, var(--stone-100));
+  animation: fx-slash calc(320ms / var(--speed)) steps(4, end) forwards;
+}
+
+@keyframes fx-slash {
+  0% { clip-path: inset(0 100% 0 0); opacity: 1; }
+  60% { clip-path: inset(0 0 0 0); opacity: 1; }
+  100% { clip-path: inset(0 0 0 0); opacity: 0; }
+}
+
+.fx-spark {
+  width: 4px;
+  height: 4px;
+  background: var(--gold-200);
+  animation: fx-spark calc(320ms / var(--speed)) steps(4, end) forwards;
+}
+
+.fx-spark--arcane { background: var(--arcane-300); }
+
+@keyframes fx-spark {
+  from { transform: translate(0, 0); opacity: 1; }
+  to { transform: translate(var(--sx), var(--sy)); opacity: 0; }
+}
+
+.fx-bolt {
+  width: 20px;
+  height: 4px;
+  margin: -2px 0 0 -10px;
+  background: linear-gradient(90deg, var(--stone-100) 0 14px, var(--gold-400) 14px 20px);
+  box-shadow: 0 0 0 2px var(--stone-950);
+  transition: left calc(240ms / var(--speed)) steps(8, end), top calc(240ms / var(--speed)) steps(8, end);
+}
+
+.fx-orb {
+  width: 8px;
+  height: 8px;
+  margin: -4px 0 0 -4px;
+  background: var(--arcane-300);
+  box-shadow: 0 0 0 2px var(--arcane-500), -8px 0 0 -1px var(--arcane-500), -14px 0 0 -2px var(--arcane-500);
+  transition: left calc(240ms / var(--speed)) steps(8, end), top calc(240ms / var(--speed)) steps(8, end);
+}
+
+/* Stepped octagon outline, scaling in over the tile. */
+.fx-ring {
+  width: 120px;
+  height: 120px;
+  margin: -60px 0 0 -60px;
+  background: var(--steel-300);
+  clip-path: polygon(evenodd, 30% 0, 70% 0, 100% 30%, 100% 70%, 70% 100%, 30% 100%, 0 70%, 0 30%, 30% 0, calc(30% + 4px) 4px, 4px calc(30% + 4px), 4px calc(70% - 4px), calc(30% + 4px) calc(100% - 4px), calc(70% - 4px) calc(100% - 4px), calc(100% - 4px) calc(70% - 4px), calc(100% - 4px) calc(30% + 4px), calc(70% - 4px) 4px, calc(30% + 4px) 4px);
+  animation: fx-ring calc(240ms / var(--speed)) steps(3, end) forwards;
+}
 
 @keyframes fx-ring {
+  0% { transform: scale(1.25); opacity: 1; }
+  70% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(1); opacity: 0; }
+}
+
+.fx-flash {
+  width: var(--w);
+  height: var(--h);
+  background: var(--stone-100);
+  mix-blend-mode: screen;
+  animation: fx-flash calc(80ms / var(--speed)) steps(1, end) forwards;
+}
+
+@keyframes fx-flash {
+  from { opacity: 0.85; }
+  to { opacity: 0; }
+}
+
+/* The acting enemy stack: a gold rim that blinks for one beat. */
+.fx-glow {
+  width: var(--w);
+  height: var(--h);
+  box-shadow: inset 0 0 0 4px var(--gold-200);
+  animation: fx-glow calc(140ms / var(--speed)) steps(2, end) forwards;
+}
+
+@keyframes fx-glow {
   0% { opacity: 1; }
+  50% { opacity: 0.4; }
+  100% { opacity: 1; }
+}
+
+/* Heal plus signs, buff chevrons (up) and debuff chevrons (down). */
+.fx-part {
+  width: 6px;
+  height: 6px;
+  margin: -3px 0 0 -3px;
+  opacity: 0;
+  animation: fx-rise calc(480ms / var(--speed)) steps(8, end) both;
+}
+
+.fx-part--heal {
+  --c: var(--moss-300);
+  background: linear-gradient(var(--c), var(--c)) 2px 0 / 2px 6px no-repeat, linear-gradient(var(--c), var(--c)) 0 2px / 6px 2px no-repeat;
+}
+
+.fx-part--buff,
+.fx-part--debuff {
+  width: 8px;
+  height: 8px;
+  margin: -4px 0 0 -4px;
+  clip-path: polygon(50% 0, 100% 55%, 70% 55%, 70% 100%, 30% 100%, 30% 55%, 0 55%);
+}
+
+.fx-part--buff {
+  background: var(--gold-200);
+  animation-name: fx-rise;
+  animation-duration: calc(320ms / var(--speed));
+}
+
+.fx-part--debuff {
+  background: var(--blood-500);
+  transform: rotate(180deg);
+  animation-name: fx-fall;
+  animation-duration: calc(320ms / var(--speed));
+}
+
+@keyframes fx-rise {
+  0% { opacity: 1; transform: translate(0, 0); }
+  70% { opacity: 1; }
+  100% { opacity: 0; transform: translate(var(--dx, 0), -44px); }
+}
+
+@keyframes fx-fall {
+  0% { opacity: 1; transform: rotate(180deg) translate(0, 0); }
+  70% { opacity: 1; }
+  100% { opacity: 0; transform: rotate(180deg) translate(0, -36px); }
+}
+
+/* Frost diamonds: appear in 3 steps around a freshly frozen tile, fly outward when it thaws. */
+.fx-shard {
+  width: 8px;
+  height: 8px;
+  background: var(--frost-200);
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+}
+
+.fx-shard--in { animation: fx-shard-in calc(600ms / var(--speed)) steps(3, end) forwards; }
+.fx-shard--out { animation: fx-spark calc(200ms / var(--speed)) steps(4, end) forwards; }
+
+@keyframes fx-shard-in {
+  0% { opacity: 0; transform: scale(0.4); }
+  50% { opacity: 1; transform: scale(1); }
+  80% { opacity: 1; }
   100% { opacity: 0; }
 }
 
-@keyframes fx-hit-shake {
-  0%, 100% { transform: translateX(0); filter: none; }
-  20% { transform: translateX(-4px); filter: brightness(2); }
-  40% { transform: translateX(4px); }
-  60% { transform: translateX(-4px); }
-  80% { transform: translateX(4px); }
+/* A chain breaking: the two halves of the link image split, drop 16px and fade. */
+.fx-link {
+  width: var(--w);
+  height: var(--h);
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
 }
 
-@keyframes fx-buff-rise {
-  40% { transform: translateY(-4px); }
+.fx-link--l { clip-path: inset(0 50% 0 0); animation: fx-link-l calc(400ms / var(--speed)) steps(4, end) forwards; }
+.fx-link--r { clip-path: inset(0 0 0 50%); animation: fx-link-r calc(400ms / var(--speed)) steps(4, end) forwards; }
+
+@keyframes fx-link-l {
+  from { opacity: 1; transform: translate(0, 0); }
+  to { opacity: 0; transform: translate(-8px, 16px); }
 }
 
-@keyframes fx-debuff-sink {
-  40% { transform: translateY(4px); }
+@keyframes fx-link-r {
+  from { opacity: 1; transform: translate(0, 0); }
+  to { opacity: 0; transform: translate(8px, 16px); }
+}
+
+/* Death fade: a snapshot of the wiped tile collapses over the empty slot (WAAPI drives the motion). */
+.fx-ghost { transform-origin: 50% 100%; }
+
+/* Status overlays mounting on a tile: ice grows from the edges, chains close, the shield pops in. */
+.unit-ice { animation: unit-ice-in calc(240ms / var(--speed)) steps(4, end) both; }
+
+@keyframes unit-ice-in {
+  from { clip-path: inset(50% 50% 50% 50%); }
+  to { clip-path: inset(0 0 0 0); }
+}
+
+.unit-chains { animation: unit-chains-in calc(200ms / var(--speed)) steps(3, end) both; }
+
+@keyframes unit-chains-in {
+  0% { opacity: 0; transform: scale(1.5); }
+  100% { opacity: 1; transform: scale(1); filter: none; }
+}
+
+.portrait-status { animation: status-pop calc(120ms / var(--speed)) steps(2, end) both; }
+
+@keyframes status-pop {
+  from { transform: scale(0.5); }
+  to { transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .frame-body > .fx-layer { display: none; }
+  .unit-ice,
+  .unit-chains,
+  .portrait-status { animation: none; }
 }
 
 /* Hand tray */

@@ -7,14 +7,6 @@ import { UNIT_ROLE_ICONS } from './unitIcons.js';
 import { STATUS_ICONS, stackStates } from './stackStatus.js';
 import type { Floater } from './FloatingText.js';
 
-interface StackFx {
-  acting: boolean;
-  hit: boolean;
-  block: boolean;
-  buff: boolean;
-  debuff: boolean;
-}
-
 interface StackTileProps {
   stack: ArmyStack | undefined;
   side: 'player' | 'enemy';
@@ -22,7 +14,6 @@ interface StackTileProps {
   selectable: boolean;
   selected: boolean;
   dimmed?: boolean;
-  fx?: StackFx;
   floaters?: Floater[];
   onClick: () => void;
   onInspect: () => void;
@@ -32,7 +23,7 @@ interface StackTileProps {
 const CHAINS = chainsUrl(88, 76);
 
 /** Disciples-style portrait slot: the unit count is the health readout (AO-D004), state is icons and overlays (AO-D024). */
-export function StackTile({ stack, side, ownArmy, selectable, selected, dimmed, fx, floaters, onClick, onInspect }: StackTileProps) {
+export function StackTile({ stack, side, ownArmy, selectable, selected, dimmed, floaters, onClick, onInspect }: StackTileProps) {
   // Rendered in the wiped branch too so a killing blow's floater still shows.
   const floatersEl = floaters?.map((f) => (
     <span key={f.id} className={`floater floater-${f.kind}`} style={{ animationDelay: `${f.delayMs}ms` }}>
@@ -45,7 +36,7 @@ export function StackTile({ stack, side, ownArmy, selectable, selected, dimmed, 
     const classes = ['portrait-slot', side, 'empty'];
     if (stack?.count === 0) classes.push('dead');
     return (
-      <div className={classes.join(' ')}>
+      <div className={classes.join(' ')} data-stack-id={stack?.stackId}>
         <div className="portrait-frame" onClick={selectable ? onClick : undefined}>
           {stack && (
             <span className="portrait-art">
@@ -71,17 +62,10 @@ export function StackTile({ stack, side, ownArmy, selectable, selected, dimmed, 
   if (states.blocked) classes.push('blocked');
   if (dimmed) classes.push('dimmed');
 
-  const frameClasses = ['portrait-frame'];
-  if (fx?.acting) frameClasses.push('fx-acting');
-  if (fx?.hit) frameClasses.push('fx-hit');
-  if (fx?.block) frameClasses.push('fx-block');
-  if (fx?.buff) frameClasses.push('fx-buff');
-  if (fx?.debuff) frameClasses.push('fx-debuff');
-
   return (
-    <div className={classes.join(' ')}>
+    <div className={classes.join(' ')} data-stack-id={stack.stackId}>
       <div
-        className={frameClasses.join(' ')}
+        className="portrait-frame"
         onClick={selectable ? onClick : undefined}
         onContextMenu={(e) => {
           e.preventDefault();
@@ -122,8 +106,8 @@ export function StackTile({ stack, side, ownArmy, selectable, selected, dimmed, 
                 <b>{stack.block}</b>
               </span>
             )}
-            {stack.statuses.map((st) => (
-              <span className="portrait-status" key={st.type} title={st.type}>
+            {stack.statuses.map((st, i) => (
+              <span className="portrait-status" key={`${st.type}-${i}`} title={st.type}>
                 <Icon name={STATUS_ICONS[st.type]} />
                 <b>{st.amount}</b>
               </span>
