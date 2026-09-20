@@ -29,7 +29,7 @@ import {
   settleArmyAfterVictory,
 } from './city.js';
 import { actionProblem } from './actionValidation.js';
-import { THREAT_PER_CITY_VISIT, TOTAL_CHAPTERS } from './chapters.js';
+import { THREAT_PER_CITY_VISIT, TOTAL_CHAPTERS, nextCityVisitRaisesThreat } from './chapters.js';
 import { generateBattleEncounter, generateBossEncounter } from './encounters.js';
 import {
   EVENT_TUNING,
@@ -139,7 +139,11 @@ function fromVersion1(run: RunState): RunState {
 
 /** Version 2 to 3 (AO-046): the elite relic is granted at victory (AO-D068), so an unclaimed offer in a saved reward is granted now. */
 function fromVersion2(run: RunState): RunState {
-  const migrated: RunState = { ...run };
+  const migrated: RunState = {
+    ...run,
+    // A run that already carries Threat has used its free visit; a run without any is treated as not having visited yet.
+    cityVisitsThisChapter: run.cityVisitsThisChapter ?? (run.threat > 0 ? 1 : 0),
+  };
   const legacy = run.pendingReward as (PendingReward & { relicOffer?: string | null }) | null;
   if (legacy) {
     const { relicOffer, ...reward } = legacy;
@@ -255,6 +259,7 @@ export function createRun(seed: number, heroId: HeroId = 'warlord', heroName?: s
     city: createInitialCityState(),
     chapter: 1,
     threat: 0,
+    cityVisitsThisChapter: 0,
     seenEventIds: [],
     lastCasualties: [],
     bossBattle: false,
@@ -451,17 +456,19 @@ function moveTo(run: RunState, nodeId: string, events: RunEvent[]): RunApplyResu
 }
 
 /**
- * The city is reachable from the map at any time (AO-D047, GDD "Teleport to Town"); each visit
- * raises Threat. It costs no days (AO-D051), and leaving returns to the same map node.
+ * The city is reachable from the map at any time (AO-D047, GDD "Teleport to Town"); each visit after the first
+ * of the chapter raises Threat (AO-D070). It costs no days (AO-D051), and leaving returns to the same map node.
  */
 function travelToCity(run: RunState, events: RunEvent[]): RunApplyResult {
   if (run.phase !== 'on_map') {
     reject(events, 'The city can only be reached from the map.');
     return { run, events };
   }
-  run.threat += THREAT_PER_CITY_VISIT;
+  const free = !nextCityVisitRaisesThreat(run);
+  if (!free) run.threat += THREAT_PER_CITY_VISIT;
+  run.cityVisitsThisChapter += 1;
   run.phase = 'city';
-  events.push({ type: 'CITY_VISITED', threat: run.threat });
+  events.push({ type: 'CITY_VISITED', threat: run.threat, free });
   return { run, events };
 }
 
@@ -530,6 +537,7 @@ function finishReward(run: RunState, events: RunEvent[]): void {
     return;
   }
   run.chapter += 1;
+  run.cityVisitsThisChapter = 0;
   run.worldMap = generateWorldMap(run.rng, run.chapter, run.day);
   run.phase = 'on_map';
   events.push({ type: 'CHAPTER_STARTED', chapter: run.chapter });

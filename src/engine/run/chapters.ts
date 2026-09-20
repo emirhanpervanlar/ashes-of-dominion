@@ -35,9 +35,14 @@ export function threatMultiplier(threat: number): number {
   return 1 + THREAT_ENEMY_COUNT_PER_POINT * threat;
 }
 
-/** Enemy strength multiplier after `visits` more city visits than the run has made so far (0 = the current strength). */
+/** Enemy strength multiplier after `visits` more Threat-raising city visits than the run has made so far (0 = the current strength). */
 export function enemyStrengthAfterCityVisits(run: Pick<RunState, 'threat'>, visits = 0): number {
   return threatMultiplier(run.threat + visits * THREAT_PER_CITY_VISIT);
+}
+
+/** AO-D070: the first city visit of every chapter (so also of the run) is free; the UI warns only when this is true. */
+export function nextCityVisitRaisesThreat(run: Pick<RunState, 'cityVisitsThisChapter'>): boolean {
+  return run.cityVisitsThisChapter > 0;
 }
 
 /** AO-D051: shown before travelling to the city; the UI adds the numbers from enemyStrengthAfterCityVisits. */

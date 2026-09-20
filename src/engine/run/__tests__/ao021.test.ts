@@ -160,17 +160,20 @@ describe('boss cycle and win condition (AO-D046)', () => {
 });
 
 describe('city any time with Threat (AO-D047, AO-D051)', () => {
-  it('TRAVEL_TO_CITY opens the city, raises Threat by 1, and costs no days or food', () => {
+  it('TRAVEL_TO_CITY opens the city and costs no days or food; the first visit is free (AO-D070), the next raises Threat by 1', () => {
     const run = onMap(7);
-    const result = act(run, { type: 'TRAVEL_TO_CITY' });
-    expect(result.run.phase).toBe('city');
-    expect(result.run.threat).toBe(1);
-    expect(result.run.day).toBe(run.day);
-    expect(result.run.food).toBe(run.food);
-    expect(result.events).toContainEqual({ type: 'CITY_VISITED', threat: 1 });
+    const first = act(run, { type: 'TRAVEL_TO_CITY' });
+    expect(first.run.phase).toBe('city');
+    expect(first.run.threat).toBe(0);
+    expect(first.run.day).toBe(run.day);
+    expect(first.run.food).toBe(run.food);
+    expect(first.events).toContainEqual({ type: 'CITY_VISITED', threat: 0, free: true });
+    const second = act(act(first.run, { type: 'LEAVE_CITY' }).run, { type: 'TRAVEL_TO_CITY' });
+    expect(second.run.threat).toBe(1);
+    expect(second.events).toContainEqual({ type: 'CITY_VISITED', threat: 1, free: false });
   });
 
-  it('leaving returns to the same map node at no time cost; each visit adds Threat', () => {
+  it('leaving returns to the same map node at no time cost; each visit after the free one adds Threat', () => {
     let run = onMap(8);
     const node = run.worldMap.currentNodeId;
     for (let visit = 1; visit <= 3; visit++) {
@@ -179,7 +182,7 @@ describe('city any time with Threat (AO-D047, AO-D051)', () => {
       expect(run.phase).toBe('on_map');
       expect(run.worldMap.currentNodeId).toBe(node);
       expect(run.day).toBe(1);
-      expect(run.threat).toBe(visit);
+      expect(run.threat).toBe(visit - 1);
     }
   });
 

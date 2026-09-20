@@ -82,7 +82,8 @@ export type RunEvent =
   | { type: 'CITY_LEVELED_UP'; level: number }
   | { type: 'MAGE_TOWER_UPGRADED'; tier: number }
   | { type: 'DOCTRINE_CHOSEN'; doctrineId: string }
-  | { type: 'CITY_VISITED'; threat: number }
+  /** `free`: AO-D070, the first visit of the run or of the chapter did not raise Threat. */
+  | { type: 'CITY_VISITED'; threat: number; free: boolean }
   | { type: 'BOSS_DEFEATED'; chapter: number }
   | { type: 'CHAPTER_STARTED'; chapter: number }
   | { type: 'RUN_COMPLETE' }
@@ -111,8 +112,10 @@ export interface RunState {
   city: CityState;
   /** 1-3 (AO-D046): the boss is due on day 30 x chapter. */
   chapter: number;
-  /** Raised by each city visit (AO-D047); scales enemy unit counts. */
+  /** Raised by each city visit after the free one (AO-D047, AO-D070); scales enemy unit counts. */
   threat: number;
+  /** City visits made in the current chapter (AO-D070); the first one is free, reset when a chapter starts. */
+  cityVisitsThisChapter: number;
   /** Event ids already drawn (AO-D050); the pool resets when exhausted, keeping the last few excluded. */
   seenEventIds: string[];
   /** The last won battle's fallen units, net of Shrine revival; what event revivals draw from. */

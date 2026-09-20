@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { createRng } from '../../rng.js';
 import type { CombatState } from '../../types.js';
+import { nextCityVisitRaisesThreat } from '../chapters.js';
 import { buildPendingReward } from '../rewards.js';
 import { CURRENT_SAVE_VERSION, applyRunAction, createRun, migrateRun } from '../runEngine.js';
 import type { RunAction, RunState } from '../types.js';
 import type { NodeType } from '../worldMap.js';
 import { validateSave } from '../save.js';
+import { pickReward } from './rewardHelpers.js';
 
 const act = (run: RunState, action: RunAction) => applyRunAction(run, action);
 const rejected = (events: { type: string }[]) => events.some((e) => e.type === 'ACTION_REJECTED');
@@ -64,5 +66,40 @@ describe('AO-046 item 1 (AO-D068): the reward cannot be skipped', () => {
     expect(migrated.relics.map((r) => r.id)).toContain('arcane_crystal');
     expect(migrated.pendingReward).toEqual({ cardOptions: ['charge'], upgradeOptions: [], relicGained: 'arcane_crystal', relicChoices: [] });
     expect(migrateRun(migrated)).toBe(migrated);
+  });
+});
+
+describe('AO-046 item 2 (AO-D070): free city visits', () => {
+  const visit = (run: RunState): RunState => act(act(run, { type: 'TRAVEL_TO_CITY' }).run, { type: 'LEAVE_CITY' }).run;
+
+  it('the first visit of the run is free, later ones raise Threat, and the helper tells the UI in advance', () => {
+    let run = createRun(7);
+    expect(nextCityVisitRaisesThreat(run)).toBe(false);
+    run = visit(run);
+    expect([run.threat, run.cityVisitsThisChapter]).toEqual([0, 1]);
+    expect(nextCityVisitRaisesThreat(run)).toBe(true);
+    run = visit(run);
+    run = visit(run);
+    expect([run.threat, run.cityVisitsThisChapter]).toEqual([2, 3]);
+  });
+
+  it('the first visit of every new chapter is free again (counter reset on CHAPTER_STARTED)', () => {
+    let run = visit(visit(createRun(8)));
+    expect(run.threat).toBe(1);
+    const boss = winFight(arriveAt({ ...run, day: 29 }, 'boss'));
+    const started = pickReward(boss);
+    expect(started.events.some((e) => e.type === 'CHAPTER_STARTED')).toBe(true);
+    run = started.run;
+    expect(run.cityVisitsThisChapter).toBe(0);
+    expect(nextCityVisitRaisesThreat(run)).toBe(false);
+    expect(visit(run).threat).toBe(1);
+    expect(visit(visit(run)).threat).toBe(2);
+  });
+
+  it('old saves: a run that carries Threat counts as having visited; one without does not', () => {
+    const fresh = roundTrip({ ...createRun(9), saveVersion: 2 }) as unknown as Record<string, unknown>;
+    delete fresh.cityVisitsThisChapter;
+    expect(validateSave(fresh)!.cityVisitsThisChapter).toBe(0);
+    expect(validateSave({ ...fresh, threat: 3 })!.cityVisitsThisChapter).toBe(1);
   });
 });
