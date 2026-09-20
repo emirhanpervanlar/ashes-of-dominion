@@ -146,7 +146,7 @@ describe('AO-D057: starvation loss model', () => {
   });
 
   it('a save from before AO-D057 migrates to a 0 starvation streak', () => {
-    const { starvationDays: _s, ...old } = onMap(7);
+    const { starvationDays: _s, saveVersion: _v, ...old } = onMap(7);
     expect(migrateRun(old as unknown as RunState).starvationDays).toBe(0);
   });
 });

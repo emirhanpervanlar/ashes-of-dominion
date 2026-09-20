@@ -7,6 +7,7 @@ import { UNIT_DEFINITIONS } from '../../data/units.js';
 import { applyRunAction, createRun } from '../runEngine.js';
 import type { RunState } from '../types.js';
 import { foundRelicInfo, foundRelicList, startingRelicList } from '../start.js';
+import { legacySave } from './legacy.js';
 
 function hasDownside(def: RelicDefinition): boolean {
   return def.effects.some((e) => {
@@ -55,7 +56,7 @@ describe('AO-036: Royal Banner mid-run', () => {
   // The only mid-run route: a pre-AO-D029 save (phase choosing_starting_relic) is granted the default starting relic on load.
   it('adds units to the largest stack without healing its wounds', () => {
     const wounded = { ...createStack('swordsman', 'player', 1, 10), count: 5, currentHp: 45 }; // 5 of 10 soldiers left
-    const legacy = { ...createRun(3, 'warlord'), army: [wounded, createStack('archer', 'player', 4, 4)], relics: [], phase: 'choosing_starting_relic' } as unknown as RunState;
+    const legacy = legacySave({ ...createRun(3, 'warlord'), army: [wounded, createStack('archer', 'player', 4, 4)], relics: [], phase: 'choosing_starting_relic' });
     const { run } = applyRunAction(legacy, { type: 'SKIP_REWARD' });
     const grown = run.army.find((s) => s.stackId === wounded.stackId)!;
     const hp = UNIT_DEFINITIONS.swordsman.hpPerUnit;

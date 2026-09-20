@@ -1,6 +1,9 @@
 import { UNIT_DEFINITIONS } from './data/units.js';
 import type { ArmyStack, Position, Side, UnitId } from './types.js';
 
+/** The field army holds at most this many stacks, one per board position (1-6). */
+export const MAX_ARMY_STACKS = 6;
+
 export function createStack(unitId: UnitId, side: Side, position: Position, count: number): ArmyStack {
   const def = UNIT_DEFINITIONS[unitId];
   const maxHp = count * def.hpPerUnit;
@@ -73,9 +76,10 @@ export const ENEMY_FORMATIONS = {
   elite_guard: buildEliteGuardFormation,
 } as const;
 
-function findFreeArmyPosition(army: ArmyStack[]): Position | null {
+/** The lowest board position no living stack holds, or null when the board is full. */
+export function findFreeArmyPosition(army: ArmyStack[]): Position | null {
   const taken = new Set(army.filter((s) => s.count > 0).map((s) => s.position));
-  for (let p = 1 as Position; p <= 6; p++) {
+  for (let p = 1 as Position; p <= MAX_ARMY_STACKS; p++) {
     if (!taken.has(p)) return p;
   }
   return null;
@@ -85,14 +89,14 @@ function findFreeArmyPosition(army: ArmyStack[]): Position | null {
  * Splits `splitCount` units off of `stackId` into a new stack in a free army slot,
  * preserving the source stack's wound ratio proportionally across both halves.
  * Returns null if the stack doesn't exist, the split count is out of range, or the
- * army is already at its 6-stack cap. v3 §8 — merging retains the LOWER veterancy,
+ * army is already at its MAX_ARMY_STACKS cap. v3 §8 — merging retains the LOWER veterancy,
  * so a split simply copies the source's veterancy tier to both halves.
  */
 export function splitArmyStack(army: ArmyStack[], stackId: string, splitCount: number): ArmyStack[] | null {
   const idx = army.findIndex((s) => s.stackId === stackId);
   if (idx < 0) return null;
   const source = army[idx]!;
-  if (splitCount <= 0 || splitCount >= source.count) return null;
+  if (!Number.isInteger(splitCount) || splitCount <= 0 || splitCount >= source.count) return null;
   const freePosition = findFreeArmyPosition(army);
   if (freePosition === null) return null;
 

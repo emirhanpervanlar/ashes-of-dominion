@@ -9,6 +9,7 @@ import { BATTLE_LOOT, battleLootBands, rollBattleLoot } from '../loot.js';
 import { applyRunAction, createRun, migrateRun } from '../runEngine.js';
 import type { RunAction, RunState } from '../types.js';
 import type { NodeType } from '../worldMap.js';
+import { legacySave } from './legacy.js';
 
 const act = (run: RunState, action: RunAction) => applyRunAction(run, action);
 const rejected = (events: { type: string }[]) => events.some((e) => e.type === 'ACTION_REJECTED');
@@ -188,7 +189,7 @@ describe('AO-D048: Farm', () => {
 
   it('a save from before the Farm migrates to no Farm', () => {
     const { farmTier: _f, ...oldCity } = onMap(6).city;
-    const migrated = migrateRun({ ...onMap(6), city: oldCity } as unknown as RunState);
+    const migrated = migrateRun(legacySave({ ...onMap(6), city: oldCity }));
     expect(migrated.city.farmTier).toBe(0);
   });
 });

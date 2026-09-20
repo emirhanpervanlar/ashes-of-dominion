@@ -31,8 +31,6 @@ function summarizeEffect(effect: RelicEffect): string {
       return `Dodge ${signed(effect.amount)}%`;
     case 'HEALING_MULT':
       return `Healing ${percent(effect.multiplier)}`;
-    case 'FIRST_CARD_DISCOUNT':
-      return `First card each turn costs ${signed(-effect.amount)} Mana`;
   }
 }
 

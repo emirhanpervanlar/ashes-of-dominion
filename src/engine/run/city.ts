@@ -1,6 +1,7 @@
-import { clearCombatState } from '../army.js';
+import { clearCombatState, findFreeArmyPosition } from '../army.js';
+import { floorSafe, roundSafe } from '../floatSafe.js';
 import { UNIT_DEFINITIONS } from '../data/units.js';
-import type { ArmyStack, Position, RelicEffect, UnitId } from '../types.js';
+import type { ArmyStack, RelicEffect, UnitId } from '../types.js';
 
 export type BuildingCategory = 'economy' | 'army' | 'hero' | 'special';
 
@@ -14,8 +15,27 @@ export interface CityBuildingDefinition {
   combatEffects?: RelicEffect[];
 }
 
-/** AO-D020 building numbers. */
+/** AO-D020 building numbers; the building and doctrine descriptions are built from these, so text and rule cannot drift apart. */
 export const GOLD_MINE_DAILY_GOLD = 10;
+/** Market: share taken off the Gold price of recruits. */
+export const MARKET_RECRUIT_DISCOUNT = 0.15;
+/** AO-D020: a Stable cuts the daily Food upkeep by this share (rounded down, never below 1). */
+export const STABLE_FOOD_DISCOUNT = 0.25;
+/** Training Hall: max Mana (and Mana) granted the moment it is built. */
+export const TRAINING_HALL_MAX_MANA = 2;
+/** Forge: army-wide damage multiplier. */
+export const FORGE_DAMAGE_MULTIPLIER = 1.05;
+/** Shrine: share of each stack's casualties (rounded down) that revives after a won battle. */
+export const SHRINE_REVIVE_RATIO = 0.1;
+/** Doctrines (one per city, permanent). */
+export const MILITARY_DAMAGE_MULTIPLIER = 1.15;
+export const ARCANE_CASTER_MULTIPLIER = 1.2;
+export const NECROMANTIC_RAISE_RATIO = 0.25;
+/** Economic Doctrine: multiplier on the Gold and Food a resource node pays. */
+export const ECONOMIC_DOCTRINE_MULTIPLIER = 1.3;
+
+/** A fraction (0.15) or a multiplier's surplus (1.05 - 1) as the whole percent the descriptions print. */
+const percentOf = (fraction: number): number => roundSafe(fraction * 100);
 /** AO-D036: cumulative hero max Mana and Gold cost per Mage Tower tier (index 0 = tier I, which is the build itself). */
 export const MAGE_TOWER_TIERS: ReadonlyArray<{ cost: number; maxMana: number }> = [
   { cost: 80, maxMana: 1 },
@@ -36,7 +56,8 @@ export const FARM_TIERS: ReadonlyArray<{ cost: number; food: number }> = [
   { cost: 900, food: 13 },
 ];
 
-const ROMAN = ['I', 'II', 'III', 'IV', 'V'];
+/** Tier numerals for the tiered buildings (Farm has five tiers, Mage Tower three). */
+export const ROMAN: readonly string[] = ['I', 'II', 'III', 'IV', 'V'];
 
 /** Tier text for the Farm card, same shape as the Mage Tower's. `tier` 0 = not built. */
 export function farmDescription(tier: number): string {
@@ -51,7 +72,7 @@ export function mageTowerDescription(tier: number): string {
   const next = MAGE_TOWER_TIERS[tier];
   const current = tier > 0 ? `Tier ${ROMAN[tier - 1]}: hero max Mana +${MAGE_TOWER_TIERS[tier - 1]!.maxMana}.` : `Hero max Mana +${MAGE_TOWER_TIERS[0]!.maxMana} (tier I).`;
   return next && tier > 0 ? `${current} Next: tier ${ROMAN[tier]} (+${next.maxMana} total) for ${next.cost} Gold.` : `${current}${tier === 0 ? ` Upgradeable to +${MAGE_TOWER_TIERS[2]!.maxMana}.` : ' Max tier.'}`;
-}export const SHRINE_REVIVE_RATIO = 0.1;
+}
 
 export interface CityState {
   level: 1 | 2 | 3;
@@ -64,7 +85,7 @@ export interface CityState {
 }
 
 /**
- * City Doctrines (AGENT.md §27) — one permanent specialization choice.
+ * City Doctrines (AO-D062, Temple) — one permanent specialization choice.
  * Military/Arcane/Necromantic route through the same RelicEffect pipeline
  * combat already reads for relics (see runEngine.ts's startBattleForRun);
  * Economic is checked directly at the resource-node payout call site
@@ -81,39 +102,38 @@ export const DOCTRINE_DEFINITIONS: Record<string, CityDoctrineDefinition> = {
   military: {
     id: 'military',
     name: 'Military Doctrine',
-    description: 'Army damage +15%.',
-    combatEffects: [{ kind: 'PLAYER_DAMAGE_MULT', multiplier: 1.15 }],
+    description: `Army damage +${percentOf(MILITARY_DAMAGE_MULTIPLIER - 1)}%.`,
+    combatEffects: [{ kind: 'PLAYER_DAMAGE_MULT', multiplier: MILITARY_DAMAGE_MULTIPLIER }],
   },
   arcane: {
     id: 'arcane',
     name: 'Arcane Doctrine',
-    description: 'Caster units (Mage) +20% Attack.',
-    combatEffects: [{ kind: 'TAG_DAMAGE_MULT', tag: 'caster', multiplier: 1.2 }],
+    description: `Caster units (Mage) +${percentOf(ARCANE_CASTER_MULTIPLIER - 1)}% Attack.`,
+    combatEffects: [{ kind: 'TAG_DAMAGE_MULT', tag: 'caster', multiplier: ARCANE_CASTER_MULTIPLIER }],
   },
   necromantic: {
     id: 'necromantic',
     name: 'Necromantic Doctrine',
-    description: '25% of your casualties rise again as Skeletons.',
-    combatEffects: [{ kind: 'NECROMANCY', ratio: 0.25 }],
+    description: `${percentOf(NECROMANTIC_RAISE_RATIO)}% of your casualties rise again as Skeletons.`,
+    combatEffects: [{ kind: 'NECROMANCY', ratio: NECROMANTIC_RAISE_RATIO }],
   },
   economic: {
     id: 'economic',
     name: 'Economic Doctrine',
-    description: 'Resource nodes yield +30% Gold/Food.',
+    description: `Resource nodes yield +${percentOf(ECONOMIC_DOCTRINE_MULTIPLIER - 1)}% Gold/Food.`,
     combatEffects: [],
   },
 };
 
 /**
- * AGENT.md §26 — "6 active slots, ~10 possible buildings, player cannot
- * build everything." 7 buildings so the choice of which one to skip is
- * real without the full ~10-building catalog (§70: not locked).
+ * Buildings (AO-D020, AO-D036, AO-D048, AO-D062). LEVEL_SLOTS gives 3/5/6 slots
+ * for 8 buildings, so the player cannot build everything and must choose what to skip.
  */
 export const BUILDING_DEFINITIONS: Record<string, CityBuildingDefinition> = {
   market: {
     id: 'market',
     name: 'Market',
-    description: 'Recruitment costs -15% Gold.',
+    description: `Recruitment costs -${percentOf(MARKET_RECRUIT_DISCOUNT)}% Gold.`,
     category: 'economy',
     cost: 80,
   },
@@ -141,29 +161,29 @@ export const BUILDING_DEFINITIONS: Record<string, CityBuildingDefinition> = {
   stable: {
     id: 'stable',
     name: 'Stable',
-    description: 'Movement Food cost -25%.',
+    description: `Movement Food cost -${percentOf(STABLE_FOOD_DISCOUNT)}%.`,
     category: 'army',
     cost: 80,
   },
   training_hall: {
     id: 'training_hall',
     name: 'Training Hall',
-    description: 'Hero max Mana +2, immediately.',
+    description: `Hero max Mana +${TRAINING_HALL_MAX_MANA}, immediately.`,
     category: 'hero',
     cost: 80,
   },
   forge: {
     id: 'forge',
     name: 'Forge',
-    description: 'Army attack +5%.',
+    description: `Army attack +${percentOf(FORGE_DAMAGE_MULTIPLIER - 1)}%.`,
     category: 'hero',
     cost: 80,
-    combatEffects: [{ kind: 'PLAYER_DAMAGE_MULT', multiplier: 1.05 }],
+    combatEffects: [{ kind: 'PLAYER_DAMAGE_MULT', multiplier: FORGE_DAMAGE_MULTIPLIER }],
   },
   shrine: {
     id: 'shrine',
     name: 'Shrine',
-    description: 'After every battle, 10% of your casualties (rounded down) rise again.',
+    description: `After every battle, ${percentOf(SHRINE_REVIVE_RATIO)}% of your casualties (rounded down) rise again.`,
     category: 'special',
     cost: 80,
   },
@@ -190,7 +210,7 @@ export function settleArmyAfterVictory(army: ArmyStack[], city: CityState): { ar
   let revived = 0;
   const settled = army.map((stack) => {
     const casualties = Math.max(0, stack.preBattleMaxCount - stack.count);
-    const back = hasShrine ? Math.floor(casualties * SHRINE_REVIVE_RATIO) : 0;
+    const back = hasShrine ? floorSafe(casualties * SHRINE_REVIVE_RATIO) : 0;
     const count = stack.count + back;
     if (count === 0) return clearCombatState(stack);
     revived += back;
@@ -211,26 +231,18 @@ export function canRecruitUnit(_city: CityState, unitId: UnitId): boolean {
 export function recruitCost(city: CityState, unitId: UnitId, count: number): { gold: number; food: number } | null {
   const base = RECRUIT_COSTS[unitId];
   if (!base) return null;
-  const discount = city.buildings.includes('market') ? 0.85 : 1;
+  const discount = city.buildings.includes('market') ? 1 - MARKET_RECRUIT_DISCOUNT : 1;
   return {
-    gold: Math.round(base.gold * count * discount),
+    gold: roundSafe(base.gold * count * discount),
     food: base.food * count,
   };
 }
 
-function findFreePosition(army: ArmyStack[]): Position | null {
-  const taken = new Set(army.filter((s) => s.count > 0).map((s) => s.position));
-  for (let p = 1 as Position; p <= 6; p++) {
-    if (!taken.has(p)) return p;
-  }
-  return null;
-}
-
 /**
- * Merges into an existing matching stack (blending veterancy by a weighted
- * average — deterministic per AGENT.md §30), or creates a new stack in a
+ * Merges into an existing matching stack (AO-D015; fresh recruits are veterancy 0,
+ * so the merged stack keeps the lower tier), or creates a new stack in a
  * free slot. Returns null if there's no matching stack AND no free slot
- * (the field army is capped at 6 stacks).
+ * (the field army is capped at MAX_ARMY_STACKS).
  */
 export function addUnitsToArmy(army: ArmyStack[], unitId: UnitId, count: number): ArmyStack[] | null {
   const existingIdx = army.findIndex((s) => s.unitId === unitId && s.count > 0);
@@ -253,7 +265,7 @@ export function addUnitsToArmy(army: ArmyStack[], unitId: UnitId, count: number)
     return army.map((s, i) => (i === existingIdx ? updated : s));
   }
 
-  const position = findFreePosition(army);
+  const position = findFreeArmyPosition(army);
   if (!position) return null;
 
   const maxHp = count * hpPerUnit;

@@ -1,10 +1,11 @@
+import { roundSafe } from '../floatSafe.js';
 import { nextInt, type RngState } from '../rng.js';
 import { DAYS_PER_CHAPTER, threatMultiplier } from './chapters.js';
 
 /**
  * AO-D053 battle loot. Gold is common, Food is a low-probability drop. Both grow with the
  * chapter, the day inside the chapter, Threat (stronger enemies) and elite/boss fights.
- * Every number is a PROPOSAL; nothing else in the engine hard-codes them.
+ * Every number is a first-pass tuning value for qa-playtest; nothing else in the engine hard-codes them.
  */
 export const BATTLE_LOOT = {
   /** Base bands by chapter (index 0 = chapter 1), at day 1 of the chapter, normal enemy, Threat 0. */
@@ -20,6 +21,18 @@ export const BATTLE_LOOT = {
   /** Food chance never exceeds this, so Food stays a gamble. */
   maxFoodChance: 0.6,
 } as const;
+
+/** One-time pickup at a resource node: inclusive Gold and Food ranges (the Economic Doctrine scales them). */
+export const RESOURCE_NODE_LOOT = { gold: [20, 40], food: [10, 20] } as const;
+
+/** Gold first, then Food, both from the run RNG; `multiplier` is the Economic Doctrine's (1 without it). */
+export function rollResourceNode(rng: RngState, multiplier: number): { gold: number; food: number } {
+  const [goldMin, goldMax] = RESOURCE_NODE_LOOT.gold;
+  const [foodMin, foodMax] = RESOURCE_NODE_LOOT.food;
+  const gold = roundSafe((goldMin + nextInt(rng, goldMax - goldMin + 1)) * multiplier);
+  const food = roundSafe((foodMin + nextInt(rng, foodMax - foodMin + 1)) * multiplier);
+  return { gold, food };
+}
 
 export interface LootContext {
   chapter: number;
@@ -42,7 +55,7 @@ export function battleLootBands(ctx: LootContext): LootBands {
   const dayMult = 1 + BATTLE_LOOT.dayBonus * progress;
   const threat = threatMultiplier(ctx.threat);
   const elite = ctx.elite ? BATTLE_LOOT.elite : { gold: 1, foodChance: 1, food: 1 };
-  const scale = (n: number, m: number) => Math.round(n * m);
+  const scale = (n: number, m: number) => roundSafe(n * m);
   return {
     gold: [scale(base.gold[0], dayMult * threat * elite.gold), scale(base.gold[1], dayMult * threat * elite.gold)],
     foodChance: Math.min(BATTLE_LOOT.maxFoodChance, base.foodChance * dayMult * elite.foodChance),
@@ -54,7 +67,7 @@ export function battleLootBands(ctx: LootContext): LootBands {
 export function rollBattleLoot(rng: RngState, ctx: LootContext): { gold: number; food: number } {
   const bands = battleLootBands(ctx);
   const gold = bands.gold[0] + nextInt(rng, bands.gold[1] - bands.gold[0] + 1);
-  const dropped = nextInt(rng, 100) < Math.round(bands.foodChance * 100);
+  const dropped = nextInt(rng, 100) < roundSafe(bands.foodChance * 100);
   const foodRoll = bands.food[0] + nextInt(rng, bands.food[1] - bands.food[0] + 1);
   return { gold, food: dropped ? foodRoll : 0 };
 }

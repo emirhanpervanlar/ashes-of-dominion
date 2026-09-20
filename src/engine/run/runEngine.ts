@@ -1,4 +1,4 @@
-import { mergeArmyStacks, splitArmyStack } from '../army.js';
+import { MAX_ARMY_STACKS, mergeArmyStacks, splitArmyStack } from '../army.js';
 import { CARD_DEFINITIONS } from '../data/cards.js';
 import { HERO_DEFINITIONS } from '../data/heroes.js';
 import { RELIC_DEFINITIONS, STARTING_RELIC_DEFINITIONS } from '../data/relics.js';
@@ -6,6 +6,7 @@ import { UNIT_DEFINITIONS } from '../data/units.js';
 import { applyPlayerAction, startBattle } from '../combat.js';
 import { maxManaFromWisdom } from '../heroStats.js';
 import { buildHeroStartingArmy, createHero } from '../scenario.js';
+import { floorSafe, roundSafe } from '../floatSafe.js';
 import { createRng, nextInt, shuffle } from '../rng.js';
 import type { ArmyStack, CardInstance, CombatState, Hero, HeroId, PlayerAction, Position, RelicDefinition, RelicEffect, UnitId } from '../types.js';
 import { cardRemovalQuote, createCardRemovalState, type CardRemovalState } from './cardRemoval.js';
@@ -13,18 +14,21 @@ import { isUpgradable } from '../cardUpgrades.js';
 import {
   BUILDING_DEFINITIONS,
   DOCTRINE_DEFINITIONS,
+  ECONOMIC_DOCTRINE_MULTIPLIER,
   FARM_TIERS,
   GOLD_MINE_DAILY_GOLD,
   LEVEL_SLOTS,
   LEVEL_UP_COST,
   MAGE_TOWER_TIERS,
   RECRUIT_COSTS,
+  TRAINING_HALL_MAX_MANA,
   addUnitsToArmy,
   canRecruitUnit,
   createInitialCityState,
   recruitCost,
   settleArmyAfterVictory,
 } from './city.js';
+import { actionProblem } from './actionValidation.js';
 import { THREAT_PER_CITY_VISIT, TOTAL_CHAPTERS } from './chapters.js';
 import { generateBattleEncounter, generateBossEncounter } from './encounters.js';
 import {
@@ -40,7 +44,7 @@ import {
   type EventOption,
 } from './events.js';
 import { dailyProduction, dailyUpkeep, moveFoodCost, removeUnits, starvationMoraleMalus, starveArmy, totalArmyCount } from './food.js';
-import { rollBattleLoot } from './loot.js';
+import { rollBattleLoot, rollResourceNode } from './loot.js';
 import { generateMerchantInventory } from './merchant.js';
 import { pickRelicByRarity, pickRelicId } from './relicSources.js';
 import { buildPendingReward, generateCardOptions } from './rewards.js';
@@ -48,8 +52,8 @@ import { createRunStats, tallyCombatEvents } from './stats.js';
 import type { RunAction, RunApplyResult, RunEvent, RunState, UnitCount } from './types.js';
 import { findNode, generateWorldMap, visitNode } from './worldMap.js';
 
-const STARTING_GOLD = 100;
-const STARTING_FOOD = 50;
+export const STARTING_GOLD = 100;
+export const STARTING_FOOD = 50;
 /** Relic granted when an old save is still waiting on the removed relic choice. */
 export const DEFAULT_STARTING_RELIC_ID = 'royal_banner';
 
@@ -57,12 +61,36 @@ function cloneRun(run: RunState): RunState {
   return JSON.parse(JSON.stringify(run)) as RunState;
 }
 
+/** Version of the persisted RunState shape. A save without the field predates versioning and counts as version 1. */
+export const CURRENT_SAVE_VERSION = 2;
+
 /**
- * Fills in fields that runs saved by older versions do not have (stats,
- * card-removal counters). Call it on anything loaded from storage; the
- * reducer also applies it, so an old run keeps working on its first action.
+ * Upgrades one version step. Every field-by-field guess for pre-versioning saves lives in `fromVersion1`;
+ * a future format change adds `fromVersion2` here instead of another "field is undefined" check.
+ */
+const MIGRATIONS: Record<number, (run: RunState) => RunState> = { 1: fromVersion1 };
+
+/**
+ * Brings a run loaded from storage to the current save format (the reducer also applies it, so an old run keeps
+ * working on its first action). A run already at CURRENT_SAVE_VERSION is returned as is; validateSave (save.ts) is the
+ * gate for anything that may be corrupt or from a newer build.
  */
 export function migrateRun(run: RunState): RunState {
+  let migrated = run;
+  for (let version = run.saveVersion ?? 1; version < CURRENT_SAVE_VERSION; version++) {
+    migrated = { ...MIGRATIONS[version]!(migrated), saveVersion: version + 1 };
+  }
+  return migrated;
+}
+
+/**
+ * Version 1 (no `saveVersion`): fills in the fields older builds did not have (stats, card-removal counters, chapter, Threat, ...)
+ * and settles work that was in progress when the save was written:
+ * - a battle in progress is restarted from its beginning (same encounter, fresh hand). Old combat states may carry shapes today's
+ *   combat code does not read, and the run army is untouched during a battle, so nothing is lost and no fight is skipped for free;
+ * - a pending reward keeps the options that still exist; if none are left it is re-rolled.
+ */
+function fromVersion1(run: RunState): RunState {
   const legacy = run as RunState & { finalBattle?: boolean };
   const legacyRemoval = run.cardRemoval as (CardRemovalState & { lastCityDay?: number | null }) | undefined;
   const migrated: RunState = {
@@ -104,7 +132,34 @@ export function migrateRun(run: RunState): RunState {
     }
   }
   if (run.city.farmTier === undefined) migrated.city = { ...migrated.city, farmTier: 0 };
+  if (migrated.phase === 'in_battle') restartBattle(migrated);
+  if (migrated.pendingReward) settlePendingReward(migrated);
   return migrated;
+}
+
+/** Rebuilds the encounter of the node the run stands on (boss, elite, normal; an event ambush is a normal battle) and starts it over. */
+function restartBattle(run: RunState): void {
+  const node = findNode(run.worldMap, run.worldMap.currentNodeId);
+  const encounter = run.bossBattle ? generateBossEncounter(run.chapter, run.threat) : generateBattleEncounter(node?.layer ?? 1, node?.type === 'elite_battle', run.chapter, run.threat);
+  run.rng = { ...run.rng };
+  run.hero = { ...run.hero };
+  run.army = run.army.map((s) => ({ ...s }));
+  run.combat = startBattleForRun(run, encounter);
+}
+
+/** Drops reward options that no longer exist; a reward left with no card and no upgrade is re-rolled so the player is never stuck on an empty screen. */
+function settlePendingReward(run: RunState): void {
+  const reward = run.pendingReward!;
+  const known = (id: unknown): id is string => typeof id === 'string' && Object.prototype.hasOwnProperty.call(CARD_DEFINITIONS, id);
+  const cardOptions = (reward.cardOptions ?? []).filter(known);
+  const upgradeOptions = (reward.upgradeOptions ?? []).filter((o) => known(o?.cardId) && run.masterDeck.some((c) => c.instanceId === o.instanceId));
+  if (cardOptions.length + upgradeOptions.length > 0) {
+    run.pendingReward = { cardOptions, upgradeOptions, relicOffer: reward.relicOffer ?? null, relicChoices: reward.relicChoices ?? [] };
+    return;
+  }
+  const node = findNode(run.worldMap, run.worldMap.currentNodeId);
+  run.rng = { ...run.rng };
+  run.pendingReward = buildPendingReward(run.rng, run.relics, run.masterDeck, node?.type === 'elite_battle', run.bossBattle && run.chapter < TOTAL_CHAPTERS);
 }
 
 function changeGold(run: RunState, delta: number): void {
@@ -152,6 +207,7 @@ export function createRun(seed: number, heroId: HeroId = 'warlord', heroName?: s
   if (!relic) throw new Error(`Unknown starting relic: ${relicId}`);
 
   const run: RunState = {
+    saveVersion: CURRENT_SAVE_VERSION,
     seed,
     rng,
     hero,
@@ -192,7 +248,7 @@ const MIN_HERO_MAX_MANA = 1;
 function rescaleStack(stack: ArmyStack, multiplier: number): ArmyStack {
   if (stack.count <= 0) return stack;
   const def = UNIT_DEFINITIONS[stack.unitId];
-  const newCount = Math.max(1, Math.floor(stack.count * multiplier));
+  const newCount = Math.max(1, floorSafe(stack.count * multiplier));
   const newMaxHp = newCount * def.hpPerUnit;
   return { ...stack, count: newCount, currentHp: Math.min(stack.currentHp, newMaxHp), maxHp: newMaxHp, startingCount: newCount, preBattleMaxCount: newCount };
 }
@@ -266,11 +322,9 @@ function reject(events: RunEvent[], reason: string): void {
   events.push({ type: 'ACTION_REJECTED', reason });
 }
 
-/** A modest, deterministic one-time pickup — see AGENT.md §35 (ongoing per-day production is future work). */
+/** A modest, deterministic one-time pickup; ongoing income comes from the Farm and Gold Mine (AO-D020, AO-D048). */
 function resolveResourceNode(run: RunState, events: RunEvent[]): void {
-  const econMult = run.city.doctrine === 'economic' ? 1.3 : 1;
-  const gold = Math.round((20 + nextInt(run.rng, 21)) * econMult); // 20-40, +30% under Economic Doctrine
-  const food = Math.round((10 + nextInt(run.rng, 11)) * econMult); // 10-20
+  const { gold, food } = rollResourceNode(run.rng, run.city.doctrine === 'economic' ? ECONOMIC_DOCTRINE_MULTIPLIER : 1);
   changeGold(run, gold);
   changeFood(run, food);
   events.push({ type: 'RESOURCE_FOUND', gold, food });
@@ -572,7 +626,7 @@ function gainUnits(run: RunState, unitId: UnitId, count: number, events: RunEven
   }
   // AO-D054: no room; the newcomer waits as a temporary 7th entry until the player dismisses a stack or declines.
   const newcomer = addUnitsToArmy([], unitId, count)![0]!;
-  run.pendingUnitChoice = { newcomer: { ...newcomer, stackId: `player_${unitId}_pending`, position: 6 } };
+  run.pendingUnitChoice = { newcomer: { ...newcomer, stackId: `player_${unitId}_pending`, position: MAX_ARMY_STACKS as Position } };
 }
 
 function reviveCasualties(run: RunState, percent: number, events: RunEvent[]): void {
@@ -681,7 +735,7 @@ function executeEventOption(run: RunState, option: EventOption, pick: EventPick,
 
   const gamble = option.gamble;
   if (gamble) {
-    const won = nextInt(run.rng, 100) < Math.round(gamble.successChance * 100);
+    const won = nextInt(run.rng, 100) < roundSafe(gamble.successChance * 100);
     tally.texts.push(won ? gamble.successText : gamble.failureText);
     if (won) {
       apply(gamble.success);
@@ -828,7 +882,7 @@ function dismissStack(run: RunState, stackId: string, count: number | undefined,
     return { run, events };
   }
   const amount = count ?? target.count;
-  if (!Number.isInteger(amount) || amount < 1 || amount > target.count) {
+  if (amount > target.count) {
     reject(events, 'Invalid dismiss amount.');
     return { run, events };
   }
@@ -925,10 +979,6 @@ function recruit(run: RunState, unitId: UnitId, count: number, events: RunEvent[
     reject(events, 'Not at the city.');
     return { run, events };
   }
-  if (count <= 0) {
-    reject(events, 'Invalid recruit count.');
-    return { run, events };
-  }
   if (!canRecruitUnit(run.city, unitId)) {
     reject(events, 'That unit cannot be recruited yet (missing building).');
     return { run, events };
@@ -945,7 +995,7 @@ function recruit(run: RunState, unitId: UnitId, count: number, events: RunEvent[
 
   const updatedArmy = addUnitsToArmy(run.army, unitId, count);
   if (!updatedArmy) {
-    reject(events, 'Field army is full (6 stacks) and has no matching stack to merge into.');
+    reject(events, `Field army is full (${MAX_ARMY_STACKS} stacks) and has no matching stack to merge into.`);
     return { run, events };
   }
   changeGold(run, -cost.gold);
@@ -959,7 +1009,7 @@ function recruit(run: RunState, unitId: UnitId, count: number, events: RunEvent[
 function splitStackAction(run: RunState, stackId: string, splitCount: number, events: RunEvent[]): RunApplyResult {
   const updatedArmy = splitArmyStack(run.army, stackId, splitCount);
   if (!updatedArmy) {
-    reject(events, 'Cannot split that stack (invalid amount or army already has 6 stacks).');
+    reject(events, `Cannot split that stack (invalid amount or army already has ${MAX_ARMY_STACKS} stacks).`);
     return { run, events };
   }
   // splitArmyStack derives the id from the free position, which can collide with a stack created there and later moved away.
@@ -979,10 +1029,6 @@ function moveStackAction(run: RunState, stackId: string, toPosition: Position, e
   const stack = run.army.find((s) => s.stackId === stackId);
   if (!stack) {
     reject(events, 'Unknown stack.');
-    return { run, events };
-  }
-  if (!Number.isInteger(toPosition) || toPosition < 1 || toPosition > 6) {
-    reject(events, 'Position must be 1-6.');
     return { run, events };
   }
   if (stack.position === toPosition) return { run, events };
@@ -1030,8 +1076,8 @@ function buildBuilding(run: RunState, buildingId: string, events: RunEvent[]): R
   run.city.buildings.push(buildingId);
 
   if (buildingId === 'training_hall') {
-    run.hero.maxMana += 2;
-    run.hero.mana += 2;
+    run.hero.maxMana += TRAINING_HALL_MAX_MANA;
+    run.hero.mana += TRAINING_HALL_MAX_MANA;
   }
   if (buildingId === 'mage_tower') {
     run.city.mageTowerTier = 1;
@@ -1146,96 +1192,77 @@ function leaveCity(run: RunState, events: RunEvent[]): RunApplyResult {
   return { run, events };
 }
 
+function dispatchAction(working: RunState, action: RunAction, events: RunEvent[]): RunApplyResult {
+  switch (action.type) {
+    case 'MOVE_TO':
+      return moveTo(working, action.nodeId, events);
+    case 'COMBAT_ACTION':
+      return forwardCombatAction(working, action.action, events);
+    case 'CLAIM_CARD':
+      return claimCard(working, action.cardId, events);
+    case 'CLAIM_UPGRADE':
+      return claimUpgrade(working, action.instanceId, events);
+    case 'SKIP_REWARD':
+      return skipReward(working, events);
+    case 'REMOVE_CARD':
+      return removeCard(working, action.instanceId, events);
+    case 'CHOOSE_EVENT_OPTION':
+      return chooseEventOption(working, action.optionId, events);
+    case 'CHOOSE_EVENT_CARD':
+      return chooseEventCard(working, action.instanceId, events);
+    case 'CHOOSE_EVENT_UNIT':
+      return chooseEventUnit(working, action.unitId, events);
+    case 'CANCEL_EVENT_CHOICE':
+      return cancelEventChoice(working, events);
+    case 'DISMISS_STACK':
+      return dismissStack(working, action.stackId, action.count, events);
+    case 'DECLINE_UNIT_GAIN':
+      return declineUnitGain(working, events);
+    case 'BUY_CARD':
+      return buyCard(working, action.cardId, events);
+    case 'CLAIM_RELIC':
+      return claimRelic(working, action.relicId, events);
+    case 'BUY_RELIC':
+      return buyRelic(working, action.relicId, events);
+    case 'LEAVE_MERCHANT':
+      return leaveMerchant(working, events);
+    case 'TRAVEL_TO_CITY':
+      return travelToCity(working, events);
+    case 'RECRUIT':
+      return recruit(working, action.unitId, action.count, events);
+    case 'BUILD_BUILDING':
+      return buildBuilding(working, action.buildingId, events);
+    case 'UPGRADE_MAGE_TOWER':
+      return upgradeMageTower(working, events);
+    case 'UPGRADE_FARM':
+      return upgradeFarm(working, events);
+    case 'UPGRADE_CITY':
+      return upgradeCity(working, events);
+    case 'CHOOSE_DOCTRINE':
+      return chooseDoctrine(working, action.doctrineId, events);
+    case 'LEAVE_CITY':
+      return leaveCity(working, events);
+    case 'SPLIT_STACK':
+      return splitStackAction(working, action.stackId, action.splitCount, events);
+    case 'MERGE_STACKS':
+      return mergeStacksAction(working, action.stackIdA, action.stackIdB, events);
+    case 'MOVE_STACK':
+      return moveStackAction(working, action.stackId, action.toPosition, events);
+    default:
+      reject(events, 'Unknown action.');
+      return { run: working, events };
+  }
+}
+
 export function applyRunAction(run: RunState, action: RunAction): RunApplyResult {
   const working = migrateRun(cloneRun(run));
   // Wiped stacks (battle, starvation) are dropped so a later recruit/split can't reuse their stackId.
   working.army = working.army.filter((s) => s.count > 0);
   const events: RunEvent[] = [];
 
-  let result: RunApplyResult;
-  switch (action.type) {
-    case 'MOVE_TO':
-      result = moveTo(working, action.nodeId, events);
-      break;
-    case 'COMBAT_ACTION':
-      result = forwardCombatAction(working, action.action, events);
-      break;
-    case 'CLAIM_CARD':
-      result = claimCard(working, action.cardId, events);
-      break;
-    case 'CLAIM_UPGRADE':
-      result = claimUpgrade(working, action.instanceId, events);
-      break;
-    case 'SKIP_REWARD':
-      result = skipReward(working, events);
-      break;
-    case 'REMOVE_CARD':
-      result = removeCard(working, action.instanceId, events);
-      break;
-    case 'CHOOSE_EVENT_OPTION':
-      result = chooseEventOption(working, action.optionId, events);
-      break;
-    case 'CHOOSE_EVENT_CARD':
-      result = chooseEventCard(working, action.instanceId, events);
-      break;
-    case 'CHOOSE_EVENT_UNIT':
-      result = chooseEventUnit(working, action.unitId, events);
-      break;
-    case 'CANCEL_EVENT_CHOICE':
-      result = cancelEventChoice(working, events);
-      break;
-    case 'DISMISS_STACK':
-      result = dismissStack(working, action.stackId, action.count, events);
-      break;
-    case 'DECLINE_UNIT_GAIN':
-      result = declineUnitGain(working, events);
-      break;
-    case 'BUY_CARD':
-      result = buyCard(working, action.cardId, events);
-      break;
-    case 'CLAIM_RELIC':
-      result = claimRelic(working, action.relicId, events);
-      break;
-    case 'BUY_RELIC':
-      result = buyRelic(working, action.relicId, events);
-      break;
-    case 'LEAVE_MERCHANT':
-      result = leaveMerchant(working, events);
-      break;
-    case 'TRAVEL_TO_CITY':
-      result = travelToCity(working, events);
-      break;
-    case 'RECRUIT':
-      result = recruit(working, action.unitId, action.count, events);
-      break;
-    case 'BUILD_BUILDING':
-      result = buildBuilding(working, action.buildingId, events);
-      break;
-    case 'UPGRADE_MAGE_TOWER':
-      result = upgradeMageTower(working, events);
-      break;
-    case 'UPGRADE_FARM':
-      result = upgradeFarm(working, events);
-      break;
-    case 'UPGRADE_CITY':
-      result = upgradeCity(working, events);
-      break;
-    case 'CHOOSE_DOCTRINE':
-      result = chooseDoctrine(working, action.doctrineId, events);
-      break;
-    case 'LEAVE_CITY':
-      result = leaveCity(working, events);
-      break;
-    case 'SPLIT_STACK':
-      result = splitStackAction(working, action.stackId, action.splitCount, events);
-      break;
-    case 'MERGE_STACKS':
-      result = mergeStacksAction(working, action.stackIdA, action.stackIdB, events);
-      break;
-    case 'MOVE_STACK':
-      result = moveStackAction(working, action.stackId, action.toPosition, events);
-      break;
-  }
+  const problem = actionProblem(action);
+  if (problem) reject(events, problem);
+  const result = problem ? { run: working, events } : dispatchAction(working, action, events);
 
   noteLargestStack(result.run);
   result.run.log = [...result.run.log, ...result.events];

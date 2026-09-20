@@ -1,3 +1,4 @@
+import { MAX_ARMY_STACKS } from './army.js';
 import { CARD_DEFINITIONS } from './data/cards.js';
 import { resolveCard } from './cardUpgrades.js';
 import { UNIT_DEFINITIONS } from './data/units.js';
@@ -77,7 +78,7 @@ export function cardPlayability(cardId: string, state: CombatState, upgraded = f
     case 'ally-stack+position': {
       if (!living.some((s) => !s.flags.cannotMove)) return no('No stack can move this turn.');
       const taken = new Set(living.map((s) => s.position));
-      if (taken.size >= 6) return no('No free position.');
+      if (taken.size >= MAX_ARMY_STACKS) return no('No free position.');
       break;
     }
     case 'ally-stack':

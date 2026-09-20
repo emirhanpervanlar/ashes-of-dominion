@@ -1,8 +1,8 @@
 import type { RunState } from './types.js';
 
 /**
- * AO-D026 / AO-D052 card removal. Every number here is a PROPOSAL awaiting the owner's
- * answer; nothing else in the engine hard-codes them.
+ * Card removal prices and limits: AO-D035 (Reward, Merchant) and AO-D052 (City). Nothing else
+ * in the engine hard-codes these numbers.
  */
 export const CARD_REMOVAL = {
   /** The deck can never be thinned below this many cards. */

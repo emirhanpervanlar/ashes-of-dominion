@@ -1,6 +1,6 @@
 import { CARD_DEFINITIONS } from './data/cards.js';
 import { resolveCard } from './cardUpgrades.js';
-import { clearCombatState } from './army.js';
+import { MAX_ARMY_STACKS, clearCombatState } from './army.js';
 import { UNIT_DEFINITIONS } from './data/units.js';
 import { damageStatFor, statEffectiveness } from './heroStats.js';
 import {
@@ -70,7 +70,7 @@ function reject(events: CombatEvent[], reason: string): void {
   events.push({ type: 'ACTION_REJECTED', reason });
 }
 
-export function checkBattleResult(state: CombatState): 'ongoing' | 'victory' | 'defeat' {
+function checkBattleResult(state: CombatState): 'ongoing' | 'victory' | 'defeat' {
   const playerAlive = state.playerArmy.some((s) => s.count > 0);
   const enemyAlive = state.enemyArmy.some((s) => s.count > 0);
   if (state.hero.hp <= 0 || !playerAlive) return 'defeat';
@@ -92,14 +92,6 @@ function drawCards(state: CombatState, amount: number, events: CombatEvent[]): v
     state.hand.push(card);
     events.push({ type: 'CARD_DRAWN', instanceId: card.instanceId, cardId: card.cardId });
   }
-}
-
-function findFreePlayerPosition(army: ArmyStack[]): Position | null {
-  const taken = new Set(army.filter((s) => s.count > 0).map((s) => s.position));
-  for (let p = 1 as Position; p <= 6; p++) {
-    if (!taken.has(p)) return p;
-  }
-  return null;
 }
 
 function raiseSkeletons(_army: ArmyStack[], _count: number, _events: CombatEvent[]): void {
@@ -605,7 +597,7 @@ function validateTargeting(state: CombatState, def: { id: string; targeting: Car
   if (needsPosition) {
     const mover = findStack(state.playerArmy, action.actingStackId);
     if (mover?.flags.cannotMove) return `${UNIT_DEFINITIONS[mover.unitId].name} cannot move this turn.`;
-    if (!action.toPosition || action.toPosition < 1 || action.toPosition > 6) {
+    if (!Number.isInteger(action.toPosition) || action.toPosition! < 1 || action.toPosition! > MAX_ARMY_STACKS) {
       return 'Invalid destination position.';
     }
     const occupied = state.playerArmy.some((s) => s.count > 0 && s.position === action.toPosition);
@@ -910,7 +902,7 @@ export function applyPlayerAction(state: CombatState, action: PlayerAction): App
   return result;
 }
 
-export interface StartBattleParams {
+interface StartBattleParams {
   seed: number;
   rng: CombatState['rng'];
   hero: Hero;
