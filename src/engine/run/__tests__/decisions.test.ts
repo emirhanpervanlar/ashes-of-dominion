@@ -26,11 +26,11 @@ function inCity(run: RunState, army: ArmyStack[]): RunState {
   return withBarracks({ ...run, phase: 'city', army, gold: 1000, food: 1000 });
 }
 
-describe('AO-D007: starting armies per hero', () => {
+describe('AO-D007 (amended by AO-D074): starting armies per hero', () => {
   const expected: Record<HeroId, Array<[string, number]>> = {
-    warlord: [['swordsman', 6], ['knight', 2]],
-    rogue: [['archer', 6], ['knight', 2]],
-    mage: [['archer', 4], ['priest', 4]],
+    warlord: [['swordsman', 4], ['knight', 4]],
+    rogue: [['swordsman', 3], ['knight', 1], ['archer', 4]],
+    mage: [['swordsman', 4], ['archer', 2], ['priest', 2]],
   };
 
   for (const hero of HEROES) {
@@ -242,12 +242,12 @@ describe('Royal Banner / Arcane Crystal keep the heal cap consistent (AO-D004)',
     }
   });
 
-  it('a full-health Royal Banner Swordsman x12 is not changed by a Priest heal (never negative)', () => {
+  it('a full-health Royal Banner Swordsman x10 is not changed by a Priest heal (never negative)', () => {
     const { sword, after, event } = healed('royal_banner', 0);
-    expect(sword.count).toBe(12);
+    expect(sword.count).toBe(10);
     if (event && event.type === 'STACK_HEALED') expect(event.amount).toBe(0);
     expect(after.currentHp).toBe(sword.maxHp);
-    expect(after.count).toBe(12);
+    expect(after.count).toBe(10);
   });
 
   it('a wounded Royal Banner Swordsman heals, but only up to the boosted cap', () => {

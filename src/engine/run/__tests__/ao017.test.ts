@@ -65,7 +65,7 @@ describe('AO-D043: relic tweaks', () => {
     const bought = buyOffer(onMap(5), 'arcane_crystal');
     expect(bought.hero.maxMana).toBe(onMap(5).hero.maxMana + 2);
     expect(bought.gold).toBe(1000 - RELIC_PRICE_BY_RARITY.rare);
-    expect(bought.army.find((s) => s.unitId === 'swordsman')!.count).toBe(Math.floor(12 * 0.9));
+    expect(bought.army.find((s) => s.unitId === 'swordsman')!.count).toBe(Math.floor(10 * 0.9));
   });
 
   it('Abandoned Camp Search finds a relic about 25% of the time', () => {
@@ -209,7 +209,7 @@ describe('AO-D037: event relics', () => {
     let relics = 0;
     for (let seed = 1; seed <= 400; seed++) {
       const refused = applyRunAction(bandits(seed), { type: 'CHOOSE_EVENT_OPTION', optionId: 'refuse' }).run;
-      expect(refused.food).toBe(50 - 2 * dailyUpkeep(refused));
+      expect(refused.food).toBe(50 - 2 * dailyUpkeep(bandits(seed))); // the toll is two days of the upkeep before the event
       expect(refused.relics.length).toBeLessThanOrEqual(2);
       if (refused.relics.length === 2) relics++;
 

@@ -17,11 +17,11 @@ export const HERO_DEFINITIONS: Record<HeroId, HeroDefinition> = {
     name: 'Warlord',
     stats: { strength: 16, dexterity: 10, intelligence: 8, vitality: 14, wisdom: 8 },
     baseMana: 3,
-    // v3 balance pass — small, fragile starting rosters (only the unit types the starting
-    // deck actually needs); the run grows the army from the City, not from a day-1 horde.
+    // AO-D074 start balance (AO-046 measurements): every hero opens with a solid front line, 8 units in total;
+    // the run grows the army from the City and the garrison, not from a day-1 horde.
     startingArmy: [
-      { unitId: 'swordsman', count: 6 },
-      { unitId: 'knight', count: 2 },
+      { unitId: 'swordsman', count: 4 },
+      { unitId: 'knight', count: 4 },
     ],
     startingDeck: [
       'charge',
@@ -50,8 +50,9 @@ export const HERO_DEFINITIONS: Record<HeroId, HeroDefinition> = {
     stats: { strength: 9, dexterity: 17, intelligence: 10, vitality: 9, wisdom: 13 },
     baseMana: 5,
     startingArmy: [
-      { unitId: 'archer', count: 6 },
-      { unitId: 'knight', count: 2 },
+      { unitId: 'swordsman', count: 3 },
+      { unitId: 'knight', count: 1 },
+      { unitId: 'archer', count: 4 },
     ],
     startingDeck: [
       'covering_fire',
@@ -80,8 +81,9 @@ export const HERO_DEFINITIONS: Record<HeroId, HeroDefinition> = {
     stats: { strength: 7, dexterity: 9, intelligence: 18, vitality: 8, wisdom: 16 },
     baseMana: 7,
     startingArmy: [
-      { unitId: 'archer', count: 4 },
-      { unitId: 'priest', count: 4 },
+      { unitId: 'swordsman', count: 4 },
+      { unitId: 'archer', count: 2 },
+      { unitId: 'priest', count: 2 },
     ],
     startingDeck: [
       'fireball',

@@ -9,7 +9,7 @@ import { BATTLE_LOOT, battleLootBands, rollBattleLoot } from '../loot.js';
 import { garrisonCap, garrisonUnits, weeklyGarrison } from '../garrison.js';
 import { FOOD_MARKET, foodMarketQuote, foodPackPrice } from '../marketplace.js';
 import { buildPendingReward } from '../rewards.js';
-import { CURRENT_SAVE_VERSION, applyRunAction, createRun, migrateRun } from '../runEngine.js';
+import { CURRENT_SAVE_VERSION, STARTING_GOLD, applyRunAction, createRun, migrateRun } from '../runEngine.js';
 import type { RunAction, RunState } from '../types.js';
 import type { NodeType } from '../worldMap.js';
 import { validateSave } from '../save.js';
@@ -458,5 +458,33 @@ describe('AO-046 item 7 (AO-D074): Food balance', () => {
       const run = createRun(1, hero);
       expect(dailyUpkeep(run) * 15, hero).toBeLessThan(run.food);
     }
+  });
+});
+
+describe('AO-046 item 8 (AO-D074): starting armies and the start', () => {
+  const HEROES = ['warlord', 'rogue', 'mage'] as const;
+
+  it('every hero opens with 8 units and a solid front line of at least 4 melee soldiers, the Mage included', () => {
+    for (const hero of HEROES) {
+      const army = createRun(3, hero, undefined, 'whetstone').army;
+      expect(army.reduce((n, s) => n + s.count, 0), hero).toBe(8);
+      const front = army.filter((s) => s.position <= 3);
+      expect(front.reduce((n, s) => n + s.count, 0), hero).toBeGreaterThanOrEqual(4);
+      expect(front.every((s) => s.unitId === 'swordsman' || s.unitId === 'knight'), hero).toBe(true);
+    }
+    const mage = createRun(3, 'mage').army;
+    expect(mage.find((s) => s.unitId === 'swordsman')!.count).toBeGreaterThanOrEqual(3);
+    expect(mage.some((s) => s.unitId === 'archer') && mage.some((s) => s.unitId === 'priest')).toBe(true);
+  });
+
+  it('the free first city visit lets a fresh run raise a Barracks and recruit before the first fight without Threat', () => {
+    let run = createRun(5, 'mage');
+    run = act(run, { type: 'TRAVEL_TO_CITY' }).run;
+    run = act(run, { type: 'BUILD_BUILDING', buildingId: 'barracks' }).run;
+    const before = run.army.reduce((n, s) => n + s.count, 0);
+    const recruited = act(run, { type: 'RECRUIT', unitId: 'swordsman', count: 5 });
+    expect(rejected(recruited.events)).toBe(false);
+    expect(recruited.run.army.reduce((n, s) => n + s.count, 0)).toBe(before + 5);
+    expect([recruited.run.threat, recruited.run.gold]).toEqual([0, STARTING_GOLD - BARRACKS_TIERS[0]!.cost - 5 * 8]);
   });
 });

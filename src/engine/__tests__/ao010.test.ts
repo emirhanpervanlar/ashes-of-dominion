@@ -278,7 +278,7 @@ describe('AO-D031 balance guard: starting armies survive one passed enemy turn',
     }
   });
 
-  it('the Mage starting army (Archer + Priest) is never blocked from acting by the back-row rule', () => {
+  it('the Mage starting army Archers are never blocked from acting by the back-row rule', () => {
     const { state } = createVerticalSliceScenario(3, 'mage');
     const archer = state.playerArmy.find((s) => s.unitId === 'archer')!;
     expect(isBlockedByFrontAlly(archer, state.playerArmy)).toBe(false);

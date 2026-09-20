@@ -42,8 +42,8 @@ describe('AO-031: atomic run start', () => {
     const migrated = migrateRun(legacy);
     expect(migrated.phase).toBe('on_map');
     expect(migrated.relics.map((r) => r.id)).toEqual(['royal_banner']);
-    expect(migrated.army.find((s) => s.unitId === 'swordsman')!.count).toBe(12);
-    expect(legacy.army.find((s) => s.unitId === 'swordsman')!.count).toBe(6); // the input is not mutated
+    expect(migrated.army.find((s) => s.unitId === 'swordsman')!.count).toBe(10);
+    expect(legacy.army.find((s) => s.unitId === 'swordsman')!.count).toBe(4); // the input is not mutated
     const viaReducer = act(legacy, { type: 'TRAVEL_TO_CITY' }).run;
     expect(viaReducer.phase).toBe('city');
     expect(viaReducer.relics.map((r) => r.id)).toEqual(['royal_banner']);
@@ -125,7 +125,7 @@ describe('AO-031: runSummary', () => {
     ]);
     expect(summary.rows.find((r) => r.id === 'chapter')!.value).toBe(2);
     expect(summary.rows.find((r) => r.id === 'threat')!.value).toBe(4);
-    expect(summary.rows.find((r) => r.id === 'largestStack')!.value).toBe(12);
+    expect(summary.rows.find((r) => r.id === 'largestStack')!.value).toBe(10);
     expect(summary.relics).toEqual(['Royal Banner']);
     expect(summary.causeOfDeath).toBeNull();
     expect(summary.causeLabel).toBeNull();
