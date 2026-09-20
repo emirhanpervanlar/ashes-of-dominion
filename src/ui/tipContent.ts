@@ -1,4 +1,4 @@
-import { UNIT_DEFINITIONS, dodgeChancePercent, maxManaFromWisdom, statEffectiveness } from '../engine/index.js';
+import { STATUS_INFO, UNIT_DEFINITIONS, dodgeChancePercent, maxManaFromWisdom, statEffectiveness, statusEffectText } from '../engine/index.js';
 import type { HeroStats, RelicDefinition, StatusType, UnitId } from '../engine/index.js';
 import {
   GOLD_MINE_DAILY_GOLD,
@@ -37,34 +37,11 @@ export interface TipContent {
 const plural = (n: number, word: string): string => `${n} ${word}${n === 1 ? '' : 's'}`;
 const signed = (n: number): string => (n > 0 ? `+${n}` : `${n}`);
 
-interface StatusInfo {
-  name: string;
-  /** What one instance does, from the engine's rules in damage.ts / combat.ts. */
-  effect: (amount: number) => string;
-}
-
-/**
- * Player-facing names and effects of the visible statuses. The engine has no description table (reported as a gap),
- * so these mirror what damage.ts (effectiveAttack, armorReduction, fearDamageMultiplier) and combat.ts (tickStatuses, freeze gate) do.
- */
-export const STATUS_INFO: Record<StatusType, StatusInfo> = {
-  strength: { name: 'Strength', effect: (n) => `Attack +${n}.` },
-  weak: { name: 'Weak', effect: (n) => `Attack -${n}.` },
-  armor: { name: 'Armor', effect: (n) => `Defense +${n}.` },
-  bleed: { name: 'Bleed', effect: (n) => `Takes ${n} damage at the start of its turn.` },
-  poison: { name: 'Poison', effect: (n) => `Takes ${n} damage at the start of its turn.` },
-  burn: { name: 'Burn', effect: (n) => `Takes ${n} damage at the start of its turn.` },
-  fear: { name: 'Fear', effect: (n) => `Deals ${Math.min(75, n)}% less damage.` },
-  taunt: { name: 'Taunt', effect: () => 'Enemies that can reach it must attack it.' },
-  freeze: { name: 'Frozen', effect: () => 'Cannot act.' },
-};
-
 export function statusTip(type: StatusType, amount: number, duration?: number): TipContent {
-  const info = STATUS_INFO[type];
   return {
-    title: info.name,
+    title: STATUS_INFO[type].name,
     icon: STATUS_ICONS[type],
-    body: info.effect(amount),
+    body: statusEffectText(type, amount),
     lines: duration === undefined ? undefined : [{ text: `Lasts ${plural(duration, 'more turn')}.`, tone: 'dim' }],
   };
 }

@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { UNIT_DEFINITIONS } from '../engine/index.js';
+import { STATUS_INFO, UNIT_DEFINITIONS, statusEffectText } from '../engine/index.js';
 import type { StatusType, UnitId } from '../engine/index.js';
 import { RELIC_DEFINITIONS, STARTING_RELIC_DEFINITIONS, createRun } from '../engine/run/index.js';
 import { STATUS_ICONS } from './stackStatus.js';
-import { STATUS_INFO, blockTip, buildingTip, foodTip, heroStatRows, manaCostTip, pileTip, relicTip, roleTip, statusTip, threatTip } from './tipContent.js';
+import { blockTip, buildingTip, foodTip, heroStatRows, manaCostTip, pileTip, relicTip, roleTip, statusTip, threatTip } from './tipContent.js';
 
 describe('status tips', () => {
   it('cover every status type with a name and a numeric effect', () => {
@@ -16,10 +16,11 @@ describe('status tips', () => {
     }
   });
 
-  it('puts the amount into the effect text', () => {
-    expect(statusTip('weak', 20).body).toBe('Attack -20.');
+  it('takes the effect text from the engine with the amount filled in', () => {
+    for (const type of Object.keys(STATUS_INFO) as StatusType[]) {
+      expect(statusTip(type, 7).body, type).toBe(statusEffectText(type, 7));
+    }
     expect(statusTip('poison', 4).body).toContain('4 damage');
-    expect(statusTip('fear', 90).body).toContain('75%');
     expect(statusTip('armor', 5, 1).lines?.[0]?.text).toBe('Lasts 1 more turn.');
   });
 

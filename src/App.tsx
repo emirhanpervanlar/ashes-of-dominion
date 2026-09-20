@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { CARD_DEFINITIONS, UNIT_DEFINITIONS, applyPlayerAction, cardPlayability, cardRequirement, computeValidHealTargets, computeValidTargets, resolveCard } from './engine/index.js';
+import { CARD_DEFINITIONS, UNIT_DEFINITIONS, cardPlayability, cardRequirement, computeValidHealTargets, computeValidTargets, resolveCard } from './engine/index.js';
 import type { ArmyStack, CardTargeting, CombatState, PlayerAction, Position } from './engine/index.js';
 import { applyRunAction, cardRemovalQuote, createRun, enemyStrengthAfterCityVisits, eventView, migrateRun } from './engine/run/index.js';
 import type { RunEvent, RunState } from './engine/run/index.js';
@@ -176,10 +176,8 @@ export default function App() {
       setDiscardingIds(leaving);
       await fx.wait(320);
     }
-    // The run layer does not hand back the enemy steps, so the same deterministic engine call is repeated for them.
-    const played = applyPlayerAction(pre, { type: 'END_TURN' });
-    const steps = played.enemySteps ?? [];
     const result = applyRunAction(run, { type: 'COMBAT_ACTION', action: { type: 'END_TURN' } });
+    const steps = result.enemySteps ?? [];
     if (import.meta.env.DEV && result.run.combat) {
       const replayed = replayEnemySteps(pre, steps).at(-1) ?? enemyPhaseBoard(pre);
       const bad = replayMismatches(replayed, result.run.combat);
@@ -193,7 +191,7 @@ export default function App() {
       setPlaybackBoard(null);
       commitRun(result);
       if (result.run.combat) {
-        const events = played.events;
+        const events = result.run.combat.log.slice(pre.log.length);
         const tail = events.slice(events.findIndex((e) => e.type === 'ENEMY_TURN_RESOLVED') + 1);
         const dots = cuesFromEvents(tail, pre, result.run.combat).filter((c) => c.kind === 'dot');
         dots.forEach((c) => fx.impact(c));
