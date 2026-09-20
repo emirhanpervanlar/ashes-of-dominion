@@ -29,3 +29,6 @@ UI; balance beyond items 1, 8 and the starting decks; economy features (garrison
 
 ## Acceptance criteria
 tsc errors only in UI files that use changed exports (list them exactly, keep old exports working where trivial); vitest green; each bug repro becomes a test that fails on the old code; report lists changed exports/actions for the UI and the hero-cast card list.
+
+## Status
+- 2026-09-20 ACCEPTED locally (655 tests); merged to local main, not pushed until the UI adopts hero-spell targeting, enemiesCleared and Skeleton. Open design choices reported: Formation now army-wide, Bless stays single-target, Arrow Rain is a Rogue card, other hero-cast multipliers not rebalanced.
