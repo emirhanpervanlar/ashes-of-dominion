@@ -30,10 +30,14 @@ export function dailyUpkeep(run: Pick<RunState, 'army' | 'city'>): number {
   return moveFoodCost(run.army, run.city);
 }
 
-/** Food produced each day: the Farm (AO-D048, 0 without one) plus every helped village (AO-D072). */
+/** Food the Farm produces each day (AO-D048); 0 without one. */
+export function farmProduction(city: Pick<CityState, 'farmTier'>): number {
+  return city.farmTier > 0 ? FARM_TIERS[city.farmTier - 1]!.food : 0;
+}
+
+/** Food produced each day: the Farm plus every helped village (AO-D072). */
 export function dailyProduction(run: Pick<RunState, 'city' | 'villages'>): number {
-  const tier = run.city.farmTier;
-  return (tier > 0 ? FARM_TIERS[tier - 1]!.food : 0) + villageDailyFood(run);
+  return farmProduction(run.city) + villageDailyFood(run);
 }
 
 /** Production minus upkeep; negative means the stockpile shrinks every day. */

@@ -12,7 +12,7 @@ import {
   SHRINE_REVIVE_RATIO,
   addUnitsToArmy,
   dailyFoodNet,
-  dailyProduction,
+  farmProduction,
   moveFoodCost,
   recruitCost,
 } from '../../engine/run/index.js';
@@ -179,7 +179,7 @@ export function buildingEffect(run: Pick<RunState, 'city' | 'army'>, buildingId:
     case 'mage_tower':
       return { ...base, title: `${def.name}, tier ${ROMAN[city.mageTowerTier - 1]}`, text: `Hero max Mana +${MAGE_TOWER_TIERS[city.mageTowerTier - 1]!.maxMana}.` };
     case 'farm':
-      return { ...base, title: `${def.name}, tier ${ROMAN[city.farmTier - 1]}`, text: `+${dailyProduction({ city })} Food every day.` };
+      return { ...base, title: `${def.name}, tier ${ROMAN[city.farmTier - 1]}`, text: `+${farmProduction(city)} Food every day.` };
     case 'gold_mine':
       return { ...base, title: def.name, text: `+${GOLD_MINE_DAILY_GOLD} Gold every day.` };
     case 'forge': {
