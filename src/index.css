@@ -3210,9 +3210,16 @@ button.frame-pile:hover .pile-card-back::before { --bev-light: var(--gold-400); 
 .relic-choice-name { font: var(--t-h3); color: var(--gold-200); }
 .relic-choice-desc { color: var(--text); }
 
-.start-preview {
+/* Preview and the Start button stay together in the viewport while the choices scroll. */
+.hero-setup-side {
   position: sticky;
   top: var(--s-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+.start-preview {
   display: flex;
   flex-direction: column;
   gap: var(--s-3);
@@ -3300,13 +3307,15 @@ button.frame-pile:hover .pile-card-back::before { --bev-light: var(--gold-400); 
 
 .hero-setup-foot {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--s-3);
   align-items: center;
   justify-content: flex-end;
 }
 
 .setup-hint {
-  margin-right: auto;
+  flex-basis: 100%;
+  text-align: right;
   font: var(--t-small);
   color: var(--text-dim);
 }
