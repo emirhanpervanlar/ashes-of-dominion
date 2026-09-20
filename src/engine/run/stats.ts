@@ -21,6 +21,11 @@ export interface RunStats {
   largestStack: number;
   daysElapsed: number;
   nodesVisited: number;
+  /** Units that died of hunger (also counted in unitsLost). */
+  unitsStarved: number;
+  bossesDefeated: number;
+  elitesDefeated: number;
+  eventsResolved: number;
 }
 
 export function createRunStats(): RunStats {
@@ -42,6 +47,10 @@ export function createRunStats(): RunStats {
     largestStack: 0,
     daysElapsed: 0,
     nodesVisited: 0,
+    unitsStarved: 0,
+    bossesDefeated: 0,
+    elitesDefeated: 0,
+    eventsResolved: 0,
   };
 }
 

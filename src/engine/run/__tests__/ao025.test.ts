@@ -13,7 +13,7 @@ import type { NodeType } from '../worldMap.js';
 const act = (run: RunState, action: RunAction) => applyRunAction(run, action);
 
 function onMap(seed = 1): RunState {
-  return act(createRun(seed), { type: 'CHOOSE_STARTING_RELIC', relicId: 'royal_banner' }).run;
+  return createRun(seed);
 }
 
 type Slot = 1 | 2 | 3 | 4 | 5 | 6;

@@ -10,7 +10,7 @@ import { generateWorldMap } from '../worldMap.js';
 
 const act = (run: RunState, action: RunAction) => applyRunAction(run, action);
 const rejected = (events: { type: string }[]) => events.some((e) => e.type === 'ACTION_REJECTED');
-const onMap = (seed: number): RunState => act(createRun(seed), { type: 'CHOOSE_STARTING_RELIC', relicId: 'royal_banner' }).run;
+const onMap = (seed: number): RunState => createRun(seed);
 const total = (army: { count: number }[]) => army.reduce((sum, s) => sum + s.count, 0);
 
 function winCurrentBattle(run: RunState): RunState {
