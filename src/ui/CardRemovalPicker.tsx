@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import type { CardInstance } from '../engine/index.js';
 import type { CardRemovalQuote } from '../engine/run/index.js';
+import { groupCards } from './deckView.js';
 import { LargeCard } from './LargeCard.js';
 import { Modal } from './Modal.js';
 
@@ -27,14 +28,15 @@ export function CardRemovalPicker({ deck, quote, onRemove }: Props) {
       {open && quote.allowed && (
         <Modal heading={`Remove a card ${quote.gold > 0 ? `- ${quote.gold} Gold` : '- free'}`} onClose={() => setOpen(false)} width={900}>
           <div className="card-removal-grid">
-            {deck.map((instance) => (
+            {groupCards(deck).map((group) => (
               <LargeCard
-                key={instance.instanceId}
-                cardId={instance.cardId}
-                upgraded={instance.upgraded}
+                key={group.key}
+                cardId={group.cardId}
+                upgraded={group.upgraded}
+                count={group.count}
                 onClick={() => {
                   setOpen(false);
-                  onRemove(instance.instanceId);
+                  onRemove(group.instanceId!);
                 }}
               />
             ))}

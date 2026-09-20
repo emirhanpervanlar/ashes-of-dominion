@@ -10,6 +10,12 @@ describe('groupCards', () => {
     expect(groups).toHaveLength(2);
   });
 
+  it('keeps the first copy instance id so a picker can act on the group', () => {
+    const groups = groupCards([{ cardId: 'charge', instanceId: 'a' }, { cardId: 'charge', instanceId: 'b' }]);
+    expect(groups).toHaveLength(1);
+    expect(groups[0]!.instanceId).toBe('a');
+  });
+
   it('keeps an upgraded card apart from its plain copies, plain first', () => {
     const groups = groupCards([{ cardId: 'charge', upgraded: true }, { cardId: 'charge' }, { cardId: 'charge' }]);
     expect(groups.map((g) => [g.upgraded, g.count])).toEqual([

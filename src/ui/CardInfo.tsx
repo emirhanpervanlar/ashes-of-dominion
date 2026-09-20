@@ -65,7 +65,7 @@ function CardInfoPopup({ cardId, options, onClose }: { cardId: string; options: 
           <ul className="card-info-keywords">
             <li>
               Costs <b>{view.manaCost}</b> Mana.
-              {view.manaCost < def.manaCost && <span className="card-info-upgraded"> (was {def.manaCost})</span>}
+              {view.manaCost < view.baseManaCost && <span className="card-info-upgraded"> (was {view.baseManaCost})</span>}
             </li>
             {def.exhaust && <li>Exhaust: removed for the rest of the battle once played.</li>}
             {def.retain && <li>Retain: stays in your hand at the end of the turn.</li>}

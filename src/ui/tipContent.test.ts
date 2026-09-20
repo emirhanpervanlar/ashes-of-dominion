@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { UNIT_DEFINITIONS } from '../engine/index.js';
+import { STATUS_INFO, UNIT_DEFINITIONS, statusEffectText } from '../engine/index.js';
 import type { StatusType, UnitId } from '../engine/index.js';
 import { RELIC_DEFINITIONS, STARTING_RELIC_DEFINITIONS, createRun } from '../engine/run/index.js';
 import { STATUS_ICONS } from './stackStatus.js';
-import { STATUS_INFO, blockTip, buildingTip, foodTip, heroStatRows, manaCostTip, pileTip, relicTip, roleTip, statusTip, threatTip } from './tipContent.js';
+import { blockTip, relicBenefit, buildingTip, foodTip, heroStatRows, manaCostTip, pileTip, relicTip, roleTip, statusTip, threatTip } from './tipContent.js';
 
 describe('status tips', () => {
   it('cover every status type with a name and a numeric effect', () => {
@@ -16,10 +16,11 @@ describe('status tips', () => {
     }
   });
 
-  it('puts the amount into the effect text', () => {
-    expect(statusTip('weak', 20).body).toBe('Attack -20.');
+  it('takes the effect text from the engine with the amount filled in', () => {
+    for (const type of Object.keys(STATUS_INFO) as StatusType[]) {
+      expect(statusTip(type, 7).body, type).toBe(statusEffectText(type, 7));
+    }
     expect(statusTip('poison', 4).body).toContain('4 damage');
-    expect(statusTip('fear', 90).body).toContain('75%');
     expect(statusTip('armor', 5, 1).lines?.[0]?.text).toBe('Lasts 1 more turn.');
   });
 
@@ -34,8 +35,16 @@ describe('relic tips', () => {
       const tip = relicTip(relic, 'relic');
       expect(tip.title).toBe(relic.name);
       expect(tip.tag?.tone).toBe(relic.rarity);
-      expect(tip.body).toBe(relic.description);
+      expect(`${tip.body} ${(relic.drawbacks ?? []).join(' ')}`.trim()).toBe(relic.description);
     }
+  });
+
+  it('shows drawbacks as red lines and keeps them out of the benefit text', () => {
+    const relic = RELIC_DEFINITIONS.hawks_eye!;
+    const tip = relicTip(relic, 'relic');
+    expect(tip.lines).toEqual([{ text: 'Infantry deal -10% damage.', tone: 'bad' }]);
+    expect(relicBenefit(relic)).toBe('Ranged units deal +20% damage.');
+    expect(relicTip(RELIC_DEFINITIONS.field_chaplains_charm!, 'relic').lines).toBeUndefined();
   });
 });
 
@@ -52,6 +61,8 @@ describe('role tips', () => {
 describe('cost, pile and resource tips', () => {
   it('states the Mana cost', () => {
     expect(manaCostTip(2).body).toBe('Costs 2 Mana to play.');
+    expect(manaCostTip(2, 2).body).toBe('Costs 2 Mana to play.');
+    expect(manaCostTip(1, 2).body).toBe('Costs 1 (was 2).');
   });
 
   it('counts pile cards with the right plural', () => {

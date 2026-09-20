@@ -1,4 +1,4 @@
-import { UNIT_DEFINITIONS, dodgeChancePercent, maxManaFromWisdom, statEffectiveness } from '../engine/index.js';
+import { STATUS_INFO, UNIT_DEFINITIONS, dodgeChancePercent, maxManaFromWisdom, statEffectiveness, statusEffectText } from '../engine/index.js';
 import type { HeroStats, RelicDefinition, StatusType, UnitId } from '../engine/index.js';
 import {
   GOLD_MINE_DAILY_GOLD,
@@ -37,34 +37,11 @@ export interface TipContent {
 const plural = (n: number, word: string): string => `${n} ${word}${n === 1 ? '' : 's'}`;
 const signed = (n: number): string => (n > 0 ? `+${n}` : `${n}`);
 
-interface StatusInfo {
-  name: string;
-  /** What one instance does, from the engine's rules in damage.ts / combat.ts. */
-  effect: (amount: number) => string;
-}
-
-/**
- * Player-facing names and effects of the visible statuses. The engine has no description table (reported as a gap),
- * so these mirror what damage.ts (effectiveAttack, armorReduction, fearDamageMultiplier) and combat.ts (tickStatuses, freeze gate) do.
- */
-export const STATUS_INFO: Record<StatusType, StatusInfo> = {
-  strength: { name: 'Strength', effect: (n) => `Attack +${n}.` },
-  weak: { name: 'Weak', effect: (n) => `Attack -${n}.` },
-  armor: { name: 'Armor', effect: (n) => `Defense +${n}.` },
-  bleed: { name: 'Bleed', effect: (n) => `Takes ${n} damage at the start of its turn.` },
-  poison: { name: 'Poison', effect: (n) => `Takes ${n} damage at the start of its turn.` },
-  burn: { name: 'Burn', effect: (n) => `Takes ${n} damage at the start of its turn.` },
-  fear: { name: 'Fear', effect: (n) => `Deals ${Math.min(75, n)}% less damage.` },
-  taunt: { name: 'Taunt', effect: () => 'Enemies that can reach it must attack it.' },
-  freeze: { name: 'Frozen', effect: () => 'Cannot act.' },
-};
-
 export function statusTip(type: StatusType, amount: number, duration?: number): TipContent {
-  const info = STATUS_INFO[type];
   return {
-    title: info.name,
+    title: STATUS_INFO[type].name,
     icon: STATUS_ICONS[type],
-    body: info.effect(amount),
+    body: statusEffectText(type, amount),
     lines: duration === undefined ? undefined : [{ text: `Lasts ${plural(duration, 'more turn')}.`, tone: 'dim' }],
   };
 }
@@ -79,8 +56,19 @@ const RARITY_TAG: Record<RelicDefinition['rarity'], NonNullable<TipContent['tag'
   epic: { text: 'Epic', tone: 'epic' },
 };
 
-export function relicTip(relic: RelicDefinition, icon: IconName): TipContent {
-  return { title: relic.name, icon, tag: RARITY_TAG[relic.rarity], body: relic.description };
+/** The relic's benefit text: its description without the drawback sentences, which the UI shows as a separate red line. */
+export function relicBenefit(relic: Pick<RelicDefinition, 'description' | 'drawbacks'>): string {
+  return (relic.drawbacks ?? []).reduce((text, drawback) => text.replace(drawback, ''), relic.description).replace(/\s+/g, ' ').trim();
+}
+
+export function relicTip(relic: Pick<RelicDefinition, 'name' | 'rarity' | 'description' | 'drawbacks'>, icon: IconName): TipContent {
+  return {
+    title: relic.name,
+    icon,
+    tag: RARITY_TAG[relic.rarity],
+    body: relicBenefit(relic),
+    lines: relic.drawbacks?.map((text) => ({ text, tone: 'bad' as const })),
+  };
 }
 
 /** Role badge text keyed by the role icon; the icons come from unitIcons.ts. */
@@ -100,8 +88,9 @@ export function roleTip(unitId: UnitId): TipContent {
   return { title: info.name, icon, body: info.text };
 }
 
-export function manaCostTip(cost: number): TipContent {
-  return { title: 'Mana cost', icon: 'mana', body: `Costs ${cost} Mana to play.` };
+/** `was` is the unupgraded cost when the card is cheaper than it. */
+export function manaCostTip(cost: number, was?: number): TipContent {
+  return { title: 'Mana cost', icon: 'mana', body: was !== undefined && was > cost ? `Costs ${cost} (was ${was}).` : `Costs ${cost} Mana to play.` };
 }
 
 export function pileTip(kind: 'draw' | 'discard', count: number): TipContent {

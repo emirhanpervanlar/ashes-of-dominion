@@ -5,7 +5,7 @@ import { Icon } from './pixel/Icon.js';
 import type { IconName } from './pixel/icons.js';
 import { relicIcon } from './relicIcons.js';
 import { Tip } from './Tip.js';
-import { relicTip } from './tipContent.js';
+import { heroStatRows, relicTip } from './tipContent.js';
 import { UnitArt } from './UnitArt.js';
 
 interface Props {
@@ -95,18 +95,41 @@ export function RunEndScreen({ run, onNewRun, onMainMenu }: Props) {
           </div>
         </div>
 
-        <div className="run-end-group">
-          <div className="setup-label">Final army</div>
-          <div className="run-end-army">
-            {army.length === 0 && <span className="run-end-none">Wiped out.</span>}
-            {army.map((s) => (
-              <Tip key={s.stackId} tip={UNIT_DEFINITIONS[s.unitId].name}>
-                <span className="run-end-stack">
-                  <UnitArt unitId={s.unitId} size={2} />
-                  <span className="preview-count">x{s.count}</span>
-                </span>
-              </Tip>
-            ))}
+        <div className="run-end-loadout">
+          <div className="run-end-group">
+            <div className="setup-label">Final army</div>
+            <div className="run-end-army">
+              {army.length === 0 && <span className="run-end-none">Wiped out.</span>}
+              {army.map((s) => (
+                <Tip key={s.stackId} tip={UNIT_DEFINITIONS[s.unitId].name}>
+                  <span className="run-end-stack">
+                    <UnitArt unitId={s.unitId} size={2} />
+                    <span className="preview-count">x{s.count}</span>
+                    <span className="run-end-stack-name">{UNIT_DEFINITIONS[s.unitId].name}</span>
+                  </span>
+                </Tip>
+              ))}
+            </div>
+          </div>
+
+          <div className="run-end-group">
+            <div className="setup-label">Hero</div>
+            <div className="well run-end-hero-stats">
+              {heroStatRows(run.hero.stats, run.hero.baseMana).map((row) => (
+                <Tip key={row.key} tip={{ title: row.label, icon: row.icon, body: row.effect }}>
+                  <div className="row run-end-row">
+                    <Icon name={row.icon} />
+                    <span className="run-end-row-label">{row.label}</span>
+                    <span className="run-end-row-value">{row.value}</span>
+                  </div>
+                </Tip>
+              ))}
+              <div className="row run-end-row">
+                <Icon name="mana" />
+                <span className="run-end-row-label">Max Mana</span>
+                <span className="run-end-row-value">{run.hero.maxMana}</span>
+              </div>
+            </div>
           </div>
         </div>
 

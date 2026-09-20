@@ -3,6 +3,7 @@ import { UNIT_DEFINITIONS } from '../engine/index.js';
 import type { ArmyStack, CardInstance, UnitId } from '../engine/index.js';
 import { stackUpkeep } from '../engine/run/index.js';
 import type { EventView, PendingEvent } from '../engine/run/index.js';
+import { groupCards } from './deckView.js';
 import { LargeCard } from './LargeCard.js';
 import { Modal } from './Modal.js';
 import { Icon } from './pixel/Icon.js';
@@ -59,18 +60,17 @@ export function EventScreen({ view, deck, army, newcomer, resolved, onChoose, on
       {choice?.kind === 'card' && (
         <Modal heading={CARD_ACTION_TITLES[choice.action]} onClose={onCancelChoice} width={900}>
           <div className="card-removal-grid">
-            {choice.instanceIds.map((instanceId) => {
-              const instance = deck.find((c) => c.instanceId === instanceId);
-              if (!instance) return null;
+            {groupCards(deck.filter((c) => choice.instanceIds.includes(c.instanceId))).map((group) => {
               const preview = choice.action === 'upgrade';
               return (
                 <LargeCard
-                  key={instanceId}
-                  cardId={instance.cardId}
-                  upgraded={preview || instance.upgraded}
+                  key={group.key}
+                  cardId={group.cardId}
+                  upgraded={preview || group.upgraded}
                   showBase={preview}
                   tag={preview ? 'Upgrade' : undefined}
-                  onClick={() => onChooseCard(instanceId)}
+                  count={group.count}
+                  onClick={() => onChooseCard(group.instanceId!)}
                 />
               );
             })}

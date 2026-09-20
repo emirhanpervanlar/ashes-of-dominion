@@ -6,6 +6,8 @@ import type { CardPolarity } from './cardVisuals.js';
 export interface CardEntry {
   cardId: string;
   upgraded?: boolean;
+  /** A pickable copy: the group keeps the first one so a click can act on it. */
+  instanceId?: string;
 }
 
 /** Identical cards (same id, same upgraded state) collapsed into one line with a count. */
@@ -14,6 +16,8 @@ export interface CardGroup {
   cardId: string;
   upgraded: boolean;
   count: number;
+  /** The first copy's instance id, when the entries carried one. */
+  instanceId?: string;
 }
 
 const nameOf = (cardId: string): string => CARD_DEFINITIONS[cardId]?.name ?? cardId;
@@ -27,7 +31,7 @@ export function groupCards(cards: readonly CardEntry[]): CardGroup[] {
     const key = `${card.cardId}${upgraded ? '+' : ''}`;
     const group = groups.get(key);
     if (group) group.count += 1;
-    else groups.set(key, { key, cardId: card.cardId, upgraded, count: 1 });
+    else groups.set(key, { key, cardId: card.cardId, upgraded, count: 1, instanceId: card.instanceId });
   }
   return [...groups.values()].sort(
     (a, b) => costOf(a) - costOf(b) || nameOf(a.cardId).localeCompare(nameOf(b.cardId)) || Number(a.upgraded) - Number(b.upgraded)

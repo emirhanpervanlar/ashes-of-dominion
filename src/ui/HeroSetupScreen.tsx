@@ -4,6 +4,7 @@ import type { HeroId } from '../engine/index.js';
 import { STARTING_RELIC_DEFINITIONS, previewStart, startingRelicList } from '../engine/run/index.js';
 import { HERO_ICONS } from './heroIcons.js';
 import { Icon } from './pixel/Icon.js';
+import { RelicText } from './RelicText.js';
 import { relicIcon } from './relicIcons.js';
 import { Tip } from './Tip.js';
 import { heroStatRows, relicTip } from './tipContent.js';
@@ -92,79 +93,82 @@ export function HeroSetupScreen({ onBack, onBegin }: Props) {
                   </Tip>
                   <span className="relic-choice-text">
                     <span className="relic-choice-name">{relic.name}</span>
-                    <span className="relic-choice-desc">{relic.description}</span>
+                    <span className="relic-choice-desc">
+                      <RelicText relic={relic} />
+                    </span>
                   </span>
                 </button>
               ))}
             </div>
           </div>
 
-          {preview && (
-            <div className="panel panel--stone step-8 start-preview">
-              <div className="setup-label">Your starting army</div>
-              <div className="preview-army">
-                {ROWS.map(([label, row]) => (
-                  <div key={label} className="preview-row">
-                    <span className="preview-row-label">{label}</span>
-                    {row.map((position) => {
-                      const stack = preview.army.find((s) => s.position === position);
-                      return (
-                        <div key={position} className={`preview-slot${stack ? '' : ' empty'}`}>
-                          {stack && (
-                            <>
-                              <UnitArt unitId={stack.unitId} size={2} />
-                              <span className="preview-count">x{stack.count}</span>
-                              <span className="preview-unit">{UNIT_DEFINITIONS[stack.unitId].name}</span>
-                            </>
-                          )}
-                        </div>
-                      );
-                    })}
+          <div className="hero-setup-side">
+            {preview && (
+              <div className="panel panel--stone step-8 start-preview">
+                <div className="setup-label">Your starting army</div>
+                <div className="preview-army">
+                  {ROWS.map(([label, row]) => (
+                    <div key={label} className="preview-row">
+                      <span className="preview-row-label">{label}</span>
+                      {row.map((position) => {
+                        const stack = preview.army.find((s) => s.position === position);
+                        return (
+                          <div key={position} className={`preview-slot${stack ? '' : ' empty'}`}>
+                            {stack && (
+                              <>
+                                <UnitArt unitId={stack.unitId} size={2} />
+                                <span className="preview-count">x{stack.count}</span>
+                                <span className="preview-unit">{UNIT_DEFINITIONS[stack.unitId].name}</span>
+                              </>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ))}
+                </div>
+                <div className="well preview-stats">
+                  <div className="row preview-stat">
+                    <Icon name="crest" />
+                    <span>Units</span>
+                    <b>{preview.totalUnits}</b>
                   </div>
-                ))}
+                  <div className="row preview-stat">
+                    <Icon name="mana" />
+                    <span>Max Mana</span>
+                    <b>{preview.maxMana}</b>
+                  </div>
+                  <div className="row preview-stat">
+                    <Icon name="gold" />
+                    <span>Gold</span>
+                    <b>{preview.gold}</b>
+                  </div>
+                  <div className="row preview-stat">
+                    <Icon name="food" />
+                    <span>Food</span>
+                    <b>{preview.food}</b>
+                  </div>
+                </div>
+                <div className="preview-relic">
+                  <span className="preview-relic-name">{preview.relic.name}</span>
+                  {preview.relic.effectSummary.map((line) => (
+                    <span key={line} className="preview-relic-line">
+                      {line}
+                    </span>
+                  ))}
+                </div>
               </div>
-              <div className="well preview-stats">
-                <div className="row preview-stat">
-                  <Icon name="crest" />
-                  <span>Units</span>
-                  <b>{preview.totalUnits}</b>
-                </div>
-                <div className="row preview-stat">
-                  <Icon name="mana" />
-                  <span>Max Mana</span>
-                  <b>{preview.maxMana}</b>
-                </div>
-                <div className="row preview-stat">
-                  <Icon name="gold" />
-                  <span>Gold</span>
-                  <b>{preview.gold}</b>
-                </div>
-                <div className="row preview-stat">
-                  <Icon name="food" />
-                  <span>Food</span>
-                  <b>{preview.food}</b>
-                </div>
-              </div>
-              <div className="preview-relic">
-                <span className="preview-relic-name">{preview.relic.name}</span>
-                {preview.relic.effectSummary.map((line) => (
-                  <span key={line} className="preview-relic-line">
-                    {line}
-                  </span>
-                ))}
-              </div>
+            )}
+            <div className="hero-setup-foot">
+              {!nameReady && <span className="setup-hint">Enter a commander name to start.</span>}
+              <button className="btn" onClick={onBack}>
+                Back
+              </button>
+              <button className="btn btn--l btn--primary" disabled={!nameReady} onClick={() => nameReady && onBegin(heroId, name.trim(), relicId)}>
+                Start
+              </button>
             </div>
-          )}
-        </div>
-
-        <div className="hero-setup-foot">
-          {!nameReady && <span className="setup-hint">Enter a commander name to start.</span>}
-          <button className="btn" onClick={onBack}>
-            Back
-          </button>
-          <button className="btn btn--l btn--primary" disabled={!nameReady} onClick={() => nameReady && onBegin(heroId, name.trim(), relicId)}>
-            Start
-          </button>
+          </div>
         </div>
       </div>
     </div>

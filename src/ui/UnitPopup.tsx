@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { UNIT_DEFINITIONS } from '../engine/index.js';
+import { STATUS_INFO, UNIT_DEFINITIONS } from '../engine/index.js';
 import type { ArmyStack } from '../engine/index.js';
 import { stackUpkeep } from '../engine/run/index.js';
 import { Icon } from './pixel/Icon.js';
@@ -8,7 +8,7 @@ import { UNIT_DESCRIPTIONS } from './unitText.js';
 import { STATUS_ICONS } from './stackStatus.js';
 import { Modal } from './Modal.js';
 import { Tip } from './Tip.js';
-import { STATUS_INFO, blockTip, roleTip, statusTip } from './tipContent.js';
+import { blockTip, roleTip, statusTip } from './tipContent.js';
 import { UNIT_ROLE_ICONS } from './unitIcons.js';
 
 interface Props {
