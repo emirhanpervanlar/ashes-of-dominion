@@ -28,3 +28,6 @@ src/engine/** (report engine gaps), game rules, big redesigns.
 
 ## Acceptance criteria
 1. tsc clean; vitest fully green. 2. Browser (puppeteer-core, port other than 5173; inject `aod_run_state_v1` BEFORE load with evaluateOnNewDocument; never touch 5173; stop the server after): new run -> hero select (name required, stats readable) -> starting relic -> Road screen with choices; walk several steps; battle; reward; event with a card picker and one with the unit-overflow popup; city via the always-on button with the Threat warning; Farm upgrade; a starving state (inject food 0) showing forecast, STARVED toast; boss warning window (inject day 24); boss reward relic choice. Screenshots of each looked at. 3. No console errors. 4. Report anything still missing.
+
+## Status
+- 2026-09-20 ACCEPTED (tsc clean, 392 tests, screenshots reviewed). Open: bar resource pills clip at some widths ("DAY 1", "BOSS IN 29 DAYS" on day 1); battle-to-victory not exercised in browser by the agent.
