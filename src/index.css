@@ -565,26 +565,166 @@ p { margin: 0; }
   background: rgba(8, 7, 6, 0.78);
 }
 
-.popup {
+/* Modal shell (Modal.tsx): the layer is the backdrop, the window keeps the plaque outside the clipped frame. */
+.modal-layer {
   position: fixed;
-  top: 50%;
+  inset: 0;
+  z-index: 950;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 56px var(--s-4) var(--s-4);
+  background: rgba(8, 7, 6, 0.78);
+}
+
+.modal-layer--stacked { background: rgba(4, 3, 3, 0.88); }
+
+.modal-win {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  max-width: 100%;
+  max-height: 100%;
+  outline: none;
+  filter: drop-shadow(var(--shadow-2));
+}
+
+.modal-plaque {
+  position: absolute;
   left: 50%;
-  z-index: 951;
-  transform: translate(-50%, -50%);
-  max-height: 80vh;
-  overflow-y: auto;
-  padding: var(--s-5);
+  top: -24px;
+  z-index: 2;
+  transform: translateX(-50%);
+}
+
+.modal-frame {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 40px var(--s-5) var(--s-5);
   box-shadow: inset 4px 4px 0 var(--bev-light), inset -4px -4px 0 var(--bev-dark), inset 0 0 0 6px var(--gold-700);
+}
+
+.modal-frame--trim {
+  box-shadow: inset 4px 4px 0 var(--bev-light), inset -4px -4px 0 var(--bev-dark), inset 0 0 0 2px var(--gold-900), inset 0 0 0 4px var(--gold-500), inset 0 0 0 6px var(--gold-900);
+}
+
+.modal-frame--titled { padding-top: 48px; }
+
+.modal-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.modal-foot {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--s-4);
+  margin-top: var(--s-4);
 }
 
 .modal-close {
   position: absolute;
   top: var(--s-3);
   right: var(--s-3);
+  z-index: 3;
   width: 32px;
   height: 32px;
   padding: 0;
 }
+
+/* Tooltip (Tip.tsx): one node, above every modal, never interactive. */
+.tip {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 2000;
+  max-width: 280px;
+  padding: var(--s-2) var(--s-3);
+  pointer-events: none;
+  color: var(--text);
+  font: var(--t-body);
+  background: var(--stone-900);
+  box-shadow: inset 0 0 0 2px var(--gold-700);
+}
+
+.tip-head {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.tip-title {
+  font: 400 16px/24px var(--font-display);
+  color: var(--gold-200);
+}
+
+.tip-tag {
+  margin-left: auto;
+  font: var(--t-label);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.tip-tag--common { color: var(--rar-common); }
+.tip-tag--rare { color: var(--steel-300); }
+.tip-tag--epic { color: var(--arcane-300); }
+
+.tip-body { color: var(--text-strong); }
+
+.tip-head + .tip-body,
+.tip-head + .tip-line,
+.tip-body + .tip-line { margin-top: var(--s-1); }
+
+.tip-line {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-2);
+  font: var(--t-small);
+  line-height: 20px;
+}
+
+.tip-line--good { color: var(--moss-300); }
+.tip-line--bad { color: var(--blood-300); }
+.tip-line--dim { color: var(--text-dim); }
+
+/* Elements that only became keyboard-focusable for their tooltip: the ring sits inside, clip-path would cut an outer one. */
+.tip-focus:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: -2px;
+}
+
+/* Tabs: iron plates fused to the panel below (deck and pile viewers). */
+.tabs {
+  display: flex;
+  gap: var(--s-1);
+  margin-bottom: var(--s-2);
+}
+
+.tab {
+  height: 40px;
+  padding: 0 var(--s-4);
+  border: 0;
+  cursor: pointer;
+  color: var(--stone-300);
+  font: var(--t-btn);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  background: var(--stone-700);
+  clip-path: polygon(0 4px, 4px 4px, 4px 0, calc(100% - 4px) 0, calc(100% - 4px) 4px, 100% 4px, 100% 100%, 0 100%);
+}
+
+.tab:hover { color: var(--stone-100); }
+
+.tab.active {
+  color: var(--gold-200);
+  background: var(--stone-800);
+  box-shadow: inset 0 2px 0 var(--gold-500);
+}
+
+.tab:focus-visible { outline: 2px solid var(--focus); outline-offset: -4px; }
 
 /* Sunken divider line used between sections of a panel */
 .divider {
@@ -1625,7 +1765,6 @@ p { margin: 0; }
   box-shadow: inset 2px 2px 0 var(--parch-400), inset -2px -2px 0 var(--parch-100);
 }
 
-.action-card-footer,
 .reward-card-tag {
   font: var(--t-label);
   text-transform: uppercase;
@@ -2304,16 +2443,12 @@ button.pill {
   color: var(--stone-200);
 }
 
-.city-building-popup { width: min(560px, 92vw); }
-
 .city-building-popup h3 {
   display: flex;
   align-items: center;
   gap: var(--s-2);
   margin-bottom: var(--s-2);
 }
-
-.city-building-popup .subtitle { margin-bottom: var(--s-3); }
 
 .mage-tower-tier {
   margin-bottom: var(--s-2);
@@ -2371,10 +2506,9 @@ button.pill {
   text-align: center;
 }
 
-/* ---------- 4f. popups: unit info, card removal, pause and settings ---------- */
+/* ---------- 4f. popups: unit info, card removal, pause and settings (shell in section 3) ---------- */
 
 .unit-popup-card {
-  width: 240px;
   min-height: 340px;
   display: flex;
   flex-direction: column;
@@ -2387,11 +2521,16 @@ button.pill {
   margin-top: var(--s-2);
 }
 
-.unit-popup-name {
+.unit-popup-role {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-1);
   margin-top: var(--s-2);
-  font: var(--t-h3);
-  color: var(--gold-200);
-  text-shadow: 0 2px 0 var(--stone-950);
+  font: var(--t-label);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-dim);
 }
 
 .unit-popup-desc {
@@ -2473,6 +2612,251 @@ button.pill {
   text-align: center;
 }
 
+/* Card info popup, deck and pile viewers, hero popup */
+.upgraded { color: var(--gold-200); }
+
+.reward-card-req {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-1);
+  width: 100%;
+  padding-top: var(--s-1);
+  font: var(--t-small);
+  text-align: left;
+  color: var(--blood-300);
+}
+
+.action-card-warn {
+  position: absolute;
+  top: var(--s-1);
+  right: var(--s-1);
+  z-index: 3;
+  display: flex;
+}
+
+.action-card-count {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  z-index: 3;
+  min-width: 32px;
+  height: 24px;
+  padding: 0 var(--s-2);
+  text-align: center;
+  font: var(--t-num);
+  line-height: 24px;
+  color: var(--gold-200);
+  background: var(--stone-950);
+  box-shadow: inset 0 0 0 2px var(--gold-700);
+}
+
+.card-info {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-5);
+}
+
+.card-info .reward-card {
+  width: 240px;
+  min-height: 336px;
+  cursor: default;
+}
+
+.card-info .reward-card:hover { transform: none; }
+.card-info .reward-card:hover::before { --bev-light: var(--iron-500); }
+
+.card-info-side {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.card-info-type {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font: var(--t-h3);
+  color: var(--stone-100);
+}
+
+.card-info-dot {
+  width: 4px;
+  height: 4px;
+  background: var(--stone-500);
+}
+
+.card-info-source {
+  font: var(--t-small);
+  color: var(--text-dim);
+}
+
+.card-info-text {
+  margin: 0;
+  font: var(--t-body);
+  color: var(--text-strong);
+}
+
+.card-info-keywords {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font: var(--t-small);
+  color: var(--text-dim);
+}
+
+.card-info-keywords b { color: var(--text-strong); }
+.card-info-upgraded { color: var(--gold-200); }
+
+.card-info-cond {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-3);
+}
+
+.card-info-cond-line {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-2);
+  font: var(--t-body);
+  color: var(--text);
+}
+
+.card-info-cond-line.good { color: var(--moss-300); }
+.card-info-cond-line.bad { color: var(--blood-300); }
+
+.deck-note {
+  margin-bottom: var(--s-2);
+  font: var(--t-small);
+  color: var(--text-dim);
+}
+
+.deck-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--s-5) var(--s-4);
+  min-height: 240px;
+  padding: var(--s-5) var(--s-4) var(--s-4);
+}
+
+.deck-grid .action-card { cursor: default; }
+.deck-empty { align-self: center; color: var(--text-dim); }
+
+.hero-popup {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-5);
+}
+
+.hero-popup-side {
+  flex: none;
+  width: 112px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-2);
+}
+
+.hero-popup-portrait {
+  --bev-light: var(--wood-500);
+  --bev-dark: var(--wood-900);
+  width: 96px;
+  height: 96px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--win-player);
+  box-shadow: inset 2px 2px 0 var(--bev-dark), inset -2px -2px 0 var(--bev-light);
+}
+
+.hero-popup-class {
+  font: var(--t-label);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-dim);
+}
+
+.hero-popup-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.hero-popup-stat {
+  display: grid;
+  grid-template-columns: 16px 104px 32px 1fr;
+  gap: var(--s-2);
+}
+
+.hero-popup-stat-name { font-weight: 700; color: var(--text-strong); }
+.hero-popup-stat-value { font: var(--t-num); color: var(--gold-200); text-align: right; }
+.hero-popup-stat-effect { font: var(--t-small); color: var(--text-dim); }
+
+.hero-popup-label {
+  margin-top: var(--s-4);
+  font: var(--t-label);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-dim);
+}
+
+.hero-popup-relics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  margin-top: var(--s-2);
+}
+
+.hero-popup-relic {
+  width: 48px;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--stone-900);
+  box-shadow: inset 0 0 0 2px var(--trim, var(--iron-500));
+}
+
+.hero-popup-none,
+.hero-popup-coming {
+  font: var(--t-small);
+  color: var(--text-dim);
+}
+
+.hero-popup-coming {
+  margin-top: var(--s-2);
+  padding: var(--s-2) var(--s-3);
+  border: 2px dashed var(--stone-600);
+}
+
+/* Portrait plates and piles that open a popup */
+button.hero-portrait,
+button.garrison-hero-portrait-rect,
+button.frame-pile {
+  border: 0;
+  cursor: pointer;
+}
+
+button.hero-portrait,
+button.garrison-hero-portrait-rect { padding: 0; }
+
+button.hero-portrait:hover,
+button.garrison-hero-portrait-rect:hover { --bev-light: var(--gold-400); }
+
+button.frame-pile {
+  padding: 0 0 var(--s-1);
+  font: inherit;
+  color: inherit;
+  background: none;
+}
+
+button.frame-pile:hover .pile-card-back::before { --bev-light: var(--gold-400); }
+
 .card-removal {
   display: flex;
   flex-direction: column;
@@ -2486,8 +2870,6 @@ button.pill {
   color: var(--text-dim);
   text-align: center;
 }
-
-.card-removal-popup { width: min(900px, 94vw); }
 
 .card-removal-grid {
   display: flex;
@@ -2504,18 +2886,12 @@ button.pill {
   z-index: 900;
 }
 
-.pause-backdrop { z-index: 1100; }
-
 .pause-menu-card {
-  z-index: 1101;
-  width: 288px;
   display: flex;
   flex-direction: column;
   gap: var(--s-3);
   text-align: center;
 }
-
-.pause-menu-title { margin-bottom: var(--s-2); }
 
 .pause-menu-option { width: 100%; }
 
@@ -2990,18 +3366,6 @@ button.pill {
   box-shadow: inset 0 0 0 2px var(--node);
 }
 
-.food-popup,
-.event-unit-popup { width: min(480px, 92vw); }
-
-.city-confirm-popup { width: min(600px, 94vw); }
-
-.unit-gain-popup { width: min(720px, 94vw); }
-
-.city-confirm-popup h3,
-.food-popup h3,
-.event-unit-popup h3,
-.unit-gain-popup h3 { margin-bottom: var(--s-3); }
-
 .city-confirm-warning {
   display: flex;
   align-items: center;
@@ -3125,4 +3489,4 @@ button.pill {
 .reward-relic-note { font: var(--t-small); color: var(--text-dim); }
 .reward-relic-row { display: flex; gap: var(--s-5); justify-content: center; flex-wrap: wrap; }
 
-.unit-gain-popup .subtitle { margin-bottom: var(--s-3); }
+.modal-scroll .subtitle { margin-bottom: var(--s-3); }
