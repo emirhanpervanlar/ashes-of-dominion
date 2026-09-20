@@ -26,9 +26,11 @@ export function veterancyDamageMultiplier(veterancy: 0 | 1 | 2 | 3): number {
   return 1 + VETERANCY_DAMAGE_BONUS[veterancy];
 }
 
+export const FEAR_MAX_PERCENT = 75;
+
 /** Fear — PROTOTYPE: reduces the afflicted attacker's own damage output while active. */
 export function fearDamageMultiplier(attacker: ArmyStack): number {
-  return 1 - Math.min(75, statusAmount(attacker, 'fear')) / 100;
+  return 1 - Math.min(FEAR_MAX_PERCENT, statusAmount(attacker, 'fear')) / 100;
 }
 
 /** Armor status — flat per-attack damage reduction, applied like extra Defense. */
