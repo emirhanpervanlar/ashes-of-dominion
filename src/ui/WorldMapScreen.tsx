@@ -62,7 +62,7 @@ export function WorldMapScreen({ run, onMoveTo, onEnterCity, onOpenMenu, onSplit
 
   return (
     <div className="screen garrison-frame" data-screen="map">
-      <div className="garrison-scene">
+      <div className={`garrison-scene${warning ? ' garrison-scene--boss' : ''}`}>
         {bannerOpen && (
           <div className="boss-banner" onClick={() => setBannerOpen(false)}>
             <Icon name="node_boss" size={2} />

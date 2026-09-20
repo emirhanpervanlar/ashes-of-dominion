@@ -634,6 +634,60 @@ p { margin: 0; }
   overflow-y: auto;
 }
 
+/* ScrollArea: wrapper + scrolling element + edge cues for content that is out of view. */
+.scroll-wrap {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.scroll-area {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.scroll-cue {
+  position: absolute;
+  left: 0;
+  right: 16px;
+  height: 28px;
+  pointer-events: none;
+  display: flex;
+  justify-content: center;
+}
+
+.scroll-cue--down { bottom: 0; align-items: flex-end; background: linear-gradient(0deg, rgba(14, 13, 12, 0.92) 0 6px, rgba(14, 13, 12, 0.55) 6px 14px, transparent 14px); }
+.scroll-cue--up { top: 0; align-items: flex-start; background: linear-gradient(180deg, rgba(14, 13, 12, 0.92) 0 6px, rgba(14, 13, 12, 0.55) 6px 14px, transparent 14px); }
+
+/* a pixel chevron: two 4px bars stepped into a V */
+.scroll-cue::after {
+  content: '';
+  width: 12px;
+  height: 12px;
+  margin: 4px 0;
+  border: solid var(--gold-400);
+  border-width: 0 4px 4px 0;
+  transform: translateY(-4px) rotate(45deg);
+  animation: scroll-cue-bob 1s var(--ease-step2) infinite;
+}
+
+.scroll-cue--up::after { transform: translateY(4px) rotate(225deg); animation-name: scroll-cue-bob-up; }
+
+@keyframes scroll-cue-bob {
+  50% { transform: translateY(0) rotate(45deg); }
+}
+
+@keyframes scroll-cue-bob-up {
+  50% { transform: translateY(0) rotate(225deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scroll-cue::after { animation: none; }
+}
+
 .modal-foot {
   display: flex;
   justify-content: flex-end;
@@ -1918,10 +1972,11 @@ p { margin: 0; }
   color: var(--text-dim);
 }
 
+/* Starts under the floating Menu button (top-right, 8px + 48px) so the two never overlap. */
 .toast-stack {
   position: fixed;
-  top: var(--s-4);
-  right: var(--s-4);
+  top: 64px;
+  right: var(--s-2);
   z-index: 1000;
   display: flex;
   flex-direction: column;
@@ -1978,6 +2033,9 @@ p { margin: 0; }
   text-shadow: none;
 }
 
+/* The boss banner floats over the top edge; the scene reserves its height so nothing hides behind it or moves when it goes. */
+.garrison-scene--boss { padding-top: 64px; }
+
 /* Node type accent: the 4px band on cards and the marker on the current location. */
 .node-start { --node: var(--iron-500); }
 .node-battle { --node: var(--blood-500); }
@@ -1987,11 +2045,15 @@ p { margin: 0; }
 .node-event { --node: var(--steel-500); }
 .node-boss { --node: var(--blood-700); }
 
+/* "Chapter N - Step x / y": a wood chip with gold Silkscreen 16, readable on the parchment at every size (DL 5). */
 .path-progress {
-  font: var(--t-label);
+  padding: var(--s-1) var(--s-3);
+  font: var(--t-num);
   text-transform: uppercase;
   letter-spacing: 1px;
-  color: var(--text-dim);
+  color: var(--gold-200);
+  background: var(--wood-800);
+  box-shadow: inset 2px 2px 0 var(--wood-600), inset -2px -2px 0 var(--wood-900);
 }
 
 .current-location-badge {
@@ -2499,6 +2561,9 @@ button.pill {
   background: radial-gradient(ellipse at 50% 100%, var(--tint-glow) 0, transparent 70%), linear-gradient(180deg, var(--tint-void), var(--tint-a) 45%, var(--tint-b));
 }
 
+.city-scene { container-type: size; }
+.city-scroll { height: 100%; flex: none; }
+
 .city-content {
   position: relative;
   height: 100%;
@@ -2678,6 +2743,18 @@ button.pill {
 
 .city-plot-badge--built { background: var(--moss-700); box-shadow: inset 0 0 0 2px var(--moss-500); }
 .city-plot-badge--locked { background: var(--blood-700); box-shadow: inset 0 0 0 2px var(--blood-500); }
+
+/* Short viewports (1280x720: about 520px of town): a slimmer sky, tighter gaps and signs so all 12 plots show without scrolling. */
+@container (max-height: 640px) {
+  .city-content { padding: var(--s-2) var(--s-5); }
+  .city-town { gap: var(--s-2); }
+  .city-header { height: 56px; }
+  .city-threat { padding: var(--s-1) var(--s-3); }
+  .city-plots { grid-template-rows: repeat(3, minmax(0, 1fr)); gap: var(--s-2) var(--s-4); }
+  .city-plot-art { min-height: 0; padding-bottom: var(--s-2); }
+  .city-plot-sign { padding: var(--s-1) var(--s-2); }
+  .city-plot-name { font: 400 20px/24px var(--font-display); }
+}
 
 /* active effects */
 .city-effects {
@@ -3899,6 +3976,10 @@ button.frame-pile:hover .pile-card-back::before { --bev-light: var(--gold-400); 
   gap: var(--s-6);
 }
 
+@media (max-height: 800px) {
+  .reward-overlay { gap: var(--s-4); }
+}
+
 .reward-card-row {
   display: flex;
   gap: var(--s-6);
@@ -4013,17 +4094,17 @@ button.frame-pile:hover .pile-card-back::before { --bev-light: var(--gold-400); 
 
 .run-end {
   display: flex;
-  justify-content: safe center;
-  align-items: safe center;
-  padding: var(--s-5);
+  flex-direction: column;
+  overflow: hidden;
 }
 
-.run-end-body {
-  width: min(1040px, 100%);
+.run-end-head {
+  flex: none;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--s-3);
+  gap: var(--s-2);
+  padding: var(--s-5) var(--s-5) var(--s-3);
 }
 
 .run-end-cause {
@@ -4035,14 +4116,57 @@ button.frame-pile:hover .pile-card-back::before { --bev-light: var(--gold-400); 
   color: var(--text-dim);
 }
 
-.run-end-groups {
-  width: 100%;
+.run-end-scroll { min-height: 0; }
+.run-end-content { padding: var(--s-2) var(--s-5); }
+
+/* One column of vertical lists, centred; a wide screen shows breathing room, not a second column. */
+.run-end-body {
+  width: min(720px, 100%);
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-4);
+}
+
+.run-end-highlights {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--s-3);
-  align-items: start;
-  margin-top: var(--s-2);
 }
+
+.run-end-highlight {
+  --bev-light: var(--gold-500);
+  --bev-dark: var(--gold-900);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-1);
+  padding: var(--s-3) var(--s-2);
+  background: var(--bg-well);
+  box-shadow: inset 4px 4px 0 var(--bev-light), inset -4px -4px 0 var(--bev-dark);
+}
+
+.run-end-highlight-value { font: 400 40px/44px var(--font-display); color: var(--gold-200); text-shadow: 0 2px 0 var(--stone-950); }
+.run-end-highlight-label { font: var(--t-label); text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim); }
+
+.run-end-ratios { display: flex; flex-direction: column; gap: var(--s-3); }
+.ratio { display: flex; flex-direction: column; gap: var(--s-1); }
+.ratio-title { font: var(--t-label); text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim); }
+
+.ratio-bar {
+  display: flex;
+  height: 16px;
+  background: var(--stone-900);
+  box-shadow: inset 2px 2px 0 var(--stone-950), inset -2px -2px 0 var(--stone-600);
+}
+
+.ratio-bar i { display: block; height: 100%; }
+.ratio-a { background: var(--gold-500); box-shadow: inset 0 2px 0 var(--gold-200), inset 0 -2px 0 var(--gold-700); }
+.ratio-b { flex: 1; background: var(--blood-500); box-shadow: inset 0 2px 0 var(--blood-300), inset 0 -2px 0 var(--blood-700); }
+
+.ratio-values { display: flex; justify-content: space-between; font: var(--t-small); }
+.ratio-value--a { color: var(--gold-200); }
+.ratio-value--b { color: var(--blood-300); }
 
 .run-end-group {
   display: flex;
@@ -4053,16 +4177,6 @@ button.frame-pile:hover .pile-card-back::before { --bev-light: var(--gold-400); 
 
 .run-end-row-label { flex: 1; }
 .run-end-row-value { font: var(--t-num); color: var(--gold-200); }
-
-.run-end-loadout {
-  width: 100%;
-  display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
-  gap: var(--s-3);
-  align-items: start;
-}
-
-.run-end-hero-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: var(--s-3); }
 
 .run-end-stack-name {
   position: absolute;
@@ -4075,8 +4189,7 @@ button.frame-pile:hover .pile-card-back::before { --bev-light: var(--gold-400); 
   background: rgba(8, 7, 6, 0.7);
 }
 
-.run-end-relics,
-.run-end-army {
+.run-end-strip {
   display: flex;
   flex-wrap: wrap;
   gap: var(--s-2);
@@ -4093,6 +4206,17 @@ button.frame-pile:hover .pile-card-back::before { --bev-light: var(--gold-400); 
   justify-content: center;
   background: var(--stone-900);
   box-shadow: inset 0 0 0 2px var(--iron-500);
+}
+
+/* Buttons never scroll away: a footer bar under the scrolling statistics. */
+.run-end-foot {
+  flex: none;
+  display: flex;
+  justify-content: center;
+  gap: var(--s-4);
+  padding: var(--s-3) var(--s-5);
+  border-top: 4px solid var(--iron-600);
+  background: var(--bg-wood-dark);
 }
 
 .run-end-none { color: var(--text-dim); }
@@ -4172,6 +4296,21 @@ button.frame-pile:hover .pile-card-back::before { --bev-light: var(--gold-400); 
   display: flex;
   background: var(--stone-900);
   box-shadow: inset 0 0 0 2px var(--node);
+}
+
+/* Short viewports (1280x720 leaves 520px above the bar): the path cards take what the alert strip and banner leave, never the bar's space. */
+.garrison-scene { container-type: size; }
+
+@container (max-height: 640px) {
+  .garrison-scene { padding-top: var(--s-4); padding-bottom: var(--s-3); }
+  .garrison-scene--boss { padding-top: 64px; }
+  .current-location-badge { margin-top: var(--s-1); padding-top: var(--s-1); padding-bottom: var(--s-1); }
+  .food-alert { margin-top: var(--s-2); }
+  .path-choice-heading { margin: var(--s-3) 0; font-size: 20px; line-height: 24px; }
+  .scout-strip { margin-top: var(--s-3); }
+  .path-choice-row { flex: 1; min-height: 0; align-items: center; flex-wrap: nowrap; }
+  .path-choice-card { height: min(300px, 100%); gap: var(--s-3); padding: var(--s-3); }
+  .path-choice-badge { width: 96px; height: 96px; }
 }
 
 .city-confirm-warning {
@@ -4293,6 +4432,24 @@ button.frame-pile:hover .pile-card-back::before { --bev-light: var(--gold-400); 
 
 .relic-offer::after { box-shadow: inset 0 0 0 4px var(--trim); }
 .relic-offer-rarity { color: var(--rarity-text); }
+
+/* Slim reward tile: 64px icon window on the left, rarity / name / effect stacked on the right. */
+.relic-offer--compact {
+  width: 340px;
+  min-height: 0;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-3);
+  text-align: left;
+}
+
+.relic-offer--compact .reward-card-icon { width: 64px; flex: none; }
+.relic-offer-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.relic-offer--compact .relic-offer-rarity { font: var(--t-label); text-transform: uppercase; letter-spacing: 1px; }
+.relic-offer-name { font: 400 16px/24px var(--font-display); color: var(--stone-100); text-shadow: 0 2px 0 var(--stone-950); }
+.relic-offer--compact .relic-text { font: var(--t-small); color: var(--stone-200); }
+.relic-offer--compact .relic-drawback { color: var(--blood-300); }
 
 .reward-loot { display: flex; gap: var(--s-3); }
 

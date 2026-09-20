@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import type { ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { Icon } from './pixel/Icon.js';
+import { ScrollArea } from './ScrollArea.js';
 
 interface ModalProps {
   /** Plaque header that overlaps the top edge (Display face). Omit for a header-less popup. */
@@ -85,7 +86,7 @@ export function Modal({ heading, onClose, material = 'stone', trim, width, foote
               <Icon name="ui_close" />
             </button>
           )}
-          <div className="modal-scroll">{children}</div>
+          <ScrollArea className="modal-scroll">{children}</ScrollArea>
           {footer && <div className="modal-foot">{footer}</div>}
         </div>
       </div>

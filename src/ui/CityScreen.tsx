@@ -6,6 +6,7 @@ import { BUILDING_ICONS } from './mapIcons.js';
 import { Icon } from './pixel/Icon.js';
 import type { IconName } from './pixel/icons.js';
 import { GarrisonBar } from './GarrisonBar.js';
+import { ScrollArea } from './ScrollArea.js';
 import { Tip } from './Tip.js';
 import { TitleSkyline } from './TitleSkyline.js';
 import { buildingTip } from './tipContent.js';
@@ -114,7 +115,7 @@ export function CityScreen({ run, onRecruit, onBuild, onUpgradeCity, onUpgradeMa
   return (
     <div className="screen city-frame" data-screen="city">
       <div className="city-scene">
-        <div className="city-content">
+        <ScrollArea wrapClassName="city-scroll" className="city-content">
           <div className="city-town">
             <header className="city-header">
               <TitleSkyline fit="contain" />
@@ -171,7 +172,7 @@ export function CityScreen({ run, onRecruit, onBuild, onUpgradeCity, onUpgradeMa
             </div>
           </div>
           <EffectsPanel run={run} />
-        </div>
+        </ScrollArea>
       </div>
 
       {panel === 'townhall' && <TownHallPanel run={run} onUpgradeCity={onUpgradeCity} onRemoveCard={onRemoveCard} onClose={() => setPanel(null)} />}
