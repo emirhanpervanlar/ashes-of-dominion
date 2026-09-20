@@ -20,3 +20,6 @@ UI, balance numbers other than the Weak conversion, card texts.
 
 ## Acceptance criteria
 tsc errors only in known UI files; vitest green; report lists the exact new exports and the Weak numbers.
+
+## Status
+- 2026-09-20 ACCEPTED on branch ai/engine-next (487 tests). Weak now -% damage (10 Knights: 40 -> 32); STATUS_INFO, relic drawbacks, RunApplyResult.enemySteps, Royal Banner no longer full-heals.

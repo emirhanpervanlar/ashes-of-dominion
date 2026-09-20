@@ -24,3 +24,6 @@ src/engine/** (report gaps).
 
 ## Acceptance criteria
 tsc clean, vitest green (add tests for pure helpers you create, e.g. card view/cost resolution). Browser (puppeteer-core, dev server on port 5204, never 5173/4173, inject `aod_run_state_v1` BEFORE load): title -> New Run -> one-screen hero/relic (name empty disables Start; preview changes with the relic, Traveler's Purse shows more Gold, Royal Banner more army) -> Start -> Road; defeat and victory screens with real `runSummary` data (build the states with the real engine in the page); New Run from the end screen lands on the title with no saved run; an upgraded card in hand (played at its reduced cost), in the reward Upgrade slot and in the event picker. Screenshots looked at; no console errors.
+
+## Status
+- 2026-09-20 ACCEPTED (524 tests, merged together with engine-next). Ideas: group duplicates in the event upgrade picker; green cost gem for discounted cards; Start button position; end screen could show army morale and hero stats; UI still recomputes enemySteps (engine now provides them).
