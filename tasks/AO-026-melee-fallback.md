@@ -21,3 +21,6 @@ UI, run layer, card/unit numbers.
 
 ## Acceptance criteria
 tsc (only the known UI-side errors) and vitest (only the known Farm-icon failure) as before; new scenario tests fail on the old code; report the final rule in two sentences and the list of changed tests.
+
+## Status
+- 2026-09-20 ACCEPTED (engine; 387/388 tests, the known Farm-icon failure).
