@@ -30,12 +30,11 @@ function requirementParts(card: CardDefinition): string[] {
       if (names.length > 0 && !parts.includes(part)) parts.push(part);
     }
   }
-  if (card.targeting === 'ally-stack+enemy-stack') parts.push('an enemy in reach');
   if (card.targeting === 'ally-stack+position') parts.push('a free position');
   return parts;
 }
 
-/** Short player-facing condition text ("Needs a living Knight and an enemy in reach"), or null when the card is unconditional. */
+/** Short player-facing condition text ("Needs a living Knight"), or null when the card is unconditional. */
 export function cardRequirement(cardId: string): string | null {
   const card = CARD_DEFINITIONS[cardId];
   if (!card) return null;
