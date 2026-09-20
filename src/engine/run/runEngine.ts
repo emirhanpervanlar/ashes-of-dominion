@@ -9,7 +9,7 @@ import { buildHeroStartingArmy, createHero } from '../scenario.js';
 import { createRng, nextInt, shuffle } from '../rng.js';
 import type { ArmyStack, CardInstance, CombatState, Hero, HeroId, PlayerAction, Position, RelicDefinition, RelicEffect, UnitId } from '../types.js';
 import { cardRemovalQuote, createCardRemovalState, type CardRemovalState } from './cardRemoval.js';
-import { CARD_UPGRADES } from './cardUpgrades.js';
+import { isUpgradable } from '../cardUpgrades.js';
 import {
   BUILDING_DEFINITIONS,
   DOCTRINE_DEFINITIONS,
@@ -480,13 +480,12 @@ function claimUpgrade(run: RunState, instanceId: string, events: RunEvent[]): Ru
   }
   const idx = run.masterDeck.findIndex((c) => c.instanceId === instanceId);
   const card = run.masterDeck[idx];
-  const upgradedId = card && CARD_UPGRADES[card.cardId];
-  if (!card || !upgradedId) {
+  if (!card || !isUpgradable(card)) {
     reject(events, 'That card can no longer be upgraded.');
     return { run, events };
   }
-  events.push({ type: 'CARD_UPGRADED', instanceId, fromCardId: card.cardId, toCardId: upgradedId });
-  run.masterDeck[idx] = { ...card, cardId: upgradedId };
+  events.push({ type: 'CARD_UPGRADED', instanceId, cardId: card.cardId });
+  run.masterDeck[idx] = { ...card, upgraded: true };
   finishReward(run, events);
   return { run, events };
 }
@@ -628,7 +627,7 @@ function applyEventEffect(run: RunState, effect: EventEffect, pick: EventPick, t
       const idx = run.masterDeck.findIndex((c) => c.instanceId === pick.instanceId);
       const card = run.masterDeck[idx]!;
       run.masterDeck[idx] = { ...card, upgraded: true };
-      events.push({ type: 'CARD_UPGRADED', instanceId: card.instanceId, fromCardId: card.cardId, toCardId: card.cardId });
+      events.push({ type: 'CARD_UPGRADED', instanceId: card.instanceId, cardId: card.cardId });
       break;
     }
     case 'REMOVE_CARD':

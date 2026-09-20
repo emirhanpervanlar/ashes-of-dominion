@@ -174,9 +174,11 @@ describe('option requirements', () => {
     expect(choose(floor, 'burn_page').events.some((e) => e.type === 'ACTION_REJECTED')).toBe(true);
   });
 
-  it('with no card that can be upgraded, the upgrade options are unavailable', () => {
-    // No card in the current roster carries an upgrade definition yet, so Study is always greyed out.
-    expect(eventView(atEvent('forgotten_library'))!.options.find((o) => o.id === 'study')).toMatchObject({ available: false, reason: 'No card in your deck can be upgraded.' });
+  it('the upgrade options need a card that is not upgraded yet', () => {
+    const run = atEvent('forgotten_library');
+    expect(eventView(run)!.options.find((o) => o.id === 'study')).toMatchObject({ available: true });
+    const allUpgraded = { ...run, masterDeck: run.masterDeck.map((c) => ({ ...c, upgraded: true })) };
+    expect(eventView(allUpgraded)!.options.find((o) => o.id === 'study')).toMatchObject({ available: false, reason: 'No card in your deck can be upgraded.' });
   });
 
   it('a revival option needs casualties', () => {
