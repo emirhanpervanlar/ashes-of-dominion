@@ -2238,10 +2238,17 @@ button.pill {
   pointer-events: none;
 }
 
-.army-grid:not(.holding) .army-slot.filled:hover,
-.army-grid.holding .army-slot:hover {
+.army-grid:not(.holding):not(.disabled) .army-slot.filled:hover,
+.army-grid.holding .army-slot:hover,
+.army-grid.dragging .army-slot.over {
   --bev-light: var(--gold-400);
 }
+
+/* Filled slots are drag sources: keep touch from scrolling the page instead of dragging. */
+.army-slot.filled { touch-action: none; }
+.army-grid.dragging,
+.army-grid.dragging .army-slot { cursor: grabbing; }
+.army-grid.disabled .army-slot { cursor: default; }
 
 .army-slot-icon {
   position: relative;
@@ -2296,6 +2303,7 @@ button.pill {
 }
 
 .army-slot-swap,
+.army-slot-merge-label,
 .army-slot-move-label {
   display: none;
 }
@@ -2303,24 +2311,71 @@ button.pill {
 .army-slot.held { box-shadow: inset 0 0 0 4px var(--gold-400); }
 .army-slot.held .army-slot-icon { opacity: 0.7; }
 
-.army-grid.holding .army-slot:not(.held) {
+.army-grid.holding .army-slot:not(.held),
+.army-grid.placing .army-slot.empty {
   animation: army-slot-pulse 1s var(--ease-step2) infinite;
 }
 
-.army-grid.holding .army-slot:not(.held):hover { animation: none; }
+.army-grid.holding .army-slot:not(.held):hover,
+.army-grid.dragging .army-slot.over,
+.army-grid.placing .army-slot.empty:hover { animation: none; }
 
-.army-grid.holding .army-slot.empty:hover .army-slot-empty-label { display: none; }
+.army-grid.holding .army-slot.empty:hover .army-slot-empty-label,
+.army-grid.dragging .army-slot.empty.over .army-slot-empty-label,
+.army-grid.placing .army-slot.empty:hover .army-slot-empty-label { display: none; }
 
-.army-grid.holding .army-slot.empty:hover .army-slot-move-label {
+.army-grid.holding .army-slot.empty:hover .army-slot-move-label,
+.army-grid.dragging .army-slot.empty.over .army-slot-move-label,
+.army-grid.placing .army-slot.empty:hover .army-slot-move-label {
   display: inline;
   color: var(--gold-200);
 }
 
-.army-grid.holding .army-slot.filled:not(.held):hover .army-slot-swap {
+.army-grid.holding .army-slot.drop-swap:hover .army-slot-swap,
+.army-grid.dragging .army-slot.drop-swap.over .army-slot-swap {
   display: block;
   position: absolute;
   top: var(--s-1);
   right: var(--s-2);
+}
+
+/* A same-type stack takes the dragged one in: green (moss) frame and a Merge tag instead of the swap glyph. */
+.army-grid.holding .army-slot.drop-merge { --bev-light: var(--moss-500); }
+
+.army-grid.holding .army-slot.drop-merge:hover .army-slot-merge-label,
+.army-grid.dragging .army-slot.drop-merge.over .army-slot-merge-label {
+  display: block;
+  position: absolute;
+  top: var(--s-1);
+  right: var(--s-2);
+  font: var(--t-label);
+  text-transform: uppercase;
+  color: var(--moss-500);
+}
+
+/* Split-off part in hand: only empty slots take it. */
+.army-grid.placing .army-slot.filled:not(.held) { opacity: 0.55; cursor: not-allowed; }
+.army-grid.placing .army-slot.empty { cursor: pointer; }
+
+.army-slot.merged { animation: army-slot-merged 0.9s steps(6, end); }
+
+@keyframes army-slot-merged {
+  0%, 40% { --bev-light: var(--moss-500); box-shadow: inset 0 0 0 4px var(--moss-500); }
+}
+
+/* Follows the pointer while a stack is dragged or a split-off part is being placed. */
+.army-ghost {
+  position: fixed;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-2);
+  transform: translate(-32px, -32px);
+  pointer-events: none;
+  opacity: 0.85;
+  background: var(--bg-iron);
+  box-shadow: inset 2px 2px 0 var(--iron-500), inset -2px -2px 0 var(--iron-900), 0 4px 0 rgba(0, 0, 0, 0.5);
 }
 
 @keyframes army-slot-pulse {
@@ -3958,6 +4013,8 @@ button.frame-pile:hover .pile-card-back::before { --bev-light: var(--gold-400); 
 @media (prefers-reduced-motion: reduce) {
   .portrait-slot.selectable .portrait-frame::after,
   .army-grid.holding .army-slot:not(.held),
+  .army-grid.placing .army-slot.empty,
+  .army-slot.merged,
   .drop-zone {
     animation: none;
   }

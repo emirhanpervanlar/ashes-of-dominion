@@ -32,7 +32,7 @@ export function UnitPopup({ stack, army, onClose, inBattle, onSplit, onMerge, on
 
   const aliveStacks = army.filter((s) => s.count > 0);
   const armyFull = aliveStacks.length >= 6;
-  const canSplit = !!onSplit && stack.count > 1 && !armyFull;
+  const canSplit = !!onSplit && stack.count > 1;
   const isLastStack = aliveStacks.every((s) => s.stackId === stack.stackId);
   const maxDismiss = isLastStack ? stack.count - 1 : stack.count;
   const dismissAmount = Math.min(Math.max(1, dismissCount), Math.max(1, maxDismiss));
@@ -153,17 +153,24 @@ export function UnitPopup({ stack, army, onClose, inBattle, onSplit, onMerge, on
                   value={splitCount}
                   onChange={(e) => setSplitCount(Math.max(1, Math.min(stack.count - 1, Number(e.target.value) || 1)))}
                 />
-                <button className="btn" onClick={() => onSplit!(stack.stackId, splitCount)}>
-                  Split Off
-                </button>
+                <Tip tip={armyFull ? 'Army full: no free slot for the new stack.' : 'Choose an empty slot for the split-off part'}>
+                  <span>
+                    <button className="btn" disabled={armyFull} onClick={() => onSplit!(stack.stackId, splitCount)}>
+                      Split Off
+                    </button>
+                  </span>
+                </Tip>
               </div>
             )}
             {otherMatchingStacks.map((other) => (
-              <button key={other.stackId} className="btn unit-popup-merge-btn" onClick={() => onMerge!(stack.stackId, other.stackId)}>
+              <button key={other.stackId} className="btn unit-popup-merge-btn" onClick={() => {
+                  onMerge!(stack.stackId, other.stackId);
+                  onClose();
+                }}
+              >
                 Merge with other {def.name} (×{other.count})
               </button>
             ))}
-            {!canSplit && stack.count > 1 && armyFull && <div className="unit-popup-hint">Army full — no free slot to split into.</div>}
           </div>
         )}
       </div>

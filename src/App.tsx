@@ -286,6 +286,19 @@ export default function App() {
     return result;
   }
 
+  /** Split, then move the new stack (the only id that did not exist before) to the slot the player chose. */
+  function splitAndPlace(stackId: string, splitCount: number, toPosition: Position) {
+    const split = applyRunAction(run, { type: 'SPLIT_STACK', stackId, splitCount });
+    const known = new Set(run.army.map((s) => s.stackId));
+    const created = split.run.army.find((s) => !known.has(s.stackId));
+    if (!created) {
+      commitRun(split);
+      return;
+    }
+    const placed = applyRunAction(split.run, { type: 'MOVE_STACK', stackId: created.stackId, toPosition });
+    commitRun({ ...placed, events: [...split.events, ...placed.events] });
+  }
+
   function handleCardClick(instanceId: string, cardId: string, upgraded: boolean) {
     if (!combat || combat.phase !== 'player' || combat.result !== 'ongoing') return;
     if (pending?.kind === 'card' && pending.id === instanceId) {
@@ -640,8 +653,8 @@ export default function App() {
           onMoveTo={(nodeId) => dispatchRun({ type: 'MOVE_TO', nodeId })}
           onEnterCity={() => dispatchRun({ type: 'TRAVEL_TO_CITY' })}
           onOpenMenu={() => setMenuOpen(true)}
-          onSplitStack={(stackId, splitCount) => dispatchRun({ type: 'SPLIT_STACK', stackId, splitCount })}
-          onMergeStacks={(stackIdA, stackIdB) => dispatchRun({ type: 'MERGE_STACKS', stackIdA, stackIdB })}
+          onSplitStack={splitAndPlace}
+          onMergeStacks={(keep, absorb) => dispatchRun({ type: 'MERGE_STACKS', stackIdA: keep, stackIdB: absorb })}
           onMoveStack={(stackId, toPosition) => dispatchRun({ type: 'MOVE_STACK', stackId, toPosition })}
           onDismissStack={(stackId, count) => dispatchRun({ type: 'DISMISS_STACK', stackId, count })}
         />
@@ -664,8 +677,8 @@ export default function App() {
           onChooseDoctrine={(doctrineId) => dispatchRun({ type: 'CHOOSE_DOCTRINE', doctrineId })}
           onOpenMenu={() => setMenuOpen(true)}
           onLeave={() => dispatchRun({ type: 'LEAVE_CITY' })}
-          onSplitStack={(stackId, splitCount) => dispatchRun({ type: 'SPLIT_STACK', stackId, splitCount })}
-          onMergeStacks={(stackIdA, stackIdB) => dispatchRun({ type: 'MERGE_STACKS', stackIdA, stackIdB })}
+          onSplitStack={splitAndPlace}
+          onMergeStacks={(keep, absorb) => dispatchRun({ type: 'MERGE_STACKS', stackIdA: keep, stackIdB: absorb })}
           onMoveStack={(stackId, toPosition) => dispatchRun({ type: 'MOVE_STACK', stackId, toPosition })}
           onDismissStack={(stackId, count) => dispatchRun({ type: 'DISMISS_STACK', stackId, count })}
         />

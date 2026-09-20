@@ -30,8 +30,8 @@ interface Props {
   onChooseDoctrine: (doctrineId: string) => void;
   onOpenMenu: () => void;
   onLeave: () => void;
-  onSplitStack: (stackId: string, splitCount: number) => void;
-  onMergeStacks: (stackIdA: string, stackIdB: string) => void;
+  onSplitStack: (stackId: string, splitCount: number, toPosition: Position) => void;
+  onMergeStacks: (keepStackId: string, absorbStackId: string) => void;
   onMoveStack: (stackId: string, toPosition: Position) => void;
   onDismissStack: (stackId: string, count?: number) => void;
 }
