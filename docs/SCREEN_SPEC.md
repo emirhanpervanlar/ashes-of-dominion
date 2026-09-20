@@ -6,42 +6,51 @@ Current layout and behavior of every screen. Items marked **[PLANNED]** are deci
 Centered title, menu: New Game, Continue (only if a save exists), Settings.
 
 ## Hero Setup (2 steps)
-1. Name input + three hero cards (Warlord / Rogue / Mage) showing portrait, tagline and STR/DEX/INT/VIT/WIS.
-2. Starting relic choice (Royal Banner / Arcane Crystal), then Begin Journey.
+1. Name input + three hero cards (Warlord / Rogue / Mage) showing portrait, tagline and a stat table: five labelled rows (icon, name, value) for Strength, Dexterity, Intelligence, Vitality, Wisdom. **Continue is disabled while the name is empty or only whitespace** (a hint appears under the cards).
+2. Starting relic choice (the 5 starting relics), then Begin Journey (also disabled without a name). The single-screen hero + relic merge (AO-D029) is still [PLANNED].
 
 ## Road (world map) — meta family
-- **Scene (top, fills remaining height):** `LAYER n / 7`, "You are here — <type>" pill, `Enter City` button when standing on a city, "Choose Your Path", then path cards.
-- **Path cards:** 250w x 300h plaques, node-type accent border, corner badge icon scaled to the card. Unknown nodes are not shown.
-- **Bottom bar (200px, shared with City; one component, `GarrisonBar`):** 3px top border, padding 8px 16px, 181px content height, 8px spacing scale (4px only between relic cells), column gap 16. Four columns:
-  1. Resources (88 content + 16 padding + 2px divider): Gold / Food / Day, three 32px rows with 8px gaps.
-  2. Hero (156 content + 16 + 2px divider): plaque 24h, portrait 48h, 3x5 relic grid of 28x28 cells with 4px gaps (hover = name + effect; empty = dashed). The 1px left over in the 181px content box sits at the bottom.
-  3. Army (flexible zone, block centered): the 3x2 grid in true board positions. Top row = front, positions 1-3; bottom row = back, positions 4-6; columns = left / center / right lane (same lanes as the battle board). A 16px gutter left of the grid carries the rotated FRONT (accent) and BACK (dim) row labels. Slots are 86h, 240w (shrink to a 168 minimum on narrow viewports), 8px gaps; grid 736x180, block 760 wide. Each slot has a dim position digit 1-6 (bottom-right) and a tooltip ("Front - Left"). Filled slot: 64x64 icon with a 20px role badge inside its top-left corner, count `×N` (20px bold accent) and unit name (12px dim) to the right. Empty slot: dashed, "Empty".
-  4. Buttons (64 wide): Log (history drawer, closed by default) and Menu (pause menu), each 64x48 with an 8px gap, top-aligned.
-- **Reposition (AO-D015/D017):** left-click a filled slot to pick the stack up (3px accent outline, icon dimmed), then click another slot: an empty slot moves it there, an occupied slot swaps (never merges). Same-slot click, Esc, or a click outside the grid cancels. While holding, the other slots pulse; hovering an empty slot reads "Move here", hovering an occupied one shows a swap glyph. Both icons slide for 150ms. Runs `MOVE_STACK` (stack ids never change). Right-click a stack opens the info / split / merge popup. Drag-and-drop is not built.
+- **Scene (top, fills remaining height):** `Chapter n — Step x / y`, the "You are here — <type>" pill (the `start` node reads "Start"), an always-available **Enter City** button beside it, a red **food alert** strip when `foodWarning` (starving forecast with expected deaths and the morale malus, or days of Food left), "Choose Your Path" and the path cards. When the boss window opens (`bossWarning`, last 7 days) a red banner "The boss draws near: N days left." shows once per chapter per session (click or 6 s to dismiss).
+- **Path cards:** 250w x 300h plaques for battle / elite / resource / merchant / event / boss, node-type accent border, corner badge icon. A node shows when its visibility is not `unknown` or its layer is within `worldMap.revealedUntilStep`; layers beyond the next one that were scouted appear as a small "Scouted ahead" icon strip under the cards.
+- **Enter City:** opens a confirm popup with `CITY_VISIT_WARNING`, the current enemy strength (`enemyStrengthAfterCityVisits(run)`, x1.00 at Threat 0) and the strength after one more visit; Stay on the Road / Enter City (`TRAVEL_TO_CITY`, no days, no Food). Leaving the city returns to the map and toasts "Enemies grew stronger: Threat N (xM enemy strength)".
+- **Bottom bar (200px, shared with City; one component, `GarrisonBar`, takes the run):** 3px top border, padding 8px 16px, 181px content height, 8px spacing scale (4px only between relic cells), column gap 16. Four columns:
+  1. Resources (256 content + 16 padding + 4px divider), four 32px rows with 8px gaps: **Gold | Threat**; **Food** (stockpile and daily net, e.g. `50  -2/day`, red with a warning glyph when `foodWarning`; click opens the Food popup with per-stack upkeep, Farm production, net, days left, starvation forecast); **Day | Ch. n/3**; **Boss in N days** (turns red and pulses in 1s pixel steps inside the warning window; static under reduced motion).
+  2. Hero (156 content + 16 + 2px divider): plaque 24h, portrait 48h, 3x5 relic grid of 28x28 cells with 4px gaps (hover = name + effect; empty = dashed).
+  3. Army (flexible zone, block centered): the 3x2 grid in true board positions. Top row = front, positions 1-3; bottom row = back, positions 4-6; columns = left / center / right lane. A 16px gutter left of the grid carries the rotated FRONT (accent) and BACK (dim) row labels. Slots are 86h, 240w (shrink to a 168 minimum on narrow viewports), 8px gaps. Filled slot: 64x64 icon with a 20px role badge, count `×N` and unit name; empty slot: dashed "Empty".
+  4. Buttons (64 wide): Log (history drawer) and Menu, each 64x48.
+- **Reposition (AO-D015/D017):** left-click a filled slot to pick the stack up, then click another slot (empty = move, occupied = swap). Right-click a stack opens the unit popup: stats, food use per day (`stackUpkeep`), Split / Merge, and **Dismiss** (count input + two-step confirm; whole stack allowed unless it is the last unit type, then at most count-1) calling `DISMISS_STACK`, outside battle only.
+- Toasts (7 s for event outcome texts) and the History drawer use `runEventText.ts`: STARVED ("3 Swordsmen, 1 Archer starved"), BATTLE_LOOT, CHAPTER_STARTED, BOSS_DEFEATED, CITY_VISITED, THREAT_CHANGED, UNITS_GAINED/LOST/DISMISSED, UNIT_GAIN_DECLINED, FARM_UPGRADED, MAGE_TOWER_UPGRADED, DAILY_INCOME, EVENT_RESOLVED text.
 - No floating corner menu button, no "New Run" (the pause menu has Main Menu).
 
 ## City — meta family
-- Scene: sky gradient + CSS castle skyline; hotspots for Town Hall, Barracks, Temple and the seven buildings (built = solid, locked = dashed with cost). Popups per hotspot.
-- Town Hall popup: level up, plus **Remove a card** (free, once every 7 days, deck floor 5; `cardRemovalQuote`) which opens the deck picker; the disabled reason is shown under the button.
-- Mage Tower popup (built): tier (I-III), `mageTowerDescription`, **Upgrade to Tier N - X Gold** (disabled without gold, replaced by "Max tier" at III). The hotspot sub-label shows the tier.
-- Barracks popup: four units, count input, cost, single **Recruit** button (goes to the army; disabled if unaffordable or the army is full with no matching stack). No garrison, no Fort.
-- Bottom bar: the same component as Road, pixel-identical (resources column shows Gold / Food / building slots). Recruiting shows a "+N" flourish that rises inside the recruited stack's slot. Reposition and right-click popup work here too.
-- **Leave:** a Leave button under the resources column inside the bar (column 1: Gold / Food / Slots, then Leave).
+- Scene: sky gradient + CSS castle skyline; hotspots for Town Hall, Barracks, Temple and the eight buildings (built = solid, locked = dashed with cost). Popups per hotspot.
+- Town Hall popup: level up, plus **Remove a card**: free the first time, then `cityRemovalPrice` (50, 100, 200 ... Gold, no daily limit; deck floor 5); the popup text shows the price curve and the button shows the current price or the disabled reason (`cardRemovalQuote`).
+- Mage Tower popup (built): tier (I-III), `mageTowerDescription`, **Upgrade to Tier N - X Gold** (replaced by "Max tier" at III).
+- **Farm** popup: `farmDescription`; built = "Tier N: +F Food per day" and **Upgrade to Tier N+1 - X Gold** (`UPGRADE_FARM`, 5 tiers I-V, "Max tier" at V). The hotspot sub-label shows the tier.
+- Barracks popup: four units, count input, cost, single **Recruit** button. No garrison, no Fort.
+- Bottom bar: the same `GarrisonBar` as Road; resources column shows **Gold | Slots**, the Food pill (same popup) and the **Leave** button (returns to the map).
+- Recruiting shows a "+N" flourish inside the recruited stack's slot. Reposition and the unit popup (with Dismiss) work here too.
 
 ## Merchant — overlay family
-Top bar (title, gold pill), a shelf of 3 card offers + optional relic (gold border) with price under each, unaffordable = dimmed, ribbon **Leave** at the bottom-left. Below the shelf a **Remove a card (price)** button opens the deck picker (price rises per use; disabled reasons shown: gold, deck floor). A toast confirms the removal; the screen stays open.
+Top bar (title, gold pill), a shelf of 3 card offers + optional relic offer (rarity frame: common grey, rare steel, epic purple, rarity word on top, price under it), unaffordable = dimmed with a red price, ribbon **Leave** at the bottom-left. Below the shelf a **Remove a card (price)** button opens the deck picker (price rises per use; disabled reasons shown). A toast confirms the removal; the screen stays open.
 
 ## Event — overlay family
-Centered `?` badge, gold plaque title, description, option cards (label + effect). One click resolves.
+Rendered from `eventView(run)`: centered `?` badge, plaque title, description, option cards (label + effect text). An option with `available: false` is dimmed and shows its `reason` in red and does not react to clicks. A click calls `CHOOSE_EVENT_OPTION`; the outcome text (`EVENT_RESOLVED.text`) is a long toast and a History line. Sub-steps:
+- **Card picker** (`choice.kind = 'card'`): modal grid of the eligible cards titled "Choose a card to upgrade / remove / give away", close button = `CANCEL_EVENT_CHOICE`, a click = `CHOOSE_EVENT_CARD`.
+- **Unit picker** (`choice.kind = 'unit'`, Mercenary Camp): two unit tiles, click = `CHOOSE_EVENT_UNIT`, Cancel = `CANCEL_EVENT_CHOICE`.
+- **Army full** (`run.pendingUnitChoice`): modal "Your army is full" with the outcome text and all army stacks plus the newcomer (tagged New, gold ring) as tiles showing count and food per day; a click opens the unit popup where Dismiss (whole or part, the newcomer included) calls `DISMISS_STACK`; **Turn the <unit> away** calls `DECLINE_UNIT_GAIN`. The event closes when the engine settles it.
+- An ambush outcome hands the run to the battle screen, then the usual reward.
 
 ## Reward — overlay family
-Banner "Victory! Choose One", up to 3 large cards (cost medallion, icon, name, description). One pick only, no Confirm: clicking a card (or upgrade) applies it and the screen closes. Below: **Remove a card (free)** (opens the deck picker; the pick removes the card and closes the screen) and **Skip**. No relics.
+Banner "Victory! Choose One" ("The Boss Has Fallen!" after a boss), a loot line (pills "+N Gold", "+N Food" from the last `BATTLE_LOOT`), an optional relic row, up to 3 large cards (cost medallion, icon, name, description), then **Remove a card (free)** and **Skip**.
+- **Relic row:** an elite victory shows its `relicOffer` ("Elite spoils: take a relic"), a boss victory shows `relicChoices` ("Boss spoils: take one relic", 3 cards). Each is a relic card with a rarity frame (common grey, rare steel, epic purple) and rarity word; a click calls `CLAIM_RELIC`, the row disappears and the screen stays open for the normal pick. Leaving forfeits an unclaimed relic (stated on screen).
+- Card pick: one pick only, no Confirm: clicking a card (or upgrade) applies it and the screen closes.
 
 ## Deck picker (shared)
 Modal listing the whole master deck as cards; clicking one removes it and closes the picker. Used by Reward, Merchant and City. Rendered in a portal so clipped popups cannot trap it.
 
 ## Defeat / Run complete
-Run summary and a **New Run** button: clears the saved run, disables Continue and returns to the title screen.
+(Unchanged by AO-027.) Run summary and a **New Run** button: clears the saved run, disables Continue and returns to the title screen.
 
 ## Battle — battle family
 - **Frame:** full-screen ornate frame. Top: hero chip (name, relics, Mana bar) on the left, turn chip on the right. No floating menu button.

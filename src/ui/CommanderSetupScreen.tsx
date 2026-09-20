@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { HERO_DEFINITIONS } from '../engine/index.js';
-import type { HeroId } from '../engine/index.js';
+import type { HeroId, HeroStats } from '../engine/index.js';
 import { STARTING_RELIC_DEFINITIONS } from '../engine/run/index.js';
 import { relicIcon } from './relicIcons.js';
 import { HERO_ICONS } from './heroIcons.js';
 import { Icon } from './pixel/Icon.js';
+import type { IconName } from './pixel/icons.js';
 
 interface Props {
   onBack: () => void;
@@ -17,6 +18,14 @@ const HERO_TAGLINES: Record<HeroId, string> = {
   mage: 'Magic, control, Mana and healing.',
 };
 
+const HERO_STAT_ROWS: { key: keyof HeroStats; label: string; icon: IconName; hint: string }[] = [
+  { key: 'strength', label: 'Strength', icon: 'role_melee', hint: 'Melee damage' },
+  { key: 'dexterity', label: 'Dexterity', icon: 'role_ranged', hint: 'Ranged damage and Dodge' },
+  { key: 'intelligence', label: 'Intelligence', icon: 'role_caster', hint: 'Magic damage' },
+  { key: 'vitality', label: 'Vitality', icon: 'hp', hint: 'Toughness' },
+  { key: 'wisdom', label: 'Wisdom', icon: 'role_support', hint: 'Healing and max Mana' },
+];
+
 export function CommanderSetupScreen({ onBack, onBegin }: Props) {
   const [step, setStep] = useState<'hero' | 'relic'>('hero');
   const [name, setName] = useState('');
@@ -24,6 +33,7 @@ export function CommanderSetupScreen({ onBack, onBegin }: Props) {
   const [relicId, setRelicId] = useState<string | null>(null);
   const relics = Object.values(STARTING_RELIC_DEFINITIONS);
   const heroes = Object.values(HERO_DEFINITIONS);
+  const nameReady = name.trim().length > 0;
 
   if (step === 'hero') {
     return (
@@ -49,9 +59,14 @@ export function CommanderSetupScreen({ onBack, onBegin }: Props) {
               </div>
               <div className="commander-card-name">{hero.name}</div>
               <div className="commander-card-desc">{HERO_TAGLINES[hero.id]}</div>
-              <div className="hero-stat-line">
-                STR {hero.stats.strength} · DEX {hero.stats.dexterity} · INT {hero.stats.intelligence} · VIT {hero.stats.vitality} · WIS{' '}
-                {hero.stats.wisdom}
+              <div className="hero-stat-table">
+                {HERO_STAT_ROWS.map((row) => (
+                  <div key={row.key} className="hero-stat-row" title={row.hint}>
+                    <Icon name={row.icon} />
+                    <span className="hero-stat-label">{row.label}</span>
+                    <span className="hero-stat-value">{hero.stats[row.key]}</span>
+                  </div>
+                ))}
               </div>
               {heroId === hero.id && (
                 <div className="commander-selected-badge">
@@ -62,11 +77,13 @@ export function CommanderSetupScreen({ onBack, onBegin }: Props) {
           ))}
         </div>
 
+        {!nameReady && <div className="setup-hint">Enter a commander name to continue.</div>}
+
         <div className="toolbar">
           <button className="btn" onClick={onBack}>
             Back
           </button>
-          <button className="btn btn--primary" disabled={!heroId} onClick={() => heroId && setStep('relic')}>
+          <button className="btn btn--primary" disabled={!heroId || !nameReady} onClick={() => heroId && nameReady && setStep('relic')}>
             Continue
           </button>
         </div>
@@ -104,8 +121,8 @@ export function CommanderSetupScreen({ onBack, onBegin }: Props) {
         </button>
         <button
           className="btn btn--primary"
-          disabled={!relicId}
-          onClick={() => heroId && relicId && onBegin(heroId, name.trim(), relicId)}
+          disabled={!relicId || !nameReady}
+          onClick={() => heroId && relicId && nameReady && onBegin(heroId, name.trim(), relicId)}
         >
           Begin Journey
         </button>

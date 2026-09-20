@@ -1,6 +1,6 @@
 import { CARD_DEFINITIONS, UNIT_DEFINITIONS } from '../engine/index.js';
 import { RELIC_DEFINITIONS, STARTING_RELIC_DEFINITIONS } from '../engine/run/index.js';
-import type { RunEvent } from '../engine/run/index.js';
+import type { RunEvent, UnitCount } from '../engine/run/index.js';
 
 function relicName(relicId: string): string {
   return RELIC_DEFINITIONS[relicId]?.name ?? STARTING_RELIC_DEFINITIONS[relicId]?.name ?? relicId;
@@ -14,6 +14,19 @@ function unitName(unitId: string): string {
   return UNIT_DEFINITIONS[unitId as keyof typeof UNIT_DEFINITIONS]?.name ?? unitId;
 }
 
+const IRREGULAR_PLURALS: Record<string, string> = { Swordsman: 'Swordsmen', Wolf: 'Wolves' };
+
+/** "3 Swordsmen" / "1 Archer". */
+export function unitCountText(unitId: string, count: number): string {
+  const name = unitName(unitId);
+  return `${count} ${count === 1 ? name : (IRREGULAR_PLURALS[name] ?? `${name}s`)}`;
+}
+
+/** "3 Swordsmen, 1 Archer" per unit type. */
+export function unitCountsText(counts: UnitCount[]): string {
+  return counts.map((c) => unitCountText(c.unitId, c.count)).join(', ');
+}
+
 /** Plain-text history line for a RunEvent, or null to omit it (noise). */
 export function describeRunEvent(event: RunEvent): string | null {
   switch (event.type) {
@@ -22,8 +35,8 @@ export function describeRunEvent(event: RunEvent): string | null {
       return null; // already visible in the sidebar's Relics list — noise in the history feed
     case 'MOVED':
       return `Moved onward (−${event.foodCost} Food).`;
-    case 'STARVING':
-      return `Starving — lost ${event.unitsLost} unit(s).`;
+    case 'STARVED':
+      return `${unitCountsText(event.deaths)} starved (starving day ${event.consecutiveDays}).`;
     case 'RESOURCE_FOUND':
       return `Found a cache: +${event.gold} Gold, +${event.food} Food.`;
     case 'ARRIVED_AT_NODE':
@@ -32,6 +45,16 @@ export function describeRunEvent(event: RunEvent): string | null {
       return 'Battle won!';
     case 'BATTLE_LOST':
       return 'Battle lost.';
+    case 'BATTLE_LOOT':
+      return event.food > 0 ? `Loot: +${event.gold} Gold, +${event.food} Food.` : `Loot: +${event.gold} Gold.`;
+    case 'BOSS_DEFEATED':
+      return `The chapter ${event.chapter} boss has fallen.`;
+    case 'CHAPTER_STARTED':
+      return `Chapter ${event.chapter} begins.`;
+    case 'CITY_VISITED':
+      return `Visited the city. Threat is now ${event.threat}: enemies grew stronger.`;
+    case 'THREAT_CHANGED':
+      return `Threat ${event.delta > 0 ? 'rose' : 'fell'} to ${event.threat}.`;
     case 'RELIC_CLAIMED':
       return `Claimed relic: ${relicName(event.relicId)}.`;
     case 'CARD_REWARD_CLAIMED':
@@ -44,15 +67,24 @@ export function describeRunEvent(event: RunEvent): string | null {
       return `Removed ${cardName(event.cardId)} from the deck${event.goldPaid > 0 ? ` for ${event.goldPaid}g` : ''}.`;
     case 'UNITS_REVIVED':
       return `Revived ${event.count} fallen unit(s) after the battle.`;
-    case 'DAILY_INCOME':
-      return `Gold Mine income: +${event.gold} Gold.`;
+    case 'DAILY_INCOME': {
+      const parts = [event.gold > 0 && `+${event.gold} Gold`, event.food > 0 && `+${event.food} Food`].filter(Boolean);
+      return parts.length ? `Daily income: ${parts.join(', ')}.` : null;
+    }
+    case 'FARM_UPGRADED':
+      return `Farm upgraded to tier ${event.tier}.`;
     case 'MAGE_TOWER_UPGRADED':
       return `Mage Tower upgraded to tier ${event.tier}.`;
     case 'EVENT_RESOLVED':
-      if (event.outcome === 'search_relic') return `Search: found a relic!`;
-      if (event.outcome === 'search_trap') return `Search: it was a trap!`;
-      if (event.outcome === 'search_nothing_left') return `Search: nothing left to find.`;
-      return `Event choice: ${event.optionId}.`;
+      return event.text;
+    case 'UNITS_GAINED':
+      return `${unitCountText(event.unitId, event.count)} joined the army.`;
+    case 'UNITS_LOST':
+      return `Lost ${unitCountText(event.unitId, event.count)}.`;
+    case 'UNITS_DISMISSED':
+      return `Dismissed ${unitCountText(event.unitId, event.count)}.`;
+    case 'UNIT_GAIN_DECLINED':
+      return `Turned away ${unitCountText(event.unitId, event.count)}.`;
     case 'ITEM_PURCHASED':
       return `Bought ${cardName(event.itemId) !== event.itemId ? cardName(event.itemId) : relicName(event.itemId)} for ${event.price}g.`;
     case 'UNITS_RECRUITED':
@@ -66,8 +98,6 @@ export function describeRunEvent(event: RunEvent): string | null {
     case 'RUN_COMPLETE':
       return 'Run complete — victory!';
     case 'ACTION_REJECTED':
-      return null;
-    default:
       return null;
   }
 }

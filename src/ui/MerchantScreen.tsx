@@ -1,11 +1,10 @@
 import { CARD_DEFINITIONS } from '../engine/index.js';
 import type { CardInstance } from '../engine/index.js';
-import { RELIC_DEFINITIONS } from '../engine/run/index.js';
 import type { CardRemovalQuote, MerchantInventory } from '../engine/run/index.js';
 import { CARD_DESCRIPTIONS } from './cardText.js';
 import { cardVisual } from './cardVisuals.js';
 import { Icon } from './pixel/Icon.js';
-import { relicIcon } from './relicIcons.js';
+import { RelicOfferCard } from './RelicOfferCard.js';
 import { CardRemovalPicker } from './CardRemovalPicker.js';
 
 interface Props {
@@ -52,26 +51,14 @@ export function MerchantScreen({ gold, inventory, deck, removalQuote, onBuyCard,
           );
         })}
 
-        {inventory.relicOffer &&
-          (() => {
-            const relic = RELIC_DEFINITIONS[inventory.relicOffer.relicId];
-            if (!relic) return null;
-            const affordable = gold >= inventory.relicOffer.price;
-            return (
-              <div
-                className={`reward-card merchant-card merchant-relic${affordable ? '' : ' disabled'}`}
-                onClick={affordable ? () => onBuyRelic(inventory.relicOffer!.relicId) : undefined}
-              >
-                <div className="reward-card-tag">Relic</div>
-                <div className="reward-card-icon">
-                  <Icon name={relicIcon(inventory.relicOffer.relicId)} size={3} />
-                </div>
-                <div className="reward-card-name">{relic.name}</div>
-                <div className="reward-card-desc">{relic.description}</div>
-                <div className="merchant-price">{inventory.relicOffer.price}g</div>
-              </div>
-            );
-          })()}
+        {inventory.relicOffer && (
+          <RelicOfferCard
+            relicId={inventory.relicOffer.relicId}
+            price={inventory.relicOffer.price}
+            disabled={gold < inventory.relicOffer.price}
+            onClick={() => onBuyRelic(inventory.relicOffer!.relicId)}
+          />
+        )}
       </div>
 
       <div className="merchant-removal">

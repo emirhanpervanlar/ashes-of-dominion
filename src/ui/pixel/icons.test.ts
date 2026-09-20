@@ -64,8 +64,12 @@ describe('game ids have icons', () => {
     expectAll('polarity', Object.values(POLARITY_ICONS));
   });
 
+  it('run UI icons: threat, farm and the start node', () => {
+    expectAll('run ui', ['threat', 'bld_farm', 'node_start', 'node_city']);
+  });
+
   it('every node type and building id', () => {
-    expect(Object.keys(NODE_ICONS).sort()).toEqual(['battle', 'boss', 'city', 'elite_battle', 'event', 'merchant', 'resource', 'road']);
+    expect(Object.keys(NODE_ICONS).sort()).toEqual(['battle', 'boss', 'elite_battle', 'event', 'merchant', 'resource', 'start']);
     expectAll('node', Object.values(NODE_ICONS));
     for (const id of [...Object.keys(BUILDING_DEFINITIONS), 'townhall', 'barracks', 'temple']) {
       expect(BUILDING_ICONS[id], `building ${id}`).toBeDefined();

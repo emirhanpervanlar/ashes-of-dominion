@@ -70,6 +70,7 @@
   --venom-500: #6f8a2a;
   --ember-500: #b5651d;
   --arcane-500: #6d4f96;
+  --arcane-300: #a58bd0;
 
   --teal-700: #1f4a48;
   --teal-500: #2f7a72;
@@ -1307,7 +1308,7 @@ p { margin: 0; }
 .reward-card:hover::before { --bev-light: var(--gold-400); }
 
 .action-card.disabled,
-.merchant-card.disabled {
+.reward-card.disabled {
   cursor: default;
   filter: brightness(0.55) saturate(0.6) drop-shadow(var(--shadow-1));
 }
@@ -1411,7 +1412,6 @@ p { margin: 0; }
   padding-top: var(--s-1);
 }
 
-.merchant-card.merchant-relic { --trim: var(--gold-500); }
 
 .merchant-price {
   margin-top: var(--s-2);
@@ -1421,7 +1421,7 @@ p { margin: 0; }
   background: var(--stone-950);
 }
 
-.merchant-card.disabled .merchant-price { color: var(--blood-300); }
+.reward-card.disabled .merchant-price { color: var(--blood-300); }
 
 /* ---------- 4c. history drawer, toast ---------- */
 
@@ -1535,13 +1535,12 @@ p { margin: 0; }
 }
 
 /* Node type accent: the 4px band on cards and the marker on the current location. */
-.node-road { --node: var(--iron-500); }
+.node-start { --node: var(--iron-500); }
 .node-battle { --node: var(--blood-500); }
 .node-elite_battle { --node: var(--ember-500); }
 .node-resource { --node: var(--moss-500); }
 .node-merchant { --node: var(--gold-500); }
 .node-event { --node: var(--steel-500); }
-.node-city { --node: var(--wood-500); }
 .node-boss { --node: var(--blood-700); }
 
 .path-progress {
@@ -1664,9 +1663,55 @@ p { margin: 0; }
   background: linear-gradient(90deg, var(--wood-900) 0 2px, var(--wood-600) 2px 4px);
 }
 
-.garrison-bar-resources { width: 128px; }
+.garrison-bar-resources { width: 256px; }
 
-.garrison-bar-stat { width: 100%; }
+.garrison-bar-row {
+  display: flex;
+  gap: var(--s-2);
+}
+
+.garrison-bar-stat {
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+}
+
+.garrison-bar-resources > .garrison-bar-stat { flex: none; }
+
+button.pill {
+  border: 0;
+  cursor: pointer;
+}
+
+.garrison-food-net {
+  margin-left: auto;
+  font: var(--t-label);
+  color: var(--text-dim);
+}
+
+.pill--danger,
+.pill--threat {
+  color: var(--blood-300);
+}
+
+.pill--danger .garrison-food-net { color: var(--blood-300); }
+
+.pill--boss-warning {
+  --bev-light: var(--blood-300);
+  --bev-dark: var(--blood-900);
+  color: var(--stone-100);
+  background: var(--blood-700);
+  animation: boss-warning-pulse 1000ms steps(2, end) infinite;
+}
+
+@keyframes boss-warning-pulse {
+  from { background: var(--blood-700); }
+  to { background: var(--blood-500); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pill--boss-warning { animation: none; }
+}
 
 .garrison-bar-hero { width: 176px; }
 
@@ -2432,12 +2477,29 @@ p { margin: 0; }
   color: var(--text-dim);
 }
 
-.hero-stat-line {
+.hero-stat-table {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
   margin-top: var(--s-3);
-  font: var(--t-label);
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  color: var(--gold-200);
+  text-align: left;
+}
+
+.hero-stat-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-1) var(--s-2);
+  background: var(--stone-900);
+}
+
+.hero-stat-label { flex: 1; font: var(--t-body); color: var(--text); }
+.hero-stat-value { font: var(--t-num); color: var(--gold-200); }
+
+.setup-hint {
+  margin-top: var(--s-3);
+  font: var(--t-small);
+  color: var(--text-dim);
 }
 
 .commander-selected-badge {
@@ -2466,7 +2528,7 @@ p { margin: 0; }
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
+  justify-content: safe center;
 }
 
 .reward-overlay {
@@ -2636,3 +2698,207 @@ p { margin: 0; }
     animation: none;
   }
 }
+
+/* ---------- run-engine adaptation: boss banner, city confirm, food, events ---------- */
+
+.current-location-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-4);
+}
+
+.boss-banner {
+  --bev-light: var(--blood-300);
+  --bev-dark: var(--blood-900);
+  position: absolute;
+  top: var(--s-1);
+  left: 50%;
+  z-index: 5;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-2) var(--s-5);
+  cursor: pointer;
+  color: var(--stone-100);
+  font: var(--t-h3);
+  background: var(--blood-700);
+  box-shadow: inset 4px 4px 0 var(--bev-light), inset -4px -4px 0 var(--bev-dark);
+}
+
+.food-alert {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  max-width: 720px;
+  margin-top: var(--s-4);
+  padding: var(--s-2) var(--s-4);
+  color: var(--stone-100);
+  font: var(--t-small);
+  background: var(--blood-700);
+  box-shadow: inset 0 0 0 2px var(--blood-900);
+}
+
+.scout-strip {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  margin-top: var(--s-6);
+  padding: var(--s-2) var(--s-4);
+  background: var(--parch-300);
+  box-shadow: inset 0 0 0 2px var(--parch-400);
+}
+
+.scout-strip-label {
+  font: var(--t-label);
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.scout-strip-layer {
+  display: flex;
+  gap: var(--s-1);
+}
+
+.scout-strip-node {
+  display: flex;
+  background: var(--stone-900);
+  box-shadow: inset 0 0 0 2px var(--node);
+}
+
+.food-popup,
+.event-unit-popup { width: min(480px, 92vw); }
+
+.city-confirm-popup { width: min(600px, 94vw); }
+
+.unit-gain-popup { width: min(720px, 94vw); }
+
+.city-confirm-popup h3,
+.food-popup h3,
+.event-unit-popup h3,
+.unit-gain-popup h3 { margin-bottom: var(--s-3); }
+
+.city-confirm-warning {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  margin-bottom: var(--s-3);
+  color: var(--blood-300);
+}
+
+.city-confirm-rows,
+.food-popup-rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  margin-bottom: var(--s-3);
+}
+
+.food-popup-row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s-4);
+  padding: var(--s-1) var(--s-2);
+  background: var(--stone-800);
+}
+
+.food-popup-sub {
+  padding-left: var(--s-5);
+  font: var(--t-small);
+  color: var(--text-dim);
+}
+
+.food-popup-net { color: var(--moss-300); font-weight: 700; }
+.food-popup-net.negative { color: var(--blood-300); }
+
+.food-popup-warn {
+  display: flex;
+  gap: var(--s-2);
+  align-items: flex-start;
+  padding: var(--s-2) var(--s-3);
+  color: var(--stone-100);
+  background: var(--blood-700);
+}
+
+.event-option-card.disabled { cursor: default; }
+
+.event-option-card.disabled .event-option-label,
+.event-option-card.disabled .event-option-desc { opacity: 0.5; }
+
+.event-option-card.disabled:hover {
+  --bev-light: var(--iron-500);
+  transform: none;
+}
+
+.event-option-reason {
+  margin-top: var(--s-1);
+  font: var(--t-small);
+  color: var(--blood-300);
+}
+
+.event-unit-row,
+.unit-gain-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--s-3);
+  margin-bottom: var(--s-4);
+}
+
+.event-unit-row .option-tile { width: 200px; text-align: center; cursor: pointer; }
+
+.event-unit-art { display: flex; justify-content: center; }
+
+.unit-gain-tile {
+  --bev-light: var(--iron-500);
+  --bev-dark: var(--iron-900);
+  position: relative;
+  width: 132px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-1);
+  padding: var(--s-3) var(--s-2);
+  cursor: pointer;
+  background: var(--bg-iron);
+  box-shadow: inset 4px 4px 0 var(--bev-light), inset -4px -4px 0 var(--bev-dark);
+}
+
+.unit-gain-tile:hover { --bev-light: var(--gold-400); }
+.unit-gain-tile.newcomer { --bev-light: var(--gold-400); box-shadow: inset 0 0 0 2px var(--gold-200), inset 4px 4px 0 var(--bev-light), inset -4px -4px 0 var(--bev-dark); }
+
+.unit-gain-tag {
+  position: absolute;
+  top: var(--s-1);
+  right: var(--s-1);
+  padding: 0 var(--s-1);
+  color: var(--stone-950);
+  font: var(--t-label);
+  background: var(--gold-400);
+}
+
+.unit-gain-count { font: var(--t-num); color: var(--gold-200); }
+.unit-gain-name { font-weight: 700; color: var(--text-strong); }
+.unit-gain-food { display: flex; align-items: center; gap: var(--s-1); font: var(--t-small); color: var(--text-dim); }
+
+.rarity-common { --trim: var(--rar-common); --rarity-text: var(--rar-common); }
+.rarity-rare { --trim: var(--steel-300); --rarity-text: var(--steel-300); }
+.rarity-epic { --trim: var(--rar-epic); --rarity-text: var(--arcane-300); }
+
+.relic-offer::after { box-shadow: inset 0 0 0 4px var(--trim); }
+.relic-offer-rarity { color: var(--rarity-text); }
+
+.reward-loot { display: flex; gap: var(--s-3); }
+
+.reward-relic-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-3);
+}
+
+.reward-relic-heading { font: var(--t-h3); color: var(--gold-200); text-align: center; }
+.reward-relic-note { font: var(--t-small); color: var(--text-dim); }
+.reward-relic-row { display: flex; gap: var(--s-5); justify-content: center; flex-wrap: wrap; }
+
+.unit-gain-popup .subtitle { margin-bottom: var(--s-3); }
