@@ -627,12 +627,13 @@ p { margin: 0; }
   padding: 0 48px;
 }
 
+/* Iron plaques (DESIGN_LANGUAGE 6.2): raised, light from the top-left. */
 .frame-hero-chip,
 .frame-turn-chip {
   --bev-light: var(--iron-500);
   --bev-dark: var(--iron-900);
-  background: var(--bg-well);
-  box-shadow: inset 2px 2px 0 var(--bev-dark), inset -2px -2px 0 var(--bev-light);
+  background: var(--bg-iron);
+  box-shadow: inset 4px 4px 0 var(--bev-light), inset -4px -4px 0 var(--bev-dark);
 }
 
 .frame-hero-chip {
@@ -667,8 +668,9 @@ p { margin: 0; }
   display: flex;
   align-items: center;
   gap: var(--s-2);
-  color: var(--text-strong);
-  font-weight: 700;
+  font: 400 20px/24px var(--font-display);
+  color: var(--gold-200);
+  text-shadow: 0 2px 0 var(--stone-950);
 }
 
 .relic-icons {
@@ -792,6 +794,17 @@ p { margin: 0; }
   align-self: stretch;
 }
 
+/* Bottom of the enemy half of the field (style proof battle mock). */
+.frame-body > .endturn-bar {
+  position: absolute;
+  right: var(--s-3);
+  bottom: var(--s-3);
+  width: calc(50% - var(--s-4));
+  z-index: 5;
+}
+
+.endturn-btn { width: 100%; }
+
 .drop-zone {
   position: absolute;
   top: 50%;
@@ -845,7 +858,7 @@ p { margin: 0; }
   display: flex;
   flex-direction: column;
   align-items: center;
-  width: 100px;
+  width: 96px;
   flex-shrink: 0;
 }
 
@@ -855,8 +868,8 @@ p { margin: 0; }
   --bev-light: var(--iron-500);
   --bev-dark: var(--iron-900);
   position: relative;
-  width: 76px;
-  height: 76px;
+  width: 96px;
+  height: 112px;
   flex-shrink: 0;
   overflow: hidden;
   background: var(--bg-iron);
@@ -888,7 +901,8 @@ p { margin: 0; }
 
 .portrait-art {
   position: absolute;
-  inset: 8px 4px 4px 4px;
+  inset: 8px 4px 28px 4px;
+  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -910,10 +924,56 @@ p { margin: 0; }
   border: 2px dashed var(--stone-600);
 }
 
+.portrait-slot.empty .unit-name { color: var(--stone-400); }
+
 .portrait-slot.empty .portrait-art { background: none; box-shadow: none; opacity: 0.35; }
 .portrait-slot.dead .portrait-frame { opacity: 0.35; }
 
-.portrait-slot.locked .portrait-frame { filter: saturate(0.35) brightness(0.6); }
+/* AO-D024: acted = faded, no lock icon. */
+.portrait-slot.acted .portrait-frame { filter: saturate(0.35) brightness(0.6); }
+
+.portrait-slot.frozen .portrait-art > .px-icon { filter: saturate(0.5); }
+.portrait-slot.chained .portrait-art > .px-icon { filter: brightness(0.75); }
+
+/* Frozen: ice tint, a jagged 4px rim and three shards. */
+.unit-ice {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  background: rgba(127, 183, 196, 0.32);
+  box-shadow: inset 0 0 0 4px var(--frost-200);
+}
+
+.unit-ice::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 12px;
+  background: var(--frost-200);
+  clip-path: polygon(0 0, 4px 8px, 8px 0, 12px 12px, 16px 0, 20px 8px, 24px 0, 28px 12px, 32px 0, 36px 8px, 40px 0, 44px 12px, 48px 0, 52px 8px, 56px 0, 60px 12px, 64px 0, 68px 8px, 72px 0, 76px 12px, 80px 0, 84px 8px, 88px 0);
+}
+
+.unit-ice b {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: var(--frost-200);
+  clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+}
+
+.unit-ice b:nth-child(1) { left: 8px; top: 16px; }
+.unit-ice b:nth-child(2) { left: 22px; top: 28px; }
+.unit-ice b:nth-child(3) { left: 12px; top: 40px; }
+
+.unit-chains {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+}
 
 .portrait-slot.selectable .portrait-frame { cursor: pointer; }
 .portrait-slot.selectable .portrait-frame::after {
@@ -939,7 +999,7 @@ p { margin: 0; }
 .portrait-role-badge {
   position: absolute;
   left: 8px;
-  bottom: 16px;
+  top: 14px;
   z-index: 2;
   width: 20px;
   height: 20px;
@@ -950,17 +1010,18 @@ p { margin: 0; }
   box-shadow: inset 2px 2px 0 var(--iron-500), inset -2px -2px 0 var(--iron-900);
 }
 
-.portrait-lock-badge {
+/* Back-row melee held up by the ally in front (AO-D033): a small marker, not an overlay. */
+.portrait-blocked-badge {
   position: absolute;
-  top: 8px;
+  top: 12px;
   right: 8px;
-  z-index: 2;
+  z-index: 4;
   display: flex;
 }
 
 .portrait-select-badge {
   position: absolute;
-  top: 8px;
+  top: 12px;
   right: 8px;
   z-index: 5;
   width: 20px;
@@ -973,9 +1034,9 @@ p { margin: 0; }
 
 .portrait-statuses {
   position: absolute;
-  top: 10px;
+  top: 40px;
   left: 8px;
-  right: 28px;
+  width: 56px;
   z-index: 2;
   display: flex;
   flex-wrap: wrap;
@@ -999,8 +1060,8 @@ p { margin: 0; }
 
 .portrait-count {
   position: absolute;
-  right: 6px;
-  bottom: 16px;
+  right: 8px;
+  bottom: 32px;
   z-index: 4;
   padding: 4px 6px;
   font: var(--t-num);
@@ -1008,46 +1069,16 @@ p { margin: 0; }
   background: var(--stone-950);
 }
 
-.portrait-hp-strip,
-.portrait-block-strip {
-  position: absolute;
-  left: 6px;
-  right: 6px;
-  z-index: 2;
-  display: flex;
-  background: var(--stone-950);
-  overflow: hidden;
-}
-
-.portrait-hp-strip { bottom: 6px; height: 6px; }
-.portrait-block-strip { bottom: 12px; height: 4px; }
-
-.bar-fill-hp,
-.bar-fill-block {
-  height: 100%;
-  transition: width var(--dur-3) var(--ease-step4);
-}
-
-.bar-fill-hp { background: var(--moss-500); }
-.bar-fill-hp.low { background: var(--blood-500); }
-.bar-fill-block { background: var(--steel-500); }
-
-.bar-fill-preview {
-  position: absolute;
-  top: 0;
-  height: 100%;
-  background: var(--stone-100);
-  opacity: 0.55;
-}
-
-.portrait-meta {
-  width: 100%;
-  margin-top: var(--s-1);
-  text-align: center;
-}
-
 .unit-name {
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  bottom: 4px;
+  z-index: 2;
+  height: 20px;
+  text-align: center;
   font: var(--t-label);
+  line-height: 20px;
   text-transform: uppercase;
   letter-spacing: 1px;
   color: var(--stone-200);
@@ -1163,6 +1194,11 @@ p { margin: 0; }
   filter: drop-shadow(4px 4px 0 var(--stone-950));
 }
 
+/* The draw pile reads as a stack of cards. */
+.deck-pile .pile-card-back {
+  filter: drop-shadow(4px 4px 0 var(--iron-700)) drop-shadow(2px 2px 0 var(--stone-950));
+}
+
 .pile-card-back::before {
   content: '';
   position: absolute;
@@ -1203,8 +1239,6 @@ p { margin: 0; }
   width: 64px;
   padding: 0;
 }
-
-.round-btn-main { height: 48px; }
 
 .hand-card-slot {
   flex-shrink: 0;
@@ -1663,16 +1697,18 @@ p { margin: 0; }
   background: linear-gradient(90deg, var(--wood-900) 0 2px, var(--wood-600) 2px 4px);
 }
 
-.garrison-bar-resources { width: 256px; }
+.garrison-bar-resources { width: 272px; }
 
 .garrison-bar-row {
   display: flex;
   gap: var(--s-2);
 }
 
+/* Sized by content so "DAY 99" or "20 -2/DAY" plus the warning icon never reach the clipped corner. */
 .garrison-bar-stat {
-  flex: 1;
-  min-width: 0;
+  flex: 1 1 auto;
+  min-width: max-content;
+  padding: 0 var(--s-2);
   white-space: nowrap;
 }
 

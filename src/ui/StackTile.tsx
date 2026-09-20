@@ -1,9 +1,10 @@
-import { applyDamageToStack, UNIT_DEFINITIONS } from '../engine/index.js';
+import { UNIT_DEFINITIONS } from '../engine/index.js';
 import type { ArmyStack } from '../engine/index.js';
 import { Icon } from './pixel/Icon.js';
+import { chainsUrl } from './pixel/chains.js';
 import { UnitArt } from './UnitArt.js';
 import { UNIT_ROLE_ICONS } from './unitIcons.js';
-import { STATUS_ICONS, cannotAct } from './stackStatus.js';
+import { STATUS_ICONS, stackStates } from './stackStatus.js';
 import type { Floater } from './FloatingText.js';
 
 interface StackFx {
@@ -21,27 +22,17 @@ interface StackTileProps {
   selectable: boolean;
   selected: boolean;
   dimmed?: boolean;
-  previewDamage?: number;
   fx?: StackFx;
   floaters?: Floater[];
   onClick: () => void;
   onInspect: () => void;
 }
 
-/** Disciples-style portrait slot: a bordered portrait square; the unit count is the health readout. */
-export function StackTile({
-  stack,
-  side,
-  ownArmy,
-  selectable,
-  selected,
-  dimmed,
-  previewDamage,
-  fx,
-  floaters,
-  onClick,
-  onInspect,
-}: StackTileProps) {
+/** Sprite window is 88x76 (frame 96x112 minus padding, team line and name row). */
+const CHAINS = chainsUrl(88, 76);
+
+/** Disciples-style portrait slot: the unit count is the health readout (AO-D004), state is icons and overlays (AO-D024). */
+export function StackTile({ stack, side, ownArmy, selectable, selected, dimmed, fx, floaters, onClick, onInspect }: StackTileProps) {
   // Rendered in the wiped branch too so a killing blow's floater still shows.
   const floatersEl = floaters?.map((f) => (
     <span key={f.id} className={`floater floater-${f.kind}`} style={{ animationDelay: `${f.delayMs}ms` }}>
@@ -61,9 +52,7 @@ export function StackTile({
               <UnitArt unitId={stack.unitId} />
             </span>
           )}
-        </div>
-        <div className="portrait-meta">
-          <div className="unit-name">{stack ? `${UNIT_DEFINITIONS[stack.unitId].name} wiped` : 'Empty'}</div>
+          <span className="unit-name">{stack ? 'Wiped' : 'Empty'}</span>
         </div>
         {floatersEl}
       </div>
@@ -71,23 +60,15 @@ export function StackTile({
   }
 
   const def = UNIT_DEFINITIONS[stack.unitId];
-  const hpPct = Math.max(0, Math.min(100, (stack.currentHp / stack.maxHp) * 100));
-  const blockPct = stack.maxHp > 0 ? Math.min(100, (stack.block / stack.maxHp) * 100) : 0;
-
-  let previewHpLossPct = 0;
-  let previewBlockLossPct = 0;
-  if (previewDamage && previewDamage > 0) {
-    const resolution = applyDamageToStack(stack, def.hpPerUnit, previewDamage);
-    previewBlockLossPct = stack.maxHp > 0 ? Math.min(100, (resolution.blocked / stack.maxHp) * 100) : 0;
-    previewHpLossPct = stack.maxHp > 0 ? Math.min(100, ((stack.currentHp - resolution.stack.currentHp) / stack.maxHp) * 100) : 0;
-  }
-
-  const locked = cannotAct(stack, side, ownArmy);
+  const states = stackStates(stack, side, ownArmy);
 
   const classes = ['portrait-slot', side];
   if (selectable) classes.push('selectable');
   if (selected) classes.push('selected');
-  if (locked) classes.push('locked');
+  if (states.acted) classes.push('acted');
+  if (states.frozen) classes.push('frozen');
+  if (states.chained) classes.push('chained');
+  if (states.blocked) classes.push('blocked');
   if (dimmed) classes.push('dimmed');
 
   const frameClasses = ['portrait-frame'];
@@ -110,6 +91,14 @@ export function StackTile({
       >
         <span className="portrait-art">
           <UnitArt unitId={stack.unitId} />
+          {states.frozen && (
+            <span className="unit-ice" aria-hidden="true">
+              <b />
+              <b />
+              <b />
+            </span>
+          )}
+          {states.chained && <span className="unit-chains" aria-hidden="true" style={{ backgroundImage: CHAINS }} />}
         </span>
         <span className="portrait-count">×{stack.count}</span>
         <span className="portrait-role-badge">
@@ -120,9 +109,9 @@ export function StackTile({
             <Icon name="ui_check" />
           </span>
         )}
-        {locked && !selected && (
-          <span className="portrait-lock-badge">
-            <Icon name="ui_lock" />
+        {states.blocked && (
+          <span className="portrait-blocked-badge" title="Blocked by the ally in front">
+            <Icon name="ui_blocked" />
           </span>
         )}
         {(stack.block > 0 || stack.statuses.length > 0) && (
@@ -141,25 +130,9 @@ export function StackTile({
             ))}
           </div>
         )}
-        <div className="portrait-hp-strip">
-          <div className={`bar-fill-hp${hpPct < 30 ? ' low' : ''}`} style={{ width: `${hpPct}%` }} />
-          {previewHpLossPct > 0 && (
-            <div className="bar-fill-preview" style={{ width: `${previewHpLossPct}%`, left: `${hpPct - previewHpLossPct}%` }} />
-          )}
-        </div>
-        {(stack.block > 0 || previewBlockLossPct > 0) && (
-          <div className="portrait-block-strip">
-            <div className="bar-fill-block" style={{ width: `${blockPct}%` }} />
-            {previewBlockLossPct > 0 && (
-              <div className="bar-fill-preview" style={{ width: `${previewBlockLossPct}%`, left: `${blockPct - previewBlockLossPct}%` }} />
-            )}
-          </div>
-        )}
+        <span className="unit-name">{def.name}</span>
       </div>
       {floatersEl}
-      <div className="portrait-meta">
-        <div className="unit-name">{def.name}</div>
-      </div>
     </div>
   );
 }

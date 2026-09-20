@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { CARD_DEFINITIONS, UNIT_DEFINITIONS, computeValidHealTargets, computeValidTargets } from './engine/index.js';
-import type { ArmyStack, CardEffect, CardTargeting, EnemyIntent, PlayerAction, Position } from './engine/index.js';
+import type { ArmyStack, CardTargeting, EnemyIntent, PlayerAction, Position } from './engine/index.js';
 import { applyRunAction, cardRemovalQuote, createRun, enemyStrengthAfterCityVisits, eventView, migrateRun } from './engine/run/index.js';
 import type { RunEvent, RunState } from './engine/run/index.js';
 import { StackTile } from './ui/StackTile.js';
@@ -27,7 +27,6 @@ import { CARD_DESCRIPTIONS } from './ui/cardText.js';
 import { HistoryDrawer } from './ui/HistoryDrawer.js';
 import { ToastStack } from './ui/Toast.js';
 import type { ToastItem } from './ui/Toast.js';
-import { previewAttackDamage } from './ui/damagePreview.js';
 import { TitleScreen } from './ui/TitleScreen.js';
 import { CommanderSetupScreen } from './ui/CommanderSetupScreen.js';
 import { PauseMenu } from './ui/PauseMenu.js';
@@ -120,12 +119,31 @@ export default function App() {
     }
   }, [run, hasSave]);
 
+  // Set by the battle render only while Space may end the turn (nothing pending, no popup open); null everywhere else.
+  const spaceEndTurn = useRef<(() => void) | null>(null);
+  spaceEndTurn.current = null;
+
   useEffect(() => {
+    function typing(t: EventTarget | null): boolean {
+      return t instanceof HTMLElement && (t.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName));
+    }
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === 'Escape') setPending(null);
+      if (e.code === 'Space' && !e.repeat && !typing(e.target) && spaceEndTurn.current) {
+        e.preventDefault();
+        spaceEndTurn.current();
+      }
+    }
+    // A focused button would otherwise also "click" itself when Space is released.
+    function onKeyUp(e: KeyboardEvent) {
+      if (e.code === 'Space' && !typing(e.target) && document.activeElement instanceof HTMLButtonElement) e.preventDefault();
     }
     window.addEventListener('keydown', onKeyDown);
-    return () => window.removeEventListener('keydown', onKeyDown);
+    window.addEventListener('keyup', onKeyUp);
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('keyup', onKeyUp);
+    };
   }, []);
 
   // Steps through the enemy's intents one at a time (highlighting the acting stack and its
@@ -571,30 +589,6 @@ export default function App() {
     return false;
   }
 
-  function findPendingAttackEffect(): Extract<CardEffect, { kind: 'ATTACK' }> | undefined {
-    if (!combat || !pending) return undefined;
-    if (pending.kind === 'basic') {
-      // A free basic attack behaves like a plain 1x ATTACK effect for preview purposes.
-      return pending.targeting === 'basic-attack' ? { kind: 'ATTACK', multiplier: 1 } : undefined;
-    }
-    const cardId = combat.hand.find((c) => c.instanceId === pending.id)?.cardId;
-    const def = cardId ? CARD_DEFINITIONS[cardId] : undefined;
-    return def?.effects.find((e): e is Extract<CardEffect, { kind: 'ATTACK' }> => e.kind === 'ATTACK');
-  }
-
-  function previewDamageFor(stack: ArmyStack | undefined, side: 'player' | 'enemy'): number | undefined {
-    if (!combat || !stack) return undefined;
-    if (pending) {
-      if (side !== 'enemy' || !isSelectable(stack, 'enemy')) return undefined;
-      const attackEffect = findPendingAttackEffect();
-      if (!attackEffect || !pending.actingStackId) return undefined;
-      const attacker = combat.playerArmy.find((s) => s.stackId === pending.actingStackId);
-      if (!attacker) return undefined;
-      return previewAttackDamage(combat, attacker, stack, attackEffect);
-    }
-    return undefined;
-  }
-
   if (appStage === 'title') {
     return (
       <>
@@ -801,6 +795,14 @@ export default function App() {
   const manaPct = combat.hero.maxMana > 0 ? Math.min(100, (combat.hero.mana / combat.hero.maxMana) * 100) : 0;
   const inspectedStack = [...combat.playerArmy, ...combat.enemyArmy].find((s) => s.stackId === inspectStackId && s.count > 0);
   const canAct = combat.phase === 'player' && combat.result === 'ongoing' && !enemyAnimQueue && !playerFx && !flyingCard;
+  if (canAct && !pending && !menuOpen && !historyOpen && !inspectedStack) spaceEndTurn.current = handleEndTurn;
+
+  /** Clicking bare battlefield (not a unit, the drop zone or End Turn) drops the selection and any pending card. */
+  function onFieldClick(e: React.MouseEvent) {
+    if (flyingCard || playerFx || enemyAnimQueue) return;
+    if ((e.target as HTMLElement).closest('.portrait-slot:not(.empty), .portrait-slot.selectable, .drop-zone, .endturn-bar')) return;
+    setPending(null);
+  }
 
   return (
     <div className="screen disciples-frame" data-screen="battle">
@@ -850,7 +852,7 @@ export default function App() {
         </div>
       </div>
 
-      <div className="frame-body">
+      <div className="frame-body" onClick={onFieldClick}>
         <div className="portrait-rail player-rail">
           <div className="portrait-col">
             {back.map((p) => {
@@ -866,7 +868,6 @@ export default function App() {
                   dimmed={isDimmed(s, 'player')}
                   fx={stackFx(s?.stackId)}
                   floaters={floaters.filter((f) => f.stackId === s?.stackId)}
-                  previewDamage={previewDamageFor(s, 'player')}
                   onClick={() => onArmyStackClick(s, p, 'player')}
                   onInspect={() => s && setInspectStackId(s.stackId)}
                 />
@@ -887,7 +888,6 @@ export default function App() {
                   dimmed={isDimmed(s, 'player')}
                   fx={stackFx(s?.stackId)}
                   floaters={floaters.filter((f) => f.stackId === s?.stackId)}
-                  previewDamage={previewDamageFor(s, 'player')}
                   onClick={() => onArmyStackClick(s, p, 'player')}
                   onInspect={() => s && setInspectStackId(s.stackId)}
                 />
@@ -920,7 +920,6 @@ export default function App() {
                   dimmed={isDimmed(s, 'enemy')}
                   fx={stackFx(s?.stackId)}
                   floaters={floaters.filter((f) => f.stackId === s?.stackId)}
-                  previewDamage={previewDamageFor(s, 'enemy')}
                   onClick={() => onArmyStackClick(s, p, 'enemy')}
                   onInspect={() => s && setInspectStackId(s.stackId)}
                 />
@@ -941,13 +940,18 @@ export default function App() {
                   dimmed={isDimmed(s, 'enemy')}
                   fx={stackFx(s?.stackId)}
                   floaters={floaters.filter((f) => f.stackId === s?.stackId)}
-                  previewDamage={previewDamageFor(s, 'enemy')}
                   onClick={() => onArmyStackClick(s, p, 'enemy')}
                   onInspect={() => s && setInspectStackId(s.stackId)}
                 />
               );
             })}
           </div>
+        </div>
+
+        <div className="endturn-bar shadowed-1">
+          <button className="btn btn--primary btn--l endturn-btn" disabled={!canAct} onClick={handleEndTurn}>
+            End Turn
+          </button>
         </div>
       </div>
 
@@ -996,9 +1000,6 @@ export default function App() {
         </div>
 
         <div className="frame-round-buttons">
-          <button className="btn btn--primary round-btn round-btn-main" disabled={!canAct} onClick={handleEndTurn} title="End Turn">
-            <Icon name="node_battle" size={2} />
-          </button>
           <button className="btn round-btn" onClick={() => setHistoryOpen(true)} title="Battle Log">
             <Icon name="ui_log" size={2} />
           </button>
