@@ -24,12 +24,14 @@ export function HeroPopup({ run, onClose }: { run: Pick<RunState, 'hero' | 'reli
         <div className="hero-popup-main">
           <div className="well hero-popup-stats">
             {rows.map((row) => (
-              <div key={row.key} className="row hero-popup-stat">
-                <Icon name={row.icon} />
-                <span className="hero-popup-stat-name">{row.label}</span>
-                <span className="hero-popup-stat-value">{row.value}</span>
-                <span className="hero-popup-stat-effect">{row.effect}</span>
-              </div>
+              <Tip key={row.key} tip={row.tip}>
+                <div className="row hero-popup-stat">
+                  <Icon name={row.icon} />
+                  <span className="hero-popup-stat-name">{row.label}</span>
+                  <span className="hero-popup-stat-value">{row.value}</span>
+                  <span className="hero-popup-stat-effect">{row.effect}</span>
+                </div>
+              </Tip>
             ))}
             <div className="row hero-popup-stat">
               <Icon name="mana" />

@@ -117,3 +117,24 @@ describe('heroStatRows', () => {
     expect(rows[3]!.effect).toContain('Not used');
   });
 });
+
+describe('hero stat tips (AO-043 item 13)', () => {
+  const rows = heroStatRows({ strength: 20, dexterity: 15, intelligence: 8, vitality: 14, wisdom: 14 }, 3);
+
+  it('every stat has a titled tip that says what it does, with the engine numbers', () => {
+    for (const row of rows) {
+      expect(row.tip.title).toBe(row.label);
+      expect(row.tip.body?.length ?? 0).toBeGreaterThan(10);
+    }
+    expect(rows[0]!.tip.body).toBe('Melee units deal +2% damage for each point above 10 (up to +40%).');
+    expect(rows[1]!.tip.body).toContain('up to 20%');
+    expect(rows[4]!.tip.body).toContain('Every 2 points above 10 add 1 Max Mana (12 at most).');
+  });
+
+  it('a used stat also states what it gives now; an unused one says Not used yet and nothing more', () => {
+    expect(rows[0]!.tip.lines?.[0]?.text).toBe('Now: Melee units deal +20% damage.');
+    expect(rows[2]!.tip.body).toContain('Not used yet');
+    expect(rows[2]!.tip.lines).toBeUndefined();
+    expect(rows[3]!.tip.body).toContain('Not used yet');
+  });
+});

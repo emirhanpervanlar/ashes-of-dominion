@@ -127,7 +127,7 @@ export function RunEndScreen({ run, onNewRun, onMainMenu }: Props) {
             <div className="setup-label">Hero</div>
             <div className="well">
               {heroStatRows(run.hero.stats, run.hero.baseMana).map((row) => (
-                <Tip key={row.key} tip={{ title: row.label, icon: row.icon, body: row.effect }}>
+                <Tip key={row.key} tip={row.tip}>
                   <div className="row run-end-row">
                     <Icon name={row.icon} />
                     <span className="run-end-row-label">{row.label}</span>

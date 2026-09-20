@@ -14,7 +14,7 @@ export function TitleScreen({ onStart, onContinue, onSettings }: Props) {
       <TitleSkyline />
       <div className="title-content">
         <div className="title-crest">
-          <Icon name="crest" size={4} />
+          <Icon name="crest" size={3} />
         </div>
         <h1 className="plaque plaque--ribbon title-plaque">Ashes of Dominion</h1>
         <div className="title-tagline">From the embers of a shattered crown, a new dominion shall rise.</div>

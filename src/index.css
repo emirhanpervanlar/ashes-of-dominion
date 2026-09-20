@@ -3003,13 +3003,20 @@ button.pill {
 }
 
 /* barracks */
+/* Stays at the top of the scrolling panel: Gold and Food are always in view while recruiting. */
 .city-barracks-strip {
+  position: sticky;
+  top: 0;
+  z-index: 2;
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: var(--s-2) var(--s-5);
   padding: var(--s-2) var(--s-3);
   margin-bottom: var(--s-2);
 }
+
+.city-strip-item--big { font-size: 20px; line-height: 20px; color: var(--gold-200); }
 
 .city-strip-item {
   display: inline-flex;
@@ -3091,14 +3098,24 @@ button.pill {
 .city-recruit-costlabel { flex-basis: 100%; justify-content: center; }
 .city-recruit-upkeep { flex-basis: 100%; justify-content: center; color: var(--text-dim); }
 
-.city-stepper { display: flex; align-items: center; gap: var(--s-1); }
-.city-stepper .btn--sq { width: 32px; }
-.city-stepper .btn--s { padding: 0 var(--s-2); }
-.city-stepper-input { width: 56px; height: 32px; padding: 0 var(--s-1); text-align: center; font: var(--t-num); }
+/* Big [-] number [+]: the number is a display, changed only by the buttons (hold to repeat). */
+.quantity-stepper { display: flex; align-items: center; gap: var(--s-2); }
+.quantity-stepper-btn { width: 48px; height: 48px; padding: 0; font: 700 24px/24px var(--font-pixel); touch-action: manipulation; }
+.quantity-stepper-value {
+  min-width: 72px;
+  height: 48px;
+  padding: 0 var(--s-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: 400 28px/32px var(--font-display);
+  color: var(--gold-200);
+}
 
 .city-recruit-total {
   display: flex;
-  gap: var(--s-4);
+  align-items: center;
+  gap: var(--s-3);
   font: var(--t-num);
   color: var(--gold-200);
 }
@@ -3649,17 +3666,17 @@ button.frame-pile:hover .pile-card-back::before { --bev-light: var(--gold-400); 
   filter: drop-shadow(0 4px 0 var(--stone-950));
 }
 
+/* The logo is a quiet ribbon, not the whole screen: about a third narrower than the menu slab plus skyline it sits over. */
 .title-plaque {
-  height: 96px;
-  padding: 0 88px;
-  font: var(--t-title);
-  line-height: 96px;
-  letter-spacing: 4px;
-  text-shadow: 0 4px 0 var(--gold-200);
+  height: 72px;
+  padding: 0 72px;
+  font: 400 44px/72px var(--font-display);
+  letter-spacing: 3px;
+  text-shadow: 0 3px 0 var(--gold-200);
 }
 
 .title-plaque::before,
-.title-plaque::after { top: 44px; }
+.title-plaque::after { top: 32px; }
 
 .title-tagline {
   max-width: 480px;
@@ -3846,6 +3863,20 @@ button.frame-pile:hover .pile-card-back::before { --bev-light: var(--gold-400); 
   display: flex;
   flex-direction: column;
   min-width: 0;
+}
+
+/* Short viewports (1280x720): three relic columns, slimmer cards, so all five relics show without scrolling. */
+@media (max-height: 800px) {
+  .hero-setup { padding-top: var(--s-3); padding-bottom: var(--s-3); gap: var(--s-2); }
+  .hero-setup-choices { gap: var(--s-2); }
+  .hero-choice { gap: var(--s-2); padding: var(--s-3); }
+  .hero-choice-portrait { width: 64px; height: 64px; }
+  .hero-stat-row { padding: 0 var(--s-2); }
+  .relic-choice-list { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s-2); }
+  .relic-choice { gap: var(--s-2); padding: var(--s-2) var(--s-3); }
+  .relic-choice-frame { width: 48px; height: 48px; }
+  .relic-choice-name { font: 400 16px/20px var(--font-display); }
+  .relic-choice-desc { font: var(--t-small); line-height: 16px; }
 }
 
 .relic-choice-name { font: var(--t-h3); color: var(--gold-200); }
