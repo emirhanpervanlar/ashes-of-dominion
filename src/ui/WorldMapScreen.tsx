@@ -5,7 +5,9 @@ import type { MapNode, RunState } from '../engine/run/index.js';
 import { GarrisonBar } from './GarrisonBar.js';
 import { StarvationLines } from './FoodPopup.js';
 import { NODE_ICONS } from './mapIcons.js';
+import { Modal } from './Modal.js';
 import { Icon } from './pixel/Icon.js';
+import { Tip } from './Tip.js';
 
 interface Props {
   run: RunState;
@@ -113,13 +115,17 @@ export function WorldMapScreen({ run, onMoveTo, onEnterCity, onOpenMenu, onSplit
           <div className="scout-strip">
             <span className="scout-strip-label">Scouted ahead</span>
             {scouted.map(({ layer, nodes }) => (
-              <div key={layer} className="scout-strip-layer" title={`Step ${layer}`}>
-                {nodes.map((n) => (
-                  <span key={n.id} className={`scout-strip-node node-${n.type}`} title={NODE_LABELS[n.type]}>
-                    <Icon name={NODE_ICONS[n.type]} />
-                  </span>
-                ))}
-              </div>
+              <Tip key={layer} tip={`Step ${layer}`}>
+                <div className="scout-strip-layer">
+                  {nodes.map((n) => (
+                    <Tip key={n.id} tip={NODE_LABELS[n.type]}>
+                      <span className={`scout-strip-node node-${n.type}`}>
+                        <Icon name={NODE_ICONS[n.type]} />
+                      </span>
+                    </Tip>
+                  ))}
+                </div>
+              </Tip>
             ))}
           </div>
         )}
@@ -135,27 +141,12 @@ export function WorldMapScreen({ run, onMoveTo, onEnterCity, onOpenMenu, onSplit
       />
 
       {confirmCity && (
-        <>
-          <div className="modal-backdrop" onClick={() => setConfirmCity(false)} />
-          <div className="popup panel panel--stone step-8 city-confirm-popup">
-            <h3>
-              <Icon name="node_city" /> Enter the City?
-            </h3>
-            <p className="city-confirm-warning">
-              <Icon name="threat" /> {CITY_VISIT_WARNING}
-            </p>
-            <div className="city-confirm-rows">
-              <div className="food-popup-row">
-                <span>Enemy strength now (Threat {run.threat})</span>
-                <span>{strengthText(enemyStrengthAfterCityVisits(run))}</span>
-              </div>
-              <div className="food-popup-row food-popup-net negative">
-                <span>After this visit (Threat {run.threat + THREAT_PER_CITY_VISIT})</span>
-                <span>{strengthText(enemyStrengthAfterCityVisits(run, 1))}</span>
-              </div>
-            </div>
-            <p className="subtitle">The visit costs no days or Food.</p>
-            <div className="toolbar">
+        <Modal
+          heading="Enter the City?"
+          onClose={() => setConfirmCity(false)}
+          width={600}
+          footer={
+            <>
               <button className="btn" onClick={() => setConfirmCity(false)}>
                 Stay on the Road
               </button>
@@ -168,9 +159,24 @@ export function WorldMapScreen({ run, onMoveTo, onEnterCity, onOpenMenu, onSplit
               >
                 Enter City
               </button>
+            </>
+          }
+        >
+          <p className="city-confirm-warning">
+            <Icon name="threat" /> {CITY_VISIT_WARNING}
+          </p>
+          <div className="city-confirm-rows">
+            <div className="food-popup-row">
+              <span>Enemy strength now (Threat {run.threat})</span>
+              <span>{strengthText(enemyStrengthAfterCityVisits(run))}</span>
+            </div>
+            <div className="food-popup-row food-popup-net negative">
+              <span>After this visit (Threat {run.threat + THREAT_PER_CITY_VISIT})</span>
+              <span>{strengthText(enemyStrengthAfterCityVisits(run, 1))}</span>
             </div>
           </div>
-        </>
+          <p className="subtitle">The visit costs no days or Food.</p>
+        </Modal>
       )}
     </div>
   );

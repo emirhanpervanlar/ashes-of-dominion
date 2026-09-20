@@ -1,4 +1,5 @@
 import type { CSSProperties } from 'react';
+import { Modal } from './Modal.js';
 
 interface Props {
   volume: number;
@@ -8,10 +9,8 @@ interface Props {
 
 export function SettingsPanel({ volume, onVolumeChange, onClose }: Props) {
   return (
-    <>
-      <div className="modal-backdrop pause-backdrop" onClick={onClose} />
-      <div className="popup panel panel--iron step-8 pause-menu-card">
-        <h2 className="pause-menu-title">Settings</h2>
+    <Modal heading="Settings" material="iron" onClose={onClose} width={360}>
+      <div className="pause-menu-card">
         <label className="pause-menu-setting pause-menu-slider">
           <span>Music Volume</span>
           <input
@@ -28,6 +27,6 @@ export function SettingsPanel({ volume, onVolumeChange, onClose }: Props) {
           Back
         </button>
       </div>
-    </>
+    </Modal>
   );
 }

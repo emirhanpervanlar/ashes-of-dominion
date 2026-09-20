@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Modal } from './Modal.js';
 import { SettingsPanel } from './SettingsPanel.js';
 
 interface Props {
@@ -16,10 +17,8 @@ export function PauseMenu({ onClose, onMainMenu, volume, onVolumeChange }: Props
   }
 
   return (
-    <>
-      <div className="modal-backdrop pause-backdrop" onClick={onClose} />
-      <div className="popup panel panel--iron step-8 pause-menu-card">
-        <h2 className="pause-menu-title">Paused</h2>
+    <Modal heading="Paused" material="iron" onClose={onClose} width={320}>
+      <div className="pause-menu-card">
         <button className="btn btn--primary pause-menu-option" onClick={onClose}>
           Continue
         </button>
@@ -30,6 +29,6 @@ export function PauseMenu({ onClose, onMainMenu, volume, onVolumeChange }: Props
           Main Menu
         </button>
       </div>
-    </>
+    </Modal>
   );
 }

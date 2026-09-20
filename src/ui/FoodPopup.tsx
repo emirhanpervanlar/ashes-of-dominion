@@ -1,6 +1,7 @@
 import { UNIT_DEFINITIONS } from '../engine/index.js';
 import { dailyFoodNet, dailyProduction, dailyUpkeep, foodDaysLeft, stackUpkeep, starvationForecast } from '../engine/run/index.js';
 import type { RunState } from '../engine/run/index.js';
+import { Modal } from './Modal.js';
 import { Icon } from './pixel/Icon.js';
 
 export type FoodRun = Pick<RunState, 'army' | 'city' | 'food' | 'starvationDays'>;
@@ -21,15 +22,8 @@ export function FoodPopup({ run, onClose }: Props) {
   const stacks = run.army.filter((s) => s.count > 0);
 
   return (
-    <>
-      <div className="modal-backdrop" onClick={onClose} />
-      <div className="popup panel panel--stone step-8 food-popup">
-        <button className="btn modal-close" onClick={onClose}>
-          <Icon name="ui_close" />
-        </button>
-        <h3>
-          <Icon name="food" /> Food
-        </h3>
+    <Modal heading="Food" onClose={onClose} width={420}>
+      <div className="food-popup">
         <div className="food-popup-rows">
           <div className="food-popup-row">
             <span>Stockpile</span>
@@ -66,7 +60,7 @@ export function FoodPopup({ run, onClose }: Props) {
           </div>
         )}
       </div>
-    </>
+    </Modal>
   );
 }
 

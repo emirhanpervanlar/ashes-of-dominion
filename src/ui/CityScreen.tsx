@@ -8,6 +8,9 @@ import { Icon } from './pixel/Icon.js';
 import { UnitArt } from './UnitArt.js';
 import { GarrisonBar } from './GarrisonBar.js';
 import { CardRemovalPicker } from './CardRemovalPicker.js';
+import { Modal } from './Modal.js';
+import { Tip } from './Tip.js';
+import { buildingTip } from './tipContent.js';
 
 interface Props {
   run: RunState;
@@ -25,6 +28,13 @@ interface Props {
   onMoveStack: (stackId: string, toPosition: Position) => void;
   onDismissStack: (stackId: string, count?: number) => void;
 }
+
+const FIXED_NAMES = { townhall: 'Town Hall', barracks: 'Barracks', temple: 'Temple' } as const;
+const FIXED_HINTS = {
+  townhall: 'Upgrade the city for more building slots, and remove cards from your deck.',
+  barracks: 'Recruit units into your army.',
+  temple: 'Choose one permanent doctrine.',
+} as const;
 
 const RECRUITABLE: UnitId[] = ['swordsman', 'archer', 'knight', 'priest'];
 
@@ -79,57 +89,43 @@ export function CityScreen({ run, onRecruit, onBuild, onUpgradeCity, onUpgradeMa
         <div className="th-scene-label">Ironhold</div>
 
         {(['townhall', 'barracks', 'temple'] as const).map((id) => (
-          <div
-            key={id}
-            className={`th-hotspot${panel === id ? ' active' : ''}`}
-            style={HOTSPOTS[id]}
-            onClick={() => togglePanel(id)}
-          >
-            <span className="th-hotspot-icon">
-              <Icon name={BUILDING_ICONS[id]!} size={2} />
-            </span>
-            <span className="th-hotspot-name">{id === 'townhall' ? 'Town Hall' : id === 'barracks' ? 'Barracks' : 'Temple'}</span>
-            <span className="th-hotspot-sub">
-              {id === 'townhall' && 'Level up'}
-              {id === 'barracks' && 'Recruit'}
-              {id === 'temple' && (city.doctrine ? DOCTRINE_DEFINITIONS[city.doctrine]?.name : 'Doctrine')}
-            </span>
-          </div>
+          <Tip key={id} tip={{ title: FIXED_NAMES[id], body: FIXED_HINTS[id] }}>
+            <div className={`th-hotspot${panel === id ? ' active' : ''}`} style={HOTSPOTS[id]} onClick={() => togglePanel(id)}>
+              <span className="th-hotspot-icon">
+                <Icon name={BUILDING_ICONS[id]!} size={2} />
+              </span>
+              <span className="th-hotspot-name">{FIXED_NAMES[id]}</span>
+              <span className="th-hotspot-sub">
+                {id === 'townhall' && 'Level up'}
+                {id === 'barracks' && 'Recruit'}
+                {id === 'temple' && (city.doctrine ? DOCTRINE_DEFINITIONS[city.doctrine]?.name : 'Doctrine')}
+              </span>
+            </div>
+          </Tip>
         ))}
 
         {Object.values(BUILDING_DEFINITIONS).map((building) => {
           const built = city.buildings.includes(building.id);
           const pos = HOTSPOTS[building.id] ?? { top: '50%', left: '50%' };
           return (
-            <div
-              key={building.id}
-              className={`th-hotspot${panel === building.id ? ' active' : ''}${built ? '' : ' locked'}`}
-              style={pos}
-              onClick={() => togglePanel(building.id)}
-            >
-              <span className="th-hotspot-icon">
-                <Icon name={BUILDING_ICONS[building.id]!} size={2} />
-              </span>
-              <span className="th-hotspot-name">{building.name}</span>
-              <span className="th-hotspot-sub">{built ? (building.id === 'mage_tower' ? `Tier ${ROMAN[city.mageTowerTier - 1]}` : building.id === 'farm' ? `Tier ${ROMAN[city.farmTier - 1]}` : 'Built') : `${building.cost}g`}</span>
-            </div>
+            <Tip key={building.id} tip={buildingTip(building, built, buildingText(building, city))}>
+              <div className={`th-hotspot${panel === building.id ? ' active' : ''}${built ? '' : ' locked'}`} style={pos} onClick={() => togglePanel(building.id)}>
+                <span className="th-hotspot-icon">
+                  <Icon name={BUILDING_ICONS[building.id]!} size={2} />
+                </span>
+                <span className="th-hotspot-name">{building.name}</span>
+                <span className="th-hotspot-sub">{built ? (building.id === 'mage_tower' ? `Tier ${ROMAN[city.mageTowerTier - 1]}` : building.id === 'farm' ? `Tier ${ROMAN[city.farmTier - 1]}` : 'Built') : `${building.cost}g`}</span>
+              </div>
+            </Tip>
           );
         })}
       </div>
 
       {panel && (
-        <>
-          <div className="modal-backdrop" onClick={() => setPanel(null)} />
-          <div className="popup panel panel--wood step-8 city-building-popup">
-            <button className="btn modal-close" onClick={() => setPanel(null)}>
-              <Icon name="ui_close" />
-            </button>
-
+        <Modal heading={panelTitle(panel)} material="wood" onClose={() => setPanel(null)} width={560}>
+          <div className="city-building-popup">
             {panel === 'townhall' && (
               <>
-                <h3>
-                  <Icon name="bld_townhall" /> Town Hall
-                </h3>
                 <p className="subtitle">
                   City Level {city.level} — {slotsMax} building slots.
                 </p>
@@ -153,9 +149,6 @@ export function CityScreen({ run, onRecruit, onBuild, onUpgradeCity, onUpgradeMa
 
             {panel === 'barracks' && (
               <>
-                <h3>
-                  <Icon name="bld_barracks" /> Barracks — Recruit
-                </h3>
                 <div className="option-row">
                   {RECRUITABLE.map((unitId) => {
                     const unlocked = canRecruitUnit(city, unitId);
@@ -200,9 +193,6 @@ export function CityScreen({ run, onRecruit, onBuild, onUpgradeCity, onUpgradeMa
 
             {panel === 'temple' && (
               <>
-                <h3>
-                  <Icon name="bld_temple" /> Temple — Doctrine
-                </h3>
                 <div className="option-row">
                   {Object.values(DOCTRINE_DEFINITIONS).map((doctrine) => {
                     const chosen = city.doctrine === doctrine.id;
@@ -232,10 +222,7 @@ export function CityScreen({ run, onRecruit, onBuild, onUpgradeCity, onUpgradeMa
               const affordable = gold >= building.cost;
               return (
                 <div key={building.id}>
-                  <h3>
-                    <Icon name={BUILDING_ICONS[building.id]!} /> {building.name}
-                  </h3>
-                  <p className="subtitle">{building.id === 'mage_tower' ? mageTowerDescription(city.mageTowerTier) : building.id === 'farm' ? farmDescription(city.farmTier) : building.description}</p>
+                  <p className="subtitle">{buildingText(building, city)}</p>
                   {built && building.id === 'mage_tower' ? (
                     <MageTowerUpgrade tier={city.mageTowerTier} gold={gold} onUpgrade={onUpgradeMageTower} />
                   ) : built && building.id === 'farm' ? (
@@ -251,12 +238,13 @@ export function CityScreen({ run, onRecruit, onBuild, onUpgradeCity, onUpgradeMa
               );
             })}
           </div>
-        </>
+        </Modal>
       )}
 
       <GarrisonBar
         run={run}
         onLeave={onLeave}
+        onOpenCardRemoval={() => setPanel('townhall')}
         recentRecruit={recentRecruit}
         onOpenMenu={onOpenMenu}
         onMoveStack={onMoveStack}
@@ -269,6 +257,17 @@ export function CityScreen({ run, onRecruit, onBuild, onUpgradeCity, onUpgradeMa
 }
 
 const ROMAN = ['I', 'II', 'III', 'IV', 'V'];
+
+function buildingText(building: (typeof BUILDING_DEFINITIONS)[string], city: RunState['city']): string {
+  if (building.id === 'mage_tower') return mageTowerDescription(city.mageTowerTier);
+  if (building.id === 'farm') return farmDescription(city.farmTier);
+  return building.description;
+}
+
+function panelTitle(panel: Panel): string {
+  if (panel === 'townhall' || panel === 'barracks' || panel === 'temple') return FIXED_NAMES[panel];
+  return (panel && BUILDING_DEFINITIONS[panel]?.name) || '';
+}
 
 function MageTowerUpgrade({ tier, gold, onUpgrade }: { tier: 0 | 1 | 2 | 3; gold: number; onUpgrade: () => void }) {
   const next = MAGE_TOWER_TIERS[tier];

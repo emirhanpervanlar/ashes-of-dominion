@@ -1,8 +1,6 @@
-import { CARD_DEFINITIONS } from '../engine/index.js';
 import type { CardInstance } from '../engine/index.js';
 import type { CardRemovalQuote, MerchantInventory } from '../engine/run/index.js';
-import { CARD_DESCRIPTIONS } from './cardText.js';
-import { cardVisual } from './cardVisuals.js';
+import { LargeCard } from './LargeCard.js';
 import { Icon } from './pixel/Icon.js';
 import { RelicOfferCard } from './RelicOfferCard.js';
 import { CardRemovalPicker } from './CardRemovalPicker.js';
@@ -30,24 +28,15 @@ export function MerchantScreen({ gold, inventory, deck, removalQuote, onBuyCard,
 
       <div className="merchant-shelf">
         {inventory.cardOffers.map((offer) => {
-          const cardDef = CARD_DEFINITIONS[offer.cardId];
-          if (!cardDef) return null;
-          const visual = cardVisual(offer.cardId);
-          const affordable = gold >= offer.price;
           return (
-            <div
+            <LargeCard
               key={offer.cardId}
-              className={`reward-card merchant-card polarity-${visual.polarity}${affordable ? '' : ' disabled'}`}
-              onClick={affordable ? () => onBuyCard(offer.cardId) : undefined}
-            >
-              <div className="reward-card-cost">{cardDef.manaCost}</div>
-              <div className="reward-card-icon">
-                <Icon name={visual.icon} size={3} />
-              </div>
-              <div className="reward-card-name">{cardDef.name}</div>
-              <div className="reward-card-desc">{CARD_DESCRIPTIONS[offer.cardId] ?? offer.cardId}</div>
-              <div className="merchant-price">{offer.price}g</div>
-            </div>
+              cardId={offer.cardId}
+              className="merchant-card"
+              price={offer.price}
+              disabled={gold < offer.price}
+              onClick={() => onBuyCard(offer.cardId)}
+            />
           );
         })}
 

@@ -2,6 +2,8 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { UNIT_DEFINITIONS } from '../engine/index.js';
 import type { ArmyStack, Position } from '../engine/index.js';
 import { Icon } from './pixel/Icon.js';
+import { Tip } from './Tip.js';
+import { roleTip } from './tipContent.js';
 import { UnitArt } from './UnitArt.js';
 import { UNIT_ROLE_ICONS } from './unitIcons.js';
 
@@ -97,49 +99,51 @@ export function ArmyGrid({ army, recentRecruit, onMoveStack, onInspect }: Props)
           const classes = ['army-slot', s ? 'filled' : 'empty'];
           if (s && s.stackId === heldId) classes.push('held');
           return (
-            <div
-              key={position}
-              className={classes.join(' ')}
-              title={s ? `${slotTitle(position)} (${UNIT_DEFINITIONS[s.unitId].name})` : slotTitle(position)}
-              onClick={() => clickSlot(position, s)}
-              onContextMenu={(e) => {
-                e.preventDefault();
-                if (!s) return;
-                setHeldId(null);
-                onInspect(s.stackId);
-              }}
-            >
-              {s ? (
-                <>
-                  <span
-                    className="army-slot-icon"
-                    ref={(el) => {
-                      if (el) iconRefs.current.set(s.stackId, el);
-                      else iconRefs.current.delete(s.stackId);
-                    }}
-                  >
-                    <UnitArt unitId={s.unitId} />
-                    <span className="army-slot-role">
-                      <Icon name={UNIT_ROLE_ICONS[s.unitId]} />
+            <Tip key={position} tip={s ? `${slotTitle(position)} (${UNIT_DEFINITIONS[s.unitId].name})` : slotTitle(position)}>
+              <div
+                className={classes.join(' ')}
+                onClick={() => clickSlot(position, s)}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  if (!s) return;
+                  setHeldId(null);
+                  onInspect(s.stackId);
+                }}
+              >
+                {s ? (
+                  <>
+                    <span
+                      className="army-slot-icon"
+                      ref={(el) => {
+                        if (el) iconRefs.current.set(s.stackId, el);
+                        else iconRefs.current.delete(s.stackId);
+                      }}
+                    >
+                      <UnitArt unitId={s.unitId} />
+                      <Tip tip={roleTip(s.unitId)}>
+                        <span className="army-slot-role">
+                          <Icon name={UNIT_ROLE_ICONS[s.unitId]} />
+                        </span>
+                      </Tip>
                     </span>
-                  </span>
-                  <span className="army-slot-text">
-                    <span className="army-slot-count">×{s.count}</span>
-                    <span className="army-slot-name">{UNIT_DEFINITIONS[s.unitId].name}</span>
-                  </span>
-                  <span className="army-slot-swap">
-                    <Icon name="ui_swap" />
-                  </span>
-                  {recentRecruit?.unitId === s.unitId && <span className="recruit-flourish">+{recentRecruit.amount}</span>}
-                </>
-              ) : (
-                <>
-                  <span className="army-slot-empty-label">Empty</span>
-                  <span className="army-slot-move-label">Move here</span>
-                </>
-              )}
-              <span className="army-slot-digit">{position}</span>
-            </div>
+                    <span className="army-slot-text">
+                      <span className="army-slot-count">×{s.count}</span>
+                      <span className="army-slot-name">{UNIT_DEFINITIONS[s.unitId].name}</span>
+                    </span>
+                    <span className="army-slot-swap">
+                      <Icon name="ui_swap" />
+                    </span>
+                    {recentRecruit?.unitId === s.unitId && <span className="recruit-flourish">+{recentRecruit.amount}</span>}
+                  </>
+                ) : (
+                  <>
+                    <span className="army-slot-empty-label">Empty</span>
+                    <span className="army-slot-move-label">Move here</span>
+                  </>
+                )}
+                <span className="army-slot-digit">{position}</span>
+              </div>
+            </Tip>
           );
         })}
       </div>

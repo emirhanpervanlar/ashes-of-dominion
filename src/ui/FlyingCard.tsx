@@ -3,9 +3,6 @@ import { ActionCardTile } from './ActionCardTile.js';
 
 export interface FlyingCardState {
   cardId: string;
-  name: string;
-  description: string;
-  manaCost: number;
   /** Viewport rect of the hand slot the card left, and the viewport point it travels to. */
   from: { left: number; top: number; width: number; height: number };
   to: { x: number; y: number };
@@ -23,7 +20,7 @@ export function FlyingCard({ card }: { card: FlyingCardState }) {
   } as CSSProperties;
   return (
     <div className="flying-card" style={style}>
-      <ActionCardTile id={card.cardId} name={card.name} description={card.description} manaCost={card.manaCost} affordable pending={false} onClick={() => {}} />
+      <ActionCardTile id={card.cardId} affordable />
     </div>
   );
 }
