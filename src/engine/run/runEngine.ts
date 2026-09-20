@@ -421,7 +421,7 @@ function forwardCombatAction(run: RunState, action: PlayerAction, events: RunEve
     run.phase = 'defeat';
   }
 
-  return { run, events };
+  return { run, events, enemySteps: result.enemySteps };
 }
 
 /** What the battle cost, per unit type, after Shrine revival; the source for event revivals. */

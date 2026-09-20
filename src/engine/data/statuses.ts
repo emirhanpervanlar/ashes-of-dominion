@@ -25,5 +25,5 @@ export const STATUS_INFO: Record<StatusType, StatusInfo> = {
 
 /** Effect line with the stack's actual amount filled in. */
 export function statusEffectText(id: StatusType, amount: number): string {
-  return STATUS_INFO[id].effect.replaceAll('{n}', String(amount));
+  return STATUS_INFO[id].effect.replace(/{n}/g, String(amount));
 }
