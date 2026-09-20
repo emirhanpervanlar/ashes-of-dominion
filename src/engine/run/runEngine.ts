@@ -49,7 +49,7 @@ import { generateMerchantInventory } from './merchant.js';
 import { pickRelicByRarity, pickRelicId } from './relicSources.js';
 import { buildPendingReward, generateCardOptions } from './rewards.js';
 import { createRunStats, tallyCombatEvents } from './stats.js';
-import type { RunAction, RunApplyResult, RunEvent, RunState, UnitCount } from './types.js';
+import type { PendingReward, RunAction, RunApplyResult, RunEvent, RunState, UnitCount } from './types.js';
 import { findNode, generateWorldMap, visitNode } from './worldMap.js';
 
 export const STARTING_GOLD = 100;
@@ -62,13 +62,13 @@ function cloneRun(run: RunState): RunState {
 }
 
 /** Version of the persisted RunState shape. A save without the field predates versioning and counts as version 1. */
-export const CURRENT_SAVE_VERSION = 2;
+export const CURRENT_SAVE_VERSION = 3;
 
 /**
  * Upgrades one version step. Every field-by-field guess for pre-versioning saves lives in `fromVersion1`;
  * a future format change adds `fromVersion2` here instead of another "field is undefined" check.
  */
-const MIGRATIONS: Record<number, (run: RunState) => RunState> = { 1: fromVersion1 };
+const MIGRATIONS: Record<number, (run: RunState) => RunState> = { 1: fromVersion1, 2: fromVersion2 };
 
 /**
  * Brings a run loaded from storage to the current save format (the reducer also applies it, so an old run keeps
@@ -137,6 +137,25 @@ function fromVersion1(run: RunState): RunState {
   return migrated;
 }
 
+/** Version 2 to 3 (AO-046): the elite relic is granted at victory (AO-D068), so an unclaimed offer in a saved reward is granted now. */
+function fromVersion2(run: RunState): RunState {
+  const migrated: RunState = { ...run };
+  const legacy = run.pendingReward as (PendingReward & { relicOffer?: string | null }) | null;
+  if (legacy) {
+    const { relicOffer, ...reward } = legacy;
+    migrated.pendingReward = { ...reward, relicGained: reward.relicGained ?? null };
+    const def = relicOffer ? RELIC_DEFINITIONS[relicOffer] : undefined;
+    if (def && !run.relics.some((r) => r.id === def.id)) {
+      migrated.army = run.army.map((s) => ({ ...s }));
+      migrated.hero = { ...run.hero };
+      migrated.relics = [...run.relics];
+      grantRelic(migrated, def, []);
+      migrated.pendingReward.relicGained = def.id;
+    }
+  }
+  return migrated;
+}
+
 /** Rebuilds the encounter of the node the run stands on (boss, elite, normal; an event ambush is a normal battle) and starts it over. */
 function restartBattle(run: RunState): void {
   const node = findNode(run.worldMap, run.worldMap.currentNodeId);
@@ -147,6 +166,13 @@ function restartBattle(run: RunState): void {
   run.combat = startBattleForRun(run, encounter);
 }
 
+/** Builds the reward of a won battle; an elite's relic is granted on the spot (AO-D068). */
+function rollReward(run: RunState, elite: boolean, events: RunEvent[]): PendingReward {
+  const reward = buildPendingReward(run.rng, run.relics, run.masterDeck, elite, run.bossBattle && run.chapter < TOTAL_CHAPTERS);
+  if (reward.relicGained) grantRelic(run, RELIC_DEFINITIONS[reward.relicGained]!, events);
+  return reward;
+}
+
 /** Drops reward options that no longer exist; a reward left with no card and no upgrade is re-rolled so the player is never stuck on an empty screen. */
 function settlePendingReward(run: RunState): void {
   const reward = run.pendingReward!;
@@ -154,12 +180,16 @@ function settlePendingReward(run: RunState): void {
   const cardOptions = (reward.cardOptions ?? []).filter(known);
   const upgradeOptions = (reward.upgradeOptions ?? []).filter((o) => known(o?.cardId) && run.masterDeck.some((c) => c.instanceId === o.instanceId));
   if (cardOptions.length + upgradeOptions.length > 0) {
-    run.pendingReward = { cardOptions, upgradeOptions, relicOffer: reward.relicOffer ?? null, relicChoices: reward.relicChoices ?? [] };
+    // Version 1 still carries the pre-AO-D068 relic offer; fromVersion2 turns it into a granted relic.
+    run.pendingReward = { ...reward, cardOptions, upgradeOptions, relicChoices: reward.relicChoices ?? [] };
     return;
   }
   const node = findNode(run.worldMap, run.worldMap.currentNodeId);
   run.rng = { ...run.rng };
-  run.pendingReward = buildPendingReward(run.rng, run.relics, run.masterDeck, node?.type === 'elite_battle', run.bossBattle && run.chapter < TOTAL_CHAPTERS);
+  run.army = run.army.map((s) => ({ ...s }));
+  run.hero = { ...run.hero };
+  run.relics = [...run.relics];
+  run.pendingReward = rollReward(run, node?.type === 'elite_battle', []);
 }
 
 function changeGold(run: RunState, delta: number): void {
@@ -465,7 +495,7 @@ function forwardCombatAction(run: RunState, action: PlayerAction, events: RunEve
     changeGold(run, loot.gold);
     changeFood(run, loot.food);
     events.push({ type: 'BATTLE_LOOT', gold: loot.gold, food: loot.food });
-    run.pendingReward = buildPendingReward(run.rng, run.relics, run.masterDeck, arrivedAt?.type === 'elite_battle', run.bossBattle && run.chapter < TOTAL_CHAPTERS);
+    run.pendingReward = rollReward(run, arrivedAt?.type === 'elite_battle', events);
     run.phase = 'reward';
   } else if (result.state.result === 'defeat') {
     run.hero = result.state.hero;
@@ -485,7 +515,7 @@ function tallyCasualties(before: ArmyStack[], after: ArmyStack[]): UnitCount[] {
   return [...lost].filter(([, count]) => count > 0).map(([unitId, count]) => ({ unitId, count }));
 }
 
-/** Every reward pick (card, upgrade, removal, skip) ends the reward screen at once (AO-D026). */
+/** Every reward pick (a new card or an upgrade) ends the reward screen at once (AO-D026, AO-D068). */
 function finishReward(run: RunState, events: RunEvent[]): void {
   run.pendingReward = null;
   if (!run.bossBattle) {
@@ -520,16 +550,15 @@ function claimCard(run: RunState, cardId: string, events: RunEvent[]): RunApplyR
   return { run, events };
 }
 
-/** The elite relic / boss relic choice is an extra on top of the one card/upgrade/skip pick, so claiming it keeps the screen open. */
+/** The boss relic choice is an extra on top of the one card/upgrade pick, so claiming it keeps the screen open. */
 function claimRelic(run: RunState, relicId: string, events: RunEvent[]): RunApplyResult {
   const reward = run.pendingReward;
-  const onOffer = reward && (reward.relicOffer === relicId || reward.relicChoices.includes(relicId));
+  const onOffer = reward && reward.relicChoices.includes(relicId);
   if (run.phase !== 'reward' || !reward || !onOffer) {
     reject(events, 'That relic is not on offer.');
     return { run, events };
   }
   grantRelic(run, RELIC_DEFINITIONS[relicId]!, events);
-  reward.relicOffer = null;
   reward.relicChoices = [];
   return { run, events };
 }
@@ -555,17 +584,7 @@ function claimUpgrade(run: RunState, instanceId: string, events: RunEvent[]): Ru
   return { run, events };
 }
 
-function skipReward(run: RunState, events: RunEvent[]): RunApplyResult {
-  if (run.phase !== 'reward' || !run.pendingReward) {
-    reject(events, 'No reward pending.');
-    return { run, events };
-  }
-  events.push({ type: 'REWARD_SKIPPED' });
-  finishReward(run, events);
-  return { run, events };
-}
-
-/** Card removal (AO-D026) at a reward, merchant or city; where it is allowed and what it costs lives in cardRemoval.ts. */
+/** Card removal (AO-D026) at the merchant or the city (AO-D068: not at the reward); where it is allowed and what it costs lives in cardRemoval.ts. */
 function removeCard(run: RunState, instanceId: string, events: RunEvent[]): RunApplyResult {
   const quote = cardRemovalQuote(run);
   if (!quote.allowed) {
@@ -584,8 +603,7 @@ function removeCard(run: RunState, instanceId: string, events: RunEvent[]): RunA
   events.push({ type: 'CARD_REMOVED', instanceId, cardId: card.cardId, goldPaid: quote.gold });
 
   if (run.phase === 'merchant') run.cardRemoval.merchantUses += 1;
-  else if (run.phase === 'city') run.cardRemoval.cityUses += 1;
-  else finishReward(run, events);
+  else run.cardRemoval.cityUses += 1;
   return { run, events };
 }
 
@@ -1202,8 +1220,6 @@ function dispatchAction(working: RunState, action: RunAction, events: RunEvent[]
       return claimCard(working, action.cardId, events);
     case 'CLAIM_UPGRADE':
       return claimUpgrade(working, action.instanceId, events);
-    case 'SKIP_REWARD':
-      return skipReward(working, events);
     case 'REMOVE_CARD':
       return removeCard(working, action.instanceId, events);
     case 'CHOOSE_EVENT_OPTION':

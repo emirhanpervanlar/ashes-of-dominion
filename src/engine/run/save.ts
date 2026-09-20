@@ -49,7 +49,7 @@ function isCity(v: unknown): boolean {
 function isReward(v: unknown): boolean {
   return (
     isRec(v) && allOf(v.cardOptions, isStr) && Array.isArray(v.upgradeOptions) && v.upgradeOptions.every((o) => isRec(o) && isStr(o.instanceId) && isStr(o.cardId)) &&
-    (v.relicOffer === null || isStr(v.relicOffer)) && allOf(v.relicChoices, isStr)
+    (v.relicGained === null || isStr(v.relicGained)) && allOf(v.relicChoices, isStr)
   );
 }
 

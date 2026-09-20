@@ -57,7 +57,7 @@ describe('AO-036: Royal Banner mid-run', () => {
   it('adds units to the largest stack without healing its wounds', () => {
     const wounded = { ...createStack('swordsman', 'player', 1, 10), count: 5, currentHp: 45 }; // 5 of 10 soldiers left
     const legacy = legacySave({ ...createRun(3, 'warlord'), army: [wounded, createStack('archer', 'player', 4, 4)], relics: [], phase: 'choosing_starting_relic' });
-    const { run } = applyRunAction(legacy, { type: 'SKIP_REWARD' });
+    const { run } = applyRunAction(legacy, { type: 'LEAVE_MERCHANT' }); // rejected, but every action migrates the save first
     const grown = run.army.find((s) => s.stackId === wounded.stackId)!;
     const hp = UNIT_DEFINITIONS.swordsman.hpPerUnit;
     expect(run.relics.map((r) => r.id)).toEqual(['royal_banner']);

@@ -3,6 +3,7 @@ import { applyRunAction, createRun } from '../runEngine.js';
 import { resolveEventToMap } from './eventHelpers.js';
 import type { RunState } from '../types.js';
 import type { CombatState } from '../../types.js';
+import { pickReward } from './rewardHelpers.js';
 
 /** Resolves whatever a MOVE_TO just triggered (battle/event/merchant) back to 'on_map', or stops at 'city'. */
 function resolveUntilOnMapOrCity(run: RunState): RunState {
@@ -15,7 +16,7 @@ function resolveUntilOnMapOrCity(run: RunState): RunState {
       const wiped: CombatState = { ...combat, enemyArmy: combat.enemyArmy.map((s) => ({ ...s, count: 0, currentHp: 0 })) };
       current = applyRunAction({ ...current, combat: wiped }, { type: 'COMBAT_ACTION', action: { type: 'END_TURN' } }).run;
       if (current.phase === 'reward') {
-        current = applyRunAction(current, { type: 'SKIP_REWARD' }).run;
+        current = pickReward(current).run;
       }
       continue;
     }

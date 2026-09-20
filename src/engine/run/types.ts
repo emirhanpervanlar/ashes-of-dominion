@@ -16,12 +16,12 @@ export type RunPhase =
   | 'run_complete'
   | 'defeat';
 
-/** One pick resolves the reward (AO-D026): a card, an upgrade, a removal or a skip. */
+/** One pick resolves the reward (AO-D026): a new card or an upgrade (AO-D068: no skip, no removal). */
 export interface PendingReward {
   cardOptions: string[];
   upgradeOptions: { instanceId: string; cardId: string }[];
-  /** Elite victories only (AO-D037): one extra relic, claimed separately; leaving the reward screen forfeits it. */
-  relicOffer: string | null;
+  /** Elite victories only (AO-D068): the relic already granted for the win (RELIC_CLAIMED), shown as a "Relic gained" banner. */
+  relicGained: string | null;
   /** Boss victories before the last chapter (AO-D046): pick one via CLAIM_RELIC; the rest are forfeited. */
   relicChoices: string[];
 }
@@ -65,7 +65,6 @@ export type RunEvent =
   | { type: 'RELIC_CLAIMED'; relicId: string }
   | { type: 'CARD_REWARD_CLAIMED'; cardId: string }
   | { type: 'CARD_UPGRADED'; instanceId: string; cardId: string }
-  | { type: 'REWARD_SKIPPED' }
   | { type: 'CARD_REMOVED'; instanceId: string; cardId: string; goldPaid: number }
   | { type: 'UNITS_REVIVED'; count: number }
   | { type: 'DAILY_INCOME'; gold: number; food: number }
@@ -135,7 +134,6 @@ export type RunAction =
   | { type: 'CLAIM_CARD'; cardId: string }
   | { type: 'CLAIM_UPGRADE'; instanceId: string }
   | { type: 'CLAIM_RELIC'; relicId: string }
-  | { type: 'SKIP_REWARD' }
   | { type: 'REMOVE_CARD'; instanceId: string }
   | { type: 'CHOOSE_EVENT_OPTION'; optionId: string }
   | { type: 'CHOOSE_EVENT_CARD'; instanceId: string }

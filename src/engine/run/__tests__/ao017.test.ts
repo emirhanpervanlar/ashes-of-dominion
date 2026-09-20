@@ -10,6 +10,7 @@ import { pendingEventOf } from './eventHelpers.js';
 import type { RunState } from '../types.js';
 import { generateWorldMap } from '../worldMap.js';
 import type { NodeType } from '../worldMap.js';
+import { pickReward } from './rewardHelpers.js';
 
 function onMap(seed: number, relicId = 'royal_banner'): RunState {
   return createRun(seed, 'warlord', undefined, relicId);
@@ -148,38 +149,37 @@ describe('AO-D037: merchant relic', () => {
   });
 });
 
-describe('AO-D037: elite relic reward', () => {
-  it('an elite victory offers one unowned found relic; a normal victory offers none (AO-D006)', () => {
+describe('AO-D068: elite relic reward', () => {
+  it('an elite victory grants one unowned found relic automatically; a normal victory grants none (AO-D006)', () => {
     for (let seed = 1; seed <= 15; seed++) {
       const elite = winBattleAt(seed, 'elite_battle');
       expect(elite.phase).toBe('reward');
-      const offer = elite.pendingReward!.relicOffer!;
-      expect(RELIC_DEFINITIONS[offer]).toBeDefined();
-      expect(elite.relics.some((r) => r.id === offer)).toBe(false);
+      const gained = elite.pendingReward!.relicGained!;
+      expect(RELIC_DEFINITIONS[gained]).toBeDefined();
+      expect(elite.relics.filter((r) => r.id === gained)).toHaveLength(1);
+      expect(elite.log.filter((e) => e.type === 'RELIC_CLAIMED' && e.relicId === gained)).toHaveLength(1);
 
-      expect(winBattleAt(seed, 'battle').pendingReward!.relicOffer).toBeNull();
+      const normal = winBattleAt(seed, 'battle');
+      expect(normal.pendingReward!.relicGained).toBeNull();
+      expect(normal.relics).toHaveLength(1);
     }
   });
 
-  it('claiming grants the relic and keeps the reward open for the normal pick, which then closes it', () => {
+  it('the relic cannot be claimed again, and the card pick still closes the reward', () => {
     const elite = winBattleAt(9, 'elite_battle');
-    const offer = elite.pendingReward!.relicOffer!;
-    const claimed = applyRunAction(elite, { type: 'CLAIM_RELIC', relicId: offer });
-    expect(claimed.run.relics.some((r) => r.id === offer)).toBe(true);
-    expect(claimed.run.phase).toBe('reward');
-    expect(claimed.run.pendingReward!.relicOffer).toBeNull();
-
-    const again = applyRunAction(claimed.run, { type: 'CLAIM_RELIC', relicId: offer });
+    const gained = elite.pendingReward!.relicGained!;
+    const again = applyRunAction(elite, { type: 'CLAIM_RELIC', relicId: gained });
     expect(again.events.some((e) => e.type === 'ACTION_REJECTED')).toBe(true);
-    expect(again.run.relics.filter((r) => r.id === offer)).toHaveLength(1);
+    expect(again.run.relics.filter((r) => r.id === gained)).toHaveLength(1);
 
-    const finished = applyRunAction(claimed.run, { type: 'SKIP_REWARD' });
+    const finished = pickReward(elite);
     expect(finished.run.phase).toBe('on_map');
+    expect(finished.run.relics.filter((r) => r.id === gained)).toHaveLength(1);
   });
 
   it('rejects claiming a relic that is not on offer', () => {
     const elite = winBattleAt(9, 'elite_battle');
-    const other = Object.keys(RELIC_DEFINITIONS).find((id) => id !== elite.pendingReward!.relicOffer)!;
+    const other = Object.keys(RELIC_DEFINITIONS).find((id) => id !== elite.pendingReward!.relicGained)!;
     const result = applyRunAction(elite, { type: 'CLAIM_RELIC', relicId: other });
     expect(result.events.some((e) => e.type === 'ACTION_REJECTED')).toBe(true);
     expect(result.run.relics.some((r) => r.id === other)).toBe(false);

@@ -7,6 +7,7 @@ import { dailyUpkeep, totalArmyCount } from '../food.js';
 import { applyRunAction, createRun, migrateRun } from '../runEngine.js';
 import type { RunAction, RunState } from '../types.js';
 import { pendingEventOf } from './eventHelpers.js';
+import { pickReward } from './rewardHelpers.js';
 
 function onMap(seed: number): RunState {
   return createRun(seed);
@@ -382,7 +383,7 @@ describe('gambles (AO-D056)', () => {
     const wiped: CombatState = { ...failed.run.combat!, enemyArmy: failed.run.combat!.enemyArmy.map((s) => ({ ...s, count: 0, currentHp: 0 })) };
     const won = act({ ...failed.run, combat: wiped }, { type: 'COMBAT_ACTION', action: { type: 'END_TURN' } }).run;
     expect(won.phase).toBe('reward');
-    expect(act(won, { type: 'SKIP_REWARD' }).run.phase).toBe('on_map');
+    expect(pickReward(won).run.phase).toBe('on_map');
   });
 
   it('the ambush is a normal battle of the current chapter at the current Threat', () => {

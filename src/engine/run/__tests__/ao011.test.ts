@@ -8,6 +8,7 @@ import { createRunStats, tallyCombatEvents } from '../stats.js';
 import type { RunAction, RunState } from '../types.js';
 import type { NodeType } from '../worldMap.js';
 import { legacySave } from './legacy.js';
+import { pickReward } from './rewardHelpers.js';
 
 function act(run: RunState, action: RunAction) {
   return applyRunAction(run, action);
@@ -65,7 +66,7 @@ describe('AO-D019: full heal after a won battle', () => {
   it('a stack wiped out in the battle is not resurrected without a Shrine', () => {
     const won = winWith(inBattle(2), (army) => army.map((s, i) => (i === 0 ? { ...s, count: 0, currentHp: 0 } : s)));
     expect(won.army[0]!.count).toBe(0);
-    expect(applyRunAction(won, { type: 'SKIP_REWARD' }).run.army.filter((s) => s.count > 0)).toHaveLength(won.army.length - 1);
+    expect(pickReward(won).run.army.filter((s) => s.count > 0)).toHaveLength(won.army.length - 1);
   });
 });
 
@@ -283,7 +284,7 @@ describe('AO-D027: run stats', () => {
 });
 
 describe('AO-D026: reward resolves immediately', () => {
-  it('claiming a card, skipping and removing each close the reward with no confirm step', () => {
+  it('claiming a card or an upgrade closes the reward with no confirm step; skip and removal do not exist there (AO-D068)', () => {
     const won = winWith(inBattle(20), (a) => a);
     const cardId = won.pendingReward!.cardOptions[0]!;
     const claimed = act(won, { type: 'CLAIM_CARD', cardId });
@@ -291,25 +292,23 @@ describe('AO-D026: reward resolves immediately', () => {
     expect(claimed.run.pendingReward).toBeNull();
     expect(claimed.run.masterDeck).toHaveLength(11);
 
-    const skipped = act(won, { type: 'SKIP_REWARD' });
-    expect(skipped.run.phase).toBe('on_map');
-    expect(skipped.events.some((e) => e.type === 'REWARD_SKIPPED')).toBe(true);
-    expect(skipped.run.masterDeck).toHaveLength(10);
+    const upgrade = won.pendingReward!.upgradeOptions[0]!;
+    const upgraded = act(won, { type: 'CLAIM_UPGRADE', instanceId: upgrade.instanceId });
+    expect(upgraded.run.phase).toBe('on_map');
+    expect(upgraded.run.masterDeck).toHaveLength(10);
 
-    const target = won.masterDeck[0]!;
-    const removed = act(won, { type: 'REMOVE_CARD', instanceId: target.instanceId });
-    expect(removed.run.phase).toBe('on_map');
-    expect(removed.run.masterDeck).toHaveLength(9);
-    expect(removed.run.masterDeck.some((c) => c.instanceId === target.instanceId)).toBe(false);
-    expect(removed.run.gold).toBe(won.gold);
-    expect(removed.run.stats.cardsRemoved).toBe(1);
+    expect(rejected(act(won, { type: 'SKIP_REWARD' } as unknown as RunAction).events)).toBe(true);
+    const removal = act(won, { type: 'REMOVE_CARD', instanceId: won.masterDeck[0]!.instanceId });
+    expect(rejected(removal.events)).toBe(true);
+    expect(removal.run.phase).toBe('reward');
+    expect(removal.run.masterDeck).toHaveLength(10);
   });
 
   it('only one pick: a second claim after resolving is rejected', () => {
     const won = winWith(inBattle(21), (a) => a);
-    const first = act(won, { type: 'SKIP_REWARD' }).run;
+    const first = pickReward(won).run;
     expect(rejected(act(first, { type: 'CLAIM_CARD', cardId: won.pendingReward!.cardOptions[0]! }).events)).toBe(true);
-    expect(rejected(act(first, { type: 'SKIP_REWARD' }).events)).toBe(true);
+    expect(rejected(act(first, { type: 'CLAIM_UPGRADE', instanceId: won.pendingReward!.upgradeOptions[0]!.instanceId }).events)).toBe(true);
   });
 
   it('a card added after a removal never reuses an existing instance id', () => {
@@ -317,7 +316,8 @@ describe('AO-D026: reward resolves immediately', () => {
     const cardId = won.pendingReward!.cardOptions[0]!;
     won = act(won, { type: 'CLAIM_CARD', cardId }).run;
     let again = winWith(moveToNextAs(won, 'battle'), (a) => a);
-    again = act(again, { type: 'REMOVE_CARD', instanceId: again.masterDeck[0]!.instanceId }).run;
+    again = act({ ...again, phase: 'city', pendingReward: null }, { type: 'REMOVE_CARD', instanceId: again.masterDeck[0]!.instanceId }).run;
+    again = { ...again, phase: 'on_map' };
     let third = winWith(moveToNextAs(again, 'battle'), (a) => a);
     third = act(third, { type: 'CLAIM_CARD', cardId: third.pendingReward!.cardOptions[0]! }).run;
     const ids = third.masterDeck.map((c) => c.instanceId);
@@ -328,7 +328,7 @@ describe('AO-D026: reward resolves immediately', () => {
     const run = { ...onMap(23), chapter: 3 };
     const boss = moveToNextAs(run, 'boss');
     const won = winWith(boss, (a) => a);
-    expect(act(won, { type: 'SKIP_REWARD' }).run.phase).toBe('run_complete');
+    expect(pickReward(won).run.phase).toBe('run_complete');
   });
 });
 

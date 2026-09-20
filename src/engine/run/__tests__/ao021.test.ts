@@ -8,6 +8,7 @@ import { applyRunAction, createRun, migrateRun } from '../runEngine.js';
 import type { RunAction, RunState } from '../types.js';
 import { generateWorldMap } from '../worldMap.js';
 import { legacySave } from './legacy.js';
+import { pickReward } from './rewardHelpers.js';
 
 const act = (run: RunState, action: RunAction) => applyRunAction(run, action);
 const rejected = (events: { type: string }[]) => events.some((e) => e.type === 'ACTION_REJECTED');
@@ -120,7 +121,7 @@ describe('boss cycle and win condition (AO-D046)', () => {
         expect(run.pendingReward!.relicChoices).toEqual([]);
       }
 
-      const done = act(run, { type: 'SKIP_REWARD' });
+      const done = pickReward(run);
       run = done.run;
       expect(done.events.some((e) => e.type === 'BOSS_DEFEATED')).toBe(true);
       if (chapter < TOTAL_CHAPTERS) {

@@ -103,7 +103,7 @@ describe('AO-034 B3: Arcane Crystal mid-run', () => {
       ...createRun(2, 'warlord', undefined, 'lucky_charm'),
       army,
       phase: 'reward',
-      pendingReward: { cardOptions: [], upgradeOptions: [], relicOffer: 'arcane_crystal', relicChoices: [] },
+      pendingReward: { cardOptions: [], upgradeOptions: [], relicGained: null, relicChoices: ['arcane_crystal'] },
     };
     const r = applyRunAction(run, { type: 'CLAIM_RELIC', relicId: 'arcane_crystal' });
     expect(r.run.relics.some((x) => x.id === 'arcane_crystal')).toBe(true);

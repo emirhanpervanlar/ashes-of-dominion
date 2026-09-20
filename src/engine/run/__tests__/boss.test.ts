@@ -4,6 +4,7 @@ import { resolveEventToMap } from './eventHelpers.js';
 import { generateBossEncounter } from '../encounters.js';
 import type { CombatState } from '../../types.js';
 import type { RunState } from '../types.js';
+import { pickReward } from './rewardHelpers.js';
 
 /** Same node-override trick as runEngine.test.ts, but forced straight to the Boss layer. */
 function reachBoss(seed: number): RunState {
@@ -20,7 +21,7 @@ function reachBoss(seed: number): RunState {
       const combat = run.combat!;
       const wiped: CombatState = { ...combat, enemyArmy: combat.enemyArmy.map((s) => ({ ...s, count: 0, currentHp: 0 })) };
       const won = applyRunAction({ ...run, combat: wiped }, { type: 'COMBAT_ACTION', action: { type: 'END_TURN' } }).run;
-      run = won.phase === 'reward' ? applyRunAction(won, { type: 'SKIP_REWARD' }).run : won;
+      run = won.phase === 'reward' ? pickReward(won).run : won;
     } else if (run.phase === 'event') {
       run = resolveEventToMap(run);
     } else if (run.phase === 'merchant') {
@@ -55,7 +56,7 @@ describe('run completion via the boss', () => {
     const won = applyRunAction({ ...run, combat: wiped }, { type: 'COMBAT_ACTION', action: { type: 'END_TURN' } });
     expect(won.run.phase).toBe('reward');
 
-    const confirmed = applyRunAction({ ...won.run, chapter: 3 }, { type: 'SKIP_REWARD' });
+    const confirmed = pickReward({ ...won.run, chapter: 3 });
     expect(confirmed.run.phase).toBe('run_complete');
     expect(confirmed.events.some((e) => e.type === 'RUN_COMPLETE')).toBe(true);
   });

@@ -59,10 +59,10 @@ describe('AO-D006: post-battle reward', () => {
       const deck = createRun(1, hero).masterDeck;
       for (let seed = 1; seed <= 40; seed++) {
         const reward = buildPendingReward(createRng(seed), [], deck, false);
-        expect(reward.relicOffer).toBeNull();
+        expect(reward.relicGained).toBeNull();
         const total = reward.cardOptions.length + reward.upgradeOptions.length;
-        expect(total).toBeGreaterThan(0);
-        expect(total).toBeLessThanOrEqual(3);
+        expect(total).toBe(3);
+        expect(reward.cardOptions.length).toBeGreaterThanOrEqual(2);
         expect(new Set(reward.cardOptions).size).toBe(reward.cardOptions.length);
         expect(reward.cardOptions.every((id) => CARD_DEFINITIONS[id] && !id.endsWith('_plus'))).toBe(true);
       }

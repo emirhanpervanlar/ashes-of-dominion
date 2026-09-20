@@ -21,7 +21,7 @@ const roundTrip = (value: unknown): unknown => JSON.parse(JSON.stringify(value))
 
 describe('AO-042: save versions', () => {
   it('a new run is stamped with the current version and the reducer keeps it', () => {
-    expect(CURRENT_SAVE_VERSION).toBe(2);
+    expect(CURRENT_SAVE_VERSION).toBe(3);
     const run = createRun(1);
     expect(run.saveVersion).toBe(CURRENT_SAVE_VERSION);
     expect(applyRunAction(run, { type: 'TRAVEL_TO_CITY' }).run.saveVersion).toBe(CURRENT_SAVE_VERSION);
@@ -44,7 +44,7 @@ describe('AO-042: save versions', () => {
 
   it('a save from a newer build or with a nonsense version is refused', () => {
     const run = createRun(4);
-    for (const version of [3, 99, 0, -1, 1.5, '2', null, NaN]) {
+    for (const version of [4, 99, 0, -1, 1.5, '3', null, NaN]) {
       expect(validateSave(roundTrip({ ...run, saveVersion: version })), `saveVersion ${String(version)}`).toBeNull();
     }
   });
@@ -165,7 +165,7 @@ describe('AO-042: work in progress in a legacy save', () => {
     const valid = Object.keys(CARD_DEFINITIONS)[0]!;
     const legacy = legacySave({ ...base, phase: 'reward', pendingReward: { cardOptions: [valid, 'card_removed_long_ago'], relicOffer: null } });
     const migrated = migrateRun(legacy);
-    expect(migrated.pendingReward).toEqual({ cardOptions: [valid], upgradeOptions: [], relicOffer: null, relicChoices: [] });
+    expect(migrated.pendingReward).toEqual({ cardOptions: [valid], upgradeOptions: [], relicGained: null, relicChoices: [] });
     expect(validateSave(roundTrip(legacy))).not.toBeNull();
   });
 

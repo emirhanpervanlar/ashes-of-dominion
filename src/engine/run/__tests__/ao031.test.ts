@@ -8,6 +8,7 @@ import type { RunAction, RunState } from '../types.js';
 import type { NodeType } from '../worldMap.js';
 import { pendingEventOf, resolveEventToMap } from './eventHelpers.js';
 import { legacySave } from './legacy.js';
+import { pickReward } from './rewardHelpers.js';
 
 const act = (run: RunState, action: RunAction) => applyRunAction(run, action);
 
@@ -84,12 +85,12 @@ describe('AO-031: run summary counters', () => {
   it('counts elite and boss victories separately from normal battles', () => {
     let run = winCurrentBattle(moveToNextAs(createRun(21), 'elite_battle'));
     expect(run.stats.elitesDefeated).toBe(1);
-    run = act(run, { type: 'SKIP_REWARD' }).run;
+    run = pickReward(run).run;
 
     run = winCurrentBattle(moveToNextAs(run, 'battle'));
     expect(run.stats.elitesDefeated).toBe(1);
     expect(run.stats.bossesDefeated).toBe(0);
-    run = act(run, { type: 'SKIP_REWARD' }).run;
+    run = pickReward(run).run;
 
     run = winCurrentBattle(moveToNextAs(run, 'boss'));
     expect(run.stats.bossesDefeated).toBe(1);
