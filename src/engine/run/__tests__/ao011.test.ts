@@ -7,6 +7,7 @@ import { applyRunAction, createRun, migrateRun } from '../runEngine.js';
 import { createRunStats, tallyCombatEvents } from '../stats.js';
 import type { RunAction, RunState } from '../types.js';
 import type { NodeType } from '../worldMap.js';
+import { legacySave } from './legacy.js';
 
 function act(run: RunState, action: RunAction) {
   return applyRunAction(run, action);
@@ -178,7 +179,7 @@ describe('AO-D020: city building effects', () => {
   it('a pre-AO-D036 save with a Mage Tower migrates to tier I: Wisdom +2 undone, max Mana recomputed', () => {
     const run = onMap(8, 'mage');
     const old = { ...run, city: { level: 1, buildings: ['mage_tower'], doctrine: null }, hero: { ...run.hero, stats: { ...run.hero.stats, wisdom: run.hero.stats.wisdom + 2 }, maxMana: run.hero.maxMana + 1, mana: run.hero.mana + 1 } };
-    const migrated = migrateRun(old as unknown as RunState);
+    const migrated = migrateRun(legacySave(old));
     expect(migrated.city.mageTowerTier).toBe(1);
     expect(migrated.hero.stats.wisdom).toBe(run.hero.stats.wisdom);
     expect(migrated.hero.maxMana).toBe(run.hero.maxMana + 1);
@@ -209,12 +210,13 @@ describe('AO-D020: city building effects', () => {
 describe('AO-D027: run stats', () => {
   it('a new run has zeroed stats, and an old save without stats loads with zero defaults', () => {
     expect(createRunStats().enemiesKilled).toBe(0);
-    const { stats: _s, cardRemoval: _c, ...legacy } = createRun(10);
-    const migrated = migrateRun(legacy as unknown as RunState);
+    const { stats: _s, cardRemoval: _c, ...rest } = createRun(10);
+    const legacy = legacySave(rest);
+    const migrated = migrateRun(legacy);
     expect(migrated.stats).toEqual(createRunStats());
     expect(migrated.cardRemoval).toEqual({ merchantUses: 0, cityUses: 0 });
     // ...and the reducer accepts it directly.
-    const result = applyRunAction(legacy as unknown as RunState, { type: 'TRAVEL_TO_CITY' });
+    const result = applyRunAction(legacy, { type: 'TRAVEL_TO_CITY' });
     expect(result.run.stats.nodesVisited).toBe(0);
     expect(result.run.cardRemoval.merchantUses).toBe(0);
   });
@@ -388,7 +390,7 @@ describe('AO-D026: card removal at merchant and city', () => {
 
   it('a save with the old lastCityDay counter migrates to one paid-for city use', () => {
     const run = atCity(32);
-    const old = { ...run, cardRemoval: { merchantUses: 2, lastCityDay: 4 } } as unknown as RunState;
+    const old = legacySave({ ...run, cardRemoval: { merchantUses: 2, lastCityDay: 4 } });
     expect(migrateRun(old).cardRemoval).toEqual({ merchantUses: 2, cityUses: 1 });
     expect(migrateRun({ ...old, cardRemoval: { merchantUses: 0, lastCityDay: null } } as unknown as RunState).cardRemoval.cityUses).toBe(0);
   });

@@ -7,6 +7,7 @@ import { generateBattleEncounter, generateBossEncounter } from '../encounters.js
 import { applyRunAction, createRun, migrateRun } from '../runEngine.js';
 import type { RunAction, RunState } from '../types.js';
 import { generateWorldMap } from '../worldMap.js';
+import { legacySave } from './legacy.js';
 
 const act = (run: RunState, action: RunAction) => applyRunAction(run, action);
 const rejected = (events: { type: string }[]) => events.some((e) => e.type === 'ACTION_REJECTED');
@@ -231,7 +232,7 @@ describe('migrateRun for pre-AO-021 saves', () => {
   it('moves an old run to chapter 1 with no threat, a fresh road-free map, and finalBattle mapped to bossBattle', () => {
     const fresh = onMap(13);
     const { chapter: _c, threat: _t, bossBattle: _b, ...rest } = fresh;
-    const old = { ...rest, day: 5, finalBattle: true, worldMap: { nodes: [{ id: 'n0_0', type: 'road', layer: 0, visibility: 'visited', connectsTo: [] }], currentNodeId: 'n0_0' } } as unknown as RunState;
+    const old = legacySave({ ...rest, day: 5, finalBattle: true, worldMap: { nodes: [{ id: 'n0_0', type: 'road', layer: 0, visibility: 'visited', connectsTo: [] }], currentNodeId: 'n0_0' } });
     const migrated = migrateRun(old);
     expect(migrated.chapter).toBe(1);
     expect(migrated.threat).toBe(0);
@@ -245,7 +246,7 @@ describe('migrateRun for pre-AO-021 saves', () => {
   it('leaves a current run untouched and fills relicChoices on a pending reward that lacks it', () => {
     const run = onMap(14);
     expect(migrateRun(run)).toEqual(run);
-    const oldReward = { ...run, pendingReward: { cardOptions: [], upgradeOptions: [], relicOffer: null } } as unknown as RunState;
+    const oldReward = legacySave({ ...run, pendingReward: { cardOptions: [], upgradeOptions: [], relicOffer: null } });
     expect(migrateRun(oldReward).pendingReward!.relicChoices).toEqual([]);
   });
 });

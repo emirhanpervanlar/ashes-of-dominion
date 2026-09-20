@@ -59,12 +59,36 @@ function cloneRun(run: RunState): RunState {
   return JSON.parse(JSON.stringify(run)) as RunState;
 }
 
+/** Version of the persisted RunState shape. A save without the field predates versioning and counts as version 1. */
+export const CURRENT_SAVE_VERSION = 2;
+
 /**
- * Fills in fields that runs saved by older versions do not have (stats,
- * card-removal counters). Call it on anything loaded from storage; the
- * reducer also applies it, so an old run keeps working on its first action.
+ * Upgrades one version step. Every field-by-field guess for pre-versioning saves lives in `fromVersion1`;
+ * a future format change adds `fromVersion2` here instead of another "field is undefined" check.
+ */
+const MIGRATIONS: Record<number, (run: RunState) => RunState> = { 1: fromVersion1 };
+
+/**
+ * Brings a run loaded from storage to the current save format (the reducer also applies it, so an old run keeps
+ * working on its first action). A run already at CURRENT_SAVE_VERSION is returned as is; validateSave (save.ts) is the
+ * gate for anything that may be corrupt or from a newer build.
  */
 export function migrateRun(run: RunState): RunState {
+  let migrated = run;
+  for (let version = run.saveVersion ?? 1; version < CURRENT_SAVE_VERSION; version++) {
+    migrated = { ...MIGRATIONS[version]!(migrated), saveVersion: version + 1 };
+  }
+  return migrated;
+}
+
+/**
+ * Version 1 (no `saveVersion`): fills in the fields older builds did not have (stats, card-removal counters, chapter, Threat, ...)
+ * and settles work that was in progress when the save was written:
+ * - a battle in progress is restarted from its beginning (same encounter, fresh hand). Old combat states may carry shapes today's
+ *   combat code does not read, and the run army is untouched during a battle, so nothing is lost and no fight is skipped for free;
+ * - a pending reward keeps the options that still exist; if none are left it is re-rolled.
+ */
+function fromVersion1(run: RunState): RunState {
   const legacy = run as RunState & { finalBattle?: boolean };
   const legacyRemoval = run.cardRemoval as (CardRemovalState & { lastCityDay?: number | null }) | undefined;
   const migrated: RunState = {
@@ -106,7 +130,34 @@ export function migrateRun(run: RunState): RunState {
     }
   }
   if (run.city.farmTier === undefined) migrated.city = { ...migrated.city, farmTier: 0 };
+  if (migrated.phase === 'in_battle') restartBattle(migrated);
+  if (migrated.pendingReward) settlePendingReward(migrated);
   return migrated;
+}
+
+/** Rebuilds the encounter of the node the run stands on (boss, elite, normal; an event ambush is a normal battle) and starts it over. */
+function restartBattle(run: RunState): void {
+  const node = findNode(run.worldMap, run.worldMap.currentNodeId);
+  const encounter = run.bossBattle ? generateBossEncounter(run.chapter, run.threat) : generateBattleEncounter(node?.layer ?? 1, node?.type === 'elite_battle', run.chapter, run.threat);
+  run.rng = { ...run.rng };
+  run.hero = { ...run.hero };
+  run.army = run.army.map((s) => ({ ...s }));
+  run.combat = startBattleForRun(run, encounter);
+}
+
+/** Drops reward options that no longer exist; a reward left with no card and no upgrade is re-rolled so the player is never stuck on an empty screen. */
+function settlePendingReward(run: RunState): void {
+  const reward = run.pendingReward!;
+  const known = (id: unknown): id is string => typeof id === 'string' && Object.prototype.hasOwnProperty.call(CARD_DEFINITIONS, id);
+  const cardOptions = (reward.cardOptions ?? []).filter(known);
+  const upgradeOptions = (reward.upgradeOptions ?? []).filter((o) => known(o?.cardId) && run.masterDeck.some((c) => c.instanceId === o.instanceId));
+  if (cardOptions.length + upgradeOptions.length > 0) {
+    run.pendingReward = { cardOptions, upgradeOptions, relicOffer: reward.relicOffer ?? null, relicChoices: reward.relicChoices ?? [] };
+    return;
+  }
+  const node = findNode(run.worldMap, run.worldMap.currentNodeId);
+  run.rng = { ...run.rng };
+  run.pendingReward = buildPendingReward(run.rng, run.relics, run.masterDeck, node?.type === 'elite_battle', run.bossBattle && run.chapter < TOTAL_CHAPTERS);
 }
 
 function changeGold(run: RunState, delta: number): void {
@@ -154,6 +205,7 @@ export function createRun(seed: number, heroId: HeroId = 'warlord', heroName?: s
   if (!relic) throw new Error(`Unknown starting relic: ${relicId}`);
 
   const run: RunState = {
+    saveVersion: CURRENT_SAVE_VERSION,
     seed,
     rng,
     hero,

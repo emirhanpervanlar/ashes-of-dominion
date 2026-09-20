@@ -83,6 +83,7 @@ describe('event pool selection (AO-D050)', () => {
 
   it('an old save without the new fields gets defaults', () => {
     const old = JSON.parse(JSON.stringify(atEvent('wayside_shrine'))) as Record<string, unknown>;
+    delete old.saveVersion;
     delete old.seenEventIds;
     delete old.lastCasualties;
     delete old.pendingUnitChoice;

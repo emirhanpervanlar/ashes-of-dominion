@@ -7,6 +7,7 @@ import { causeOfDeath, runSummary } from '../summary.js';
 import type { RunAction, RunState } from '../types.js';
 import type { NodeType } from '../worldMap.js';
 import { pendingEventOf, resolveEventToMap } from './eventHelpers.js';
+import { legacySave } from './legacy.js';
 
 const act = (run: RunState, action: RunAction) => applyRunAction(run, action);
 
@@ -36,7 +37,7 @@ describe('AO-031: atomic run start', () => {
 
   it('an old save still in the removed relic phase gets the default relic on migration and via the reducer', () => {
     const base = createRun(8, 'warlord', undefined, 'whetstone');
-    const legacy = { ...base, phase: 'choosing_starting_relic', relics: [] } as unknown as RunState;
+    const legacy = legacySave({ ...base, phase: 'choosing_starting_relic', relics: [] });
     const migrated = migrateRun(legacy);
     expect(migrated.phase).toBe('on_map');
     expect(migrated.relics.map((r) => r.id)).toEqual(['royal_banner']);

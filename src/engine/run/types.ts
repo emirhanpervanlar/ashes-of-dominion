@@ -90,6 +90,8 @@ export type RunEvent =
   | { type: 'ACTION_REJECTED'; reason: string };
 
 export interface RunState {
+  /** Shape of this object (CURRENT_SAVE_VERSION in runEngine.ts); missing on saves from before versioning. */
+  saveVersion: number;
   seed: number;
   rng: RngState;
   hero: Hero;
