@@ -32,44 +32,23 @@ function meleeCandidates(enemyArmy: ArmyStack[]): ArmyStack[] {
   return frontHeld ? alive.filter((s) => isFrontPosition(s.position)) : alive;
 }
 
-/** Targets legal under every reach rule (ranged, AO-D013 front/back, AO-D021 lane, AO-D033 disciples) — no fallback. */
-function strictTargets(attacker: ArmyStack, enemyArmy: ArmyStack[], def: UnitDefinition, ownArmy?: ArmyStack[]): ArmyStack[] {
-  if (ownArmy && isBlockedByFrontAlly(attacker, ownArmy, def)) return [];
-  if (def.rangedAllAccess) return enemyArmy.filter((s) => s.count > 0 && !s.flags.untargetable);
-  const lane = laneOf(attacker.position);
-  return meleeCandidates(enemyArmy).filter((s) => laneDistance(lane, laneOf(s.position)) <= 1);
-}
-
-/**
- * AO-D038: a true stalemate is when no living unit on EITHER side has a legal target under the
- * strict reach rules (ranged units included). Only then does the nearest-lane fallback open up,
- * so a battle can never stall; otherwise a unit that reaches nothing simply does not attack.
- */
-export function isStalemate(playerArmy: ArmyStack[], enemyArmy: ArmyStack[]): boolean {
-  const canHit = (army: ArmyStack[], other: ArmyStack[]) =>
-    army.some((s) => s.count > 0 && strictTargets(s, other, UNIT_DEFINITIONS[s.unitId], army).length > 0);
-  return !canHit(playerArmy, enemyArmy) && !canHit(enemyArmy, playerArmy);
-}
-
 /**
  * Valid enemy targets for a stack's free basic action (or a card that reuses the same geometry).
- * Ranged units (rangedAllAccess) are unrestricted. Melee units: AO-D013 first (front row while
- * any enemy front stack lives, otherwise the backline), then AO-D021 (own/adjacent lane only).
- * AO-D033: a back-row melee stack with a living friendly stack directly in front has no targets.
- * A unit with no legal target gets none — unless the whole board is in a stalemate (AO-D038,
- * needs `ownArmy` to judge), in which case the nearest lane's candidates become legal for both sides.
+ * Ranged units (rangedAllAccess) are unrestricted. Melee units (AO-D044): the candidate pool is
+ * AO-D013 (front row while any enemy front stack lives, otherwise the backline); among it the
+ * attacker uses those in its own/adjacent lane (AO-D021), and if none is within lane reach the
+ * nearest lane's candidates become legal, so a stranded unit is always hittable and can always fight.
+ * AO-D033: with `ownArmy`, a back-row melee stack with a living friendly stack directly in front has no targets.
  */
 export function computeValidTargets(attacker: ArmyStack, enemyArmy: ArmyStack[], attackerDef?: UnitDefinition, ownArmy?: ArmyStack[]): ArmyStack[] {
   const def = attackerDef ?? UNIT_DEFINITIONS[attacker.unitId];
-  const strict = strictTargets(attacker, enemyArmy, def, ownArmy);
-  if (strict.length > 0 || !ownArmy) return strict;
-  if (isBlockedByFrontAlly(attacker, ownArmy, def) || !isStalemate(ownArmy, enemyArmy)) return [];
+  if (ownArmy && isBlockedByFrontAlly(attacker, ownArmy, def)) return [];
+  if (def.rangedAllAccess) return enemyArmy.filter((s) => s.count > 0 && !s.flags.untargetable);
 
   const candidates = meleeCandidates(enemyArmy);
-  if (candidates.length === 0) return [];
   const lane = laneOf(attacker.position);
-  const nearest = Math.min(...candidates.map((s) => laneDistance(lane, laneOf(s.position))));
-  return candidates.filter((s) => laneDistance(lane, laneOf(s.position)) === nearest);
+  const reach = Math.max(1, Math.min(...candidates.map((s) => laneDistance(lane, laneOf(s.position)))));
+  return candidates.filter((s) => laneDistance(lane, laneOf(s.position)) <= reach);
 }
 
 /** AO-D033 "disciples": a melee unit in the back row cannot attack while a living friendly stack stands directly in front of it. */
