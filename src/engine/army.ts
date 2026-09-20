@@ -92,7 +92,7 @@ export function splitArmyStack(army: ArmyStack[], stackId: string, splitCount: n
   const idx = army.findIndex((s) => s.stackId === stackId);
   if (idx < 0) return null;
   const source = army[idx]!;
-  if (splitCount <= 0 || splitCount >= source.count) return null;
+  if (!Number.isInteger(splitCount) || splitCount <= 0 || splitCount >= source.count) return null;
   const freePosition = findFreeArmyPosition(army);
   if (freePosition === null) return null;
 

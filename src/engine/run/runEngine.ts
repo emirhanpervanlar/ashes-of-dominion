@@ -25,6 +25,7 @@ import {
   recruitCost,
   settleArmyAfterVictory,
 } from './city.js';
+import { actionProblem } from './actionValidation.js';
 import { THREAT_PER_CITY_VISIT, TOTAL_CHAPTERS } from './chapters.js';
 import { generateBattleEncounter, generateBossEncounter } from './encounters.js';
 import {
@@ -828,7 +829,7 @@ function dismissStack(run: RunState, stackId: string, count: number | undefined,
     return { run, events };
   }
   const amount = count ?? target.count;
-  if (!Number.isInteger(amount) || amount < 1 || amount > target.count) {
+  if (amount > target.count) {
     reject(events, 'Invalid dismiss amount.');
     return { run, events };
   }
@@ -925,10 +926,6 @@ function recruit(run: RunState, unitId: UnitId, count: number, events: RunEvent[
     reject(events, 'Not at the city.');
     return { run, events };
   }
-  if (count <= 0) {
-    reject(events, 'Invalid recruit count.');
-    return { run, events };
-  }
   if (!canRecruitUnit(run.city, unitId)) {
     reject(events, 'That unit cannot be recruited yet (missing building).');
     return { run, events };
@@ -979,10 +976,6 @@ function moveStackAction(run: RunState, stackId: string, toPosition: Position, e
   const stack = run.army.find((s) => s.stackId === stackId);
   if (!stack) {
     reject(events, 'Unknown stack.');
-    return { run, events };
-  }
-  if (!Number.isInteger(toPosition) || toPosition < 1 || toPosition > 6) {
-    reject(events, 'Position must be 1-6.');
     return { run, events };
   }
   if (stack.position === toPosition) return { run, events };
@@ -1146,96 +1139,77 @@ function leaveCity(run: RunState, events: RunEvent[]): RunApplyResult {
   return { run, events };
 }
 
+function dispatchAction(working: RunState, action: RunAction, events: RunEvent[]): RunApplyResult {
+  switch (action.type) {
+    case 'MOVE_TO':
+      return moveTo(working, action.nodeId, events);
+    case 'COMBAT_ACTION':
+      return forwardCombatAction(working, action.action, events);
+    case 'CLAIM_CARD':
+      return claimCard(working, action.cardId, events);
+    case 'CLAIM_UPGRADE':
+      return claimUpgrade(working, action.instanceId, events);
+    case 'SKIP_REWARD':
+      return skipReward(working, events);
+    case 'REMOVE_CARD':
+      return removeCard(working, action.instanceId, events);
+    case 'CHOOSE_EVENT_OPTION':
+      return chooseEventOption(working, action.optionId, events);
+    case 'CHOOSE_EVENT_CARD':
+      return chooseEventCard(working, action.instanceId, events);
+    case 'CHOOSE_EVENT_UNIT':
+      return chooseEventUnit(working, action.unitId, events);
+    case 'CANCEL_EVENT_CHOICE':
+      return cancelEventChoice(working, events);
+    case 'DISMISS_STACK':
+      return dismissStack(working, action.stackId, action.count, events);
+    case 'DECLINE_UNIT_GAIN':
+      return declineUnitGain(working, events);
+    case 'BUY_CARD':
+      return buyCard(working, action.cardId, events);
+    case 'CLAIM_RELIC':
+      return claimRelic(working, action.relicId, events);
+    case 'BUY_RELIC':
+      return buyRelic(working, action.relicId, events);
+    case 'LEAVE_MERCHANT':
+      return leaveMerchant(working, events);
+    case 'TRAVEL_TO_CITY':
+      return travelToCity(working, events);
+    case 'RECRUIT':
+      return recruit(working, action.unitId, action.count, events);
+    case 'BUILD_BUILDING':
+      return buildBuilding(working, action.buildingId, events);
+    case 'UPGRADE_MAGE_TOWER':
+      return upgradeMageTower(working, events);
+    case 'UPGRADE_FARM':
+      return upgradeFarm(working, events);
+    case 'UPGRADE_CITY':
+      return upgradeCity(working, events);
+    case 'CHOOSE_DOCTRINE':
+      return chooseDoctrine(working, action.doctrineId, events);
+    case 'LEAVE_CITY':
+      return leaveCity(working, events);
+    case 'SPLIT_STACK':
+      return splitStackAction(working, action.stackId, action.splitCount, events);
+    case 'MERGE_STACKS':
+      return mergeStacksAction(working, action.stackIdA, action.stackIdB, events);
+    case 'MOVE_STACK':
+      return moveStackAction(working, action.stackId, action.toPosition, events);
+    default:
+      reject(events, 'Unknown action.');
+      return { run: working, events };
+  }
+}
+
 export function applyRunAction(run: RunState, action: RunAction): RunApplyResult {
   const working = migrateRun(cloneRun(run));
   // Wiped stacks (battle, starvation) are dropped so a later recruit/split can't reuse their stackId.
   working.army = working.army.filter((s) => s.count > 0);
   const events: RunEvent[] = [];
 
-  let result: RunApplyResult;
-  switch (action.type) {
-    case 'MOVE_TO':
-      result = moveTo(working, action.nodeId, events);
-      break;
-    case 'COMBAT_ACTION':
-      result = forwardCombatAction(working, action.action, events);
-      break;
-    case 'CLAIM_CARD':
-      result = claimCard(working, action.cardId, events);
-      break;
-    case 'CLAIM_UPGRADE':
-      result = claimUpgrade(working, action.instanceId, events);
-      break;
-    case 'SKIP_REWARD':
-      result = skipReward(working, events);
-      break;
-    case 'REMOVE_CARD':
-      result = removeCard(working, action.instanceId, events);
-      break;
-    case 'CHOOSE_EVENT_OPTION':
-      result = chooseEventOption(working, action.optionId, events);
-      break;
-    case 'CHOOSE_EVENT_CARD':
-      result = chooseEventCard(working, action.instanceId, events);
-      break;
-    case 'CHOOSE_EVENT_UNIT':
-      result = chooseEventUnit(working, action.unitId, events);
-      break;
-    case 'CANCEL_EVENT_CHOICE':
-      result = cancelEventChoice(working, events);
-      break;
-    case 'DISMISS_STACK':
-      result = dismissStack(working, action.stackId, action.count, events);
-      break;
-    case 'DECLINE_UNIT_GAIN':
-      result = declineUnitGain(working, events);
-      break;
-    case 'BUY_CARD':
-      result = buyCard(working, action.cardId, events);
-      break;
-    case 'CLAIM_RELIC':
-      result = claimRelic(working, action.relicId, events);
-      break;
-    case 'BUY_RELIC':
-      result = buyRelic(working, action.relicId, events);
-      break;
-    case 'LEAVE_MERCHANT':
-      result = leaveMerchant(working, events);
-      break;
-    case 'TRAVEL_TO_CITY':
-      result = travelToCity(working, events);
-      break;
-    case 'RECRUIT':
-      result = recruit(working, action.unitId, action.count, events);
-      break;
-    case 'BUILD_BUILDING':
-      result = buildBuilding(working, action.buildingId, events);
-      break;
-    case 'UPGRADE_MAGE_TOWER':
-      result = upgradeMageTower(working, events);
-      break;
-    case 'UPGRADE_FARM':
-      result = upgradeFarm(working, events);
-      break;
-    case 'UPGRADE_CITY':
-      result = upgradeCity(working, events);
-      break;
-    case 'CHOOSE_DOCTRINE':
-      result = chooseDoctrine(working, action.doctrineId, events);
-      break;
-    case 'LEAVE_CITY':
-      result = leaveCity(working, events);
-      break;
-    case 'SPLIT_STACK':
-      result = splitStackAction(working, action.stackId, action.splitCount, events);
-      break;
-    case 'MERGE_STACKS':
-      result = mergeStacksAction(working, action.stackIdA, action.stackIdB, events);
-      break;
-    case 'MOVE_STACK':
-      result = moveStackAction(working, action.stackId, action.toPosition, events);
-      break;
-  }
+  const problem = actionProblem(action);
+  if (problem) reject(events, problem);
+  const result = problem ? { run: working, events } : dispatchAction(working, action, events);
 
   noteLargestStack(result.run);
   result.run.log = [...result.run.log, ...result.events];
