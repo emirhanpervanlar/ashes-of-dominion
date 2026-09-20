@@ -78,10 +78,10 @@ function Layer({ rects, className }: { rects: readonly Rect[]; className: string
   );
 }
 
-/** Code-drawn pixel castle silhouette for the title screen: three flat layers, no image files. */
-export function TitleSkyline() {
+/** Code-drawn pixel castle silhouette (title screen, city header): three flat layers, no image files. `contain` keeps the whole castle in view instead of cropping it to fill. */
+export function TitleSkyline({ fit = 'cover' }: { fit?: 'cover' | 'contain' }) {
   return (
-    <svg className="title-skyline" viewBox={`0 0 ${WIDTH} ${HEIGHT}`} preserveAspectRatio="xMidYMax slice" shapeRendering="crispEdges" aria-hidden="true">
+    <svg className="title-skyline" viewBox={`0 0 ${WIDTH} ${HEIGHT}`} preserveAspectRatio={fit === 'cover' ? 'xMidYMax slice' : 'xMidYMax meet'} shapeRendering="crispEdges" aria-hidden="true">
       <Layer rects={FAR} className="sk-far" />
       <Layer rects={NEAR.stone} className="sk-near" />
       <Layer rects={NEAR.roofs} className="sk-roof" />
