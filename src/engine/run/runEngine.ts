@@ -188,11 +188,13 @@ export function createRun(seed: number, heroId: HeroId = 'warlord', heroName?: s
 
 const MIN_HERO_MAX_MANA = 1;
 
+/** A living stack never drops below 1 unit and keeps its wounds (HP is only capped at the new maximum). */
 function rescaleStack(stack: ArmyStack, multiplier: number): ArmyStack {
+  if (stack.count <= 0) return stack;
   const def = UNIT_DEFINITIONS[stack.unitId];
-  const newCount = Math.max(0, Math.floor(stack.count * multiplier));
+  const newCount = Math.max(1, Math.floor(stack.count * multiplier));
   const newMaxHp = newCount * def.hpPerUnit;
-  return { ...stack, count: newCount, currentHp: newMaxHp, maxHp: newMaxHp, startingCount: newCount, preBattleMaxCount: newCount };
+  return { ...stack, count: newCount, currentHp: Math.min(stack.currentHp, newMaxHp), maxHp: newMaxHp, startingCount: newCount, preBattleMaxCount: newCount };
 }
 
 function addFlatToLargestStack(army: ArmyStack[], amount: number): ArmyStack[] {
@@ -210,8 +212,8 @@ function addFlatToLargestStack(army: ArmyStack[], amount: number): ArmyStack[] {
 /**
  * "Stat-boost" relic effects are applied once, permanently, right when the
  * relic is granted — see the RelicEffect doc comment in engine/types.ts.
- * ARMY_SIZE_* kinds only ever appear on starting relics, applied before any
- * casualties exist, so rescaling to a fresh maxHp/currentHp is safe.
+ * ARMY_SIZE_MULT can also arrive mid-run (a found relic): stacks are floored to at
+ * least 1 unit and wounded stacks stay wounded, so it never empties or heals the army.
  */
 function applyRelicStatEffectsOnce(run: RunState, def: RelicDefinition): void {
   for (const effect of def.effects) {
