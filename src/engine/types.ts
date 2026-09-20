@@ -311,6 +311,8 @@ export interface CombatState {
   turnNumber: number;
   phase: 'player' | 'enemy' | 'ended';
   result: 'ongoing' | 'victory' | 'defeat';
+  /** AO-D067: every enemy stack is dead; the battle still runs until the player ends the turn (a last window for cards and heals). */
+  enemiesCleared: boolean;
   hero: Hero;
   playerArmy: ArmyStack[];
   enemyArmy: ArmyStack[];

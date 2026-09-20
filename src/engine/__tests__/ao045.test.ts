@@ -97,3 +97,48 @@ describe('AO-D066 frozen stacks do not act', () => {
     expect(attacksBy(applyPlayerAction(locked, { type: 'END_TURN' }).events, 'enemy_goblin_1')).toHaveLength(0);
   });
 });
+
+describe('AO-D067 battle end window', () => {
+  const lastKill = () => {
+    const wounded = { ...big('swordsman', 2, 10), count: 10, currentHp: 40 };
+    const state = battle([big('swordsman', 1, 50), wounded, big('priest', 4, 10)], [foe('goblin', 1, 1)]);
+    return applyPlayerAction(state, { type: 'BASIC_ACTION', stackId: 'player_swordsman_1', targetStackId: 'enemy_goblin_1' });
+  };
+
+  it('killing the last enemy leaves the battle running with enemiesCleared set', () => {
+    const { state, events } = lastKill();
+    expect(state.enemyArmy.every((s) => s.count === 0)).toBe(true);
+    expect(state.enemiesCleared).toBe(true);
+    expect(state.result).toBe('ongoing');
+    expect(state.phase).toBe('player');
+    expect(events.some((e) => e.type === 'BATTLE_ENDED')).toBe(false);
+  });
+
+  it('a healer can still heal after the last kill, and END_TURN then wins without an enemy turn', () => {
+    const { state } = lastKill();
+    const healed = applyPlayerAction(state, { type: 'BASIC_ACTION', stackId: 'player_priest_4', targetStackId: 'player_swordsman_2' });
+    expect(healed.events.some((e) => e.type === 'STACK_HEALED')).toBe(true);
+    expect(healed.state.playerArmy.find((s) => s.stackId === 'player_swordsman_2')!.currentHp).toBeGreaterThan(40);
+    expect(healed.state.result).toBe('ongoing');
+
+    const done = applyPlayerAction(healed.state, { type: 'END_TURN' });
+    expect(done.state.result).toBe('victory');
+    expect(done.state.phase).toBe('ended');
+    expect(done.events.some((e) => e.type === 'TURN_STARTED' || e.type === 'ENEMY_TURN_RESOLVED')).toBe(false);
+    expect(done.events.filter((e) => e.type === 'BATTLE_ENDED')).toHaveLength(1);
+  });
+
+  it('enemies are not cleared while any stack lives', () => {
+    const state = battle([big('swordsman', 1, 50)], [foe('goblin', 1, 1), foe('goblin', 2, 5)]);
+    const r = applyPlayerAction(state, { type: 'BASIC_ACTION', stackId: 'player_swordsman_1', targetStackId: 'enemy_goblin_1' });
+    expect(r.state.enemiesCleared).toBe(false);
+  });
+
+  it('a run only reaches the reward after the End Turn that follows the last kill', () => {
+    let run = fightingRun();
+    const cleared = { ...run.combat!, enemiesCleared: true, enemyArmy: run.combat!.enemyArmy.map((s) => ({ ...s, count: 0, currentHp: 0 })) };
+    run = { ...run, combat: cleared };
+    expect(run.phase).toBe('in_battle');
+    expect(applyRunAction(run, { type: 'COMBAT_ACTION', action: { type: 'END_TURN' } }).run.phase).toBe('reward');
+  });
+});

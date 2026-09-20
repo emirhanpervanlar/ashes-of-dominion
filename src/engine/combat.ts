@@ -79,6 +79,19 @@ function checkBattleResult(state: CombatState): 'ongoing' | 'victory' | 'defeat'
   return 'ongoing';
 }
 
+/**
+ * AO-D067: killing the last enemy does not end the battle: the player keeps acting (cards, heals) until END_TURN,
+ * which then resolves the win with no enemy turn. Only the player's own wipe ends it at once.
+ */
+function settleAfterPlayerAction(state: CombatState, events: CombatEvent[]): void {
+  state.enemiesCleared = !state.enemyArmy.some((s) => s.count > 0);
+  if (checkBattleResult(state) === 'defeat') {
+    state.result = 'defeat';
+    state.phase = 'ended';
+    events.push({ type: 'BATTLE_ENDED', result: 'defeat' });
+  }
+}
+
 function drawCards(state: CombatState, amount: number, events: CombatEvent[]): void {
   for (let i = 0; i < amount; i++) {
     if (state.hand.length >= MAX_HAND) return;
@@ -671,12 +684,7 @@ function playCard(state: CombatState, action: Extract<PlayerAction, { type: 'PLA
     return !!stack && !cannotAct(stack);
   });
 
-  const result = checkBattleResult(state);
-  if (result !== 'ongoing') {
-    state.result = result;
-    state.phase = 'ended';
-    events.push({ type: 'BATTLE_ENDED', result });
-  }
+  settleAfterPlayerAction(state, events);
 
   return { state, events };
 }
@@ -732,12 +740,7 @@ function basicAction(state: CombatState, action: Extract<PlayerAction, { type: '
   const stillActor = findStack(state.playerArmy, actor.stackId) ?? actor;
   replaceStack(state.playerArmy, { ...stillActor, actedThisTurn: true });
 
-  const result = checkBattleResult(state);
-  if (result !== 'ongoing') {
-    state.result = result;
-    state.phase = 'ended';
-    events.push({ type: 'BATTLE_ENDED', result });
-  }
+  settleAfterPlayerAction(state, events);
 
   return { state, events };
 }
@@ -850,6 +853,7 @@ function startPlayerTurn(state: CombatState, events: CombatEvent[], isFirstTurn:
     stack.actedThisTurn = false;
   }
 
+  state.enemiesCleared = !state.enemyArmy.some((s) => s.count > 0); // a DoT tick can clear the field at the turn start
   state.enemyIntents = generateEnemyIntents(state);
   events.push({ type: 'INTENTS_GENERATED', intents: state.enemyIntents });
 
@@ -860,6 +864,14 @@ function startPlayerTurn(state: CombatState, events: CombatEvent[], isFirstTurn:
 }
 
 function endPlayerTurn(state: CombatState, events: CombatEvent[]): ApplyResult {
+  if (!state.enemyArmy.some((s) => s.count > 0)) {
+    state.enemiesCleared = true;
+    state.result = 'victory';
+    state.phase = 'ended';
+    events.push({ type: 'BATTLE_ENDED', result: 'victory' });
+    return { state, events };
+  }
+
   const kept: CardInstance[] = [];
   for (const card of state.hand) {
     const def = CARD_DEFINITIONS[card.cardId];
@@ -939,6 +951,7 @@ export function startBattle(params: StartBattleParams): ApplyResult {
     hand: [],
     discard: [],
     exhausted: [],
+    enemiesCleared: false,
     enemyIntents: [],
     activeRelicEffects: params.activeRelicEffects ?? [],
     log: [],
