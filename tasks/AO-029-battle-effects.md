@@ -24,3 +24,6 @@ src/engine/**, rules.
 
 ## Acceptance criteria
 tsc clean, vitest green (add unit tests for the step-replay reducer/helper: replaying steps over the pre-turn state equals the final state for several seeded battles). Browser: play a full turn cycle; screenshots/frames of: attack lunge + slash, projectile, block ring, heal, freeze, chains, death fade, enemy step 1..N with changing counts, skip. Capture at least 3 frames of an animation to prove motion. No console errors, no stuck animation state after skip or quick clicks.
+
+## Status
+- 2026-09-20 ACCEPTED (404 tests). Ideas: bolt/lunge are small on the wide field; counterattack applied with first hit; run layer does not return enemySteps (UI recomputes with the same pure call): expose it on RunApplyResult later; no card gives Block yet (GAIN_BLOCK unused).
