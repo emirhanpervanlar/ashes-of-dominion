@@ -116,7 +116,7 @@ export default function App() {
   // Set by the battle render only while Space may end the turn (nothing pending, no popup open); null everywhere else.
   const spaceEndTurn = useRef<(() => void) | null>(null);
   spaceEndTurn.current = null;
-  // Set by the render only while the enemy turn is being replayed: Space or a click skips to its end.
+  // Set by the render only while an effect sequence (an action, the enemy turn replay) runs: Space or a click skips to its end.
   const skipPlayback = useRef<(() => void) | null>(null);
   skipPlayback.current = null;
 
@@ -190,7 +190,7 @@ export default function App() {
       if (result.run.combat) {
         const events = played.events;
         const tail = events.slice(events.findIndex((e) => e.type === 'ENEMY_TURN_RESOLVED') + 1);
-        const dots = cuesFromEvents(tail, result.run.combat).filter((c) => c.kind === 'dot');
+        const dots = cuesFromEvents(tail, pre, result.run.combat).filter((c) => c.kind === 'dot');
         dots.forEach((c) => fx.impact(c));
         spawnFloaters(floatersFromCues(dots));
       }
@@ -327,7 +327,7 @@ export default function App() {
       return;
     }
     const cardId = current.kind === 'card' ? before.hand.find((c) => c.instanceId === current.id)?.cardId : undefined;
-    const cues = cuesFromEvents(events, after, cardId);
+    const cues = cuesFromEvents(events, before, after, cardId);
     const flying = current.kind === 'card' && launchCardFlight(current.id);
     // A blow that ends the battle keeps the battlefield on screen until its effects have played.
     const endsBattle = result.run.phase !== 'in_battle';
@@ -736,7 +736,7 @@ export default function App() {
   const inspectedStack = [...combat.playerArmy, ...combat.enemyArmy].find((s) => s.stackId === inspectStackId && s.count > 0);
   const canAct = combat.phase === 'player' && combat.result === 'ongoing' && !playbackBoard && !fxBusy && !flyingCard;
   if (canAct && !pending && !menuOpen && !historyOpen && !inspectedStack) spaceEndTurn.current = handleEndTurn;
-  if (playbackBoard) skipPlayback.current = fx.skip;
+  if (fxBusy) skipPlayback.current = fx.skip;
 
   /** Clicking bare battlefield (not a unit, the drop zone or End Turn) drops the selection and any pending card. */
   function onFieldClick(e: React.MouseEvent) {

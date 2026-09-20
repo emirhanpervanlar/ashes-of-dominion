@@ -96,8 +96,23 @@ describe('cues', () => {
     const archer = createStack('archer', 'player', 4, 5);
     const target = state.enemyArmy.find((s) => s.count > 0)!;
     const result = applyPlayerAction({ ...state, playerArmy: [...state.playerArmy, archer] }, { type: 'BASIC_ACTION', stackId: archer.stackId, targetStackId: target.stackId });
-    const cues = cuesFromEvents(result.events, result.state);
+    const cues = cuesFromEvents(result.events, state, result.state);
     expect(cues).toHaveLength(1);
     expect(cues[0]).toMatchObject({ kind: 'attack', attackerStackId: archer.stackId, style: 'bolt' });
+  });
+});
+
+describe('heal cue', () => {
+  it('reports the soldiers actually restored (the count change), not HP divided by unit HP', () => {
+    const { state } = createVerticalSliceScenario(2);
+    const hurt = { ...createStack('swordsman', 'player', 1, 6), preBattleMaxCount: 12, maxHp: 120, currentHp: 60 };
+    const priest = createStack('priest', 'player', 6, 6);
+    const before: CombatState = { ...state, playerArmy: [hurt, priest] };
+    const result = applyPlayerAction(before, { type: 'BASIC_ACTION', stackId: priest.stackId, targetStackId: hurt.stackId });
+    const gained = result.state.playerArmy.find((s) => s.stackId === hurt.stackId)!.count - hurt.count;
+    expect(gained).toBeGreaterThan(0);
+    const cues = cuesFromEvents(result.events, before, result.state);
+    expect(cues).toEqual([{ kind: 'heal', stackId: hurt.stackId, units: gained }]);
+    expect(floatersFromCues(cues)[0]!.text).toBe(`+${gained} ${gained === 1 ? 'unit' : 'units'}`);
   });
 });

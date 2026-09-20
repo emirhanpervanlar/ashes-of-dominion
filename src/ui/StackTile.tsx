@@ -106,8 +106,8 @@ export function StackTile({ stack, side, ownArmy, selectable, selected, dimmed, 
                 <b>{stack.block}</b>
               </span>
             )}
-            {stack.statuses.map((st) => (
-              <span className="portrait-status" key={st.type} title={st.type}>
+            {stack.statuses.map((st, i) => (
+              <span className="portrait-status" key={`${st.type}-${i}`} title={st.type}>
                 <Icon name={STATUS_ICONS[st.type]} />
                 <b>{st.amount}</b>
               </span>

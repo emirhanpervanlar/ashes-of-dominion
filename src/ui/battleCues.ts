@@ -56,10 +56,11 @@ function pushAttack(cues: Cue[], board: CombatState, attackerStackId: string, hi
   cues.push({ kind: 'attack', attackerStackId, style: attackStyle(findStack(board, attackerStackId), magic), hits: [hit] });
 }
 
-/** Cues for the events one player action appended to the log; `board` is the state after the action. */
-export function cuesFromEvents(events: CombatEvent[], board: CombatState, cardId?: string): Cue[] {
+/** Cues for the events one player action appended to the log; `before` / `board` are the states around the action. */
+export function cuesFromEvents(events: CombatEvent[], before: CombatState, board: CombatState, cardId?: string): Cue[] {
   const cues: Cue[] = [];
   const magic = isMagicCard(cardId);
+  const healed = new Set<string>();
   for (const e of events) {
     if (e.type === 'STACK_ATTACKED') {
       const hit: HitCue = {
@@ -73,8 +74,10 @@ export function cuesFromEvents(events: CombatEvent[], board: CombatState, cardId
       if (e.attackerStackId === e.targetStackId) cues.push({ kind: 'dot', stackId: e.targetStackId, hit });
       else pushAttack(cues, board, e.attackerStackId, hit, magic);
     } else if (e.type === 'STACK_HEALED' && e.amount > 0) {
-      const stack = findStack(board, e.stackId);
-      cues.push({ kind: 'heal', stackId: e.stackId, units: stack ? Math.floor(e.amount / UNIT_DEFINITIONS[stack.unitId].hpPerUnit) : 0 });
+      // Soldiers actually restored (count is the health readout); a second heal on the same stack reports none.
+      const gained = healed.has(e.stackId) ? 0 : (findStack(board, e.stackId)?.count ?? 0) - (findStack(before, e.stackId)?.count ?? 0);
+      healed.add(e.stackId);
+      cues.push({ kind: 'heal', stackId: e.stackId, units: Math.max(0, gained) });
     } else if (e.type === 'BLOCK_GAINED' && e.amount > 0) {
       cues.push({ kind: 'block', stackId: e.stackId, amount: e.amount });
     } else if (e.type === 'STATUS_APPLIED') {
