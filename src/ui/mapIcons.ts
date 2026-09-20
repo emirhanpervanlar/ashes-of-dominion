@@ -28,8 +28,8 @@ export const BUILDING_ICONS: Record<string, IconName> = {
 
 /** Temple doctrines (engine ids) have no icons of their own yet, so each borrows the closest existing one. */
 export const DOCTRINE_ICONS: Record<string, IconName> = {
-  military: 'role_melee',
-  arcane: 'role_caster',
-  necromantic: 'fx_skull',
-  economic: 'gold',
+  military: 'doctrine_military',
+  arcane: 'doctrine_arcane',
+  necromantic: 'doctrine_necromantic',
+  economic: 'doctrine_economic',
 };
