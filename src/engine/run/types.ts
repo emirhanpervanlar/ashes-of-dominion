@@ -1,6 +1,7 @@
 import type { RngState } from '../rng.js';
 import type { ArmyStack, CardInstance, CombatState, EnemyStep, Hero, PlayerAction, Position, RelicDefinition, UnitId } from '../types.js';
 import type { CityState } from './city.js';
+import type { Garrison } from './garrison.js';
 import type { CardRemovalState } from './cardRemoval.js';
 import type { MerchantInventory } from './merchant.js';
 import type { RunStats } from './stats.js';
@@ -70,6 +71,10 @@ export type RunEvent =
   | { type: 'DAILY_INCOME'; gold: number; food: number }
   | { type: 'BATTLE_LOOT'; gold: number; food: number }
   | { type: 'FARM_UPGRADED'; tier: number }
+  | { type: 'BARRACKS_UPGRADED'; tier: number }
+  /** AO-D071: the weekly garrison growth (only the units that actually fit under the cap). */
+  | { type: 'GARRISON_GROWN'; units: UnitCount[] }
+  | { type: 'GARRISON_COLLECTED'; unitId: UnitId; count: number }
   | { type: 'EVENT_RESOLVED'; eventId: string; optionId: string; outcome: string; text: string }
   | { type: 'THREAT_CHANGED'; threat: number; delta: number }
   | { type: 'UNITS_GAINED'; unitId: UnitId; count: number }
@@ -110,6 +115,8 @@ export interface RunState {
   cardRemoval: CardRemovalState;
   worldMap: WorldMapState;
   city: CityState;
+  /** Free soldiers waiting in the city (AO-D071): grows every 7 days by Barracks tier, collected with COLLECT_GARRISON. */
+  garrison: Garrison;
   /** 1-3 (AO-D046): the boss is due on day 30 x chapter. */
   chapter: number;
   /** Raised by each city visit after the free one (AO-D047, AO-D070); scales enemy unit counts. */
@@ -153,6 +160,9 @@ export type RunAction =
   | { type: 'UPGRADE_CITY' }
   | { type: 'UPGRADE_MAGE_TOWER' }
   | { type: 'UPGRADE_FARM' }
+  | { type: 'UPGRADE_BARRACKS' }
+  /** Moves the waiting garrison into the army (one unit type, or all when `unitId` is omitted); what does not fit stays. */
+  | { type: 'COLLECT_GARRISON'; unitId?: UnitId }
   | { type: 'CHOOSE_DOCTRINE'; doctrineId: string }
   | { type: 'LEAVE_CITY' }
   | { type: 'SPLIT_STACK'; stackId: string; splitCount: number }

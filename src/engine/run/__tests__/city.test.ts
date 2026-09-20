@@ -4,6 +4,7 @@ import { resolveEventToMap } from './eventHelpers.js';
 import type { RunState } from '../types.js';
 import type { CombatState } from '../../types.js';
 import { pickReward } from './rewardHelpers.js';
+import { withBarracks } from './cityHelpers.js';
 
 /** Resolves whatever a MOVE_TO just triggered (battle/event/merchant) back to 'on_map', or stops at 'city'. */
 function resolveUntilOnMapOrCity(run: RunState): RunState {
@@ -52,7 +53,7 @@ describe('reaching the city', () => {
 
 describe('recruitment', () => {
   it('recruits into a matching existing field-army stack, spending Gold and Food', () => {
-    let run = reachCity(3);
+    let run = withBarracks(reachCity(3));
     run = { ...run, gold: 200, food: 200 };
     const swordsmanBefore = run.army.find((s) => s.unitId === 'swordsman')!.count;
 
@@ -65,14 +66,14 @@ describe('recruitment', () => {
   });
 
   it('rejects recruiting without enough Gold', () => {
-    let run = reachCity(5);
+    let run = withBarracks(reachCity(5));
     run = { ...run, gold: 0, food: 200 };
     const result = applyRunAction(run, { type: 'RECRUIT', unitId: 'swordsman', count: 5 });
     expect(result.events.some((e) => e.type === 'ACTION_REJECTED')).toBe(true);
   });
 
   it('recruiting a unit type not already in the army adds a new stack', () => {
-    let run = reachCity(6);
+    let run = withBarracks(reachCity(6));
     run = { ...run, gold: 200, food: 200 };
     expect(run.army.some((s) => s.unitId === 'priest')).toBe(false);
     const result = applyRunAction(run, { type: 'RECRUIT', unitId: 'priest', count: 5 });

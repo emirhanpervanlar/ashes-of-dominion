@@ -9,6 +9,7 @@ import type { ArmyStack, CombatState, HeroId, Position } from '../../types.js';
 import { applyRunAction, createRun } from '../runEngine.js';
 import { buildPendingReward } from '../rewards.js';
 import type { RunState } from '../types.js';
+import { withBarracks } from './cityHelpers.js';
 
 const HEROES: HeroId[] = ['warlord', 'rogue', 'mage'];
 
@@ -22,7 +23,7 @@ function startedRun(seed: number, relicId: string): RunState {
 }
 
 function inCity(run: RunState, army: ArmyStack[]): RunState {
-  return { ...run, phase: 'city', army, gold: 1000, food: 1000 };
+  return withBarracks({ ...run, phase: 'city', army, gold: 1000, food: 1000 });
 }
 
 describe('AO-D007: starting armies per hero', () => {
@@ -123,10 +124,8 @@ describe('AO-D008: recruits join the field army directly (max 6 stacks)', () => 
     expect(new Set(result.run.army.map((s) => s.position)).size).toBe(result.run.army.length);
   });
 
-  it('there is no garrison: the run state has no garrison field and recruiting is rejected outside the city', () => {
-    const run = createRun(34);
-    expect(Object.keys(run)).not.toContain('garrison');
-    expect(Object.keys(run.city)).not.toContain('garrison');
+  it('recruiting is rejected outside the city (the AO-D008 "no garrison" rule is superseded by AO-D071: the garrison lives in run.garrison and needs a Barracks)', () => {
+    const run = withBarracks(createRun(34));
     const result = applyRunAction({ ...run, phase: 'on_map' }, { type: 'RECRUIT', unitId: 'swordsman', count: 1 });
     expect(result.events.some((e) => e.type === 'ACTION_REJECTED')).toBe(true);
   });
@@ -201,7 +200,7 @@ describe('recruited units are fully usable in battle (healer-cannot-heal-Swordsm
     expect(run.phase).toBe('reward');
     unique();
 
-    run = { ...run, phase: 'city', gold: 1000, food: 1000 };
+    run = withBarracks({ ...run, phase: 'city', gold: 1000, food: 1000 });
     run = applyRunAction(run, { type: 'RECRUIT', unitId: 'swordsman', count: 6 }).run;
     unique();
     const recruited = run.army.find((s) => s.unitId === 'swordsman')!;

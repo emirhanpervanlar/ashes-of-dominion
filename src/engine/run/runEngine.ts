@@ -12,6 +12,7 @@ import type { ArmyStack, CardInstance, CombatState, Hero, HeroId, PlayerAction, 
 import { cardRemovalQuote, createCardRemovalState, type CardRemovalState } from './cardRemoval.js';
 import { isUpgradable } from '../cardUpgrades.js';
 import {
+  BARRACKS_TIERS,
   BUILDING_DEFINITIONS,
   DOCTRINE_DEFINITIONS,
   ECONOMIC_DOCTRINE_MULTIPLIER,
@@ -29,6 +30,7 @@ import {
   settleArmyAfterVictory,
 } from './city.js';
 import { actionProblem } from './actionValidation.js';
+import { garrisonUnits, growGarrison, isGarrisonDay } from './garrison.js';
 import { THREAT_PER_CITY_VISIT, TOTAL_CHAPTERS, nextCityVisitRaisesThreat } from './chapters.js';
 import { generateBattleEncounter, generateBossEncounter } from './encounters.js';
 import {
@@ -139,8 +141,12 @@ function fromVersion1(run: RunState): RunState {
 
 /** Version 2 to 3 (AO-046): the elite relic is granted at victory (AO-D068), so an unclaimed offer in a saved reward is granted now. */
 function fromVersion2(run: RunState): RunState {
+  // Saves from before AO-D071 could recruit everything: they keep that as a free tier IV Barracks (it takes a building slot).
+  const barracksTier = run.city.barracksTier ?? 4;
   const migrated: RunState = {
     ...run,
+    city: { ...run.city, barracksTier, buildings: barracksTier > 0 && !run.city.buildings.includes('barracks') ? [...run.city.buildings, 'barracks'] : run.city.buildings },
+    garrison: run.garrison ?? {},
     // A run that already carries Threat has used its free visit; a run without any is treated as not having visited yet.
     cityVisitsThisChapter: run.cityVisitsThisChapter ?? (run.threat > 0 ? 1 : 0),
   };
@@ -257,6 +263,7 @@ export function createRun(seed: number, heroId: HeroId = 'warlord', heroName?: s
     cardRemoval: createCardRemovalState(),
     worldMap: generateWorldMap(rng),
     city: createInitialCityState(),
+    garrison: {},
     chapter: 1,
     threat: 0,
     cityVisitsThisChapter: 0,
@@ -365,7 +372,7 @@ function resolveResourceNode(run: RunState, events: RunEvent[]): void {
   events.push({ type: 'RESOURCE_FOUND', gold, food });
 }
 
-/** One world day: Farm production, per-unit food upkeep, Gold Mine income, starvation. Returns the food the day cost. */
+/** One world day: Farm production, per-unit food upkeep, Gold Mine income, the weekly garrison (AO-D071), starvation. Returns the food the day cost. */
 function advanceDay(run: RunState, events: RunEvent[]): number {
   const foodCost = moveFoodCost(run.army, run.city);
   const farmFood = dailyProduction(run);
@@ -376,6 +383,10 @@ function advanceDay(run: RunState, events: RunEvent[]): number {
 
   if (mineGold > 0) changeGold(run, mineGold);
   if (mineGold > 0 || farmFood > 0) events.push({ type: 'DAILY_INCOME', gold: mineGold, food: farmFood });
+  if (isGarrisonDay(run.day)) {
+    const grown = growGarrison(run);
+    if (grown.length > 0) events.push({ type: 'GARRISON_GROWN', units: grown });
+  }
 
   if (payUpkeep(run, foodCost, events) === 'fed') run.starvationDays = 0;
   return foodCost;
@@ -1099,6 +1110,7 @@ function buildBuilding(run: RunState, buildingId: string, events: RunEvent[]): R
   }
 
   if (buildingId === 'farm') run.city.farmTier = 1;
+  if (buildingId === 'barracks') run.city.barracksTier = 1;
 
   events.push({ type: 'BUILDING_BUILT', buildingId });
   return { run, events };
@@ -1126,6 +1138,55 @@ function upgradeFarm(run: RunState, events: RunEvent[]): RunApplyResult {
   changeGold(run, -next.cost);
   run.city.farmTier = (tier + 1) as 2 | 3 | 4 | 5;
   events.push({ type: 'FARM_UPGRADED', tier: tier + 1 });
+  return { run, events };
+}
+
+function upgradeBarracks(run: RunState, events: RunEvent[]): RunApplyResult {
+  if (run.phase !== 'city') {
+    reject(events, 'Not at the city.');
+    return { run, events };
+  }
+  const tier = run.city.barracksTier;
+  if (tier === 0) {
+    reject(events, 'Build the Barracks first.');
+    return { run, events };
+  }
+  const next = BARRACKS_TIERS[tier];
+  if (!next) {
+    reject(events, 'Barracks is already at max tier.');
+    return { run, events };
+  }
+  if (run.gold < next.cost) {
+    reject(events, 'Not enough Gold.');
+    return { run, events };
+  }
+  changeGold(run, -next.cost);
+  run.city.barracksTier = (tier + 1) as 2 | 3 | 4;
+  events.push({ type: 'BARRACKS_UPGRADED', tier: tier + 1 });
+  return { run, events };
+}
+
+/** AO-D071: free, uses the normal army rules (merge into the same type or take a free slot); a type that does not fit stays in the garrison. */
+function collectGarrison(run: RunState, unitId: UnitId | undefined, events: RunEvent[]): RunApplyResult {
+  if (run.phase !== 'city') {
+    reject(events, 'Not at the city.');
+    return { run, events };
+  }
+  const waiting = garrisonUnits(run.garrison).filter((u) => unitId === undefined || u.unitId === unitId);
+  if (waiting.length === 0) {
+    reject(events, 'No soldiers are waiting in the garrison.');
+    return { run, events };
+  }
+  let collected = 0;
+  for (const { unitId: type, count } of waiting) {
+    const updated = addUnitsToArmy(run.army, type, count);
+    if (!updated) continue;
+    run.army = updated;
+    delete run.garrison[type];
+    events.push({ type: 'GARRISON_COLLECTED', unitId: type, count });
+    collected += count;
+  }
+  if (collected === 0) reject(events, `Field army is full (${MAX_ARMY_STACKS} stacks) and has no matching stack to merge into.`);
   return { run, events };
 }
 
@@ -1247,6 +1308,10 @@ function dispatchAction(working: RunState, action: RunAction, events: RunEvent[]
       return upgradeMageTower(working, events);
     case 'UPGRADE_FARM':
       return upgradeFarm(working, events);
+    case 'UPGRADE_BARRACKS':
+      return upgradeBarracks(working, events);
+    case 'COLLECT_GARRISON':
+      return collectGarrison(working, action.unitId, events);
     case 'UPGRADE_CITY':
       return upgradeCity(working, events);
     case 'CHOOSE_DOCTRINE':

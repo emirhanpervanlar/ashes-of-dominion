@@ -1,4 +1,5 @@
 import { MAX_ARMY_STACKS } from '../army.js';
+import { UNIT_DEFINITIONS } from '../data/units.js';
 import { BUILDING_DEFINITIONS, DOCTRINE_DEFINITIONS, RECRUIT_COSTS } from './city.js';
 
 /** Own-property test: ids come from untrusted input and must never resolve to inherited keys such as "constructor". */
@@ -70,6 +71,8 @@ export function actionProblem(action: unknown): string | null {
     case 'RECRUIT':
       if (!isKeyOf(RECRUIT_COSTS, action.unitId)) return 'Unknown recruitable unit.';
       return isPositiveCount(action.count) ? null : 'Invalid recruit count.';
+    case 'COLLECT_GARRISON':
+      return action.unitId === undefined || isKeyOf(UNIT_DEFINITIONS, action.unitId) ? null : 'Unknown unit.';
     case 'BUILD_BUILDING':
       return isKeyOf(BUILDING_DEFINITIONS, action.buildingId) ? null : 'Unknown building.';
     case 'CHOOSE_DOCTRINE':

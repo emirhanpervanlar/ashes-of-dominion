@@ -4,9 +4,10 @@ import type { ArmyStack, Position } from '../../types.js';
 import { BUILDING_DEFINITIONS } from '../city.js';
 import { applyRunAction, createRun } from '../runEngine.js';
 import type { RunAction, RunPhase, RunState } from '../types.js';
+import { withBarracks } from './cityHelpers.js';
 
 function base(phase: RunState['phase'], army: ArmyStack[]): RunState {
-  return { ...createRun(70), phase, army, gold: 1000, food: 1000 };
+  return withBarracks({ ...createRun(70), phase, army, gold: 1000, food: 1000 });
 }
 const pos = (run: RunState, id: string) => run.army.find((s) => s.stackId === id)!.position;
 const rejected = (events: { type: string }[]) => events.some((e) => e.type === 'ACTION_REJECTED');

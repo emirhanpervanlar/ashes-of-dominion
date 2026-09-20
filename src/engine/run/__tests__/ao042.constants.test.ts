@@ -27,9 +27,10 @@ import { RESOURCE_NODE_LOOT, rollResourceNode } from '../loot.js';
 import { MERCHANT_CARD_PRICE, generateMerchantInventory } from '../merchant.js';
 import { STARTING_FOOD, STARTING_GOLD, applyRunAction, createRun } from '../runEngine.js';
 import type { RunAction, RunState } from '../types.js';
+import { withBarracks } from './cityHelpers.js';
 
 const pct = (fraction: number): number => Math.round(fraction * 100);
-const atCity = (run: RunState): RunState => ({ ...run, phase: 'city', gold: 1000 });
+const atCity = (run: RunState): RunState => withBarracks({ ...run, phase: 'city', gold: 1000 });
 const withBuilding = (id: string) => ({ ...createInitialCityState(), buildings: [id] });
 
 describe('AO-042: MAX_ARMY_STACKS', () => {

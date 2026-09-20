@@ -1,16 +1,21 @@
 import { describe, expect, it } from 'vitest';
 import { createRng } from '../../rng.js';
 import type { CombatState } from '../../types.js';
+import { UNIT_DEFINITIONS } from '../../data/units.js';
 import { nextCityVisitRaisesThreat } from '../chapters.js';
+import { BARRACKS_TIERS } from '../city.js';
+import { garrisonCap, garrisonUnits } from '../garrison.js';
 import { buildPendingReward } from '../rewards.js';
 import { CURRENT_SAVE_VERSION, applyRunAction, createRun, migrateRun } from '../runEngine.js';
 import type { RunAction, RunState } from '../types.js';
 import type { NodeType } from '../worldMap.js';
 import { validateSave } from '../save.js';
+import { withBarracks } from './cityHelpers.js';
 import { pickReward } from './rewardHelpers.js';
 
 const act = (run: RunState, action: RunAction) => applyRunAction(run, action);
 const rejected = (events: { type: string }[]) => events.some((e) => e.type === 'ACTION_REJECTED');
+const reason = (events: { type: string }[]) => (events.find((e) => e.type === 'ACTION_REJECTED') as { reason: string } | undefined)?.reason;
 const roundTrip = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
 
 /** A run standing at a fresh node of `type` one step from the current one, arrived and (for fights) in battle. */
@@ -105,13 +110,11 @@ describe('AO-046 item 2 (AO-D070): free city visits', () => {
 });
 
 describe('AO-046 item 3 (AO-D071): recruiting at any city visit', () => {
-  const reason = (events: { type: string }[]) => (events.find((e) => e.type === 'ACTION_REJECTED') as { reason: string } | undefined)?.reason;
-
   /** Walks `days` resource nodes forward so the run is on that day, then visits the city. */
   function cityOnDay(seed: number, days: number): RunState {
     let run = createRun(seed);
     for (let i = 0; i < days; i++) run = arriveAt(run, 'resource');
-    return act(run, { type: 'TRAVEL_TO_CITY' }).run;
+    return act(withBarracks(run), { type: 'TRAVEL_TO_CITY' }).run;
   }
 
   it('there is no time or per-visit rule: every unit can be recruited on every day of the chapter and at every visit', () => {
@@ -122,7 +125,7 @@ describe('AO-046 item 3 (AO-D071): recruiting at any city visit', () => {
         expect(rejected(act(city, { type: 'RECRUIT', unitId, count: 2 }).events), `${unitId} on day ${city.day}`).toBe(false);
       }
     }
-    let run = createRun(4);
+    let run = withBarracks(createRun(4));
     for (let visit = 1; visit <= 6; visit++) {
       run = act(act(run, { type: 'TRAVEL_TO_CITY' }).run, { type: 'RECRUIT', unitId: 'swordsman', count: 1 }).run;
       run = act(run, { type: 'LEAVE_CITY' }).run;
@@ -150,8 +153,126 @@ describe('AO-046 item 3 (AO-D071): recruiting at any city visit', () => {
     const army = [{ ...base.army[0]!, position: 1 as const }, { ...base.army[1]!, position: 2 as const }, ...filler];
     const fighting = arriveAt({ ...base, army, gold: 500, food: 500 }, 'battle');
     const won = winFight({ ...fighting, combat: { ...fighting.combat!, playerArmy: fighting.combat!.playerArmy.map((s, i) => (i === 0 ? { ...s, count: 0, currentHp: 0 } : s)) } });
-    const city = act(pickReward(won).run, { type: 'TRAVEL_TO_CITY' }).run;
+    const city = act(withBarracks(pickReward(won).run), { type: 'TRAVEL_TO_CITY' }).run;
     expect(city.army.filter((s) => s.count > 0)).toHaveLength(won.army.filter((s) => s.count > 0).length);
     expect(rejected(act(city, { type: 'RECRUIT', unitId: 'swordsman', count: 3 }).events)).toBe(false);
+  });
+});
+
+describe('AO-046 item 4 (AO-D071): tiered Barracks and the weekly garrison', () => {
+  const inCity = (run: RunState): RunState => ({ ...run, phase: 'city' });
+  const walk = (run: RunState, days: number): RunState => {
+    let current = run;
+    for (let i = 0; i < days; i++) current = arriveAt(current, 'resource');
+    return current;
+  };
+  const withTier = (run: RunState, tier: 0 | 1 | 2 | 3 | 4): RunState => ({ ...run, city: { ...run.city, barracksTier: tier } });
+
+  it('is one building slot at every tier, built for 60 Gold, then 120 / 240 / 480 for tiers II-IV; recruiting is locked until it stands', () => {
+    expect(BARRACKS_TIERS.map((t) => t.cost)).toEqual([60, 120, 240, 480]);
+    let run = inCity({ ...createRun(20), gold: 2000, food: 500 });
+    expect(reason(act(run, { type: 'RECRUIT', unitId: 'swordsman', count: 1 }).events)).toBe('Build the Barracks to recruit.');
+    expect(rejected(act(run, { type: 'UPGRADE_BARRACKS' }).events)).toBe(true);
+
+    run = act(run, { type: 'BUILD_BUILDING', buildingId: 'barracks' }).run;
+    expect([run.city.barracksTier, run.city.buildings, run.gold]).toEqual([1, ['barracks'], 1940]);
+    expect(rejected(act(run, { type: 'BUILD_BUILDING', buildingId: 'barracks' }).events)).toBe(true);
+    for (const [tier, cost] of [[2, 120], [3, 240], [4, 480]] as const) {
+      const before = run.gold;
+      const result = act(run, { type: 'UPGRADE_BARRACKS' });
+      run = result.run;
+      expect(result.events).toContainEqual({ type: 'BARRACKS_UPGRADED', tier });
+      expect([run.city.barracksTier, before - run.gold, run.city.buildings]).toEqual([tier, cost, ['barracks']]);
+    }
+    expect(rejected(act(run, { type: 'UPGRADE_BARRACKS' }).events)).toBe(true);
+    expect(rejected(act({ ...run, city: { ...run.city, barracksTier: 1 }, gold: 100 }, { type: 'UPGRADE_BARRACKS' }).events)).toBe(true);
+  });
+
+  it('each tier unlocks exactly one recruitable unit type (I Swordsman, II Archer, III Priest, IV Knight)', () => {
+    const base = inCity({ ...createRun(21), gold: 2000, food: 500 });
+    const unitOrder = ['swordsman', 'archer', 'priest', 'knight'] as const;
+    for (const tier of [0, 1, 2, 3, 4] as const) {
+      for (const [i, unitId] of unitOrder.entries()) {
+        const result = act(withTier(base, tier), { type: 'RECRUIT', unitId, count: 1 });
+        expect(rejected(result.events), `${unitId} at tier ${tier}`).toBe(i >= tier);
+      }
+    }
+    expect(reason(act(withTier(base, 1), { type: 'RECRUIT', unitId: 'knight', count: 1 }).events)).toBe('Knight needs Barracks tier IV.');
+  });
+
+  it('the garrison grows every 7th day of the world clock: nothing without a Barracks, weekly units by tier with one', () => {
+    const none = walk(createRun(22), 13);
+    expect(none.day).toBe(14);
+    expect(none.garrison).toEqual({});
+    expect(none.log.some((e) => e.type === 'GARRISON_GROWN')).toBe(false);
+
+    const tier1 = walk(withTier(createRun(22), 1), 6);
+    expect([tier1.day, tier1.garrison]).toEqual([7, { swordsman: 4 }]);
+    expect(tier1.log).toContainEqual({ type: 'GARRISON_GROWN', units: [{ unitId: 'swordsman', count: 4 }] });
+
+    const tier4 = walk(withTier(createRun(22), 4), 6);
+    expect(tier4.garrison).toEqual({ swordsman: 4, archer: 3, priest: 2, knight: 1 });
+    expect(garrisonUnits(tier4.garrison).map((u) => u.unitId)).toEqual(['swordsman', 'archer', 'priest', 'knight']);
+  });
+
+  it('accumulates up to a cap of 2 weeks and reports only what was added', () => {
+    let run = walk(withTier(createRun(23), 2), 6);
+    expect(run.garrison).toEqual({ swordsman: 4, archer: 3 });
+    run = walk(run, 7);
+    expect(run.garrison).toEqual({ swordsman: 8, archer: 6 });
+    const beforeLog = run.log.length;
+    run = walk(run, 7);
+    expect(run.garrison).toEqual({ swordsman: 8, archer: 6 });
+    expect(run.log.slice(beforeLog).some((e) => e.type === 'GARRISON_GROWN')).toBe(false);
+    expect(garrisonCap(run)).toEqual({ swordsman: 8, archer: 6 });
+  });
+
+  it('an event that pays days of upkeep does not move the world clock, so it never grows the garrison', () => {
+    const run = { ...withTier(createRun(24), 1), day: 6 };
+    const paid = act({ ...run, phase: 'event', pendingEvent: { eventId: 'fogbound_ford', choice: null, resolved: null } }, { type: 'CHOOSE_EVENT_OPTION', optionId: 'wait' });
+    expect(paid.run.day).toBe(6);
+    expect(paid.run.garrison).toEqual({});
+  });
+
+  it('COLLECT_GARRISON is free, merges into the same type, takes a free slot for a new one and works only in the city', () => {
+    const run = inCity({ ...withTier(createRun(25), 2), garrison: { swordsman: 4, archer: 3 }, gold: 50, food: 50 });
+    const sword = run.army.find((s) => s.unitId === 'swordsman')!;
+    const all = act(run, { type: 'COLLECT_GARRISON' });
+    expect(all.events.filter((e) => e.type === 'GARRISON_COLLECTED')).toEqual([
+      { type: 'GARRISON_COLLECTED', unitId: 'swordsman', count: 4 },
+      { type: 'GARRISON_COLLECTED', unitId: 'archer', count: 3 },
+    ]);
+    expect(all.run.garrison).toEqual({});
+    expect(all.run.army.find((s) => s.unitId === 'swordsman')!.count).toBe(sword.count + 4);
+    expect(all.run.army.find((s) => s.unitId === 'archer')).toMatchObject({ count: 3, currentHp: 3 * UNIT_DEFINITIONS.archer.hpPerUnit });
+    expect([all.run.gold, all.run.food]).toEqual([50, 50]);
+
+    const one = act(run, { type: 'COLLECT_GARRISON', unitId: 'archer' });
+    expect(one.run.garrison).toEqual({ swordsman: 4 });
+    expect(rejected(act({ ...run, phase: 'on_map' }, { type: 'COLLECT_GARRISON' }).events)).toBe(true);
+    expect(reason(act({ ...run, garrison: {} }, { type: 'COLLECT_GARRISON' }).events)).toBe('No soldiers are waiting in the garrison.');
+    expect(rejected(act(run, { type: 'COLLECT_GARRISON', unitId: 'constructor' as 'archer' }).events)).toBe(true);
+    expect(rejected(act(run, { type: 'COLLECT_GARRISON', unitId: 5 as unknown as 'archer' }).events)).toBe(true);
+  });
+
+  it('what does not fit stays in the garrison', () => {
+    const kinds = ['swordsman', 'swordsman', 'swordsman', 'archer', 'archer', 'knight'] as const;
+    const base = createRun(26);
+    const six = kinds.map((unitId, i) => ({ ...base.army[0]!, stackId: `s${i}`, unitId, position: (i + 1) as 1, count: 3 }));
+    const run = inCity({ ...withTier(base, 3), army: six, garrison: { swordsman: 4, priest: 2 } });
+    const result = act(run, { type: 'COLLECT_GARRISON' });
+    expect(result.run.garrison).toEqual({ priest: 2 });
+    expect(result.run.army.filter((s) => s.unitId === 'swordsman').reduce((n, s) => n + s.count, 0)).toBe(13);
+    const blockedOnly = act(run, { type: 'COLLECT_GARRISON', unitId: 'priest' });
+    expect(reason(blockedOnly.events)).toContain('Field army is full');
+    expect(blockedOnly.run.garrison).toEqual({ swordsman: 4, priest: 2 });
+  });
+
+  it('old saves keep full recruiting as a free tier IV Barracks and start with an empty garrison', () => {
+    const old = roundTrip({ ...createRun(27), saveVersion: 2 }) as unknown as { city: Record<string, unknown>; garrison?: unknown };
+    delete old.city.barracksTier;
+    delete old.garrison;
+    const loaded = validateSave(old)!;
+    expect([loaded.city.barracksTier, loaded.city.buildings, loaded.garrison]).toEqual([4, ['barracks'], {}]);
   });
 });

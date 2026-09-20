@@ -60,6 +60,30 @@ export const FARM_TIERS: ReadonlyArray<{ cost: number; food: number }> = [
 /** Tier numerals for the tiered buildings (Farm has five tiers, Mage Tower three). */
 export const ROMAN: readonly string[] = ['I', 'II', 'III', 'IV', 'V'];
 
+/**
+ * AO-D071 Barracks: cumulative Gold cost per tier (index 0 = tier I, which is the build itself; one building slot at every tier). Each
+ * tier unlocks recruiting one unit type and adds `weekly` free soldiers of that type to the city garrison every GARRISON.intervalDays.
+ * Kept small on purpose: a player who collects every week gets about 4 / 7 / 9 / 10 free soldiers per week at tiers I-IV.
+ */
+export const BARRACKS_TIERS: ReadonlyArray<{ cost: number; unitId: UnitId; weekly: number }> = [
+  { cost: 60, unitId: 'swordsman', weekly: 4 },
+  { cost: 120, unitId: 'archer', weekly: 3 },
+  { cost: 240, unitId: 'priest', weekly: 2 },
+  { cost: 480, unitId: 'knight', weekly: 1 },
+];
+
+/** AO-D071 garrison: it grows every `intervalDays` world days and never holds more than `capWeeks` weeks of any unit type. */
+export const GARRISON = { intervalDays: 7, capWeeks: 2 } as const;
+
+/** Tier text for the Barracks card, same shape as the Farm's. `tier` 0 = not built. */
+export function barracksDescription(tier: number): string {
+  const units = (n: number) => BARRACKS_TIERS.slice(0, n).map((t) => `${t.weekly} ${UNIT_DEFINITIONS[t.unitId].name}`).join(', ');
+  const next = BARRACKS_TIERS[tier];
+  const current = tier > 0 ? `Tier ${ROMAN[tier - 1]}: recruit ${UNIT_DEFINITIONS[BARRACKS_TIERS[tier - 1]!.unitId].name}; the garrison gains ${units(tier)} every ${GARRISON.intervalDays} days.` : `Tier I unlocks ${UNIT_DEFINITIONS[BARRACKS_TIERS[0]!.unitId].name} recruits and a weekly garrison (${units(1)}).`;
+  if (tier === 0) return `${current} Upgradeable to tier ${ROMAN[BARRACKS_TIERS.length - 1]}.`;
+  return next ? `${current} Next: tier ${ROMAN[tier]} (${UNIT_DEFINITIONS[next.unitId].name}, +${next.weekly} a week) for ${next.cost} Gold.` : `${current} Max tier.`;
+}
+
 /** Tier text for the Farm card, same shape as the Mage Tower's. `tier` 0 = not built. */
 export function farmDescription(tier: number): string {
   const next = FARM_TIERS[tier];
@@ -83,6 +107,8 @@ export interface CityState {
   mageTowerTier: 0 | 1 | 2 | 3;
   /** 0 = no Farm (AO-D048). One building slot at every tier. */
   farmTier: 0 | 1 | 2 | 3 | 4 | 5;
+  /** 0 = no Barracks (AO-D071): nothing can be recruited and no garrison grows. One building slot at every tier. */
+  barracksTier: 0 | 1 | 2 | 3 | 4;
 }
 
 /**
@@ -127,10 +153,17 @@ export const DOCTRINE_DEFINITIONS: Record<string, CityDoctrineDefinition> = {
 };
 
 /**
- * Buildings (AO-D020, AO-D036, AO-D048, AO-D062). LEVEL_SLOTS gives 3/5/6 slots
- * for 8 buildings, so the player cannot build everything and must choose what to skip.
+ * Buildings (AO-D020, AO-D036, AO-D048, AO-D062, AO-D071). LEVEL_SLOTS gives 3/5/6 slots
+ * for 9 buildings, so the player cannot build everything and must choose what to skip.
  */
 export const BUILDING_DEFINITIONS: Record<string, CityBuildingDefinition> = {
+  barracks: {
+    id: 'barracks',
+    name: 'Barracks',
+    description: barracksDescription(0),
+    category: 'army',
+    cost: BARRACKS_TIERS[0]!.cost,
+  },
   market: {
     id: 'market',
     name: 'Market',
@@ -222,11 +255,16 @@ export function settleArmyAfterVictory(army: ArmyStack[], city: CityState): { ar
 }
 
 export function createInitialCityState(): CityState {
-  return { level: 1, buildings: [], doctrine: null, mageTowerTier: 0, farmTier: 0 };
+  return { level: 1, buildings: [], doctrine: null, mageTowerTier: 0, farmTier: 0, barracksTier: 0 };
 }
 
-export function canRecruitUnit(_city: CityState, unitId: UnitId): boolean {
-  return unitId in RECRUIT_COSTS;
+/** Unit types the Barracks has unlocked so far (AO-D071), in tier order. */
+export function unlockedRecruits(city: Pick<CityState, 'barracksTier'>): UnitId[] {
+  return BARRACKS_TIERS.slice(0, city.barracksTier).map((t) => t.unitId);
+}
+
+export function canRecruitUnit(city: Pick<CityState, 'barracksTier'>, unitId: UnitId): boolean {
+  return unlockedRecruits(city).includes(unitId);
 }
 
 export function recruitCost(city: CityState, unitId: UnitId, count: number): { gold: number; food: number } | null {
@@ -245,7 +283,11 @@ export function recruitCost(city: CityState, unitId: UnitId, count: number): { g
  */
 export function recruitBlocker(run: Pick<RunState, 'city' | 'gold' | 'food' | 'army'>, unitId: UnitId, count: number): string | null {
   const cost = recruitCost(run.city, unitId, count);
-  if (!canRecruitUnit(run.city, unitId) || !cost) return 'That unit cannot be recruited.';
+  if (!cost) return 'That unit cannot be recruited.';
+  if (!canRecruitUnit(run.city, unitId)) {
+    const tier = BARRACKS_TIERS.findIndex((t) => t.unitId === unitId) + 1;
+    return run.city.barracksTier === 0 ? 'Build the Barracks to recruit.' : `${UNIT_DEFINITIONS[unitId].name} needs Barracks tier ${ROMAN[tier - 1]}.`;
+  }
   if (run.gold < cost.gold) return 'Not enough Gold.';
   if (run.food < cost.food) return 'Not enough Food (every recruit costs Food too).';
   if (!addUnitsToArmy(run.army, unitId, count)) return `Field army is full (${MAX_ARMY_STACKS} stacks) and has no matching stack to merge into.`;

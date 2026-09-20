@@ -26,7 +26,7 @@ const HOSTILE_VALUES: unknown[] = [
 const ACTION_TYPES = [
   'MOVE_TO', 'COMBAT_ACTION', 'CLAIM_CARD', 'CLAIM_UPGRADE', 'CLAIM_RELIC', 'REMOVE_CARD', 'CHOOSE_EVENT_OPTION',
   'CHOOSE_EVENT_CARD', 'CHOOSE_EVENT_UNIT', 'CANCEL_EVENT_CHOICE', 'DISMISS_STACK', 'DECLINE_UNIT_GAIN', 'BUY_CARD', 'BUY_RELIC',
-  'LEAVE_MERCHANT', 'TRAVEL_TO_CITY', 'RECRUIT', 'BUILD_BUILDING', 'UPGRADE_CITY', 'UPGRADE_MAGE_TOWER', 'UPGRADE_FARM',
+  'LEAVE_MERCHANT', 'TRAVEL_TO_CITY', 'RECRUIT', 'BUILD_BUILDING', 'UPGRADE_CITY', 'UPGRADE_MAGE_TOWER', 'UPGRADE_FARM', 'UPGRADE_BARRACKS', 'COLLECT_GARRISON',
   'CHOOSE_DOCTRINE', 'LEAVE_CITY', 'SPLIT_STACK', 'MERGE_STACKS', 'MOVE_STACK', 'NOT_AN_ACTION', '', 'constructor',
 ];
 const FIELDS = ['nodeId', 'action', 'cardId', 'instanceId', 'relicId', 'optionId', 'unitId', 'stackId', 'count', 'buildingId', 'doctrineId', 'splitCount', 'stackIdA', 'stackIdB', 'toPosition'];
@@ -63,7 +63,8 @@ function stepTo(run: RunState, type: NodeType): RunState {
 }
 
 function startStates(seed: number): RunState[] {
-  const base = { ...createRun(seed), gold: 500, food: 80 };
+  const fresh = createRun(seed);
+  const base = { ...fresh, gold: 500, food: 80, city: { ...fresh.city, barracksTier: 2 as const }, garrison: { swordsman: 3, archer: 2 } };
   const reward: RunState = { ...base, phase: 'reward', pendingReward: buildPendingReward({ ...base.rng }, base.relics, base.masterDeck, true, false) };
   const merchant: RunState = { ...base, phase: 'merchant', pendingMerchant: generateMerchantInventory({ ...base.rng }, base.relics) };
   const event: RunState = { ...base, phase: 'event', pendingEvent: pendingEventOf('mercenary_camp') };
@@ -81,6 +82,7 @@ function violations(run: RunState): string[] {
   whole('threat', run.threat);
   whole('starvationDays', run.starvationDays);
   whole('day', run.day);
+  for (const [unitId, count] of Object.entries(run.garrison)) whole(`garrison.${unitId}`, count);
   whole('mana', run.hero.mana);
   whole('maxMana', run.hero.maxMana);
   for (const stack of [...run.army, ...(run.combat?.playerArmy ?? []), ...(run.combat?.enemyArmy ?? [])]) {
@@ -125,7 +127,7 @@ describe('AO-042: the reducer survives hostile actions', () => {
   });
 
   it('rejects malformed counts, positions and ids with ACTION_REJECTED and leaves the run unchanged', () => {
-    const city = applyRunAction({ ...createRun(3), gold: 900 }, { type: 'TRAVEL_TO_CITY' }).run;
+    const city = applyRunAction({ ...createRun(3), gold: 900, city: { ...createRun(3).city, barracksTier: 4 } }, { type: 'TRAVEL_TO_CITY' }).run;
     const stack = city.army[0]!;
     const bad: unknown[] = [
       { type: 'RECRUIT', unitId: 'swordsman', count: NaN },

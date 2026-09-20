@@ -32,6 +32,7 @@ function isCombat(v: unknown): boolean {
   );
 }
 
+const isGarrison = (v: unknown): boolean => isRec(v) && Object.entries(v).every(([unitId, count]) => hasKey(UNIT_DEFINITIONS, unitId) && isWhole(count));
 const isCard = (v: unknown): v is Rec => isRec(v) && isStr(v.instanceId) && hasKey(CARD_DEFINITIONS, v.cardId);
 const isRelic = (v: unknown): v is Rec => isRec(v) && isStr(v.id) && isStr(v.name) && Array.isArray(v.effects);
 const isNode = (v: unknown): v is Rec => isRec(v) && isStr(v.id) && isStr(v.type) && isWhole(v.layer) && allOf(v.connectsTo, isStr);
@@ -43,7 +44,7 @@ function isHero(v: unknown): boolean {
 }
 
 function isCity(v: unknown): boolean {
-  return isRec(v) && [1, 2, 3].includes(v.level as number) && allOf(v.buildings, isStr) && (v.doctrine === null || isStr(v.doctrine)) && isWhole(v.mageTowerTier) && v.mageTowerTier <= 3 && isWhole(v.farmTier) && v.farmTier <= 5;
+  return isRec(v) && [1, 2, 3].includes(v.level as number) && allOf(v.buildings, isStr) && (v.doctrine === null || isStr(v.doctrine)) && isWhole(v.mageTowerTier) && v.mageTowerTier <= 3 && isWhole(v.farmTier) && v.farmTier <= 5 && isWhole(v.barracksTier) && v.barracksTier <= 4;
 }
 
 function isReward(v: unknown): boolean {
@@ -67,7 +68,7 @@ function isCurrentRun(r: Rec): boolean {
   const counters = [r.gold, r.food, r.day, r.battlesWon, r.chapter, r.threat, r.cityVisitsThisChapter, r.starvationDays];
   if (!counters.every(isWhole) || (r.chapter as number) < 1 || (r.day as number) < 1) return false;
   if (!isHero(r.hero) || !allOf(r.army, isStack) || (r.army as unknown[]).length > MAX_ARMY_STACKS) return false;
-  if (!allOf(r.masterDeck, isCard) || !allOf(r.relics, isRelic) || !isCity(r.city)) return false;
+  if (!allOf(r.masterDeck, isCard) || !allOf(r.relics, isRelic) || !isCity(r.city) || !isGarrison(r.garrison)) return false;
   if (!isRec(r.stats) || !Object.values(r.stats).every(isNum) || !isRec(r.cardRemoval) || !isWhole(r.cardRemoval.merchantUses) || !isWhole(r.cardRemoval.cityUses)) return false;
   if (!Array.isArray(r.log) || !allOf(r.seenEventIds, isStr) || !Array.isArray(r.lastCasualties) || typeof r.bossBattle !== 'boolean') return false;
   const map = r.worldMap;
