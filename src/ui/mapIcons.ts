@@ -25,3 +25,11 @@ export const BUILDING_ICONS: Record<string, IconName> = {
   forge: 'bld_forge',
   shrine: 'bld_shrine',
 };
+
+/** Temple doctrines (engine ids) have no icons of their own yet, so each borrows the closest existing one. */
+export const DOCTRINE_ICONS: Record<string, IconName> = {
+  military: 'role_melee',
+  arcane: 'role_caster',
+  necromantic: 'fx_skull',
+  economic: 'gold',
+};

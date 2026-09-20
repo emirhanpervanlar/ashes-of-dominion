@@ -145,12 +145,11 @@ export function slotsTip(run: Pick<RunState, 'city'>): TipContent {
   return { title: 'Building slots', icon: 'slots', body: `${run.city.buildings.length} of ${LEVEL_SLOTS[run.city.level]} slots used. Upgrade the Town Hall for more.` };
 }
 
-export function buildingTip(building: CityBuildingDefinition, built: boolean, description: string): TipContent {
-  return {
-    title: building.name,
-    body: description,
-    lines: [built ? { text: 'Built.', tone: 'good' } : { icon: 'gold', text: `Costs ${building.cost} Gold to build.` }],
-  };
+/** `blocker` is why an unbuilt building cannot be built right now (no slot, no Gold), shown under its cost. */
+export function buildingTip(building: CityBuildingDefinition, built: boolean, description: string, blocker: string | null = null): TipContent {
+  const lines: TipLine[] = built ? [{ text: 'Built.', tone: 'good' }] : [{ icon: 'gold', text: `Costs ${building.cost} Gold to build.` }];
+  if (blocker) lines.push({ icon: 'ui_warn', text: blocker, tone: 'bad' });
+  return { title: building.name, body: description, lines };
 }
 
 /** Why a card cannot be played right now (AO-D040): the condition plus the current reason. */

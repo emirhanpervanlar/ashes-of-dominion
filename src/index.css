@@ -254,7 +254,8 @@ p { margin: 0; }
 .army-slot,
 .garrison-relic-cell,
 .garrison-hero-portrait-rect,
-.th-hotspot,
+.city-plot,
+.city-threat,
 .path-choice-card,
 .current-location-badge,
 .hero-choice,
@@ -2347,124 +2348,553 @@ button.pill {
   100% { transform: translateY(-12px); opacity: 0; }
 }
 
-/* ---------- 4e. city ---------- */
+/* ---------- 4e. city (AO-038): town scene, building plots, active effects, building panels ---------- */
 
-.th-frame {
+.city-frame {
   z-index: 40;
   display: flex;
   flex-direction: column;
 }
 
-.th-scene {
+.city-scene {
   position: relative;
   flex: 1;
-  min-height: 380px;
+  min-height: 0;
   overflow: hidden;
-  background: radial-gradient(ellipse at 50% 75%, var(--tint-glow) 0, transparent 70%), var(--tint-a);
+  background: radial-gradient(ellipse at 50% 100%, var(--tint-glow) 0, transparent 70%), linear-gradient(180deg, var(--tint-void), var(--tint-a) 45%, var(--tint-b));
 }
 
-.th-skyline {
-  position: absolute;
-  left: -2%;
-  right: -2%;
-  bottom: 0;
-  height: 42%;
-  background: var(--bg-stone);
-  clip-path: polygon(
-    0% 100%, 0% 62%, 4% 62%, 4% 48%, 9% 48%, 9% 62%, 14% 62%, 14% 30%, 16% 22%, 18% 30%, 18% 62%, 27% 62%, 27% 45%,
-    32% 45%, 32% 58%, 36% 58%, 36% 15%, 38% 8%, 40% 15%, 40% 58%, 50% 58%, 50% 40%, 55% 40%, 55% 58%, 64% 58%, 64% 35%,
-    66% 26%, 68% 35%, 68% 58%, 78% 58%, 78% 50%, 83% 50%, 83% 62%, 91% 62%, 91% 45%, 96% 45%, 96% 62%, 100% 62%, 100% 100%
-  );
+.city-content {
+  position: relative;
+  height: 100%;
+  display: flex;
+  gap: var(--s-4);
+  padding: var(--s-4) var(--s-5);
+  overflow-y: auto;
 }
 
-.th-scene-label {
-  position: absolute;
-  top: 4%;
-  left: 50%;
-  transform: translateX(-50%);
-  font: var(--t-h2);
-  text-transform: uppercase;
-  letter-spacing: 4px;
-  color: var(--gold-200);
-  text-shadow: 0 2px 0 var(--stone-950);
-}
-
-.th-hotspot {
-  --bev-light: var(--wood-500);
-  --bev-dark: var(--wood-900);
-  position: absolute;
-  transform: translate(-50%, -50%);
-  width: 108px;
-  min-height: 80px;
+.city-town {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
   display: flex;
   flex-direction: column;
+  gap: var(--s-3);
+}
+
+/* the sky: the castle skyline sits on the horizon at the header's foot, the city name and stats float above it */
+.city-header {
+  position: relative;
+  flex: none;
+  height: 120px;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--s-4);
+  background: radial-gradient(ellipse at 50% 100%, var(--tint-glow) 0, transparent 60%);
+}
+
+.city-header .title-skyline { height: 100%; }
+.city-header > :not(.title-skyline) { position: relative; }
+
+.city-name { text-transform: uppercase; letter-spacing: 4px; }
+
+.city-header-stats {
+  display: flex;
+  gap: var(--s-2);
+}
+
+.city-threat {
+  --bev-light: var(--wood-500);
+  --bev-dark: var(--wood-900);
+  display: flex;
   align-items: center;
-  justify-content: center;
-  gap: var(--s-1);
-  padding: var(--s-2);
+  gap: var(--s-2);
+  padding: var(--s-2) var(--s-3);
+  font: var(--t-small);
+  color: var(--stone-100);
+  background: var(--bg-wood-dark);
+  box-shadow: inset 2px 2px 0 var(--bev-light), inset -2px -2px 0 var(--bev-dark);
+}
+
+.city-threat .px-icon { color: var(--blood-300); }
+
+.city-plots {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-rows: repeat(3, minmax(120px, 1fr));
+  gap: var(--s-4);
+}
+
+.city-plot {
+  --bev-light: var(--wood-500);
+  --bev-dark: var(--wood-900);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+  border: 0;
   cursor: pointer;
   text-align: center;
+  color: inherit;
+  background: none;
+}
+
+.city-plot--wide { grid-column: span 2; }
+
+.city-plot:hover { --bev-light: var(--gold-400); transform: translateY(-2px); }
+.city-plot:focus-visible { outline: none; }
+
+/* a window onto one building, framed in wood, the building standing on a stone plinth */
+.city-plot-art {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: var(--s-3);
+  background: radial-gradient(ellipse at 50% 90%, var(--tint-glow) 0, transparent 70%), var(--stone-900);
+  box-shadow: inset 4px 4px 0 var(--bev-light), inset -4px -4px 0 var(--bev-dark);
+}
+
+.city-plot-art::after {
+  content: '';
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  bottom: 4px;
+  height: 8px;
+  background: var(--bg-stone);
+  box-shadow: inset 0 2px 0 var(--stone-500);
+}
+
+.city-plot-art .px-icon { position: relative; z-index: 1; }
+
+.city-plot-sign {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--s-2);
   background: var(--bg-wood);
   box-shadow: inset 4px 4px 0 var(--bev-light), inset -4px -4px 0 var(--bev-dark);
 }
 
-.th-hotspot:hover {
-  --bev-light: var(--gold-400);
-  transform: translate(-50%, calc(-50% - 2px));
-  z-index: 5;
-}
-
-.th-hotspot.active {
-  box-shadow: inset 0 0 0 2px var(--gold-200), inset 4px 4px 0 var(--bev-light), inset -4px -4px 0 var(--bev-dark);
-}
-
-.th-hotspot.locked {
-  filter: saturate(0.3);
-}
-
-.th-hotspot.locked::after {
-  content: '';
-  position: absolute;
-  inset: 4px;
-  border: 2px dashed var(--wood-500);
-  pointer-events: none;
-}
-
-.th-hotspot-icon { display: flex; }
-
-.th-hotspot-name {
-  font: 700 14px/16px var(--font-body);
+.city-plot-name {
+  font: var(--t-h3);
   color: var(--gold-200);
   text-shadow: 0 2px 0 var(--stone-950);
 }
 
-.th-hotspot-sub {
-  font: var(--t-label);
+.city-plot-status {
+  font: 400 16px/16px var(--font-pixel);
   text-transform: uppercase;
   letter-spacing: 1px;
   color: var(--stone-200);
 }
 
-.city-building-popup h3 {
-  display: flex;
-  align-items: center;
-  gap: var(--s-2);
-  margin-bottom: var(--s-2);
+.city-plot.active::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  box-shadow: inset 0 0 0 2px var(--gold-200);
+  pointer-events: none;
 }
 
-.mage-tower-tier {
-  margin-bottom: var(--s-2);
-  font: var(--t-btn);
+/* built: full colour; buildable and unaffordable: dashed outline; locked by slots: greyed */
+.city-plot--built { --bev-light: var(--gold-500); }
+.city-plot--built .city-plot-status { color: var(--moss-300); }
+
+.city-plot--buildable .city-plot-art::before,
+.city-plot--unaffordable .city-plot-art::before,
+.city-plot--locked .city-plot-art::before {
+  content: '';
+  position: absolute;
+  inset: 8px;
+  border: 2px dashed var(--gold-500);
+  pointer-events: none;
+}
+
+.city-plot--buildable .city-plot-art .px-icon,
+.city-plot--unaffordable .city-plot-art .px-icon { filter: saturate(0.55) brightness(0.85); }
+.city-plot--buildable .city-plot-status { color: var(--gold-200); }
+.city-plot--unaffordable .city-plot-art::before { border-color: var(--stone-400); }
+.city-plot--unaffordable .city-plot-status { color: var(--blood-300); }
+
+.city-plot--locked { filter: saturate(0.3) brightness(0.85); }
+.city-plot--locked .city-plot-art::before { border-color: var(--wood-500); }
+.city-plot--locked .city-plot-art .px-icon { opacity: 0.6; }
+.city-plot--locked .city-plot-status { color: var(--stone-300); }
+
+.city-plot-badge {
+  position: absolute;
+  top: var(--s-2);
+  right: var(--s-2);
+  z-index: 2;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.city-plot-badge--built { background: var(--moss-700); box-shadow: inset 0 0 0 2px var(--moss-500); }
+.city-plot-badge--locked { background: var(--blood-700); box-shadow: inset 0 0 0 2px var(--blood-500); }
+
+/* active effects */
+.city-effects {
+  flex: none;
+  width: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.city-effects-list {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: var(--s-2);
+  overflow-y: auto;
+}
+
+.city-effects-empty { padding: var(--s-2); font: var(--t-small); color: var(--text-dim); }
+
+.city-effect {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--s-3);
+  padding: var(--s-2);
+  border-bottom: 2px solid var(--stone-900);
+}
+
+.city-effect-icon {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--stone-900);
+  box-shadow: inset 2px 2px 0 var(--stone-950), inset -2px -2px 0 var(--stone-600);
+}
+
+.city-effect-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.city-effect-name { font: 700 16px/24px var(--font-body); color: var(--text-strong); }
+.city-effect-desc { font: var(--t-small); line-height: 16px; color: var(--text); }
+
+.city-daily {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+}
+
+.city-daily .t-label-text { margin-right: auto; }
+
+.city-daily-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  font: var(--t-num);
+  color: var(--stone-100);
+}
+
+.city-daily-item--good { color: var(--moss-300); }
+.city-daily-item--bad { color: var(--blood-300); }
+
+.t-label-text {
+  font: var(--t-label);
   text-transform: uppercase;
   letter-spacing: 1px;
+  color: var(--text-dim);
+}
+
+/* building panels (Modal, wood) */
+.city-note { font: var(--t-small); line-height: 16px; color: var(--text-dim); }
+.city-effect-big { font: var(--t-body); color: var(--text-strong); }
+.city-section { display: flex; flex-direction: column; gap: var(--s-2); }
+.city-section-head { display: flex; align-items: center; gap: var(--s-2); }
+
+.city-building {
+  display: flex;
+  gap: var(--s-5);
+  align-items: flex-start;
+}
+
+.city-building-art {
+  flex: none;
+  width: 112px;
+  height: 112px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(ellipse at 50% 75%, var(--tint-glow) 0, transparent 75%), var(--stone-900);
+}
+
+.city-building-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.city-tag-row { display: flex; gap: var(--s-2); }
+
+.city-tag {
+  display: inline-block;
+  align-self: flex-start;
+  padding: 0 var(--s-2);
+  font: var(--t-label);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--stone-200);
+  background: var(--iron-700);
+  box-shadow: inset 2px 2px 0 var(--iron-500), inset -2px -2px 0 var(--iron-900);
+}
+
+.city-ladder-row .city-tag { align-self: center; }
+.city-tag--built { color: var(--moss-300); background: var(--moss-700); box-shadow: inset 2px 2px 0 var(--moss-500), inset -2px -2px 0 var(--moss-900); }
+.city-tag--next { color: var(--gold-200); background: var(--gold-900); box-shadow: inset 2px 2px 0 var(--gold-700), inset -2px -2px 0 var(--stone-950); }
+.city-tag--locked { color: var(--stone-400); background: var(--stone-800); box-shadow: inset 2px 2px 0 var(--stone-600), inset -2px -2px 0 var(--stone-950); }
+
+.city-cost {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  font: var(--t-num);
   color: var(--gold-200);
 }
 
-.option-row {
+.city-cost--short { color: var(--blood-300); }
+
+.city-action { display: flex; flex-direction: column; gap: var(--s-2); }
+.city-action-row { display: flex; align-items: center; gap: var(--s-4); }
+
+.city-blocker {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font: var(--t-small);
+  color: var(--blood-300);
+}
+
+/* tier and level ladders */
+.city-ladder { display: flex; flex-direction: column; }
+
+.city-ladder-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-2) var(--s-3);
+  border-bottom: 2px solid var(--stone-900);
+}
+
+.city-ladder-row--next { background: var(--gold-900); box-shadow: inset 4px 0 0 var(--gold-400); }
+.city-ladder-row--locked { opacity: 0.6; }
+
+.city-ladder-num {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: var(--t-num);
+  color: var(--stone-100);
+  background: var(--steel-700);
+  box-shadow: inset 0 0 0 2px var(--steel-500);
+}
+
+.city-ladder-row--built .city-ladder-num { background: var(--moss-700); box-shadow: inset 0 0 0 2px var(--moss-500); }
+.city-ladder-row--next .city-ladder-num { color: var(--gold-900); background: var(--gold-500); box-shadow: inset 0 0 0 2px var(--gold-200); }
+.city-ladder-row--locked .city-ladder-num { background: var(--stone-600); box-shadow: inset 0 0 0 2px var(--stone-500); }
+
+.city-ladder-info { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.city-ladder-bonus { font: 700 16px/24px var(--font-body); color: var(--text-strong); }
+.city-ladder-tier { font: var(--t-label); text-transform: uppercase; letter-spacing: 1px; color: var(--text-dim); }
+
+/* town hall */
+.city-hall {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-5);
+}
+
+.city-hall-col { display: flex; flex-direction: column; gap: var(--s-3); }
+.city-hall-col .card-removal { align-items: flex-start; }
+.city-hall-col .card-removal-note { max-width: none; text-align: left; color: var(--blood-300); }
+
+.city-price-strip { display: flex; flex-direction: column; gap: var(--s-2); padding: var(--s-3); }
+.city-price-chips { display: flex; gap: var(--s-2); }
+
+.city-price-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  padding: var(--s-1) var(--s-3);
+  font: var(--t-num);
+  color: var(--stone-300);
+  background: var(--stone-700);
+}
+
+.city-price-chip--now { color: var(--gold-200); box-shadow: inset 0 0 0 2px var(--gold-500); }
+
+/* temple */
+.city-temple-lead { margin-bottom: var(--s-4); }
+
+.city-doctrines {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--s-4);
+}
+
+.city-doctrine {
+  --bev-light: var(--stone-500);
+  --bev-dark: var(--stone-950);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-3);
+  min-height: 320px;
+  padding: var(--s-4);
+  text-align: center;
+  background: var(--bg-stone-smooth);
+  box-shadow: inset 4px 4px 0 var(--bev-light), inset -4px -4px 0 var(--bev-dark);
+}
+
+.city-doctrine--chosen { --bev-light: var(--gold-400); box-shadow: inset 0 0 0 2px var(--gold-200), inset 4px 4px 0 var(--bev-light), inset -4px -4px 0 var(--bev-dark); }
+.city-doctrine--locked { filter: brightness(0.6) saturate(0.6); }
+
+.city-doctrine-art {
+  width: 96px;
+  height: 96px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(ellipse at 50% 75%, var(--tint-glow) 0, transparent 75%), var(--stone-900);
+}
+
+.city-doctrine-name { font: var(--t-h3); color: var(--gold-200); text-shadow: 0 2px 0 var(--stone-950); }
+.city-doctrine-effect { flex: 1; font: var(--t-body); color: var(--text-strong); }
+
+.city-confirm {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-3);
+  text-align: center;
+}
+
+/* barracks */
+.city-barracks-strip {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--s-2);
+  gap: var(--s-2) var(--s-5);
+  padding: var(--s-2) var(--s-3);
+  margin-bottom: var(--s-2);
 }
+
+.city-strip-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  font: var(--t-num);
+  color: var(--stone-100);
+}
+
+.city-barracks-strip + .city-note { margin-bottom: var(--s-3); }
+
+.city-recruits {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--s-3);
+}
+
+.city-recruit {
+  --bev-light: var(--stone-500);
+  --bev-dark: var(--stone-950);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-3);
+  text-align: center;
+  background: var(--bg-stone-smooth);
+  box-shadow: inset 4px 4px 0 var(--bev-light), inset -4px -4px 0 var(--bev-dark);
+}
+
+.city-recruit-art {
+  position: relative;
+  align-self: stretch;
+  height: 88px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(ellipse at 50% 75%, var(--tint-glow) 0, transparent 75%), var(--stone-900);
+}
+
+.city-recruit-role {
+  position: absolute;
+  top: var(--s-1);
+  left: var(--s-1);
+  display: flex;
+  padding: 2px;
+  background: var(--iron-800);
+  box-shadow: inset 0 0 0 2px var(--iron-500);
+}
+
+.city-recruit-name { font: var(--t-h3); color: var(--gold-200); text-shadow: 0 2px 0 var(--stone-950); }
+.city-recruit-desc { min-height: 64px; font: var(--t-small); color: var(--text-dim); }
+
+.city-recruit-stats {
+  align-self: stretch;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-1) var(--s-2);
+  font: var(--t-small);
+  text-align: left;
+  color: var(--text);
+}
+
+.city-recruit-stats span,
+.city-recruit-cost span { display: inline-flex; align-items: center; gap: var(--s-1); }
+
+.city-recruit-cost {
+  align-self: stretch;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--s-1) var(--s-3);
+  padding-top: var(--s-2);
+  border-top: 2px solid var(--stone-900);
+  font: var(--t-small);
+  color: var(--gold-200);
+}
+
+.city-recruit-upkeep { flex-basis: 100%; justify-content: center; color: var(--text-dim); }
+
+.city-stepper { display: flex; align-items: center; gap: var(--s-1); }
+.city-stepper .btn--sq { width: 32px; }
+.city-stepper .btn--s { padding: 0 var(--s-2); }
+.city-stepper-input { width: 56px; height: 32px; padding: 0 var(--s-1); text-align: center; font: var(--t-num); }
+
+.city-recruit-total {
+  display: flex;
+  gap: var(--s-4);
+  font: var(--t-num);
+  color: var(--gold-200);
+}
+
+.city-recruit-total span { display: inline-flex; align-items: center; gap: var(--s-1); }
+.city-recruit-place { min-height: 32px; font: var(--t-small); line-height: 16px; color: var(--text-dim); }
+.city-recruit-btn { align-self: stretch; padding: 0 var(--s-2); }
+.city-recruit-blocker { min-height: 16px; justify-content: center; }
+.city-recent { min-height: 24px; margin-top: var(--s-3); text-align: center; font: var(--t-body); color: var(--moss-300); }
 
 .option-tile {
   --bev-light: var(--stone-500);
@@ -2476,9 +2906,7 @@ button.pill {
   box-shadow: inset 4px 4px 0 var(--bev-light), inset -4px -4px 0 var(--bev-dark);
 }
 
-.option-tile:hover:not(.disabled) { --bev-light: var(--gold-400); }
-.option-tile.disabled { cursor: default; filter: brightness(0.55) saturate(0.6); }
-.option-tile.chosen { box-shadow: inset 0 0 0 2px var(--gold-200), inset 4px 4px 0 var(--bev-light), inset -4px -4px 0 var(--bev-dark); }
+.option-tile:hover { --bev-light: var(--gold-400); }
 
 .option-name {
   display: flex;
@@ -2492,13 +2920,6 @@ button.pill {
   margin-top: var(--s-1);
   font: var(--t-small);
   color: var(--text-dim);
-}
-
-.option-tag {
-  font: var(--t-label);
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  color: var(--gold-200);
 }
 
 .count-input {

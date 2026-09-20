@@ -1,16 +1,23 @@
 import { useEffect, useState } from 'react';
-import { BUILDING_DEFINITIONS, DOCTRINE_DEFINITIONS, FARM_TIERS, LEVEL_SLOTS, LEVEL_UP_COST, MAGE_TOWER_TIERS, canRecruitUnit, cardRemovalQuote, cityRemovalPrice, farmDescription, mageTowerDescription, recruitCost } from '../engine/run/index.js';
+import { BUILDING_DEFINITIONS, DOCTRINE_DEFINITIONS, LEVEL_SLOTS, THREAT_PER_CITY_VISIT, farmDescription, mageTowerDescription, threatMultiplier } from '../engine/run/index.js';
 import type { RunState } from '../engine/run/index.js';
-import { UNIT_DEFINITIONS } from '../engine/index.js';
 import type { Position, UnitId } from '../engine/index.js';
 import { BUILDING_ICONS } from './mapIcons.js';
 import { Icon } from './pixel/Icon.js';
-import { UnitArt } from './UnitArt.js';
+import type { IconName } from './pixel/icons.js';
 import { GarrisonBar } from './GarrisonBar.js';
-import { CardRemovalPicker } from './CardRemovalPicker.js';
-import { Modal } from './Modal.js';
 import { Tip } from './Tip.js';
+import { TitleSkyline } from './TitleSkyline.js';
 import { buildingTip } from './tipContent.js';
+import type { TipContent } from './tipContent.js';
+import { BarracksPanel } from './city/BarracksPanel.js';
+import { BuildingPanel } from './city/BuildingPanel.js';
+import { EffectsPanel } from './city/EffectsPanel.js';
+import { TemplePanel } from './city/TemplePanel.js';
+import { TierLadderPanel } from './city/TierLadderPanel.js';
+import { TownHallPanel } from './city/TownHallPanel.js';
+import { FIXED_BUILDINGS, FIXED_BUILDING_INFO, ROMAN, SCENE_BUILDINGS, buildBlocker, plotState } from './city/cityView.js';
+import type { FixedBuildingId, PlotState } from './city/cityView.js';
 
 interface Props {
   run: RunState;
@@ -29,43 +36,57 @@ interface Props {
   onDismissStack: (stackId: string, count?: number) => void;
 }
 
-const FIXED_NAMES = { townhall: 'Town Hall', barracks: 'Barracks', temple: 'Temple' } as const;
-const FIXED_HINTS = {
-  townhall: 'Upgrade the city for more building slots, and remove cards from your deck.',
-  barracks: 'Recruit units into your army.',
-  temple: 'Choose one permanent doctrine.',
-} as const;
+const CITY_NAME = 'Ironhold';
 
-const RECRUITABLE: UnitId[] = ['swordsman', 'archer', 'knight', 'priest'];
+/** The description a plot's tip shows: the Mage Tower and Farm describe their tier, the rest their engine text. */
+function buildingText(id: string, city: RunState['city']): string {
+  if (id === 'mage_tower') return mageTowerDescription(city.mageTowerTier);
+  if (id === 'farm') return farmDescription(city.farmTier);
+  return BUILDING_DEFINITIONS[id]!.description;
+}
 
-type Panel = 'townhall' | 'barracks' | 'temple' | string | null;
+interface PlotProps {
+  id: string;
+  name: string;
+  icon: IconName;
+  state: PlotState | 'open';
+  status: string;
+  wide?: boolean;
+  active: boolean;
+  tip: TipContent;
+  onOpen: () => void;
+}
 
-/** Hand-placed scatter coordinates for the town-scene hotspots. */
-const HOTSPOTS: Record<string, { top: string; left: string }> = {
-  townhall: { top: '18%', left: '50%' },
-  barracks: { top: '38%', left: '18%' },
-  temple: { top: '55%', left: '50%' },
-  market: { top: '58%', left: '15%' },
-  gold_mine: { top: '60%', left: '85%' },
-  mage_tower: { top: '68%', left: '33%' },
-  farm: { top: '80%', left: '80%' },
-  stable: { top: '68%', left: '67%' },
-  training_hall: { top: '44%', left: '42%' },
-  forge: { top: '46%', left: '62%' },
-  shrine: { top: '72%', left: '50%' },
-};
+function Plot({ id, name, icon, state, status, wide, active, tip, onOpen }: PlotProps) {
+  return (
+    <Tip tip={tip}>
+      <button className={`city-plot city-plot--${state}${wide ? ' city-plot--wide' : ''}${active ? ' active' : ''}`} data-building={id} onClick={onOpen}>
+        <span className="city-plot-art">
+          <Icon name={icon} size={4} />
+          {state === 'built' && (
+            <span className="city-plot-badge city-plot-badge--built">
+              <Icon name="ui_check" />
+            </span>
+          )}
+          {state === 'locked' && (
+            <span className="city-plot-badge city-plot-badge--locked">
+              <Icon name="ui_blocked" />
+            </span>
+          )}
+        </span>
+        <span className="city-plot-sign">
+          <span className="city-plot-name">{name}</span>
+          <span className="city-plot-status">{status}</span>
+        </span>
+      </button>
+    </Tip>
+  );
+}
 
 export function CityScreen({ run, onRecruit, onBuild, onUpgradeCity, onUpgradeMageTower, onUpgradeFarm, onRemoveCard, onChooseDoctrine, onOpenMenu, onLeave, onSplitStack, onMergeStacks, onMoveStack, onDismissStack }: Props) {
-  const { city, gold, food, army, masterDeck: deck } = run;
-  const removalQuote = cardRemovalQuote(run);
-  const removalUses = run.cardRemoval.cityUses;
-  const [panel, setPanel] = useState<Panel>(null);
-  const [counts, setCounts] = useState<Record<string, number>>({});
+  const { city } = run;
+  const [panel, setPanel] = useState<string | null>(null);
   const [recentRecruit, setRecentRecruit] = useState<{ unitId: UnitId; amount: number } | null>(null);
-  const armyFull = army.filter((s) => s.count > 0).length >= 6;
-  const nextLevel = city.level < 3 ? ((city.level + 1) as 2 | 3) : null;
-  const slotsUsed = city.buildings.length;
-  const slotsMax = LEVEL_SLOTS[city.level];
 
   useEffect(() => {
     if (!recentRecruit) return;
@@ -73,172 +94,94 @@ export function CityScreen({ run, onRecruit, onBuild, onUpgradeCity, onUpgradeMa
     return () => clearTimeout(t);
   }, [recentRecruit]);
 
-  function togglePanel(id: Panel) {
-    setPanel((p) => (p === id ? null : id));
-  }
-
   function recruit(unitId: UnitId, count: number) {
     onRecruit(unitId, count);
     setRecentRecruit({ unitId, amount: count });
   }
 
-  return (
-    <div className="screen th-frame" data-screen="city">
-      <div className="th-scene">
-        <div className="th-skyline" />
-        <div className="th-scene-label">Ironhold</div>
+  const fixedStatus: Record<FixedBuildingId, string> = {
+    townhall: `Level ${city.level}`,
+    barracks: 'Recruit',
+    temple: city.doctrine ? (DOCTRINE_DEFINITIONS[city.doctrine]?.name ?? 'Chosen') : 'Choose',
+  };
 
-        {(['townhall', 'barracks', 'temple'] as const).map((id) => (
-          <Tip key={id} tip={{ title: FIXED_NAMES[id], body: FIXED_HINTS[id] }}>
-            <div className={`th-hotspot${panel === id ? ' active' : ''}`} style={HOTSPOTS[id]} onClick={() => togglePanel(id)}>
-              <span className="th-hotspot-icon">
-                <Icon name={BUILDING_ICONS[id]!} size={2} />
-              </span>
-              <span className="th-hotspot-name">{FIXED_NAMES[id]}</span>
-              <span className="th-hotspot-sub">
-                {id === 'townhall' && 'Level up'}
-                {id === 'barracks' && 'Recruit'}
-                {id === 'temple' && (city.doctrine ? DOCTRINE_DEFINITIONS[city.doctrine]?.name : 'Doctrine')}
+  function optionalStatus(id: string, state: PlotState): string {
+    if (state === 'built') return id === 'mage_tower' ? `Tier ${ROMAN[city.mageTowerTier - 1]}` : id === 'farm' ? `Tier ${ROMAN[city.farmTier - 1]}` : 'Built';
+    if (state === 'locked') return 'No free slot';
+    return `${state === 'unaffordable' ? 'Need' : 'Build'} ${BUILDING_DEFINITIONS[id]!.cost}g`;
+  }
+
+  return (
+    <div className="screen city-frame" data-screen="city">
+      <div className="city-scene">
+        <div className="city-content">
+          <div className="city-town">
+            <header className="city-header">
+              <TitleSkyline fit="contain" />
+              <div className="plaque plaque--wood city-name">{CITY_NAME}</div>
+              <div className="city-header-stats">
+                <span className="pill">Level {city.level}</span>
+                <span className="pill">
+                  <Icon name="slots" /> {city.buildings.length}/{LEVEL_SLOTS[city.level]}
+                </span>
+                <span className="pill pill--gold">
+                  <Icon name="gold" /> {run.gold}
+                </span>
+              </div>
+            </header>
+            <div className="city-threat">
+              <Icon name="threat" />
+              <span>
+                Each visit to the city makes the enemies stronger (Threat +{THREAT_PER_CITY_VISIT}). Threat is {run.threat}: enemy armies are x{threatMultiplier(run.threat).toFixed(2)} their normal size.
               </span>
             </div>
-          </Tip>
-        ))}
 
-        {Object.values(BUILDING_DEFINITIONS).map((building) => {
-          const built = city.buildings.includes(building.id);
-          const pos = HOTSPOTS[building.id] ?? { top: '50%', left: '50%' };
-          return (
-            <Tip key={building.id} tip={buildingTip(building, built, buildingText(building, city))}>
-              <div className={`th-hotspot${panel === building.id ? ' active' : ''}${built ? '' : ' locked'}`} style={pos} onClick={() => togglePanel(building.id)}>
-                <span className="th-hotspot-icon">
-                  <Icon name={BUILDING_ICONS[building.id]!} size={2} />
-                </span>
-                <span className="th-hotspot-name">{building.name}</span>
-                <span className="th-hotspot-sub">{built ? (building.id === 'mage_tower' ? `Tier ${ROMAN[city.mageTowerTier - 1]}` : building.id === 'farm' ? `Tier ${ROMAN[city.farmTier - 1]}` : 'Built') : `${building.cost}g`}</span>
-              </div>
-            </Tip>
-          );
-        })}
+            <div className="city-plots">
+              {FIXED_BUILDINGS.map((id) => (
+                <Plot
+                  key={id}
+                  id={id}
+                  name={FIXED_BUILDING_INFO[id].name}
+                  icon={BUILDING_ICONS[id]!}
+                  state="open"
+                  status={fixedStatus[id]}
+                  wide={id === 'townhall'}
+                  active={panel === id}
+                  tip={{ title: FIXED_BUILDING_INFO[id].name, body: FIXED_BUILDING_INFO[id].hint }}
+                  onOpen={() => setPanel(id)}
+                />
+              ))}
+              {SCENE_BUILDINGS.map((id) => {
+                const state = plotState(run, id);
+                const def = BUILDING_DEFINITIONS[id]!;
+                return (
+                  <Plot
+                    key={id}
+                    id={id}
+                    name={def.name}
+                    icon={BUILDING_ICONS[id]!}
+                    state={state}
+                    status={optionalStatus(id, state)}
+                    active={panel === id}
+                    tip={buildingTip(def, state === 'built', buildingText(id, city), buildBlocker(run, id))}
+                    onOpen={() => setPanel(id)}
+                  />
+                );
+              })}
+            </div>
+          </div>
+          <EffectsPanel run={run} />
+        </div>
       </div>
 
-      {panel && (
-        <Modal heading={panelTitle(panel)} material="wood" onClose={() => setPanel(null)} width={560}>
-          <div className="city-building-popup">
-            {panel === 'townhall' && (
-              <>
-                <p className="subtitle">
-                  City Level {city.level} — {slotsMax} building slots.
-                </p>
-                {nextLevel ? (
-                  <button className="btn" onClick={onUpgradeCity} disabled={gold < LEVEL_UP_COST[nextLevel]}>
-                    Upgrade to Level {nextLevel} ({LEVEL_UP_COST[nextLevel]}g)
-                  </button>
-                ) : (
-                  <p className="subtitle">Already at maximum level.</p>
-                )}
-                <div className="divider" />
-                <h3>Deck</h3>
-                <p className="subtitle">
-                  {removalUses === 0
-                    ? `Card removal: the first is free, then ${cityRemovalPrice(1)}g, ${cityRemovalPrice(2)}g, ${cityRemovalPrice(3)}g and so on.`
-                    : `Card removal now costs ${cityRemovalPrice(removalUses)}g, then ${cityRemovalPrice(removalUses + 1)}g, ${cityRemovalPrice(removalUses + 2)}g and so on.`}
-                </p>
-                <CardRemovalPicker deck={deck} quote={removalQuote} onRemove={onRemoveCard} />
-              </>
-            )}
-
-            {panel === 'barracks' && (
-              <>
-                <div className="option-row">
-                  {RECRUITABLE.map((unitId) => {
-                    const unlocked = canRecruitUnit(city, unitId);
-                    const count = counts[unitId] ?? 5;
-                    const cost = unlocked ? recruitCost(city, unitId, count) : null;
-                    const affordable = !!cost && gold >= cost.gold && food >= cost.food;
-                    return (
-                      <div key={unitId} className="option-tile">
-                        <div className="option-name">
-                          <span>
-                            <UnitArt unitId={unitId} size={1} /> {UNIT_DEFINITIONS[unitId].name}
-                          </span>
-                        </div>
-                        {!unlocked ? (
-                          <div className="option-text">Not recruitable yet.</div>
-                        ) : (
-                          <>
-                            <div className="option-text">
-                              {cost!.gold}g / {cost!.food}f for {count}
-                            </div>
-                            <input
-                              className="input count-input"
-                              type="number"
-                              min={1}
-                              max={99}
-                              value={count}
-                              onChange={(e) => setCounts({ ...counts, [unitId]: Math.max(1, Number(e.target.value) || 1) })}
-                            />
-                            <div className="toolbar">
-                              <button className="btn btn--s" disabled={!affordable || armyFull} onClick={() => recruit(unitId, count)}>
-                                Recruit
-                              </button>
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </>
-            )}
-
-            {panel === 'temple' && (
-              <>
-                <div className="option-row">
-                  {Object.values(DOCTRINE_DEFINITIONS).map((doctrine) => {
-                    const chosen = city.doctrine === doctrine.id;
-                    const disabled = !!city.doctrine && !chosen;
-                    return (
-                      <div
-                        key={doctrine.id}
-                        className={`option-tile${chosen ? ' chosen' : ''}${disabled ? ' disabled' : ''}`}
-                        onClick={!city.doctrine ? () => onChooseDoctrine(doctrine.id) : undefined}
-                      >
-                        <div className="option-name">
-                          <span>{doctrine.name}</span>
-                          {chosen && <span className="option-tag">chosen</span>}
-                        </div>
-                        <div className="option-text">{doctrine.description}</div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </>
-            )}
-
-            {Object.values(BUILDING_DEFINITIONS).map((building) => {
-              if (panel !== building.id) return null;
-              const built = city.buildings.includes(building.id);
-              const slotsFull = slotsUsed >= slotsMax;
-              const affordable = gold >= building.cost;
-              return (
-                <div key={building.id}>
-                  <p className="subtitle">{buildingText(building, city)}</p>
-                  {built && building.id === 'mage_tower' ? (
-                    <MageTowerUpgrade tier={city.mageTowerTier} gold={gold} onUpgrade={onUpgradeMageTower} />
-                  ) : built && building.id === 'farm' ? (
-                    <FarmUpgrade tier={city.farmTier} gold={gold} onUpgrade={onUpgradeFarm} />
-                  ) : built ? (
-                    <p className="subtitle">Already built.</p>
-                  ) : (
-                    <button className="btn" disabled={slotsFull || !affordable} onClick={() => onBuild(building.id)}>
-                      Build ({building.cost}g){slotsFull ? ' — no free slots' : ''}
-                    </button>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </Modal>
+      {panel === 'townhall' && <TownHallPanel run={run} onUpgradeCity={onUpgradeCity} onRemoveCard={onRemoveCard} onClose={() => setPanel(null)} />}
+      {panel === 'barracks' && <BarracksPanel run={run} recent={recentRecruit} onRecruit={recruit} onClose={() => setPanel(null)} />}
+      {panel === 'temple' && <TemplePanel run={run} onChoose={onChooseDoctrine} onClose={() => setPanel(null)} />}
+      {(panel === 'mage_tower' || panel === 'farm') && (
+        <TierLadderPanel kind={panel} run={run} onBuild={onBuild} onUpgrade={panel === 'farm' ? onUpgradeFarm : onUpgradeMageTower} onClose={() => setPanel(null)} />
+      )}
+      {panel && SCENE_BUILDINGS.includes(panel) && panel !== 'mage_tower' && panel !== 'farm' && (
+        <BuildingPanel run={run} buildingId={panel} onBuild={onBuild} onClose={() => setPanel(null)} />
       )}
 
       <GarrisonBar
@@ -253,52 +196,5 @@ export function CityScreen({ run, onRecruit, onBuild, onUpgradeCity, onUpgradeMa
         onDismissStack={onDismissStack}
       />
     </div>
-  );
-}
-
-const ROMAN = ['I', 'II', 'III', 'IV', 'V'];
-
-function buildingText(building: (typeof BUILDING_DEFINITIONS)[string], city: RunState['city']): string {
-  if (building.id === 'mage_tower') return mageTowerDescription(city.mageTowerTier);
-  if (building.id === 'farm') return farmDescription(city.farmTier);
-  return building.description;
-}
-
-function panelTitle(panel: Panel): string {
-  if (panel === 'townhall' || panel === 'barracks' || panel === 'temple') return FIXED_NAMES[panel];
-  return (panel && BUILDING_DEFINITIONS[panel]?.name) || '';
-}
-
-function MageTowerUpgrade({ tier, gold, onUpgrade }: { tier: 0 | 1 | 2 | 3; gold: number; onUpgrade: () => void }) {
-  const next = MAGE_TOWER_TIERS[tier];
-  return (
-    <>
-      <p className="mage-tower-tier">Tier {ROMAN[tier - 1]}</p>
-      {next ? (
-        <button className="btn" disabled={gold < next.cost} onClick={onUpgrade}>
-          Upgrade to Tier {ROMAN[tier]} - {next.cost} Gold
-        </button>
-      ) : (
-        <p className="subtitle">Max tier</p>
-      )}
-    </>
-  );
-}
-
-function FarmUpgrade({ tier, gold, onUpgrade }: { tier: number; gold: number; onUpgrade: () => void }) {
-  const next = FARM_TIERS[tier];
-  return (
-    <>
-      <p className="mage-tower-tier">
-        Tier {ROMAN[tier - 1]}: +{FARM_TIERS[tier - 1]!.food} Food per day
-      </p>
-      {next ? (
-        <button className="btn" disabled={gold < next.cost} onClick={onUpgrade}>
-          Upgrade to Tier {ROMAN[tier]} - {next.cost} Gold
-        </button>
-      ) : (
-        <p className="subtitle">Max tier</p>
-      )}
-    </>
   );
 }
