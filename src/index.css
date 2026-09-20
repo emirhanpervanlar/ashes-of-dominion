@@ -788,7 +788,7 @@ p { margin: 0; }
   --bev-light: var(--iron-500);
   --bev-dark: var(--stone-950);
   width: 48px;
-  height: 48px;
+  height: 40px;
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -2079,7 +2079,7 @@ button.pill {
   .pill--boss-warning { animation: none; }
 }
 
-.garrison-bar-hero { width: 176px; }
+.garrison-bar-hero { width: 192px; gap: var(--s-1); }
 
 .garrison-hero-plaque {
   height: 24px;
@@ -2094,7 +2094,7 @@ button.pill {
 .garrison-hero-portrait-rect {
   --bev-light: var(--wood-500);
   --bev-dark: var(--wood-900);
-  height: 48px;
+  height: 40px;
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -2105,8 +2105,8 @@ button.pill {
 
 .garrison-relic-grid {
   display: grid;
-  grid-template-columns: repeat(5, 28px);
-  grid-template-rows: repeat(3, 28px);
+  grid-template-columns: repeat(5, 32px);
+  grid-template-rows: repeat(3, 32px);
   gap: var(--s-1);
 }
 
