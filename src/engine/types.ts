@@ -248,6 +248,8 @@ export interface RelicDefinition {
   /** States the drawback (if any) in plain words - shown as-is by the UI. */
   description: string;
   rarity: RelicRarity;
+  /** The downsides, one plain sentence each (also part of `description`); the UI shows them as a red line. */
+  drawbacks?: string[];
   effects: RelicEffect[];
   unique?: boolean;
 }

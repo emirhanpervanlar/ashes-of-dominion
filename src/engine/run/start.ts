@@ -1,4 +1,4 @@
-import { STARTING_RELIC_DEFINITIONS } from '../data/relics.js';
+import { RELIC_DEFINITIONS, STARTING_RELIC_DEFINITIONS } from '../data/relics.js';
 import type { HeroId, RelicDefinition, RelicEffect, RelicRarity, UnitId } from '../types.js';
 import { createRun } from './runEngine.js';
 
@@ -44,10 +44,23 @@ export interface StartingRelicInfo {
   rarity: RelicRarity;
   /** One short line per effect, benefits and drawbacks alike. */
   effectSummary: string[];
+  /** The downsides alone, for a red drawback line; empty for a pure-benefit relic. */
+  drawbacks: string[];
 }
 
 function relicInfo(def: RelicDefinition): StartingRelicInfo {
-  return { id: def.id, name: def.name, description: def.description, rarity: def.rarity, effectSummary: def.effects.map(summarizeEffect) };
+  return { id: def.id, name: def.name, description: def.description, rarity: def.rarity, effectSummary: def.effects.map(summarizeEffect), drawbacks: def.drawbacks ?? [] };
+}
+
+/** Same shape as the starting list for a found relic (elite reward, event, merchant); undefined for an unknown id. */
+export function foundRelicInfo(relicId: string): StartingRelicInfo | undefined {
+  const def = RELIC_DEFINITIONS[relicId];
+  return def && relicInfo(def);
+}
+
+/** Every found relic, in definition order. */
+export function foundRelicList(): StartingRelicInfo[] {
+  return Object.values(RELIC_DEFINITIONS).map(relicInfo);
 }
 
 /** The five starting relics (AO-D037) in the fixed order the hero-choice screen shows them. */

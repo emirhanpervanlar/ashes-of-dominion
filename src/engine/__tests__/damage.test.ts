@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyDamageToStack, applyHealToStack, computeRawDamage } from '../damage.js';
+import { applyDamageToStack, applyHealToStack, computeRawDamage, effectiveAttack } from '../damage.js';
 import type { ArmyStack } from '../types.js';
 
 function stack(overrides: Partial<ArmyStack> = {}): ArmyStack {
@@ -65,6 +65,17 @@ describe('computeRawDamage', () => {
     const one = computeRawDamage({ attackerStack: stack({ count: 60 }), attackerBaseAttack: 4, targetDefense: 0, multiplier: 1 });
     const half = computeRawDamage({ attackerStack: stack({ count: 30 }), attackerBaseAttack: 4, targetDefense: 0, multiplier: 1 });
     expect(one).toBe(2 * half);
+  });
+
+  it('Weak cuts the stack\'s final damage by amount% (not a flat Attack subtraction), min 1 per landed hit', () => {
+    const knight = (statuses: ArmyStack['statuses']) => stack({ unitId: 'knight', count: 10, statuses }); // base damage 4, attack 4 vs defense 4
+    const params = (s: ArmyStack) => ({ attackerStack: s, attackerBaseAttack: 4, targetDefense: 4, multiplier: 1 });
+    expect(computeRawDamage(params(knight([])))).toBe(40);
+    expect(computeRawDamage(params(knight([{ type: 'weak', amount: 20, duration: 1 }])))).toBe(32);
+    expect(computeRawDamage(params(knight([{ type: 'weak', amount: 15, duration: 1 }])))).toBe(34);
+    // Weak no longer feeds the attack/defense modifier: it does not drop A below D.
+    expect(effectiveAttack(knight([{ type: 'weak', amount: 20, duration: 1 }]), 4)).toBe(4);
+    expect(computeRawDamage({ attackerStack: stack({ count: 1, statuses: [{ type: 'weak', amount: 20, duration: 1 }] }), attackerBaseAttack: 3, targetDefense: 0, multiplier: 1 })).toBe(1);
   });
 
   it('applies Hero stat effectiveness as a multiplier', () => {

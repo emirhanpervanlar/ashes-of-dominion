@@ -1,5 +1,5 @@
 import type { RngState } from '../rng.js';
-import type { ArmyStack, CardInstance, CombatState, Hero, PlayerAction, Position, RelicDefinition, UnitId } from '../types.js';
+import type { ArmyStack, CardInstance, CombatState, EnemyStep, Hero, PlayerAction, Position, RelicDefinition, UnitId } from '../types.js';
 import type { CityState } from './city.js';
 import type { CardRemovalState } from './cardRemoval.js';
 import type { MerchantInventory } from './merchant.js';
@@ -159,4 +159,6 @@ export type RunAction =
 export interface RunApplyResult {
   run: RunState;
   events: RunEvent[];
+  /** Set by COMBAT_ACTION END_TURN: the enemy turn as ordered steps (AO-D023), so the UI need not re-run the turn. */
+  enemySteps?: EnemyStep[];
 }
