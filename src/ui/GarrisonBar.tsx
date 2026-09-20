@@ -3,6 +3,7 @@ import type { Position } from '../engine/index.js';
 import { LEVEL_SLOTS, bossWarning, dailyFoodNet, daysUntilBoss, foodWarning, starvationForecast } from '../engine/run/index.js';
 import type { RunState } from '../engine/run/index.js';
 import { ArmyGrid } from './ArmyGrid.js';
+import type { PlacingSplit } from './ArmyGrid.js';
 import { FoodPopup } from './FoodPopup.js';
 import { HistoryDrawer } from './HistoryDrawer.js';
 import { DeckViewer } from './DeckViewer.js';
@@ -27,8 +28,10 @@ interface Props {
   recentRecruit?: { unitId: string; amount: number } | null;
   onOpenMenu: () => void;
   onMoveStack: (stackId: string, toPosition: Position) => void;
-  onSplitStack: (stackId: string, splitCount: number) => void;
-  onMergeStacks: (stackIdA: string, stackIdB: string) => void;
+  /** Splits splitCount off the stack and puts the new stack on the empty slot toPosition. */
+  onSplitStack: (stackId: string, splitCount: number, toPosition: Position) => void;
+  /** The absorbed stack joins the kept one, which stays where it is. */
+  onMergeStacks: (keepStackId: string, absorbStackId: string) => void;
   onDismissStack: (stackId: string, count?: number) => void;
 }
 
@@ -39,6 +42,7 @@ export function GarrisonBar({ run, onLeave, onOpenCardRemoval, recentRecruit, on
   const [foodOpen, setFoodOpen] = useState(false);
   const [deckOpen, setDeckOpen] = useState(false);
   const [heroOpen, setHeroOpen] = useState(false);
+  const [placing, setPlacing] = useState<PlacingSplit | null>(null);
   const { hero, relics, army, city } = run;
   const popupStack = popupStackId ? army.find((s) => s.stackId === popupStackId && s.count > 0) ?? null : null;
   const historyLines = run.log.map(describeRunEvent).filter((line): line is string => line !== null);
@@ -129,7 +133,20 @@ export function GarrisonBar({ run, onLeave, onOpenCardRemoval, recentRecruit, on
         </div>
 
         <div className="garrison-bar-main">
-          <ArmyGrid army={army} recentRecruit={recentRecruit} onMoveStack={onMoveStack} onInspect={setPopupStackId} />
+          <ArmyGrid
+            army={army}
+            recentRecruit={recentRecruit}
+            disabled={popupStack !== null || historyOpen || foodOpen || deckOpen || heroOpen}
+            placing={placing}
+            onMoveStack={onMoveStack}
+            onMergeStacks={onMergeStacks}
+            onPlaceSplit={(toPosition) => {
+              if (placing) onSplitStack(placing.stackId, placing.count, toPosition);
+              setPlacing(null);
+            }}
+            onCancelPlacing={() => setPlacing(null)}
+            onInspect={setPopupStackId}
+          />
         </div>
 
         <div className="garrison-bar-actions">
@@ -180,7 +197,10 @@ export function GarrisonBar({ run, onLeave, onOpenCardRemoval, recentRecruit, on
           stack={popupStack}
           army={army}
           onClose={() => setPopupStackId(null)}
-          onSplit={onSplitStack}
+          onSplit={(stackId, count) => {
+            setPlacing({ stackId, count });
+            setPopupStackId(null);
+          }}
           onMerge={onMergeStacks}
           onDismiss={onDismissStack}
         />
