@@ -62,7 +62,17 @@ export function EventScreen({ view, deck, army, newcomer, resolved, onChoose, on
             {choice.instanceIds.map((instanceId) => {
               const instance = deck.find((c) => c.instanceId === instanceId);
               if (!instance) return null;
-              return <LargeCard key={instanceId} cardId={instance.cardId} upgraded={instance.upgraded} onClick={() => onChooseCard(instanceId)} />;
+              const preview = choice.action === 'upgrade';
+              return (
+                <LargeCard
+                  key={instanceId}
+                  cardId={instance.cardId}
+                  upgraded={preview || instance.upgraded}
+                  showBase={preview}
+                  tag={preview ? 'Upgrade' : undefined}
+                  onClick={() => onChooseCard(instanceId)}
+                />
+              );
             })}
           </div>
         </Modal>

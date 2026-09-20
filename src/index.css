@@ -257,13 +257,13 @@ p { margin: 0; }
 .th-hotspot,
 .path-choice-card,
 .current-location-badge,
-.commander-card,
-.commander-selected-badge,
+.hero-choice,
+.relic-choice,
+.relic-choice-frame,
+.preview-slot,
 .option-tile,
 .event-option-card,
 .path-choice-badge,
-.setup-hero-portrait,
-.commander-card-portrait,
 .event-badge,
 .action-card::before,
 .reward-card::before,
@@ -279,8 +279,6 @@ p { margin: 0; }
 
 .step-8,
 .path-choice-badge,
-.setup-hero-portrait,
-.commander-card-portrait,
 .event-badge { --c: 8px; }
 
 /* Stepped circle for gems and medallions */
@@ -2626,6 +2624,14 @@ button.pill {
   color: var(--blood-300);
 }
 
+.reward-card-was {
+  width: 100%;
+  padding-top: var(--s-1);
+  font: var(--t-small);
+  text-align: left;
+  color: var(--text-dim);
+}
+
 .action-card-warn {
   position: absolute;
   top: var(--s-1);
@@ -2967,8 +2973,30 @@ button.frame-pile:hover .pile-card-back::before { --bev-light: var(--gold-400); 
   align-items: center;
   justify-content: center;
   text-align: center;
-  gap: var(--s-2);
   padding: var(--s-4);
+}
+
+.title-skyline {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 40%;
+  pointer-events: none;
+}
+
+.title-skyline .sk-far { fill: var(--stone-900); }
+.title-skyline .sk-near { fill: var(--stone-800); }
+.title-skyline .sk-roof { fill: var(--blood-900); }
+.title-skyline .sk-window { fill: var(--gold-700); }
+
+.title-content {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-2);
 }
 
 .title-crest {
@@ -2976,17 +3004,21 @@ button.frame-pile:hover .pile-card-back::before { --bev-light: var(--gold-400); 
   filter: drop-shadow(0 4px 0 var(--stone-950));
 }
 
-.title-name {
+.title-plaque {
+  height: 96px;
+  padding: 0 88px;
   font: var(--t-title);
-  text-transform: uppercase;
+  line-height: 96px;
   letter-spacing: 4px;
-  color: var(--gold-200);
-  text-shadow: 0 4px 0 var(--stone-950);
+  text-shadow: 0 4px 0 var(--gold-200);
 }
+
+.title-plaque::before,
+.title-plaque::after { top: 44px; }
 
 .title-tagline {
   max-width: 480px;
-  margin: var(--s-2) 0 var(--s-6);
+  margin: var(--s-2) 0 var(--s-5);
   font-style: italic;
   color: var(--text-dim);
 }
@@ -2995,85 +3027,132 @@ button.frame-pile:hover .pile-card-back::before { --bev-light: var(--gold-400); 
   display: flex;
   flex-direction: column;
   gap: var(--s-3);
-  width: 320px;
+  width: 360px;
+}
+
+.title-menu-note {
+  margin-top: calc(-1 * var(--s-2));
+  font: var(--t-small);
+  color: var(--text-dim);
 }
 
 .title-footer {
-  margin-top: var(--s-6);
+  position: absolute;
+  bottom: var(--s-3);
   font: var(--t-label);
   text-transform: uppercase;
   letter-spacing: 1px;
   color: var(--text-faint);
 }
 
-.setup-screen {
-  max-width: 900px;
+.hero-setup {
+  max-width: 1240px;
   margin: 0 auto;
-  padding: var(--s-7) var(--s-4) var(--s-5);
-  text-align: center;
-}
-
-.setup-screen .subtitle {
-  margin: var(--s-2) auto 0;
-}
-
-.name-input {
-  display: block;
-  width: 280px;
-  margin: var(--s-5) auto 0;
-  text-align: center;
-}
-
-.commander-select-row,
-.setup-options {
+  padding: var(--s-5) var(--s-4) var(--s-5);
   display: flex;
-  justify-content: center;
-  gap: var(--s-5);
-  flex-wrap: wrap;
-  margin-top: var(--s-5);
+  flex-direction: column;
+  gap: var(--s-4);
 }
 
-.setup-hero-portrait,
-.commander-card-portrait {
+.hero-setup-head {
   display: flex;
   align-items: center;
-  justify-content: center;
-  margin: 0 auto var(--s-3);
-  background: var(--win-player);
-  box-shadow: inset 0 0 0 4px var(--steel-500);
+  justify-content: space-between;
+  gap: var(--s-4);
 }
 
-.setup-hero-portrait { width: 88px; height: 88px; }
-.commander-card-portrait { width: 96px; height: 96px; }
+.name-input { width: 320px; }
 
-.setup-option { width: 220px; text-align: left; }
+.hero-setup-main {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: var(--s-5);
+  align-items: start;
+}
 
-.commander-card {
+.hero-setup-choices {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.setup-label {
+  font: var(--t-label);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-dim);
+}
+
+.hero-choice-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--s-3);
+}
+
+/* Selectable material cards: hero and relic. The gold triple line is the selection mark. */
+.hero-choice,
+.relic-choice {
   --bev-light: var(--stone-500);
   --bev-dark: var(--stone-950);
   position: relative;
-  width: 260px;
-  padding: var(--s-5) var(--s-5) var(--s-4);
+  border: 0;
   cursor: pointer;
-  text-align: center;
+  text-align: left;
+  color: var(--text);
+  font: var(--t-body);
   background: var(--bg-stone-smooth);
   box-shadow: inset 4px 4px 0 var(--bev-light), inset -4px -4px 0 var(--bev-dark);
 }
 
-.commander-card:hover { --bev-light: var(--gold-400); }
+.hero-choice:hover,
+.relic-choice:hover { --bev-light: var(--gold-400); }
 
-.commander-card.selected {
+.hero-choice.selected,
+.relic-choice.selected {
   box-shadow: inset 0 0 0 2px var(--gold-900), inset 0 0 0 4px var(--gold-500), inset 0 0 0 6px var(--gold-900);
 }
 
-.commander-card-name {
+.hero-choice:focus-visible,
+.relic-choice:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--focus), inset 4px 4px 0 var(--bev-light), inset -4px -4px 0 var(--bev-dark); }
+
+.hero-choice {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+  padding: var(--s-4);
+}
+
+.hero-choice-top {
+  display: flex;
+  gap: var(--s-3);
+  align-items: center;
+}
+
+.hero-choice-portrait {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 80px;
+  height: 80px;
+  background: var(--win-player);
+  box-shadow: inset 0 0 0 4px var(--steel-500);
+}
+
+.hero-choice-title {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.hero-choice-name {
   font: var(--t-h2);
   color: var(--gold-200);
   text-shadow: 0 2px 0 var(--stone-950);
 }
 
-.commander-card-desc {
-  margin-top: var(--s-2);
+.hero-choice-desc {
+  font: var(--t-small);
   color: var(--text-dim);
 }
 
@@ -3081,8 +3160,6 @@ button.frame-pile:hover .pile-card-back::before { --bev-light: var(--gold-400); 
   display: flex;
   flex-direction: column;
   gap: var(--s-1);
-  margin-top: var(--s-3);
-  text-align: left;
 }
 
 .hero-stat-row {
@@ -3096,29 +3173,138 @@ button.frame-pile:hover .pile-card-back::before { --bev-light: var(--gold-400); 
 .hero-stat-label { flex: 1; font: var(--t-body); color: var(--text); }
 .hero-stat-value { font: var(--t-num); color: var(--gold-200); }
 
-.setup-hint {
-  margin-top: var(--s-3);
-  font: var(--t-small);
-  color: var(--text-dim);
+.relic-choice-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--s-3);
 }
 
-.commander-selected-badge {
-  display: inline-flex;
+.relic-choice {
+  display: flex;
   align-items: center;
-  gap: var(--s-1);
-  margin-top: var(--s-4);
-  padding: var(--s-1) var(--s-3);
+  gap: var(--s-3);
+  padding: var(--s-3) var(--s-4);
+}
+
+.relic-choice-frame {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  background: var(--stone-900);
+  box-shadow: inset 0 0 0 4px var(--trim, var(--iron-500));
+}
+
+.relic-choice-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.relic-choice-name { font: var(--t-h3); color: var(--gold-200); }
+.relic-choice-desc { color: var(--text); }
+
+.start-preview {
+  position: sticky;
+  top: var(--s-4);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-3);
+}
+
+.preview-army {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+
+.preview-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--s-2);
+  position: relative;
+  padding-left: var(--s-4);
+}
+
+.preview-row-label {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translate(-50%, -50%) rotate(-90deg);
   font: var(--t-label);
   text-transform: uppercase;
   letter-spacing: 1px;
-  color: var(--gold-900);
-  background: var(--bg-gold);
-  box-shadow: inset 2px 2px 0 var(--gold-200), inset -2px -2px 0 var(--gold-900);
+  color: var(--text-faint);
 }
 
-.setup-screen .toolbar {
-  justify-content: center;
-  margin-top: var(--s-5);
+.preview-slot {
+  --bev-light: var(--iron-500);
+  --bev-dark: var(--iron-900);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 88px;
+  padding-top: var(--s-1);
+  background: var(--bg-iron);
+  box-shadow: inset 2px 2px 0 var(--bev-light), inset -2px -2px 0 var(--bev-dark);
+}
+
+.preview-slot.empty {
+  background: none;
+  box-shadow: inset 0 0 0 2px var(--stone-600);
+}
+
+.preview-count {
+  position: absolute;
+  right: var(--s-1);
+  top: var(--s-1);
+  font: var(--t-num);
+  color: var(--stone-100);
+  text-shadow: 0 2px 0 var(--stone-950);
+}
+
+.preview-slot .preview-count { position: static; }
+
+.preview-unit {
+  font: var(--t-small);
+  color: var(--text);
+}
+
+.preview-stats { padding: var(--s-1); }
+
+.preview-stat {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: 0 var(--s-2);
+}
+
+.preview-stat span { flex: 1; }
+.preview-stat b { font: var(--t-num); color: var(--gold-200); }
+
+.preview-relic {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+
+.preview-relic-name { font: var(--t-h3); color: var(--gold-200); }
+.preview-relic-line { font: var(--t-small); color: var(--text-dim); }
+
+.hero-setup-foot {
+  display: flex;
+  gap: var(--s-3);
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.setup-hint {
+  margin-right: auto;
+  font: var(--t-small);
+  color: var(--text-dim);
 }
 
 /* ---------- 4h. reward, merchant, event (vault) ---------- */
@@ -3250,46 +3436,68 @@ button.frame-pile:hover .pile-card-back::before { --bev-light: var(--gold-400); 
 
 .run-end {
   display: flex;
-  align-items: center;
-  justify-content: center;
+  justify-content: safe center;
+  align-items: safe center;
   padding: var(--s-5);
 }
 
 .run-end-body {
-  width: min(720px, 100%);
+  width: min(1040px, 100%);
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--s-4);
+  gap: var(--s-3);
 }
 
-.run-end-body .panel { width: 100%; text-align: center; }
-
-.run-summary {
-  width: 100%;
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--s-2) var(--s-5);
-  padding: var(--s-3) var(--s-4);
+.run-end-cause {
+  font: var(--t-h2);
+  color: var(--text-strong);
 }
 
-.stat {
-  display: flex;
-  gap: var(--s-2);
-  align-items: center;
-}
-
-.stat-label {
-  font: var(--t-label);
-  text-transform: uppercase;
-  letter-spacing: 1px;
+.run-end-hero {
   color: var(--text-dim);
 }
 
-.stat-value {
-  font: var(--t-num);
-  color: var(--text-strong);
+.run-end-groups {
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--s-3);
+  align-items: start;
+  margin-top: var(--s-2);
 }
+
+.run-end-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  min-width: 0;
+}
+
+.run-end-row-label { flex: 1; }
+.run-end-row-value { font: var(--t-num); color: var(--gold-200); }
+
+.run-end-relics,
+.run-end-army {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2);
+  min-height: 64px;
+  align-items: center;
+}
+
+.run-end-stack {
+  position: relative;
+  display: flex;
+  width: 64px;
+  height: 64px;
+  align-items: center;
+  justify-content: center;
+  background: var(--stone-900);
+  box-shadow: inset 0 0 0 2px var(--iron-500);
+}
+
+.run-end-none { color: var(--text-dim); }
 
 @media (prefers-reduced-motion: reduce) {
   .portrait-slot.selectable .portrait-frame::after,

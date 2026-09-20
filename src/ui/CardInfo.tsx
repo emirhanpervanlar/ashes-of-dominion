@@ -4,7 +4,7 @@ import { CARD_DEFINITIONS, HERO_DEFINITIONS, UNIT_DEFINITIONS, cardRequirement }
 import type { CardDefinition } from '../engine/index.js';
 import { CardInfoContext } from './cardInfoContext.js';
 import type { CardInfoOptions } from './cardInfoContext.js';
-import { CARD_DESCRIPTIONS } from './cardText.js';
+import { cardView } from './cardView.js';
 import { POLARITY_ICONS, cardVisual } from './cardVisuals.js';
 import { LargeCard } from './LargeCard.js';
 import { Modal } from './Modal.js';
@@ -42,14 +42,15 @@ export function CardInfoProvider({ children }: { children: ReactNode }) {
 }
 
 function CardInfoPopup({ cardId, options, onClose }: { cardId: string; options: CardInfoOptions; onClose: () => void }) {
+  const { upgraded, playability } = options;
   const def = CARD_DEFINITIONS[cardId];
-  if (!def) return null;
+  const view = cardView(cardId, upgraded);
+  if (!def || !view) return null;
   const polarity = cardVisual(cardId).polarity;
   const requirement = cardRequirement(cardId);
-  const { upgraded, playability } = options;
 
   return (
-    <Modal heading={`${def.name}${upgraded ? '+' : ''}`} trim onClose={onClose} width={640}>
+    <Modal heading={view.name} trim onClose={onClose} width={640}>
       <div className="card-info">
         <LargeCard cardId={cardId} upgraded={upgraded} inspectable={false} showRequirement={false} />
         <div className="card-info-side">
@@ -60,10 +61,11 @@ function CardInfoPopup({ cardId, options, onClose }: { cardId: string; options: 
             <span>{RARITY_NAMES[def.rarity]}</span>
           </div>
           <div className="card-info-source">{sourceLabel(def)}</div>
-          <p className="card-info-text">{CARD_DESCRIPTIONS[cardId] ?? cardId}</p>
+          <p className="card-info-text">{view.description}</p>
           <ul className="card-info-keywords">
             <li>
-              Costs <b>{def.manaCost}</b> Mana.
+              Costs <b>{view.manaCost}</b> Mana.
+              {view.manaCost < def.manaCost && <span className="card-info-upgraded"> (was {def.manaCost})</span>}
             </li>
             {def.exhaust && <li>Exhaust: removed for the rest of the battle once played.</li>}
             {def.retain && <li>Retain: stays in your hand at the end of the turn.</li>}

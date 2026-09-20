@@ -25,6 +25,7 @@ export const RELIC_DEFINITIONS: Record<string, RelicDefinition> = {
     name: "Hawk's Eye",
     description: 'Ranged units deal +20% damage. Infantry deal -10% damage.',
     rarity: 'common',
+    drawbacks: ['Infantry deal -10% damage.'],
     effects: [
       { kind: 'TAG_DAMAGE_MULT', tag: 'ranged', multiplier: 1.2 },
       { kind: 'TAG_DAMAGE_MULT', tag: 'infantry', multiplier: 0.9 },
@@ -35,6 +36,7 @@ export const RELIC_DEFINITIONS: Record<string, RelicDefinition> = {
     name: 'Bulwark Standard',
     description: 'Army takes -15% damage. Army deals -10% damage.',
     rarity: 'common',
+    drawbacks: ['Army deals -10% damage.'],
     effects: [
       { kind: 'PLAYER_DAMAGE_TAKEN_MULT', multiplier: 0.85 },
       { kind: 'PLAYER_DAMAGE_MULT', multiplier: 0.9 },
@@ -45,6 +47,7 @@ export const RELIC_DEFINITIONS: Record<string, RelicDefinition> = {
     name: 'Shadow Ring',
     description: 'Dodge +8%. Hero max Mana -1.',
     rarity: 'common',
+    drawbacks: ['Hero max Mana -1.'],
     effects: [
       { kind: 'DODGE_BONUS_PERCENT', amount: 8 },
       { kind: 'HERO_MAX_MANA', amount: -1 },
@@ -55,6 +58,7 @@ export const RELIC_DEFINITIONS: Record<string, RelicDefinition> = {
     name: "Hunter's Quiver",
     description: 'Ranged units deal +30% damage. Infantry deal -20% damage.',
     rarity: 'common',
+    drawbacks: ['Infantry deal -20% damage.'],
     effects: [
       { kind: 'TAG_DAMAGE_MULT', tag: 'ranged', multiplier: 1.3 },
       { kind: 'TAG_DAMAGE_MULT', tag: 'infantry', multiplier: 0.8 },
@@ -72,6 +76,7 @@ export const RELIC_DEFINITIONS: Record<string, RelicDefinition> = {
     name: 'Blood Banner',
     description: 'Army deals +30% damage. Army takes +15% damage.',
     rarity: 'rare',
+    drawbacks: ['Army takes +15% damage.'],
     effects: [
       { kind: 'PLAYER_DAMAGE_MULT', multiplier: 1.3 },
       { kind: 'PLAYER_DAMAGE_TAKEN_MULT', multiplier: 1.15 },
@@ -82,6 +87,7 @@ export const RELIC_DEFINITIONS: Record<string, RelicDefinition> = {
     name: 'Crown of Champions',
     description: 'Stacks with Count < 25 deal +30% damage. Army takes +10% damage.',
     rarity: 'rare',
+    drawbacks: ['Army takes +10% damage.'],
     effects: [
       { kind: 'SMALL_STACK_DAMAGE_MULT', threshold: 25, multiplier: 1.3 },
       { kind: 'PLAYER_DAMAGE_TAKEN_MULT', multiplier: 1.1 },
@@ -92,6 +98,7 @@ export const RELIC_DEFINITIONS: Record<string, RelicDefinition> = {
     name: 'Banner of the Horde',
     description: 'Stacks with Count > 50 gain +3 Strength. Ranged units deal -10% damage.',
     rarity: 'rare',
+    drawbacks: ['Ranged units deal -10% damage.'],
     effects: [
       { kind: 'LARGE_STACK_STRENGTH', threshold: 50, amount: 3 },
       { kind: 'TAG_DAMAGE_MULT', tag: 'ranged', multiplier: 0.9 },
@@ -102,6 +109,7 @@ export const RELIC_DEFINITIONS: Record<string, RelicDefinition> = {
     name: 'Arcane Crystal',
     description: 'Hero max Mana +2. Army size -10%.',
     rarity: 'rare',
+    drawbacks: ['Army size -10%.'],
     effects: [
       { kind: 'HERO_MAX_MANA', amount: 2 },
       { kind: 'ARMY_SIZE_MULT', multiplier: 0.9 },
@@ -112,6 +120,7 @@ export const RELIC_DEFINITIONS: Record<string, RelicDefinition> = {
     name: "Miser's Ledger",
     description: 'Hero max Mana +2. Healing -30%.',
     rarity: 'rare',
+    drawbacks: ['Healing -30%.'],
     effects: [
       { kind: 'HERO_MAX_MANA', amount: 2 },
       { kind: 'HEALING_MULT', multiplier: 0.7 },
@@ -122,6 +131,7 @@ export const RELIC_DEFINITIONS: Record<string, RelicDefinition> = {
     name: 'Cursed Crown',
     description: 'Hero max Mana +3. Army takes +20% damage.',
     rarity: 'epic',
+    drawbacks: ['Army takes +20% damage.'],
     effects: [
       { kind: 'HERO_MAX_MANA', amount: 3 },
       { kind: 'PLAYER_DAMAGE_TAKEN_MULT', multiplier: 1.2 },
@@ -132,6 +142,7 @@ export const RELIC_DEFINITIONS: Record<string, RelicDefinition> = {
     name: 'Glass Cannon Idol',
     description: 'Army deals +40% damage. Army takes +25% damage.',
     rarity: 'epic',
+    drawbacks: ['Army takes +25% damage.'],
     effects: [
       { kind: 'PLAYER_DAMAGE_MULT', multiplier: 1.4 },
       { kind: 'PLAYER_DAMAGE_TAKEN_MULT', multiplier: 1.25 },

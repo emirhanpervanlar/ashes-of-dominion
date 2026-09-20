@@ -60,7 +60,7 @@ export function describeRunEvent(event: RunEvent): string | null {
     case 'CARD_REWARD_CLAIMED':
       return `Added card to deck: ${cardName(event.cardId)}.`;
     case 'CARD_UPGRADED':
-      return `Upgraded ${cardName(event.fromCardId)} into ${cardName(event.toCardId)}.`;
+      return `Upgraded ${cardName(event.cardId)}.`;
     case 'REWARD_SKIPPED':
       return 'Skipped the reward.';
     case 'CARD_REMOVED':

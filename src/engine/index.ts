@@ -11,3 +11,6 @@ export { CARD_DEFINITIONS } from './data/cards.js';
 export { HERO_DEFINITIONS } from './data/heroes.js';
 export * from './army.js';
 export * from './cardRequirements.js';
+export * from './cardUpgrades.js';
+export { STATUS_INFO, statusEffectText } from './data/statuses.js';
+export type { StatusInfo } from './data/statuses.js';

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { CARD_DEFINITIONS, UNIT_DEFINITIONS, applyPlayerAction, cardPlayability, cardRequirement, computeValidHealTargets, computeValidTargets } from './engine/index.js';
+import { CARD_DEFINITIONS, UNIT_DEFINITIONS, applyPlayerAction, cardPlayability, cardRequirement, computeValidHealTargets, computeValidTargets, resolveCard } from './engine/index.js';
 import type { ArmyStack, CardTargeting, CombatState, PlayerAction, Position } from './engine/index.js';
 import { applyRunAction, cardRemovalQuote, createRun, enemyStrengthAfterCityVisits, eventView, migrateRun } from './engine/run/index.js';
 import type { RunEvent, RunState } from './engine/run/index.js';
@@ -13,7 +13,6 @@ import { playCues, playEnemySteps } from './ui/battlePlayback.js';
 import { useBattleFx, useStatusTransitions } from './ui/useBattleFx.js';
 import { cannotAct } from './ui/stackStatus.js';
 import { ActionCardTile } from './ui/ActionCardTile.js';
-import { StartingRelicScreen } from './ui/StartingRelicScreen.js';
 import { RewardScreen } from './ui/RewardScreen.js';
 import { RunEndScreen } from './ui/RunEndScreen.js';
 import { WorldMapScreen } from './ui/WorldMapScreen.js';
@@ -34,7 +33,7 @@ import { cardBlockedTip, pileTip, relicTip } from './ui/tipContent.js';
 import { ToastStack } from './ui/Toast.js';
 import type { ToastItem } from './ui/Toast.js';
 import { TitleScreen } from './ui/TitleScreen.js';
-import { CommanderSetupScreen } from './ui/CommanderSetupScreen.js';
+import { HeroSetupScreen } from './ui/HeroSetupScreen.js';
 import { PauseMenu } from './ui/PauseMenu.js';
 import { SettingsPanel } from './ui/SettingsPanel.js';
 import { startMusic, setMusicVolume } from './ui/music.js';
@@ -289,16 +288,16 @@ export default function App() {
     return result;
   }
 
-  function handleCardClick(instanceId: string, cardId: string) {
+  function handleCardClick(instanceId: string, cardId: string, upgraded: boolean) {
     if (!combat || combat.phase !== 'player' || combat.result !== 'ongoing') return;
     if (pending?.kind === 'card' && pending.id === instanceId) {
       setPending(null);
       return;
     }
-    const cardDef = CARD_DEFINITIONS[cardId];
+    const cardDef = resolveCard(cardId, upgraded);
     if (!cardDef) return;
     // Says why a card cannot be played (AO-D040) instead of ignoring the click; nothing to say while an effect sequence runs.
-    const playable = cardPlayability(cardId, combat);
+    const playable = cardPlayability(cardId, combat, upgraded);
     if (!playable.playable) {
       if (!fxBusy && !flyingCard && playable.reason) pushToast('ui_warn', playable.reason);
       return;
@@ -367,6 +366,7 @@ export default function App() {
   function launchCardFlight(instanceId: string): boolean {
     const instance = combat?.hand.find((c) => c.instanceId === instanceId);
     const def = instance ? CARD_DEFINITIONS[instance.cardId] : undefined;
+    const upgraded = instance?.upgraded;
     const slot = document.querySelector(`[data-instance-id="${instanceId}"]`);
     const scene = document.querySelector('.frame-scene');
     if (!def || !slot || !scene) return false;
@@ -375,6 +375,7 @@ export default function App() {
     setPlayedInstanceId(instanceId);
     setFlyingCard({
       cardId: def.id,
+      upgraded,
       from: { left: from.left, top: from.top, width: from.width, height: from.height },
       to: { x: sceneRect.left + sceneRect.width / 2, y: sceneRect.top + sceneRect.height / 2 },
     });
@@ -558,12 +559,10 @@ export default function App() {
 
   if (appStage === 'setup') {
     return (
-      <CommanderSetupScreen
+      <HeroSetupScreen
         onBack={() => setAppStage('title')}
         onBegin={(heroId, heroName, relicId) => {
-          const freshRun = createRun(Date.now() & 0xffffffff, heroId, heroName);
-          const result = applyRunAction(freshRun, { type: 'CHOOSE_STARTING_RELIC', relicId });
-          setRun(result.run);
+          setRun(createRun(Date.now() & 0xffffffff, heroId, heroName, relicId));
           setHasSave(true);
           setAppStage('game');
         }}
@@ -605,19 +604,6 @@ export default function App() {
     </>
   );
 
-  if (run.phase === 'choosing_starting_relic') {
-    return (
-      <>
-        {gameChrome}
-        <StartingRelicScreen
-          heroId={run.hero.heroType}
-          heroName={run.hero.name}
-          onChoose={(relicId) => dispatchRun({ type: 'CHOOSE_STARTING_RELIC', relicId })}
-        />
-      </>
-    );
-  }
-
   if (run.phase === 'reward' && run.pendingReward) {
     return (
       <>
@@ -641,8 +627,8 @@ export default function App() {
   if (run.phase === 'run_complete' || run.phase === 'defeat') {
     return (
       <>
-        {gameChrome}
-        <RunEndScreen run={run} onNewRun={newRun} />
+        {gameChromeNoMenuBtn}
+        <RunEndScreen run={run} onNewRun={newRun} onMainMenu={() => setAppStage('title')} />
       </>
     );
   }
@@ -915,9 +901,9 @@ export default function App() {
 
         <div className="frame-hand-slots">
           {combat.hand.map((instance, i) => {
-            const cardDef = CARD_DEFINITIONS[instance.cardId];
+            const cardDef = resolveCard(instance.cardId, instance.upgraded);
             if (!cardDef) return null;
-            const play = cardPlayability(instance.cardId, combat);
+            const play = cardPlayability(instance.cardId, combat, instance.upgraded);
             const blocked = canAct && !play.playable;
             const isPlayed = playedInstanceId === instance.instanceId;
             const isDiscarding = discardingIds?.includes(instance.instanceId) ?? false;
@@ -936,7 +922,7 @@ export default function App() {
                   playability={combat.phase === 'player' ? play : undefined}
                   tip={blocked ? cardBlockedTip(cardDef.name, cardRequirement(instance.cardId), play.reason) : null}
                   pending={pending?.kind === 'card' && pending.id === instance.instanceId}
-                  onClick={() => handleCardClick(instance.instanceId, instance.cardId)}
+                  onClick={() => handleCardClick(instance.instanceId, instance.cardId, !!instance.upgraded)}
                 />
               </div>
             );

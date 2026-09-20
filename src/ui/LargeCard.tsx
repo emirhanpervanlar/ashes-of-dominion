@@ -1,6 +1,6 @@
-import { CARD_DEFINITIONS, cardRequirement } from '../engine/index.js';
-import { CARD_DESCRIPTIONS } from './cardText.js';
+import { cardRequirement } from '../engine/index.js';
 import { useCardInfo } from './cardInfoContext.js';
+import { cardView } from './cardView.js';
 import { cardVisual } from './cardVisuals.js';
 import { Icon } from './pixel/Icon.js';
 import { Tip } from './Tip.js';
@@ -9,8 +9,8 @@ import { manaCostTip } from './tipContent.js';
 interface Props {
   cardId: string;
   upgraded?: boolean;
-  /** Icon and polarity come from this card when it differs (a reward upgrade shows the upgraded card with the base card's art). */
-  visualId?: string;
+  /** An upgrade offer: the "+" card is shown with a line under the text saying what the card does now. */
+  showBase?: boolean;
   /** Small gold label under the name ("Upgrade"). */
   tag?: string;
   /** Merchant price plate. */
@@ -25,11 +25,12 @@ interface Props {
 }
 
 /** The large card (reward, merchant, removal picker, info popup): cost gem with its tooltip, art, name, rules text, condition. */
-export function LargeCard({ cardId, upgraded, visualId, tag, price, disabled, onClick, inspectable = true, showRequirement = true, className }: Props) {
+export function LargeCard({ cardId, upgraded, showBase, tag, price, disabled, onClick, inspectable = true, showRequirement = true, className }: Props) {
   const cardInfo = useCardInfo();
-  const def = CARD_DEFINITIONS[cardId];
-  if (!def) return null;
-  const visual = cardVisual(visualId ?? cardId);
+  const view = cardView(cardId, upgraded);
+  if (!view) return null;
+  const base = showBase && view.upgraded ? cardView(cardId) : undefined;
+  const visual = cardVisual(cardId);
   const requirement = showRequirement ? cardRequirement(cardId) : null;
   const classes = ['reward-card', `polarity-${visual.polarity}`, className, disabled && 'disabled'].filter(Boolean).join(' ');
 
@@ -46,18 +47,20 @@ export function LargeCard({ cardId, upgraded, visualId, tag, price, disabled, on
           : undefined
       }
     >
-      <Tip tip={manaCostTip(def.manaCost)}>
-        <div className="reward-card-cost">{def.manaCost}</div>
+      <Tip tip={manaCostTip(view.manaCost)}>
+        <div className="reward-card-cost">{view.manaCost}</div>
       </Tip>
       <div className="reward-card-icon">
         <Icon name={visual.icon} size={3} />
       </div>
-      <div className={`reward-card-name${upgraded ? ' upgraded' : ''}`}>
-        {def.name}
-        {upgraded ? '+' : ''}
-      </div>
+      <div className={`reward-card-name${view.upgraded ? ' upgraded' : ''}`}>{view.name}</div>
       {tag && <div className="reward-card-tag">{tag}</div>}
-      <div className="reward-card-desc">{CARD_DESCRIPTIONS[cardId] ?? cardId}</div>
+      <div className="reward-card-desc">{view.description}</div>
+      {base && (
+        <div className="reward-card-was">
+          Now{base.manaCost !== view.manaCost ? ` (${base.manaCost} Mana)` : ''}: {base.description}
+        </div>
+      )}
       {requirement && (
         <div className="reward-card-req">
           <Icon name="ui_warn" />

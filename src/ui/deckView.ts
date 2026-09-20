@@ -1,4 +1,5 @@
 import { CARD_DEFINITIONS } from '../engine/index.js';
+import { cardView } from './cardView.js';
 import { cardVisual } from './cardVisuals.js';
 import type { CardPolarity } from './cardVisuals.js';
 
@@ -16,7 +17,7 @@ export interface CardGroup {
 }
 
 const nameOf = (cardId: string): string => CARD_DEFINITIONS[cardId]?.name ?? cardId;
-const costOf = (cardId: string): number => CARD_DEFINITIONS[cardId]?.manaCost ?? 0;
+const costOf = (group: CardGroup): number => cardView(group.cardId, group.upgraded)?.manaCost ?? 0;
 
 /** Groups cards and sorts them by Mana cost, then name, then plain before upgraded. Never in draw order. */
 export function groupCards(cards: readonly CardEntry[]): CardGroup[] {
@@ -29,7 +30,7 @@ export function groupCards(cards: readonly CardEntry[]): CardGroup[] {
     else groups.set(key, { key, cardId: card.cardId, upgraded, count: 1 });
   }
   return [...groups.values()].sort(
-    (a, b) => costOf(a.cardId) - costOf(b.cardId) || nameOf(a.cardId).localeCompare(nameOf(b.cardId)) || Number(a.upgraded) - Number(b.upgraded)
+    (a, b) => costOf(a) - costOf(b) || nameOf(a.cardId).localeCompare(nameOf(b.cardId)) || Number(a.upgraded) - Number(b.upgraded)
   );
 }
 

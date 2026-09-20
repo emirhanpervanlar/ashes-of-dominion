@@ -14,7 +14,7 @@ const act = (run: RunState, action: RunAction) => applyRunAction(run, action);
 const rejected = (events: { type: string }[]) => events.some((e) => e.type === 'ACTION_REJECTED');
 
 function onMap(seed: number, hero: 'warlord' | 'rogue' | 'mage' = 'warlord'): RunState {
-  return act(createRun(seed, hero), { type: 'CHOOSE_STARTING_RELIC', relicId: 'royal_banner' }).run;
+  return createRun(seed, hero);
 }
 
 function withArmy(run: RunState, counts: Array<[UnitId, number]>): RunState {
@@ -73,7 +73,7 @@ describe('AO-D048: per-unit Food upkeep', () => {
 
   it('(1) a starting army, with or without Royal Banner, lasts at least 15 days on the starting Food with no Farm and no loot', () => {
     for (const hero of ['warlord', 'rogue', 'mage'] as const) {
-      const fresh = createRun(2, hero);
+      const fresh = createRun(2, hero, undefined, 'whetstone');
       const bannered = onMap(2, hero);
       expect(fresh.army.reduce((n, s) => n + s.count, 0)).toBe(8);
       for (const run of [fresh, bannered]) expect(foodDaysLeft(run)).toBeGreaterThanOrEqual(15);

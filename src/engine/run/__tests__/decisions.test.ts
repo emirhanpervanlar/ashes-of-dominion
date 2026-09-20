@@ -18,7 +18,7 @@ function withFoundRelic(run: RunState, relicId: string): RunState {
 }
 
 function startedRun(seed: number, relicId: string): RunState {
-  return applyRunAction(createRun(seed), { type: 'CHOOSE_STARTING_RELIC', relicId }).run;
+  return createRun(seed, 'warlord', undefined, relicId);
 }
 
 function inCity(run: RunState, army: ArmyStack[]): RunState {
@@ -34,7 +34,7 @@ describe('AO-D007: starting armies per hero', () => {
 
   for (const hero of HEROES) {
     it(`${hero} starts a run with exactly ${JSON.stringify(expected[hero])}`, () => {
-      const run = createRun(11, hero);
+      const run = createRun(11, hero, undefined, 'whetstone');
       expect(run.army.map((s) => [s.unitId, s.count]).sort()).toEqual([...expected[hero]].sort());
       expect(run.army.every((s) => s.currentHp === s.maxHp && s.preBattleMaxCount === s.count)).toBe(true);
       expect(HERO_DEFINITIONS[hero].startingArmy.map((e) => [e.unitId, e.count]).sort()).toEqual([...expected[hero]].sort());
@@ -70,7 +70,7 @@ describe('AO-D006: post-battle reward', () => {
   });
 
   it('a won battle in a real run carries that reward', () => {
-    let run = applyRunAction(createRun(21, 'rogue'), { type: 'CHOOSE_STARTING_RELIC', relicId: 'royal_banner' }).run;
+    let run = createRun(21, 'rogue');
     const current = run.worldMap.nodes.find((n) => n.id === run.worldMap.currentNodeId)!;
     const nextId = current.connectsTo[0]!;
     run = { ...run, worldMap: { ...run.worldMap, nodes: run.worldMap.nodes.map((n) => (n.id === nextId ? { ...n, type: 'battle' as const } : n)) } };
