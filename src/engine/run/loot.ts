@@ -22,6 +22,18 @@ export const BATTLE_LOOT = {
   maxFoodChance: 0.6,
 } as const;
 
+/** One-time pickup at a resource node: inclusive Gold and Food ranges (the Economic Doctrine scales them). */
+export const RESOURCE_NODE_LOOT = { gold: [20, 40], food: [10, 20] } as const;
+
+/** Gold first, then Food, both from the run RNG; `multiplier` is the Economic Doctrine's (1 without it). */
+export function rollResourceNode(rng: RngState, multiplier: number): { gold: number; food: number } {
+  const [goldMin, goldMax] = RESOURCE_NODE_LOOT.gold;
+  const [foodMin, foodMax] = RESOURCE_NODE_LOOT.food;
+  const gold = roundSafe((goldMin + nextInt(rng, goldMax - goldMin + 1)) * multiplier);
+  const food = roundSafe((foodMin + nextInt(rng, foodMax - foodMin + 1)) * multiplier);
+  return { gold, food };
+}
+
 export interface LootContext {
   chapter: number;
   day: number;

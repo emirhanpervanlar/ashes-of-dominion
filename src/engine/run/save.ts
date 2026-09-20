@@ -1,3 +1,4 @@
+import { MAX_ARMY_STACKS } from '../army.js';
 import { CARD_DEFINITIONS } from '../data/cards.js';
 import { UNIT_DEFINITIONS } from '../data/units.js';
 import { EVENT_DEFINITIONS } from './events.js';
@@ -19,7 +20,7 @@ function isStack(v: unknown): boolean {
   return (
     isRec(v) && isStr(v.stackId) && hasKey(UNIT_DEFINITIONS, v.unitId) && (v.side === 'player' || v.side === 'enemy') && isWhole(v.count) &&
     isNum(v.currentHp) && v.currentHp >= 0 && isNum(v.maxHp) && v.maxHp >= 0 && isWhole(v.startingCount) && isWhole(v.preBattleMaxCount) &&
-    isWhole(v.position) && v.position >= 1 && v.position <= 6 && isNum(v.morale) && Array.isArray(v.statuses) && isRec(v.flags)
+    isWhole(v.position) && v.position >= 1 && v.position <= MAX_ARMY_STACKS && isNum(v.morale) && Array.isArray(v.statuses) && isRec(v.flags)
   );
 }
 
@@ -65,7 +66,7 @@ function isCurrentRun(r: Rec): boolean {
   if (!PHASES.has(r.phase as string) || !isRec(r.rng) || !isNum(r.rng.seed) || !isNum(r.seed)) return false;
   const counters = [r.gold, r.food, r.day, r.battlesWon, r.chapter, r.threat, r.starvationDays];
   if (!counters.every(isWhole) || (r.chapter as number) < 1 || (r.day as number) < 1) return false;
-  if (!isHero(r.hero) || !allOf(r.army, isStack) || (r.army as unknown[]).length > 6) return false;
+  if (!isHero(r.hero) || !allOf(r.army, isStack) || (r.army as unknown[]).length > MAX_ARMY_STACKS) return false;
   if (!allOf(r.masterDeck, isCard) || !allOf(r.relics, isRelic) || !isCity(r.city)) return false;
   if (!isRec(r.stats) || !Object.values(r.stats).every(isNum) || !isRec(r.cardRemoval) || !isWhole(r.cardRemoval.merchantUses) || !isWhole(r.cardRemoval.cityUses)) return false;
   if (!Array.isArray(r.log) || !allOf(r.seenEventIds, isStr) || !Array.isArray(r.lastCasualties) || typeof r.bossBattle !== 'boolean') return false;

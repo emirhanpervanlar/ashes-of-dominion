@@ -1,3 +1,4 @@
+import { MAX_ARMY_STACKS } from '../army.js';
 import { BUILDING_DEFINITIONS, DOCTRINE_DEFINITIONS, RECRUIT_COSTS } from './city.js';
 
 /** Own-property test: ids come from untrusted input and must never resolve to inherited keys such as "constructor". */
@@ -14,13 +15,13 @@ function isId(value: unknown): value is string {
 }
 
 /** A positive whole number: rejects NaN, Infinity, fractions, zero, negatives and non-numbers. */
-export function isPositiveCount(value: unknown): value is number {
+function isPositiveCount(value: unknown): value is number {
   return typeof value === 'number' && Number.isSafeInteger(value) && value > 0;
 }
 
-/** A board slot, 1-6. */
-export function isBoardPosition(value: unknown): value is number {
-  return typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= 6;
+/** A board slot (1 to MAX_ARMY_STACKS). */
+function isBoardPosition(value: unknown): value is number {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 1 && value <= MAX_ARMY_STACKS;
 }
 
 const COMBAT_ACTION_TYPES: ReadonlySet<string> = new Set(['PLAY_CARD', 'BASIC_ACTION', 'END_TURN']);
@@ -80,7 +81,7 @@ export function actionProblem(action: unknown): string | null {
       return isId(action.stackIdA) && isId(action.stackIdB) ? null : 'Malformed action.';
     case 'MOVE_STACK':
       if (!isId(action.stackId)) return 'Malformed action.';
-      return isBoardPosition(action.toPosition) ? null : 'Position must be 1-6.';
+      return isBoardPosition(action.toPosition) ? null : `Position must be 1-${MAX_ARMY_STACKS}.`;
     default:
       return null;
   }

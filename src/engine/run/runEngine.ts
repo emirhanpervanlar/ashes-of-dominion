@@ -1,4 +1,4 @@
-import { mergeArmyStacks, splitArmyStack } from '../army.js';
+import { MAX_ARMY_STACKS, mergeArmyStacks, splitArmyStack } from '../army.js';
 import { CARD_DEFINITIONS } from '../data/cards.js';
 import { HERO_DEFINITIONS } from '../data/heroes.js';
 import { RELIC_DEFINITIONS, STARTING_RELIC_DEFINITIONS } from '../data/relics.js';
@@ -14,12 +14,14 @@ import { isUpgradable } from '../cardUpgrades.js';
 import {
   BUILDING_DEFINITIONS,
   DOCTRINE_DEFINITIONS,
+  ECONOMIC_DOCTRINE_MULTIPLIER,
   FARM_TIERS,
   GOLD_MINE_DAILY_GOLD,
   LEVEL_SLOTS,
   LEVEL_UP_COST,
   MAGE_TOWER_TIERS,
   RECRUIT_COSTS,
+  TRAINING_HALL_MAX_MANA,
   addUnitsToArmy,
   canRecruitUnit,
   createInitialCityState,
@@ -42,7 +44,7 @@ import {
   type EventOption,
 } from './events.js';
 import { dailyProduction, dailyUpkeep, moveFoodCost, removeUnits, starvationMoraleMalus, starveArmy, totalArmyCount } from './food.js';
-import { rollBattleLoot } from './loot.js';
+import { rollBattleLoot, rollResourceNode } from './loot.js';
 import { generateMerchantInventory } from './merchant.js';
 import { pickRelicByRarity, pickRelicId } from './relicSources.js';
 import { buildPendingReward, generateCardOptions } from './rewards.js';
@@ -50,8 +52,8 @@ import { createRunStats, tallyCombatEvents } from './stats.js';
 import type { RunAction, RunApplyResult, RunEvent, RunState, UnitCount } from './types.js';
 import { findNode, generateWorldMap, visitNode } from './worldMap.js';
 
-const STARTING_GOLD = 100;
-const STARTING_FOOD = 50;
+export const STARTING_GOLD = 100;
+export const STARTING_FOOD = 50;
 /** Relic granted when an old save is still waiting on the removed relic choice. */
 export const DEFAULT_STARTING_RELIC_ID = 'royal_banner';
 
@@ -322,9 +324,7 @@ function reject(events: RunEvent[], reason: string): void {
 
 /** A modest, deterministic one-time pickup — see AGENT.md §35 (ongoing per-day production is future work). */
 function resolveResourceNode(run: RunState, events: RunEvent[]): void {
-  const econMult = run.city.doctrine === 'economic' ? 1.3 : 1;
-  const gold = roundSafe((20 + nextInt(run.rng, 21)) * econMult); // 20-40, +30% under Economic Doctrine
-  const food = roundSafe((10 + nextInt(run.rng, 11)) * econMult); // 10-20
+  const { gold, food } = rollResourceNode(run.rng, run.city.doctrine === 'economic' ? ECONOMIC_DOCTRINE_MULTIPLIER : 1);
   changeGold(run, gold);
   changeFood(run, food);
   events.push({ type: 'RESOURCE_FOUND', gold, food });
@@ -626,7 +626,7 @@ function gainUnits(run: RunState, unitId: UnitId, count: number, events: RunEven
   }
   // AO-D054: no room; the newcomer waits as a temporary 7th entry until the player dismisses a stack or declines.
   const newcomer = addUnitsToArmy([], unitId, count)![0]!;
-  run.pendingUnitChoice = { newcomer: { ...newcomer, stackId: `player_${unitId}_pending`, position: 6 } };
+  run.pendingUnitChoice = { newcomer: { ...newcomer, stackId: `player_${unitId}_pending`, position: MAX_ARMY_STACKS as Position } };
 }
 
 function reviveCasualties(run: RunState, percent: number, events: RunEvent[]): void {
@@ -995,7 +995,7 @@ function recruit(run: RunState, unitId: UnitId, count: number, events: RunEvent[
 
   const updatedArmy = addUnitsToArmy(run.army, unitId, count);
   if (!updatedArmy) {
-    reject(events, 'Field army is full (6 stacks) and has no matching stack to merge into.');
+    reject(events, `Field army is full (${MAX_ARMY_STACKS} stacks) and has no matching stack to merge into.`);
     return { run, events };
   }
   changeGold(run, -cost.gold);
@@ -1009,7 +1009,7 @@ function recruit(run: RunState, unitId: UnitId, count: number, events: RunEvent[
 function splitStackAction(run: RunState, stackId: string, splitCount: number, events: RunEvent[]): RunApplyResult {
   const updatedArmy = splitArmyStack(run.army, stackId, splitCount);
   if (!updatedArmy) {
-    reject(events, 'Cannot split that stack (invalid amount or army already has 6 stacks).');
+    reject(events, `Cannot split that stack (invalid amount or army already has ${MAX_ARMY_STACKS} stacks).`);
     return { run, events };
   }
   // splitArmyStack derives the id from the free position, which can collide with a stack created there and later moved away.
@@ -1076,8 +1076,8 @@ function buildBuilding(run: RunState, buildingId: string, events: RunEvent[]): R
   run.city.buildings.push(buildingId);
 
   if (buildingId === 'training_hall') {
-    run.hero.maxMana += 2;
-    run.hero.mana += 2;
+    run.hero.maxMana += TRAINING_HALL_MAX_MANA;
+    run.hero.mana += TRAINING_HALL_MAX_MANA;
   }
   if (buildingId === 'mage_tower') {
     run.city.mageTowerTier = 1;

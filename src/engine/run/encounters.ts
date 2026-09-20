@@ -1,4 +1,4 @@
-import { createStack } from '../army.js';
+import { MAX_ARMY_STACKS, createStack } from '../army.js';
 import { roundSafe } from '../floatSafe.js';
 import type { ArmyStack, Position, UnitId } from '../types.js';
 import { BOSS_CHAPTER_MULTIPLIER, CHAPTER_DEPTH_BONUS, LAYERS_PER_DEPTH, threatMultiplier } from './chapters.js';
@@ -26,7 +26,7 @@ function encounterDepth(layer: number, chapter: number): number {
  */
 function slotsForDepth(depth: number, elite: boolean): number {
   const base = elite ? 2 : 1;
-  return Math.min(6, base + depth);
+  return Math.min(MAX_ARMY_STACKS, base + depth);
 }
 
 const NON_ELITE_TEMPLATE: Array<[UnitId, Position, number]> = [

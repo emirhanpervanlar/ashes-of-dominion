@@ -2,15 +2,12 @@ import { UNIT_DEFINITIONS } from '../data/units.js';
 import { ceilSafe, floorSafe, roundSafe } from '../floatSafe.js';
 import { nextInt, type RngState } from '../rng.js';
 import type { ArmyStack, UnitId } from '../types.js';
-import { FARM_TIERS, type CityState } from './city.js';
+import { FARM_TIERS, STABLE_FOOD_DISCOUNT, type CityState } from './city.js';
 import type { RunState, UnitCount } from './types.js';
 
 export function totalArmyCount(army: ArmyStack[]): number {
   return army.reduce((sum, s) => sum + s.count, 0);
 }
-
-/** AO-D020: a Stable cuts the daily Food upkeep by 25% (rounded down, never below 1). */
-const STABLE_FOOD_DISCOUNT = 0.25;
 
 /** AO-D048 / AGENT.md §21: the warning shows when Food would run out within this many days at the current net. */
 export const FOOD_WARNING_DAYS = 3;

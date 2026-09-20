@@ -19,10 +19,11 @@ export interface MerchantInventory {
   relicOffer: MerchantRelicOffer | null;
 }
 
-const CARD_PRICE = 50;
+/** Gold price of every card on offer at a merchant. */
+export const MERCHANT_CARD_PRICE = 50;
 
 export function generateMerchantInventory(rng: RngState, ownedRelics: RelicDefinition[]): MerchantInventory {
-  const cardOffers = generateCardOptions(rng, 3).map((cardId) => ({ cardId, price: CARD_PRICE }));
+  const cardOffers = generateCardOptions(rng, 3).map((cardId) => ({ cardId, price: MERCHANT_CARD_PRICE }));
   const relicId = pickRelicId(rng, 'merchant', ownedRelics);
 
   return {
