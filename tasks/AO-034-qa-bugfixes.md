@@ -22,3 +22,6 @@ UI, balance numbers, card data, damage formula.
 
 ## Acceptance criteria
 tsc errors only in the known UI files (list); vitest green; report lists each fix, test names and the B3 rule.
+
+## Status
+- 2026-09-20 ACCEPTED on branch ai/engine-next (merges to main together with the UI adaptation).

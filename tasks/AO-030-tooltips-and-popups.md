@@ -26,3 +26,6 @@ src/engine/** (report gaps, e.g. missing status descriptions in data).
 
 ## Acceptance criteria
 tsc clean, vitest green (tests for Tip content builders and the deck grouping/sorting helpers). Browser screenshots: tooltips on a relic, a debuff, a resource, a role badge, a reward card cost; card info popup; unplayable Charge with no Knight showing the reason; battle draw and discard viewers; Road deck viewer; hero popup. No native `title=` left (grep). No off-screen tooltip at the screen edges. No console errors.
+
+## Status
+- 2026-09-20 ACCEPTED (427 tests). Follow-ups: status effect data table in engine; Weak flat -Attack vs card text -%; relic drawbacks not structured; large card art window smaller than the spec; reward relic offer card lacks tooltip/frame.
