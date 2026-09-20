@@ -8,7 +8,6 @@ import type { RunState } from '../types.js';
 /** Same node-override trick as runEngine.test.ts, but forced straight to the Boss layer. */
 function reachBoss(seed: number): RunState {
   let run = createRun(seed);
-  run = applyRunAction(run, { type: 'CHOOSE_STARTING_RELIC', relicId: 'royal_banner' }).run;
   const bossId = run.worldMap.nodes.find((n) => n.type === 'boss')!.id;
 
   while (run.phase === 'on_map') {

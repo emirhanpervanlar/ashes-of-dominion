@@ -9,7 +9,7 @@ import type { RunAction, RunState } from '../types.js';
 import { pendingEventOf } from './eventHelpers.js';
 
 function onMap(seed: number): RunState {
-  return applyRunAction(createRun(seed), { type: 'CHOOSE_STARTING_RELIC', relicId: 'royal_banner' }).run;
+  return createRun(seed);
 }
 
 function atEvent(eventId: string, seed = 1, patch: Partial<RunState> = {}): RunState {

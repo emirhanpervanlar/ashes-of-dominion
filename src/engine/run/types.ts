@@ -7,7 +7,6 @@ import type { RunStats } from './stats.js';
 import type { WorldMapState } from './worldMap.js';
 
 export type RunPhase =
-  | 'choosing_starting_relic'
   | 'on_map'
   | 'in_battle'
   | 'reward'
@@ -129,7 +128,6 @@ export interface RunState {
 }
 
 export type RunAction =
-  | { type: 'CHOOSE_STARTING_RELIC'; relicId: string }
   | { type: 'MOVE_TO'; nodeId: string }
   | { type: 'COMBAT_ACTION'; action: PlayerAction }
   | { type: 'CLAIM_CARD'; cardId: string }
