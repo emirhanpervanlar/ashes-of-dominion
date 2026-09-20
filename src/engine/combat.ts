@@ -7,6 +7,7 @@ import {
   applyDamageToStack,
   applyHealToStack,
   armorReduction,
+  cannotAct,
   computeHealAmount,
   computeRawDamage,
   fearDamageMultiplier,
@@ -582,6 +583,7 @@ function validateTargeting(state: CombatState, def: { id: string; targeting: Car
     if (!stack) return 'Invalid or dead enemy stack.';
     if (def.targeting === 'ally-stack+enemy-stack') {
       const actor = findStack(state.playerArmy, action.actingStackId)!;
+      if (cannotAct(actor)) return `${UNIT_DEFINITIONS[actor.unitId].name} cannot act this turn.`;
       if (isBlockedByFrontAlly(actor, state.playerArmy)) return `${UNIT_DEFINITIONS[actor.unitId].name} cannot attack while a friendly stack stands in front of it.`;
       const validTargets = computeValidTargets(actor, state.enemyArmy, UNIT_DEFINITIONS[actor.unitId], state.playerArmy);
       if (validTargets.length === 0) return `${UNIT_DEFINITIONS[actor.unitId].name} has no target in reach.`;
@@ -663,6 +665,11 @@ function playCard(state: CombatState, action: Extract<PlayerAction, { type: 'PLA
   for (const effect of cardDef.effects) {
     executeEffect(state, effect, action, events);
   }
+  // A stack frozen by this card no longer acts this round, so its intent disappears from the plan the player sees.
+  state.enemyIntents = state.enemyIntents.filter((intent) => {
+    const stack = findStack(state.enemyArmy, intent.stackId);
+    return !!stack && !cannotAct(stack);
+  });
 
   const result = checkBattleResult(state);
   if (result !== 'ongoing') {
@@ -685,7 +692,7 @@ function basicAction(state: CombatState, action: Extract<PlayerAction, { type: '
     reject(events, 'That stack has already acted this turn.');
     return { state, events };
   }
-  if (actor.flags.cannotAttack || statusAmount(actor, 'freeze') > 0) {
+  if (cannotAct(actor)) {
     reject(events, 'That stack cannot act this turn.');
     return { state, events };
   }
@@ -790,6 +797,8 @@ function resolveEnemyTurn(state: CombatState, events: CombatEvent[]): EnemyStep[
     // Intents are captured at the start of the player's turn — if the player kills this
     // stack (or its buff target) mid-turn, its stale intent must not still resolve.
     if (!actor || actor.count <= 0) continue;
+    // AO-D066: frozen (or locked) stacks skip their turn, including a plan made before they were frozen.
+    if (cannotAct(actor)) continue;
     const start = events.length;
 
     if (intent.kind === 'buff') {

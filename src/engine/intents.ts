@@ -1,5 +1,5 @@
 import { UNIT_DEFINITIONS } from './data/units.js';
-import { computeRawDamage } from './damage.js';
+import { cannotAct, computeRawDamage } from './damage.js';
 import { computeValidTargets, isFrontPosition } from './targeting.js';
 import { nextInt } from './rng.js';
 import type { ArmyStack, CombatState, EnemyIntent, UnitDefinition } from './types.js';
@@ -51,6 +51,7 @@ export function generateEnemyIntents(state: CombatState): EnemyIntent[] {
   const liveEnemy = alive(state.enemyArmy);
 
   for (const stack of liveEnemy) {
+    if (cannotAct(stack)) continue;
     const def = UNIT_DEFINITIONS[stack.unitId];
     const pref = def.targetPreference ?? 'frontline';
 

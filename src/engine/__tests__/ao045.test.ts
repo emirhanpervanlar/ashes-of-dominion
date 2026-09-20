@@ -1,8 +1,12 @@
 import { describe, expect, it } from 'vitest';
+import { createStack } from '../army.js';
+import { applyPlayerAction } from '../combat.js';
 import { HERO_DEFINITIONS } from '../data/heroes.js';
+import { generateEnemyIntents } from '../intents.js';
 import { applyRunAction, createRun } from '../run/runEngine.js';
-import { createHero } from '../scenario.js';
+import { createHero, createVerticalSliceScenario } from '../scenario.js';
 import type { RunState } from '../run/types.js';
+import type { ArmyStack, CombatEvent, CombatState, HeroId, Position, UnitId } from '../types.js';
 
 function fightingRun(mutate: (run: RunState) => RunState = (r) => r): RunState {
   const run = mutate(createRun(5, 'warlord'));
@@ -34,5 +38,62 @@ describe('AO-D065 mana', () => {
     expect(run.hero.mana).toBe(0);
     const again = fightingRun(() => ({ ...run, phase: 'on_map', pendingReward: null, combat: null }));
     expect(again.combat!.hero.mana).toBe(3);
+  });
+});
+
+// ---------- shared combat helpers ----------
+function battle(playerArmy: ArmyStack[], enemyArmy: ArmyStack[], cardIds: string[] = [], heroId: HeroId = 'warlord'): CombatState {
+  const { state } = createVerticalSliceScenario(1, heroId);
+  const base: CombatState = {
+    ...state,
+    hero: { ...state.hero, stats: { ...state.hero.stats, dexterity: 0 }, mana: 10, maxMana: 10 },
+    playerArmy,
+    enemyArmy,
+    hand: cardIds.map((cardId, i) => ({ instanceId: `t_${cardId}_${i}`, cardId })),
+    deck: [],
+    discard: [],
+  };
+  return { ...base, enemyIntents: generateEnemyIntents(base) };
+}
+
+const big = (unitId: UnitId, position: Position, count = 100): ArmyStack => createStack(unitId, 'player', position, count);
+const foe = (unitId: UnitId, position: Position, count = 10): ArmyStack => createStack(unitId, 'enemy', position, count);
+const freezeOf = (s: ArmyStack): ArmyStack => ({ ...s, statuses: [...s.statuses, { type: 'freeze', amount: 1, duration: 1 }] });
+const attacksBy = (events: CombatEvent[], stackId: string) => events.filter((e) => e.type === 'STACK_ATTACKED' && e.attackerStackId === stackId);
+const rejection = (events: CombatEvent[]) => events.flatMap((e) => (e.type === 'ACTION_REJECTED' ? [e.reason] : []))[0];
+
+describe('AO-D066 frozen stacks do not act', () => {
+  it('a stack frozen after its intent was planned does not attack; it acts again the turn after', () => {
+    const planned = battle([big('swordsman', 1)], [foe('goblin', 1), foe('goblin', 2)]);
+    expect(planned.enemyIntents.map((i) => i.stackId).sort()).toEqual(['enemy_goblin_1', 'enemy_goblin_2']);
+    const frozen: CombatState = { ...planned, enemyArmy: planned.enemyArmy.map((s) => (s.stackId === 'enemy_goblin_1' ? freezeOf(s) : s)) };
+
+    const first = applyPlayerAction(frozen, { type: 'END_TURN' });
+    expect(attacksBy(first.events, 'enemy_goblin_1')).toHaveLength(0);
+    expect(attacksBy(first.events, 'enemy_goblin_2').length).toBeGreaterThan(0);
+    expect(first.state.enemyArmy[0]!.statuses.some((s) => s.type === 'freeze')).toBe(false);
+
+    const second = applyPlayerAction(first.state, { type: 'END_TURN' });
+    expect(attacksBy(second.events, 'enemy_goblin_1').length).toBeGreaterThan(0);
+  });
+
+  it('a frozen stack gets no intent when the plan is generated', () => {
+    const state = battle([big('swordsman', 1)], [freezeOf(foe('goblin', 1)), foe('goblin', 2)]);
+    expect(state.enemyIntents.map((i) => i.stackId)).toEqual(['enemy_goblin_2']);
+  });
+
+  it('a frozen player stack cannot use its basic action nor an attack card', () => {
+    const state = battle([freezeOf(big('swordsman', 1)), big('knight', 2)], [foe('goblin', 1)], ['shield_bash']);
+    const basic = applyPlayerAction(state, { type: 'BASIC_ACTION', stackId: 'player_swordsman_1', targetStackId: 'enemy_goblin_1' });
+    expect(rejection(basic.events)).toContain('cannot act');
+    const card = applyPlayerAction(state, { type: 'PLAY_CARD', instanceId: 't_shield_bash_0', actingStackId: 'player_swordsman_1', targetStackId: 'enemy_goblin_1' });
+    expect(rejection(card.events)).toContain('cannot act');
+    expect(card.state.hero.mana).toBe(10);
+  });
+
+  it('a stack locked by cannotAttack is skipped on the enemy side too', () => {
+    const planned = battle([big('swordsman', 1)], [foe('goblin', 1)]);
+    const locked: CombatState = { ...planned, enemyArmy: planned.enemyArmy.map((s) => ({ ...s, flags: { cannotAttack: true } })) };
+    expect(attacksBy(applyPlayerAction(locked, { type: 'END_TURN' }).events, 'enemy_goblin_1')).toHaveLength(0);
   });
 });

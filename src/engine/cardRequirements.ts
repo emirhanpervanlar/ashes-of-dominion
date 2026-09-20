@@ -3,6 +3,7 @@ import { CARD_DEFINITIONS } from './data/cards.js';
 import { resolveCard } from './cardUpgrades.js';
 import { UNIT_DEFINITIONS } from './data/units.js';
 import { inactiveCardReason, isCardActive } from './combat.js';
+import { cannotAct } from './damage.js';
 import { computeValidTargets } from './targeting.js';
 import type { CardDefinition, CardEffect, CombatState } from './types.js';
 
@@ -68,7 +69,7 @@ export function cardPlayability(cardId: string, state: CombatState, upgraded = f
   const livingEnemies = state.enemyArmy.filter((s) => s.count > 0);
   switch (card.targeting) {
     case 'ally-stack+enemy-stack':
-      if (!living.some((s) => computeValidTargets(s, state.enemyArmy, UNIT_DEFINITIONS[s.unitId], state.playerArmy).length > 0)) {
+      if (!living.some((s) => !cannotAct(s) && computeValidTargets(s, state.enemyArmy, UNIT_DEFINITIONS[s.unitId], state.playerArmy).length > 0)) {
         return no('No stack has an enemy in reach.');
       }
       break;

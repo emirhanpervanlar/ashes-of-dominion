@@ -8,6 +8,11 @@ export function statusAmount(stack: ArmyStack, type: StatusType): number {
   return stack.statuses.filter((s) => s.type === type).reduce((sum, s) => sum + s.amount, 0);
 }
 
+/** AO-D066: a Frozen stack (or one locked by a "cannot attack" flag) does not act, on either side. */
+export function cannotAct(stack: ArmyStack): boolean {
+  return !!stack.flags.cannotAttack || statusAmount(stack, 'freeze') > 0;
+}
+
 /** v3 §9 — Morale 0-100, starts at 100. PROTOTYPE curve: x0.7 at 0 morale up to x1.0 at 100. */
 export function moraleDamageMultiplier(morale: number): number {
   const clamped = Math.max(0, Math.min(100, morale));
