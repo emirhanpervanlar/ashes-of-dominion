@@ -3490,6 +3490,27 @@ button.frame-pile:hover .pile-card-back::before { --bev-light: var(--gold-400); 
 .run-end-row-label { flex: 1; }
 .run-end-row-value { font: var(--t-num); color: var(--gold-200); }
 
+.run-end-loadout {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: var(--s-3);
+  align-items: start;
+}
+
+.run-end-hero-stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: var(--s-3); }
+
+.run-end-stack-name {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  text-align: center;
+  font: var(--t-small);
+  color: var(--text);
+  background: rgba(8, 7, 6, 0.7);
+}
+
 .run-end-relics,
 .run-end-army {
   display: flex;
