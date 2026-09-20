@@ -1,5 +1,6 @@
 import { CARD_DEFINITIONS } from './data/cards.js';
 import { resolveCard } from './cardUpgrades.js';
+import { clearCombatState } from './army.js';
 import { UNIT_DEFINITIONS } from './data/units.js';
 import { damageStatFor, statEffectiveness } from './heroStats.js';
 import {
@@ -580,6 +581,10 @@ function validateTargeting(state: CombatState, def: { id: string; targeting: Car
     const stack = findStack(state.playerArmy, action.actingStackId);
     if (!stack) return 'Invalid or dead friendly stack.';
   }
+  // Effects resolve ids against both armies, so a stray enemy id on a friendly-only card would land on the wrong stack (or crash).
+  if (!needsEnemy && def.targeting !== 'none' && action.targetStackId !== undefined && !findStack(state.playerArmy, action.targetStackId)) {
+    return 'Invalid or dead friendly stack.';
+  }
   if (needsEnemy) {
     const stack = findStack(state.enemyArmy, action.targetStackId);
     if (!stack) return 'Invalid or dead enemy stack.';
@@ -831,8 +836,8 @@ function startPlayerTurn(state: CombatState, events: CombatEvent[], isFirstTurn:
       // and then expire — unlike statuses, StackFlags have no duration field, so this is the
       // only place they get cleared. Without it a stack that ever played one of these cards
       // would be permanently stuck (e.g. always rejecting basic actions as "cannot act").
-      if (stack.flags.cannotAttack || stack.flags.cannotMove || stack.flags.incomingDamageReductionPercent) {
-        stack.flags = { ...stack.flags, cannotAttack: undefined, cannotMove: undefined, incomingDamageReductionPercent: undefined };
+      if (stack.flags.cannotAttack || stack.flags.cannotMove || stack.flags.incomingDamageReductionPercent || stack.flags.untargetable) {
+        stack.flags = { ...stack.flags, cannotAttack: undefined, cannotMove: undefined, incomingDamageReductionPercent: undefined, untargetable: undefined };
       }
     }
 
@@ -925,7 +930,7 @@ export function startBattle(params: StartBattleParams): ApplyResult {
     phase: 'enemy',
     result: 'ongoing',
     hero: params.hero,
-    playerArmy: params.playerArmy,
+    playerArmy: params.playerArmy.map(clearCombatState),
     enemyArmy: params.enemyArmy,
     deck: shuffle(params.rng, params.deck),
     hand: [],

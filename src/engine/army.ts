@@ -23,6 +23,11 @@ export function createStack(unitId: UnitId, side: Side, position: Position, coun
   };
 }
 
+/** Drops everything a battle puts on a stack (flags, statuses, block, acted marker); keeps only persistent stack data. */
+export function clearCombatState(stack: ArmyStack): ArmyStack {
+  return { ...stack, block: 0, statuses: [], flags: {}, actedThisTurn: false };
+}
+
 /** v3 §19 enemy formations. */
 export function buildHordeFormation(): ArmyStack[] {
   return [
