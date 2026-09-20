@@ -52,11 +52,14 @@ export function necromancyRatio(relics: RelicEffect[]): number {
   return ratio;
 }
 
-/** Per-unit attack after Strength/Weak, floored at 0. */
+/** Per-unit attack after Strength, floored at 0. Weak is a damage multiplier, see weakDamageMultiplier. */
 export function effectiveAttack(stack: ArmyStack, baseAttack: number): number {
-  const strength = statusAmount(stack, 'strength');
-  const weak = statusAmount(stack, 'weak');
-  return Math.max(0, baseAttack + strength - weak);
+  return Math.max(0, baseAttack + statusAmount(stack, 'strength'));
+}
+
+/** Weak: the afflicted stack deals `amount`% less damage (multiplicative on its final damage). */
+export function weakDamageMultiplier(attacker: ArmyStack): number {
+  return 1 - Math.min(100, statusAmount(attacker, 'weak')) / 100;
 }
 
 export interface RawDamageParams {
@@ -82,14 +85,14 @@ export function attackDefenseModifier(attack: number, defense: number): number {
 
 /**
  * AO-D031 (Heroes 3 model B): the unit's base `damage` scaled by the attack/defense percentage
- * modifier, hero/relic/card multipliers, then linearly by unit count. Attack (plus Strength/Weak)
- * only feeds the modifier. A hit that lands never rounds down to 0.
+ * modifier, hero/relic/card multipliers, then linearly by unit count. Attack (plus Strength)
+ * only feeds the modifier; Weak scales the final damage by -amount%. A hit that lands never rounds down to 0.
  */
 export function computeRawDamage(params: RawDamageParams): number {
   const { attackerStack, attackerBaseAttack, targetDefense, multiplier, heroEffectiveness = 1 } = params;
   const baseDamage = UNIT_DEFINITIONS[attackerStack.unitId].damage;
   const modifier = attackDefenseModifier(effectiveAttack(attackerStack, attackerBaseAttack), targetDefense);
-  const raw = baseDamage * heroEffectiveness * modifier * attackerStack.count * multiplier;
+  const raw = baseDamage * heroEffectiveness * modifier * attackerStack.count * multiplier * weakDamageMultiplier(attackerStack);
   return raw > 0 ? Math.max(1, Math.round(raw)) : 0;
 }
 
