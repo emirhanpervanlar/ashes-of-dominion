@@ -24,3 +24,6 @@ src/engine/** (report gaps, e.g. if a combined split+place action is needed).
 
 ## Acceptance criteria
 tsc clean, vitest green (tests for the pure drop-resolution helper: empty/other/same-type/invalid). Browser (port 5207, never 5173/4173; inject state BEFORE load; use real pointer events via puppeteer mouse.down/move/up): drag to empty slot, swap, drag same type (merge), Esc mid-drag, split-and-place, split cancelled, merge closes popup, drag disabled during a modal, on both Road and City; screenshots looked at, no console errors.
+
+## Status
+- 2026-09-20 ACCEPTED (545 tests). Ideas: hide hover Tip during drag; dedicated shorter merge flourish; on-screen hint in placing mode; typed-count split path untested.
