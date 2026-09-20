@@ -24,3 +24,6 @@ src/engine/** (report gaps).
 
 ## Acceptance criteria
 tsc clean, vitest green, browser screenshots of each changed item (hero setup at two viewport sizes, relic tooltip with red drawback, event picker with grouped cards, discounted cost gem, elite reward relic card, end screen with army + stats), enemy playback still identical to final state, no console errors.
+
+## Status
+- 2026-09-20 ACCEPTED (526 tests). Ideas: add cheaper cost colour to DESIGN_LANGUAGE 6.4; scrollbar hint in picker modal; right-click info for icon-only relic lists.
