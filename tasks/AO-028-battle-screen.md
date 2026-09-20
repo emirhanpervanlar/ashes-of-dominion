@@ -25,3 +25,6 @@ src/engine/**, game rules, effect animations (next task).
 
 ## Acceptance criteria
 tsc clean, vitest green. Browser (puppeteer-core, port other than 5173, inject state BEFORE load): a real battle played from the start (play cards, attack, end turn) with screenshots at 1366x900 showing: no HP bars anywhere, acted units faded, a frozen and a chained stack (inject states or use a card that causes them), a blocked back-row melee marker, End Turn bar, deselect by clicking empty space, Space to end turn. Bar measurements at 1280/1366/1600 reported. No console errors.
+
+## Status
+- 2026-09-20 ACCEPTED (396 tests, screenshots reviewed). Ideas: status chips crowd the tile at 4+ statuses; End Turn bar is tall; hero/turn plaques and hand tray need a full frame pass.
