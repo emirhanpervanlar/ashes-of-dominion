@@ -913,6 +913,8 @@ interface StartBattleParams {
 }
 
 export function startBattle(params: StartBattleParams): ApplyResult {
+  // AO-D065: a battle always opens at full Mana; what the hero had left after the previous battle never carries over.
+  const hero: Hero = { ...params.hero, mana: params.hero.maxMana };
   const events: CombatEvent[] = [{ type: 'BATTLE_STARTED' }];
 
   const state: CombatState = {
@@ -921,7 +923,7 @@ export function startBattle(params: StartBattleParams): ApplyResult {
     turnNumber: 0,
     phase: 'enemy',
     result: 'ongoing',
-    hero: params.hero,
+    hero,
     playerArmy: params.playerArmy.map(clearCombatState),
     enemyArmy: params.enemyArmy,
     deck: shuffle(params.rng, params.deck),

@@ -16,9 +16,12 @@ export function dodgeChancePercent(dexterity: number): number {
   return Math.min(20, Math.max(0, dexterity - 10));
 }
 
-/** v3 §5 — every 2 Wisdom above 10 = +1 Max Mana, capped at 12 total. */
+/** AO-D065: Wisdom adds Max Mana slowly (every 4 above 10) so fresh heroes start modest: Warlord 3, Rogue 3, Mage 4. */
+export const WISDOM_PER_BONUS_MANA = 4;
+
+/** Max Mana = the hero's `baseMana` (heroes.ts) + Wisdom bonus, capped at 12 total. */
 export function maxManaFromWisdom(baseMana: number, wisdom: number): number {
-  const bonus = Math.floor(Math.max(0, wisdom - 10) / 2);
+  const bonus = Math.floor(Math.max(0, wisdom - 10) / WISDOM_PER_BONUS_MANA);
   return Math.min(12, baseMana + bonus);
 }
 

@@ -48,7 +48,7 @@ export const HERO_DEFINITIONS: Record<HeroId, HeroDefinition> = {
     id: 'rogue',
     name: 'Rogue',
     stats: { strength: 9, dexterity: 17, intelligence: 10, vitality: 9, wisdom: 13 },
-    baseMana: 5,
+    baseMana: 3,
     startingArmy: [
       { unitId: 'archer', count: 6 },
       { unitId: 'knight', count: 2 },
@@ -78,7 +78,7 @@ export const HERO_DEFINITIONS: Record<HeroId, HeroDefinition> = {
     id: 'mage',
     name: 'Mage',
     stats: { strength: 7, dexterity: 9, intelligence: 18, vitality: 8, wisdom: 16 },
-    baseMana: 7,
+    baseMana: 3,
     startingArmy: [
       { unitId: 'archer', count: 4 },
       { unitId: 'priest', count: 4 },
