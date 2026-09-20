@@ -1697,16 +1697,18 @@ p { margin: 0; }
   background: linear-gradient(90deg, var(--wood-900) 0 2px, var(--wood-600) 2px 4px);
 }
 
-.garrison-bar-resources { width: 256px; }
+.garrison-bar-resources { width: 272px; }
 
 .garrison-bar-row {
   display: flex;
   gap: var(--s-2);
 }
 
+/* Sized by content so "DAY 99" or "20 -2/DAY" plus the warning icon never reach the clipped corner. */
 .garrison-bar-stat {
-  flex: 1;
-  min-width: 0;
+  flex: 1 1 auto;
+  min-width: max-content;
+  padding: 0 var(--s-2);
   white-space: nowrap;
 }
 
