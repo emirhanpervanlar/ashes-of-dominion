@@ -67,6 +67,8 @@ export function describeRunEvent(event: RunEvent): string | null {
       return `Removed ${cardName(event.cardId)} from the deck${event.goldPaid > 0 ? ` for ${event.goldPaid}g` : ''}.`;
     case 'UNITS_REVIVED':
       return `Revived ${event.count} fallen unit(s) after the battle.`;
+    case 'UNITS_RAISED':
+      return `${event.count} of your fallen rose again as Skeletons.`;
     case 'DAILY_INCOME': {
       const parts = [event.gold > 0 && `+${event.gold} Gold`, event.food > 0 && `+${event.food} Food`].filter(Boolean);
       return parts.length ? `Daily income: ${parts.join(', ')}.` : null;

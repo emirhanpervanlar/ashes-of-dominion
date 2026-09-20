@@ -13,7 +13,6 @@ import {
   fearDamageMultiplier,
   moraleDamageMultiplier,
   moraleDefenseMultiplier,
-  necromancyRatio,
   passiveDamageBonusMultiplier,
   passiveDefenseBonus,
   relicDamageMultiplier,
@@ -136,11 +135,6 @@ function drawCards(state: CombatState, amount: number, events: CombatEvent[]): v
     state.hand.push(card);
     events.push({ type: 'CARD_DRAWN', instanceId: card.instanceId, cardId: card.cardId });
   }
-}
-
-function raiseSkeletons(_army: ArmyStack[], _count: number, _events: CombatEvent[]): void {
-  // Necromancy relics are not part of the v3 MVP roster (no Skeleton unit) — kept as a
-  // documented no-op so old NECROMANCY relic effects don't crash if one is still active.
 }
 
 /**
@@ -269,11 +263,6 @@ function resolveAttack(
   });
   if (resolution.unitsKilled > 0) {
     events.push({ type: 'UNITS_KILLED', stackId: actualTarget.stackId, count: resolution.unitsKilled });
-    if (actualTarget.side === 'player') {
-      const ratio = necromancyRatio(relics);
-      const raised = Math.floor(resolution.unitsKilled * ratio);
-      if (raised > 0) raiseSkeletons(army, raised, events);
-    }
   }
   if (resolution.stack.count === 0) {
     events.push({ type: 'STACK_DESTROYED', stackId: actualTarget.stackId });

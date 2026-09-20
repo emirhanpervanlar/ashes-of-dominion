@@ -61,6 +61,19 @@ export const UNIT_DEFINITIONS: Record<UnitId, UnitDefinition> = {
     healPower: 4,
     passiveId: 'devotion',
   },
+  /** AO-D073: raised by the Necromantic Doctrine after a won battle. Weak, eats nothing, has no recruit cost and cannot be recruited. */
+  skeleton: {
+    id: 'skeleton',
+    name: 'Skeleton',
+    side: 'player',
+    hpPerUnit: 4,
+    foodPerUnit: 0,
+    damage: 1,
+    attack: 1,
+    defense: 0,
+    tags: ['undead', 'melee'],
+    basicAction: 'attack',
+  },
   goblin: {
     id: 'goblin',
     name: 'Goblin',

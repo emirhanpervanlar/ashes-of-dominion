@@ -68,6 +68,8 @@ export type RunEvent =
   | { type: 'REWARD_SKIPPED' }
   | { type: 'CARD_REMOVED'; instanceId: string; cardId: string; goldPaid: number }
   | { type: 'UNITS_REVIVED'; count: number }
+  /** AO-D073: Skeletons raised from this battle's casualties by the Necromantic Doctrine (or a Necromancy relic). */
+  | { type: 'UNITS_RAISED'; count: number }
   | { type: 'DAILY_INCOME'; gold: number; food: number }
   | { type: 'BATTLE_LOOT'; gold: number; food: number }
   | { type: 'FARM_UPGRADED'; tier: number }

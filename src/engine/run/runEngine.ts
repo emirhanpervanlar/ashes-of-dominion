@@ -4,6 +4,7 @@ import { HERO_DEFINITIONS } from '../data/heroes.js';
 import { RELIC_DEFINITIONS, STARTING_RELIC_DEFINITIONS } from '../data/relics.js';
 import { UNIT_DEFINITIONS } from '../data/units.js';
 import { applyPlayerAction, startBattle } from '../combat.js';
+import { necromancyRatio } from '../damage.js';
 import { maxManaFromWisdom } from '../heroStats.js';
 import { buildHeroStartingArmy, createHero } from '../scenario.js';
 import { floorSafe, roundSafe } from '../floatSafe.js';
@@ -26,6 +27,7 @@ import {
   canRecruitUnit,
   createInitialCityState,
   recruitCost,
+  raiseSkeletons,
   settleArmyAfterVictory,
 } from './city.js';
 import { actionProblem } from './actionValidation.js';
@@ -461,6 +463,9 @@ function forwardCombatAction(run: RunState, action: PlayerAction, events: RunEve
     run.lastCasualties = tallyCasualties(result.state.playerArmy, settled.army);
     events.push({ type: 'BATTLE_WON' });
     if (settled.revived > 0) events.push({ type: 'UNITS_REVIVED', count: settled.revived });
+    const raising = raiseSkeletons(run.army, run.lastCasualties.reduce((n, c) => n + c.count, 0), necromancyRatio(result.state.activeRelicEffects));
+    run.army = raising.army;
+    if (raising.raised > 0) events.push({ type: 'UNITS_RAISED', count: raising.raised });
     const loot = rollBattleLoot(run.rng, { chapter: run.chapter, day: run.day, elite: run.bossBattle || arrivedAt?.type === 'elite_battle', threat: run.threat });
     changeGold(run, loot.gold);
     changeFood(run, loot.food);

@@ -220,6 +220,17 @@ export function settleArmyAfterVictory(army: ArmyStack[], city: CityState): { ar
   return { army: settled, revived };
 }
 
+/**
+ * AO-D073 Necromancy, run after a won battle: `ratio` of the player's casualties (rounded down) come back as Skeletons,
+ * added to the existing Skeleton stack, else to a free slot; with no room nothing is raised.
+ */
+export function raiseSkeletons(army: ArmyStack[], casualties: number, ratio: number): { army: ArmyStack[]; raised: number } {
+  const wanted = floorSafe(casualties * ratio);
+  if (wanted <= 0) return { army, raised: 0 };
+  const updated = addUnitsToArmy(army, 'skeleton', wanted);
+  return updated ? { army: updated, raised: wanted } : { army, raised: 0 };
+}
+
 export function createInitialCityState(): CityState {
   return { level: 1, buildings: [], doctrine: null, mageTowerTier: 0, farmTier: 0 };
 }

@@ -179,8 +179,4 @@ describe('doctrines', () => {
       expect(doctrineFound.gold).toBeGreaterThan(baseFound.gold);
     }
   });
-
-  // Necromantic Doctrine's Skeleton-raising is deferred with the rest of the Undying
-  // Legion archetype — there is no Skeleton unit in the v3 MVP roster (§3 "explicitly
-  // excluded"), so combat.ts's raiseSkeletons is currently a documented no-op.
 });

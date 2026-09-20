@@ -5,7 +5,7 @@ export type Side = 'player' | 'enemy';
 /** 1-3 = front row, 4-6 = back row (v3 canonical doc §4). */
 export type Position = 1 | 2 | 3 | 4 | 5 | 6;
 
-export type UnitId = 'swordsman' | 'archer' | 'knight' | 'priest' | 'goblin' | 'orc' | 'shaman' | 'wolf';
+export type UnitId = 'swordsman' | 'archer' | 'knight' | 'priest' | 'skeleton' | 'goblin' | 'orc' | 'shaman' | 'wolf';
 
 export type HeroId = 'warlord' | 'rogue' | 'mage';
 
