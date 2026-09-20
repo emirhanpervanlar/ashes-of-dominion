@@ -55,7 +55,7 @@ export function RewardScreen({ reward, deck, removalQuote, loot, isBoss, onClaim
           </div>
           <div className="reward-relic-row">
             {relics.map((relicId) => (
-              <RelicOfferCard key={relicId} relicId={relicId} onClick={() => onClaimRelic(relicId)} />
+              <RelicOfferCard key={relicId} relicId={relicId} compact onClick={() => onClaimRelic(relicId)} />
             ))}
           </div>
         </div>

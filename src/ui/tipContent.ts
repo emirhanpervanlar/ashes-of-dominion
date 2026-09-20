@@ -4,6 +4,7 @@ import {
   GOLD_MINE_DAILY_GOLD,
   LEVEL_SLOTS,
   THREAT_PER_CITY_VISIT,
+  TOTAL_CHAPTERS,
   bossDay,
   dailyFoodNet,
   dailyProduction,
@@ -37,13 +38,11 @@ export interface TipContent {
 const plural = (n: number, word: string): string => `${n} ${word}${n === 1 ? '' : 's'}`;
 const signed = (n: number): string => (n > 0 ? `+${n}` : `${n}`);
 
-export function statusTip(type: StatusType, amount: number, duration?: number): TipContent {
-  return {
-    title: STATUS_INFO[type].name,
-    icon: STATUS_ICONS[type],
-    body: statusEffectText(type, amount),
-    lines: duration === undefined ? undefined : [{ text: `Lasts ${plural(duration, 'more turn')}.`, tone: 'dim' }],
-  };
+export function statusTip(type: StatusType, amount: number, duration?: number, stacks = 1): TipContent {
+  const lines: TipLine[] = [];
+  if (stacks > 1) lines.push({ text: `${stacks} applications added together.`, tone: 'dim' });
+  if (duration !== undefined) lines.push({ text: `Lasts ${plural(duration, 'more turn')}.`, tone: 'dim' });
+  return { title: STATUS_INFO[type].name, icon: STATUS_ICONS[type], body: statusEffectText(type, amount), lines: lines.length > 0 ? lines : undefined };
 }
 
 export function blockTip(amount: number): TipContent {
@@ -134,7 +133,7 @@ export function dayTip(run: Pick<RunState, 'day'>): TipContent {
 }
 
 export function chapterTip(run: Pick<RunState, 'chapter'>): TipContent {
-  return { title: `Chapter ${run.chapter}`, body: `Chapter ${run.chapter} of 3. Each chapter ends in a boss; the run is won after the third.` };
+  return { title: `Chapter ${run.chapter}`, body: `Chapter ${run.chapter} of ${TOTAL_CHAPTERS}. Each chapter ends in a boss; the run is won after the third.` };
 }
 
 export function bossTip(run: Pick<RunState, 'chapter' | 'day'>): TipContent {
@@ -167,9 +166,41 @@ export interface HeroStatRow {
   value: number;
   /** What the stat does at this value. */
   effect: string;
+  /** The tooltip: what the stat does in this game (`HERO_STAT_INFO`) plus what it gives at this value. */
+  tip: TipContent;
 }
 
 const percentAbove = (stat: number): number => Math.round((statEffectiveness(stat) - 1) * 100);
+
+// Numbers below are read off the engine's own formulas (heroStats.ts), so a rebalance updates the tips too.
+const BONUS_PER_POINT = Math.round((statEffectiveness(11) - 1) * 100);
+const BONUS_CAP = Math.round((statEffectiveness(99) - 1) * 100);
+const DODGE_CAP = dodgeChancePercent(99);
+const MAX_MANA_CAP = maxManaFromWisdom(0, 99);
+const WISDOM_PER_MANA = [...Array(20).keys()].map((i) => i + 11).find((w) => maxManaFromWisdom(0, w) >= 1)! - 10;
+
+/**
+ * What each hero stat does in the game today, in one place. `used: false` stats are not read by the engine yet and say
+ * "Not used yet". AO-D064 will make Intelligence, Dexterity and Strength scale hero spells: edit these lines when it lands.
+ */
+export const HERO_STAT_INFO: Record<keyof HeroStats, { what: string; used: boolean }> = {
+  strength: { what: `Melee units deal +${BONUS_PER_POINT}% damage for each point above 10 (up to +${BONUS_CAP}%).`, used: true },
+  dexterity: {
+    what: `Ranged units deal +${BONUS_PER_POINT}% damage for each point above 10 (up to +${BONUS_CAP}%). Also gives 1% Dodge per point above 10 (up to ${DODGE_CAP}%).`,
+    used: true,
+  },
+  intelligence: { what: 'Magic power. Not used yet.', used: false },
+  vitality: { what: 'Toughness. Not used yet.', used: false },
+  wisdom: {
+    what: `Healing +${BONUS_PER_POINT}% per point above 10 (up to +${BONUS_CAP}%). Every ${WISDOM_PER_MANA} points above 10 add 1 Max Mana (${MAX_MANA_CAP} at most).`,
+    used: true,
+  },
+};
+
+function statTip(key: keyof HeroStats, label: string, icon: IconName, effect: string): TipContent {
+  const info = HERO_STAT_INFO[key];
+  return { title: label, icon, body: info.what, lines: info.used ? [{ text: `Now: ${effect}`, tone: 'dim' }] : undefined };
+}
 
 /** Joins the effects that actually apply; a stat at or below 10 has none. */
 function effectText(...parts: (string | null)[]): string {
@@ -184,22 +215,26 @@ export function heroStatRows(stats: HeroStats, baseMana: number): HeroStatRow[] 
   const extraMana = maxManaFromWisdom(baseMana, stats.wisdom) - baseMana;
   const dodge = dodgeChancePercent(stats.dexterity);
   return [
-    { key: 'strength', label: 'Strength', icon: 'role_melee', value: stats.strength, effect: effectText(percentAbove(stats.strength) > 0 ? `Melee units deal +${percentAbove(stats.strength)}% damage.` : null) },
-    {
+    withTip({ key: 'strength', label: 'Strength', icon: 'role_melee', value: stats.strength, effect: effectText(percentAbove(stats.strength) > 0 ? `Melee units deal +${percentAbove(stats.strength)}% damage.` : null) }),
+    withTip({
       key: 'dexterity',
       label: 'Dexterity',
       icon: 'role_ranged',
       value: stats.dexterity,
       effect: effectText(percentAbove(stats.dexterity) > 0 ? `Ranged units deal +${percentAbove(stats.dexterity)}% damage.` : null, dodge > 0 ? `${dodge}% Dodge.` : null),
-    },
-    { key: 'intelligence', label: 'Intelligence', icon: 'role_caster', value: stats.intelligence, effect: 'Magic power. Not used in combat yet.' },
-    { key: 'vitality', label: 'Vitality', icon: 'hp', value: stats.vitality, effect: 'Toughness. Not used in combat yet.' },
-    {
+    }),
+    withTip({ key: 'intelligence', label: 'Intelligence', icon: 'role_caster', value: stats.intelligence, effect: 'Not used yet.' }),
+    withTip({ key: 'vitality', label: 'Vitality', icon: 'hp', value: stats.vitality, effect: 'Not used yet.' }),
+    withTip({
       key: 'wisdom',
       label: 'Wisdom',
       icon: 'role_support',
       value: stats.wisdom,
       effect: effectText(percentAbove(stats.wisdom) > 0 ? `Healing +${percentAbove(stats.wisdom)}%.` : null, extraMana > 0 ? `Max Mana +${extraMana}.` : null),
-    },
+    }),
   ];
+}
+
+function withTip(row: Omit<HeroStatRow, 'tip'>): HeroStatRow {
+  return { ...row, tip: statTip(row.key, row.label, row.icon, row.effect) };
 }

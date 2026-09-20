@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { UNIT_DEFINITIONS } from '../../engine/index.js';
+import { MAX_ARMY_STACKS, UNIT_DEFINITIONS } from '../../engine/index.js';
 import type { UnitId } from '../../engine/index.js';
 import { dailyUpkeep, totalArmyCount } from '../../engine/run/index.js';
 import type { RunState } from '../../engine/run/index.js';
 import { Icon } from '../pixel/Icon.js';
 import { Modal } from '../Modal.js';
+import { QuantityStepper } from '../QuantityStepper.js';
 import { Tip } from '../Tip.js';
 import { unitCountText } from '../runEventText.js';
 import { roleTip } from '../tipContent.js';
@@ -31,20 +32,20 @@ export function BarracksPanel({ run, recent, onRecruit, onClose }: Props) {
   return (
     <Modal heading="Barracks" material="wood" onClose={onClose} width={920}>
       <div className="city-barracks-strip well step">
-        <span className="city-strip-item">
-          <Icon name="gold" /> {run.gold}
+        <span className="city-strip-item city-strip-item--big">
+          <Icon name="gold" size={2} /> {run.gold} Gold
+        </span>
+        <span className="city-strip-item city-strip-item--big">
+          <Icon name="food" size={2} /> {run.food} Food
         </span>
         <span className="city-strip-item">
-          <Icon name="food" /> {run.food}
-        </span>
-        <span className="city-strip-item">
-          <Icon name="slots" /> Army {stacks.length} of 6 stacks, {totalArmyCount(stacks)} units
+          <Icon name="slots" /> Army {stacks.length} of {MAX_ARMY_STACKS} stacks, {totalArmyCount(stacks)} units
         </span>
         <span className="city-strip-item">
           <Icon name="food" /> Eats {dailyUpkeep(run)} a day
         </span>
       </div>
-      <p className="city-note">A recruit joins the stack of its type, or takes the first free slot. With 6 stacks and no stack of that type there is no room.</p>
+      <p className="city-note">A recruit joins the stack of its type, or takes the first free slot. With {MAX_ARMY_STACKS} stacks and no stack of that type there is no room.</p>
 
       <div className="city-recruits">
         {RECRUITABLE_UNITS.map((unitId) => {
@@ -90,28 +91,12 @@ export function BarracksPanel({ run, recent, onRecruit, onClose }: Props) {
                 <span className="city-recruit-upkeep">Then eats {quote.upkeepPerUnit} Food a day</span>
               </div>
 
-              <div className="city-stepper">
-                <button className="btn btn--s btn--sq" aria-label={`Fewer ${def.name}`} disabled={count <= 1} onClick={() => set(count - 1)}>
-                  -
-                </button>
-                <input
-                  className="input city-stepper-input"
-                  type="number"
-                  min={1}
-                  max={MAX_RECRUIT}
-                  aria-label={`${def.name} count`}
-                  value={count}
-                  onChange={(e) => set(Number(e.target.value) || 1)}
-                />
-                <button className="btn btn--s btn--sq" aria-label={`More ${def.name}`} disabled={count >= quote.maxAffordable} onClick={() => set(count + 1)}>
-                  +
-                </button>
+              <QuantityStepper value={count} min={1} max={Math.max(1, quote.maxAffordable)} onChange={set} label={def.name} />
+
+              <div className="city-recruit-total">
                 <button className="btn btn--s" disabled={quote.maxAffordable < 1} onClick={() => set(quote.maxAffordable)}>
                   Max
                 </button>
-              </div>
-
-              <div className="city-recruit-total">
                 <span className={run.gold < quote.gold ? 'city-cost--short' : ''}>
                   <Icon name="gold" /> {quote.gold}
                 </span>

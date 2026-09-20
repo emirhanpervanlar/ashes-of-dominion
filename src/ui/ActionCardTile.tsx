@@ -37,14 +37,27 @@ export function ActionCardTile({ id, upgraded, count, affordable, pending, condi
     <Tip tip={tip}>
       <div
         className={classes.join(' ')}
+        {...(onClick
+          ? {
+              role: 'button',
+              tabIndex: 0,
+              'aria-label': `${view.name}, costs ${view.manaCost} Mana${affordable ? '' : ', cannot be played now'}`,
+              'aria-disabled': !affordable,
+              onKeyDown: (e: React.KeyboardEvent) => {
+                if (e.key !== 'Enter' && e.key !== ' ') return;
+                e.preventDefault();
+                onClick();
+              },
+            }
+          : {})}
         onClick={onClick}
         onContextMenu={(e) => {
           e.preventDefault();
           cardInfo.open(id, { upgraded, playability });
         }}
       >
-        <Tip tip={cheaper ? manaCostTip(view.manaCost, view.baseManaCost) : null}>
-          <div className={`action-card-cost${cheaper ? ' cost-cheaper' : ''}`}>{view.manaCost}M</div>
+        <Tip tip={manaCostTip(view.manaCost, view.baseManaCost)}>
+          <div className={`action-card-cost${cheaper ? ' cost-cheaper' : ''}`} tabIndex={-1}>{view.manaCost}M</div>
         </Tip>
         {conditionBlocked && (
           <span className="action-card-warn">

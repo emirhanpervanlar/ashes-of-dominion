@@ -2,6 +2,24 @@
 import type { Grid } from '../render.js';
 
 export const UI_ICONS = {
+  ui_grave: [
+    '................',
+    '................',
+    '.....kkkkkk.....',
+    '....kggggggk....',
+    '...kgggWWgggk...',
+    '...kgggWWgggk...',
+    '...kgWWWWWWgk...',
+    '...kgWWWWWWgk...',
+    '...kgggWWgggk...',
+    '...kgggWWgggk...',
+    '...kggggggggk...',
+    '..kkggggggddkk..',
+    '.kddddddddddddk.',
+    '.kkkkkkkkkkkkkk.',
+    '................',
+    '................',
+  ],
   ui_close: [
     '................',
     '..kk.........kk.',

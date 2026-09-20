@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import { STATUS_INFO, UNIT_DEFINITIONS } from '../engine/index.js';
+import { MAX_ARMY_STACKS, STATUS_INFO, UNIT_DEFINITIONS } from '../engine/index.js';
 import type { ArmyStack } from '../engine/index.js';
 import { stackUpkeep } from '../engine/run/index.js';
 import { Icon } from './pixel/Icon.js';
 import type { Team } from './pixel/sprite.js';
 import { UnitArt } from './UnitArt.js';
 import { UNIT_DESCRIPTIONS } from './unitText.js';
-import { STATUS_ICONS } from './stackStatus.js';
+import { STATUS_ICONS, groupStatuses } from './stackStatus.js';
 import { Modal } from './Modal.js';
 import { Tip } from './Tip.js';
 import { blockTip, roleTip, statusTip } from './tipContent.js';
@@ -34,7 +34,7 @@ export function UnitPopup({ stack, army, onClose, inBattle, team, onSplit, onMer
   const [confirmDismiss, setConfirmDismiss] = useState(false);
 
   const aliveStacks = army.filter((s) => s.count > 0);
-  const armyFull = aliveStacks.length >= 6;
+  const armyFull = aliveStacks.length >= MAX_ARMY_STACKS;
   const canSplit = !!onSplit && stack.count > 1;
   const isLastStack = aliveStacks.every((s) => s.stackId === stack.stackId);
   const maxDismiss = isLastStack ? stack.count - 1 : stack.count;
@@ -93,10 +93,11 @@ export function UnitPopup({ stack, army, onClose, inBattle, team, onSplit, onMer
             {stack.statuses.length === 0 ? (
               <div className="unit-popup-hint">No active statuses.</div>
             ) : (
-              stack.statuses.map((st) => (
-                <Tip key={st.type} tip={statusTip(st.type, st.amount, st.duration)}>
+              groupStatuses(stack.statuses).map((st) => (
+                <Tip key={st.type} tip={statusTip(st.type, st.amount, st.duration, st.stacks)}>
                   <div>
-                    <Icon name={STATUS_ICONS[st.type]} /> {STATUS_INFO[st.type].name} {st.amount} ({st.duration} {st.duration === 1 ? 'turn' : 'turns'})
+                    <Icon name={STATUS_ICONS[st.type]} /> {STATUS_INFO[st.type].name} {st.amount}
+                    {st.stacks > 1 ? ` (×${st.stacks})` : ''} ({st.duration} {st.duration === 1 ? 'turn' : 'turns'})
                   </div>
                 </Tip>
               ))

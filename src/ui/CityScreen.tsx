@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { BUILDING_DEFINITIONS, DOCTRINE_DEFINITIONS, LEVEL_SLOTS, THREAT_PER_CITY_VISIT, farmDescription, mageTowerDescription, threatMultiplier } from '../engine/run/index.js';
+import { BUILDING_DEFINITIONS, DOCTRINE_DEFINITIONS, LEVEL_SLOTS, ROMAN, THREAT_PER_CITY_VISIT, farmDescription, mageTowerDescription, threatMultiplier } from '../engine/run/index.js';
 import type { RunState } from '../engine/run/index.js';
 import type { Position, UnitId } from '../engine/index.js';
 import { BUILDING_ICONS } from './mapIcons.js';
 import { Icon } from './pixel/Icon.js';
 import type { IconName } from './pixel/icons.js';
 import { GarrisonBar } from './GarrisonBar.js';
+import { ScrollArea } from './ScrollArea.js';
 import { Tip } from './Tip.js';
 import { TitleSkyline } from './TitleSkyline.js';
 import { buildingTip } from './tipContent.js';
@@ -16,7 +17,7 @@ import { EffectsPanel } from './city/EffectsPanel.js';
 import { TemplePanel } from './city/TemplePanel.js';
 import { TierLadderPanel } from './city/TierLadderPanel.js';
 import { TownHallPanel } from './city/TownHallPanel.js';
-import { FIXED_BUILDINGS, FIXED_BUILDING_INFO, ROMAN, SCENE_BUILDINGS, buildBlocker, plotState } from './city/cityView.js';
+import { FIXED_BUILDINGS, FIXED_BUILDING_INFO, SCENE_BUILDINGS, buildBlocker, plotState } from './city/cityView.js';
 import type { FixedBuildingId, PlotState } from './city/cityView.js';
 
 interface Props {
@@ -31,6 +32,7 @@ interface Props {
   onOpenMenu: () => void;
   onLeave: () => void;
   onSplitStack: (stackId: string, splitCount: number, toPosition: Position) => void;
+  onSplitMerge: (stackId: string, splitCount: number, targetStackId: string) => void;
   onMergeStacks: (keepStackId: string, absorbStackId: string) => void;
   onMoveStack: (stackId: string, toPosition: Position) => void;
   onDismissStack: (stackId: string, count?: number) => void;
@@ -83,7 +85,7 @@ function Plot({ id, name, icon, state, status, wide, active, tip, onOpen }: Plot
   );
 }
 
-export function CityScreen({ run, onRecruit, onBuild, onUpgradeCity, onUpgradeMageTower, onUpgradeFarm, onRemoveCard, onChooseDoctrine, onOpenMenu, onLeave, onSplitStack, onMergeStacks, onMoveStack, onDismissStack }: Props) {
+export function CityScreen({ run, onRecruit, onBuild, onUpgradeCity, onUpgradeMageTower, onUpgradeFarm, onRemoveCard, onChooseDoctrine, onOpenMenu, onLeave, onSplitStack, onSplitMerge, onMergeStacks, onMoveStack, onDismissStack }: Props) {
   const { city } = run;
   const [panel, setPanel] = useState<string | null>(null);
   const [recentRecruit, setRecentRecruit] = useState<{ unitId: UnitId; amount: number } | null>(null);
@@ -114,7 +116,7 @@ export function CityScreen({ run, onRecruit, onBuild, onUpgradeCity, onUpgradeMa
   return (
     <div className="screen city-frame" data-screen="city">
       <div className="city-scene">
-        <div className="city-content">
+        <ScrollArea wrapClassName="city-scroll" className="city-content">
           <div className="city-town">
             <header className="city-header">
               <TitleSkyline fit="contain" />
@@ -171,7 +173,7 @@ export function CityScreen({ run, onRecruit, onBuild, onUpgradeCity, onUpgradeMa
             </div>
           </div>
           <EffectsPanel run={run} />
-        </div>
+        </ScrollArea>
       </div>
 
       {panel === 'townhall' && <TownHallPanel run={run} onUpgradeCity={onUpgradeCity} onRemoveCard={onRemoveCard} onClose={() => setPanel(null)} />}
@@ -192,6 +194,7 @@ export function CityScreen({ run, onRecruit, onBuild, onUpgradeCity, onUpgradeMa
         onOpenMenu={onOpenMenu}
         onMoveStack={onMoveStack}
         onSplitStack={onSplitStack}
+        onSplitMerge={onSplitMerge}
         onMergeStacks={onMergeStacks}
         onDismissStack={onDismissStack}
       />

@@ -1,8 +1,10 @@
 import { UNIT_DEFINITIONS } from '../engine/index.js';
-import { dailyFoodNet, dailyProduction, dailyUpkeep, foodDaysLeft, stackUpkeep, starvationForecast } from '../engine/run/index.js';
+import type { UnitId } from '../engine/index.js';
+import { STABLE_FOOD_DISCOUNT, dailyFoodNet, dailyProduction, foodDaysLeft, starvationForecast } from '../engine/run/index.js';
 import type { RunState } from '../engine/run/index.js';
 import { Modal } from './Modal.js';
 import { Icon } from './pixel/Icon.js';
+import { foodBreakdown } from './foodView.js';
 
 export type FoodRun = Pick<RunState, 'army' | 'city' | 'food' | 'starvationDays'>;
 
@@ -13,13 +15,12 @@ interface Props {
 
 /** Explains the daily Food numbers behind the resources column: upkeep per stack, production, net, days left, starvation forecast. */
 export function FoodPopup({ run, onClose }: Props) {
-  const upkeep = dailyUpkeep(run);
+  const food = foodBreakdown(run);
+  const upkeep = food.upkeep;
   const production = dailyProduction(run);
   const net = dailyFoodNet(run);
   const daysLeft = foodDaysLeft(run);
   const forecast = starvationForecast(run);
-  const hasStable = run.city.buildings.includes('stable');
-  const stacks = run.army.filter((s) => s.count > 0);
 
   return (
     <Modal heading="Food" onClose={onClose} width={420}>
@@ -29,16 +30,30 @@ export function FoodPopup({ run, onClose }: Props) {
             <span>Stockpile</span>
             <span>{run.food}</span>
           </div>
-          {stacks.map((s) => (
+          {food.stacks.map((s) => (
             <div key={s.stackId} className="food-popup-row food-popup-sub">
               <span>
-                {UNIT_DEFINITIONS[s.unitId].name} ×{s.count}
+                {UNIT_DEFINITIONS[s.unitId as UnitId].name} ×{s.count}
               </span>
-              <span>{stackUpkeep(s).toFixed(1)}</span>
+              <span>{s.food.toFixed(1)}</span>
             </div>
           ))}
+          <div className="food-popup-row food-popup-sub">
+            <span>Together</span>
+            <span>{food.subtotal.toFixed(1)}</span>
+          </div>
           <div className="food-popup-row">
-            <span>Army upkeep per day{hasStable ? ' (Stable -25%)' : ''}</span>
+            <span>Rounded to whole Food</span>
+            <span>-{food.rounded}/day</span>
+          </div>
+          {food.stableApplied && (
+            <div className="food-popup-row">
+              <span>Stable -{Math.round(STABLE_FOOD_DISCOUNT * 100)}%</span>
+              <span>-{food.upkeep}/day</span>
+            </div>
+          )}
+          <div className="food-popup-row">
+            <span>Army upkeep per day</span>
             <span>-{upkeep}</span>
           </div>
           <div className="food-popup-row">

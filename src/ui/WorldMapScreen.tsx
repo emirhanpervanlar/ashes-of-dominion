@@ -15,6 +15,7 @@ interface Props {
   onEnterCity: () => void;
   onOpenMenu: () => void;
   onSplitStack: (stackId: string, splitCount: number, toPosition: Position) => void;
+  onSplitMerge: (stackId: string, splitCount: number, targetStackId: string) => void;
   onMergeStacks: (keepStackId: string, absorbStackId: string) => void;
   onMoveStack: (stackId: string, toPosition: Position) => void;
   onDismissStack: (stackId: string, count?: number) => void;
@@ -35,7 +36,7 @@ const announcedChapters = new Set<number>();
 
 const strengthText = (multiplier: number): string => `x${multiplier.toFixed(2)}`;
 
-export function WorldMapScreen({ run, onMoveTo, onEnterCity, onOpenMenu, onSplitStack, onMergeStacks, onMoveStack, onDismissStack }: Props) {
+export function WorldMapScreen({ run, onMoveTo, onEnterCity, onOpenMenu, onSplitStack, onSplitMerge, onMergeStacks, onMoveStack, onDismissStack }: Props) {
   const [confirmCity, setConfirmCity] = useState(false);
   const warning = bossWarning(run);
   const [bannerOpen, setBannerOpen] = useState(() => warning && !announcedChapters.has(run.chapter));
@@ -62,7 +63,7 @@ export function WorldMapScreen({ run, onMoveTo, onEnterCity, onOpenMenu, onSplit
 
   return (
     <div className="screen garrison-frame" data-screen="map">
-      <div className="garrison-scene">
+      <div className={`garrison-scene${warning ? ' garrison-scene--boss' : ''}`}>
         {bannerOpen && (
           <div className="boss-banner" onClick={() => setBannerOpen(false)}>
             <Icon name="node_boss" size={2} />
@@ -136,6 +137,7 @@ export function WorldMapScreen({ run, onMoveTo, onEnterCity, onOpenMenu, onSplit
         onOpenMenu={onOpenMenu}
         onMoveStack={onMoveStack}
         onSplitStack={onSplitStack}
+        onSplitMerge={onSplitMerge}
         onMergeStacks={onMergeStacks}
         onDismissStack={onDismissStack}
       />

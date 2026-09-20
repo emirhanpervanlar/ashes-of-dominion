@@ -12,7 +12,7 @@ import { UNIT_ROLE_ICONS } from './unitIcons.js';
 const POSITIONS: Position[] = [1, 2, 3, 4, 5, 6];
 const LANES = ['Left', 'Center', 'Right'];
 const SLIDE_MS = 150;
-const MERGE_FLASH_MS = 900;
+const MERGE_FLASH_MS = 500;
 /** Pointer travel before a press becomes a drag; below it the gesture stays a click. */
 const DRAG_THRESHOLD = 6;
 
@@ -32,6 +32,8 @@ interface Props {
   onMoveStack: (stackId: string, toPosition: Position) => void;
   onMergeStacks: (keepStackId: string, absorbStackId: string) => void;
   onPlaceSplit: (toPosition: Position) => void;
+  /** Placing a split-off part onto a stack of the same unit type merges it in (AO-043). */
+  onMergeSplit: (targetStackId: string) => void;
   onCancelPlacing: () => void;
   onInspect: (stackId: string) => void;
 }
@@ -56,7 +58,7 @@ function slotAt(x: number, y: number): Position | null {
  * a stack of the same unit type merges (AO-D061). A split-off part is held the same way until an empty slot is chosen.
  * Right-click inspects.
  */
-export function ArmyGrid({ army, recentRecruit, disabled, placing, onMoveStack, onMergeStacks, onPlaceSplit, onCancelPlacing, onInspect }: Props) {
+export function ArmyGrid({ army, recentRecruit, disabled, placing, onMoveStack, onMergeStacks, onPlaceSplit, onMergeSplit, onCancelPlacing, onInspect }: Props) {
   const [heldId, setHeldId] = useState<string | null>(null);
   const [pressId, setPressId] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
@@ -189,10 +191,19 @@ export function ArmyGrid({ army, recentRecruit, disabled, placing, onMoveStack, 
     onMoveStack(drop.stackId, drop.toPosition);
   }
 
+  /** While placing, a stack of the split-off part's unit type (other than the one it came from) takes the part in. */
+  function canMergeSplit(occupant: ArmyStack): boolean {
+    return !!placingStack && occupant.stackId !== placingStack.stackId && occupant.unitId === placingStack.unitId;
+  }
+
   function clickSlot(position: Position, occupant: ArmyStack | undefined) {
     if (disabled || swallowClick.current) return;
     if (placing) {
       if (!occupant) onPlaceSplit(position);
+      else if (canMergeSplit(occupant)) {
+        onMergeSplit(occupant.stackId);
+        setMergeFlash(position);
+      }
       return;
     }
     if (!heldId) {
@@ -230,11 +241,12 @@ export function ArmyGrid({ army, recentRecruit, disabled, placing, onMoveStack, 
           const classes = ['army-slot', s ? 'filled' : 'empty'];
           if (s && (s.stackId === heldId || s.stackId === placing?.stackId)) classes.push('held');
           if (heldId && s && s.stackId !== heldId) classes.push(`drop-${resolveDrop(army, heldId, position).kind}`);
+          if (placingStack && s && canMergeSplit(s)) classes.push('drop-merge');
           if (dragging && overPosition === position) classes.push('over');
           if (mergeFlash === position) classes.push('merged');
           const count = s && placing && s.stackId === placing.stackId ? s.count - placing.count : s?.count;
           return (
-            <Tip key={position} tip={s ? `${slotTitle(position)} (${UNIT_DEFINITIONS[s.unitId].name})` : slotTitle(position)}>
+            <Tip key={position} tip={busy ? null : s ? `${slotTitle(position)} (${UNIT_DEFINITIONS[s.unitId].name})` : slotTitle(position)}>
               <div
                 className={classes.join(' ')}
                 data-position={position}
@@ -257,7 +269,7 @@ export function ArmyGrid({ army, recentRecruit, disabled, placing, onMoveStack, 
                       }}
                     >
                       <UnitArt unitId={s.unitId} seed={s.stackId} />
-                      <Tip tip={roleTip(s.unitId)}>
+                      <Tip tip={busy ? null : roleTip(s.unitId)}>
                         <span className="army-slot-role">
                           <Icon name={UNIT_ROLE_ICONS[s.unitId]} />
                         </span>
@@ -272,7 +284,7 @@ export function ArmyGrid({ army, recentRecruit, disabled, placing, onMoveStack, 
                     </span>
                     <span className="army-slot-merge-label">Merge</span>
                     {recentRecruit?.unitId === s.unitId && <span className="recruit-flourish">+{recentRecruit.amount}</span>}
-                    {mergeFlash === position && <span className="recruit-flourish">Merged</span>}
+                    {mergeFlash === position && <span className="recruit-flourish merge-flourish">Merged</span>}
                   </>
                 ) : (
                   <>
@@ -286,6 +298,13 @@ export function ArmyGrid({ army, recentRecruit, disabled, placing, onMoveStack, 
           );
         })}
       </div>
+      {placingStack &&
+        createPortal(
+          <div className="army-hint" role="status">
+            Click an empty slot{army.some((a) => a.count > 0 && canMergeSplit(a)) ? ` or a ${UNIT_DEFINITIONS[placingStack.unitId].name} stack to merge` : ''}. Esc cancels.
+          </div>,
+          document.body,
+        )}
       {ghostStack &&
         pointer &&
         createPortal(

@@ -69,7 +69,7 @@ export function HeroSetupScreen({ onBack, onBegin }: Props) {
                   </span>
                   <span className="hero-stat-table">
                     {heroStatRows(hero.stats, hero.baseMana).map((row) => (
-                      <Tip key={row.key} tip={{ title: row.label, icon: row.icon, body: row.effect }}>
+                      <Tip key={row.key} tip={row.tip}>
                         <span className="hero-stat-row">
                           <Icon name={row.icon} />
                           <span className="hero-stat-label">{row.label}</span>
@@ -88,7 +88,7 @@ export function HeroSetupScreen({ onBack, onBegin }: Props) {
                 <button key={relic.id} className={`relic-choice rarity-${relic.rarity}${relicId === relic.id ? ' selected' : ''}`} onClick={() => setRelicId(relic.id)}>
                   <Tip tip={relicTip(STARTING_RELIC_DEFINITIONS[relic.id]!, relicIcon(relic.id))}>
                     <span className="relic-choice-frame">
-                      <Icon name={relicIcon(relic.id)} size={3} />
+                      <Icon name={relicIcon(relic.id)} size={2} />
                     </span>
                   </Tip>
                   <span className="relic-choice-text">
