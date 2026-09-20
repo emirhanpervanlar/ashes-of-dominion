@@ -5,7 +5,7 @@ import { DAYS_PER_CHAPTER, threatMultiplier } from './chapters.js';
 /**
  * AO-D053 battle loot. Gold is common, Food is a low-probability drop. Both grow with the
  * chapter, the day inside the chapter, Threat (stronger enemies) and elite/boss fights.
- * Every number is a PROPOSAL; nothing else in the engine hard-codes them.
+ * Every number is a first-pass tuning value for qa-playtest; nothing else in the engine hard-codes them.
  */
 export const BATTLE_LOOT = {
   /** Base bands by chapter (index 0 = chapter 1), at day 1 of the chapter, normal enemy, Threat 0. */

@@ -4,8 +4,7 @@ import type { ArmyStack, Position, UnitId } from '../types.js';
 import { BOSS_CHAPTER_MULTIPLIER, CHAPTER_DEPTH_BONUS, LAYERS_PER_DEPTH, threatMultiplier } from './chapters.js';
 
 /**
- * PROTOTYPE scaling (AGENT.md §41 threat/anti-snowball, §70 not locked):
- * deeper map layers, later chapters, Elite nodes and Threat (AO-D047) all
+ * PROTOTYPE scaling: deeper map layers, later chapters (AO-D046), Elite nodes and Threat (AO-D047) all
  * field larger stacks so the run can't be farmed forever at the same difficulty.
  */
 function scale(base: number, depth: number, eliteMultiplier: number, threat: number): number {
@@ -21,8 +20,8 @@ function encounterDepth(layer: number, chapter: number): number {
 /**
  * Slots are revealed progressively by depth so early fights are a single small pack
  * and the full 6-stack formation only appears once the player has had a chance to
- * grow past the small starting garrison (AGENT.md §73 vertical slice, revised: the
- * player now starts with 1-2 stacks, so early encounters must match that).
+ * grow past the small starting army (AO-D007: the player starts with 2 stacks,
+ * so early encounters must match that).
  */
 function slotsForDepth(depth: number, elite: boolean): number {
   const base = elite ? 2 : 1;

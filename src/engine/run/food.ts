@@ -9,7 +9,7 @@ export function totalArmyCount(army: ArmyStack[]): number {
   return army.reduce((sum, s) => sum + s.count, 0);
 }
 
-/** AO-D048 / AGENT.md §21: the warning shows when Food would run out within this many days at the current net. */
+/** AO-D048: the warning shows when Food would run out within this many days at the current net. */
 export const FOOD_WARNING_DAYS = 3;
 
 /** What one stack eats per day: count x the unit's foodPerUnit (AO-D048). Fractional; the daily total is rounded to the nearest whole Food. */

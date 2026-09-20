@@ -322,7 +322,7 @@ function reject(events: RunEvent[], reason: string): void {
   events.push({ type: 'ACTION_REJECTED', reason });
 }
 
-/** A modest, deterministic one-time pickup — see AGENT.md §35 (ongoing per-day production is future work). */
+/** A modest, deterministic one-time pickup; ongoing income comes from the Farm and Gold Mine (AO-D020, AO-D048). */
 function resolveResourceNode(run: RunState, events: RunEvent[]): void {
   const { gold, food } = rollResourceNode(run.rng, run.city.doctrine === 'economic' ? ECONOMIC_DOCTRINE_MULTIPLIER : 1);
   changeGold(run, gold);

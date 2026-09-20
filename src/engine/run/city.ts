@@ -85,7 +85,7 @@ export interface CityState {
 }
 
 /**
- * City Doctrines (AGENT.md §27) — one permanent specialization choice.
+ * City Doctrines (AO-D062, Temple) — one permanent specialization choice.
  * Military/Arcane/Necromantic route through the same RelicEffect pipeline
  * combat already reads for relics (see runEngine.ts's startBattleForRun);
  * Economic is checked directly at the resource-node payout call site
@@ -126,9 +126,8 @@ export const DOCTRINE_DEFINITIONS: Record<string, CityDoctrineDefinition> = {
 };
 
 /**
- * AGENT.md §26 — "6 active slots, ~10 possible buildings, player cannot
- * build everything." 7 buildings so the choice of which one to skip is
- * real without the full ~10-building catalog (§70: not locked).
+ * Buildings (AO-D020, AO-D036, AO-D048, AO-D062). LEVEL_SLOTS gives 3/5/6 slots
+ * for 8 buildings, so the player cannot build everything and must choose what to skip.
  */
 export const BUILDING_DEFINITIONS: Record<string, CityBuildingDefinition> = {
   market: {
@@ -240,8 +239,8 @@ export function recruitCost(city: CityState, unitId: UnitId, count: number): { g
 }
 
 /**
- * Merges into an existing matching stack (blending veterancy by a weighted
- * average — deterministic per AGENT.md §30), or creates a new stack in a
+ * Merges into an existing matching stack (AO-D015; fresh recruits are veterancy 0,
+ * so the merged stack keeps the lower tier), or creates a new stack in a
  * free slot. Returns null if there's no matching stack AND no free slot
  * (the field army is capped at MAX_ARMY_STACKS).
  */

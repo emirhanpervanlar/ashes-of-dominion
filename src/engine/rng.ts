@@ -1,7 +1,7 @@
 /**
  * Deterministic PRNG (mulberry32). All combat randomness must flow through
- * this module — see AGENT.md §58 "Deterministic Runs": runSeed + actions
- * must reproduce the same state.
+ * this module, so a run seed plus the same actions reproduces the same state
+ * (docs/SYSTEM_SPEC.md, Architecture).
  */
 export interface RngState {
   seed: number;
