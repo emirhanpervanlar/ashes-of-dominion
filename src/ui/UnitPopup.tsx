@@ -156,7 +156,7 @@ export function UnitPopup({ stack, army, onClose, inBattle, onSplit, onMerge, on
                 <Tip tip={armyFull ? 'Army full: no free slot for the new stack.' : 'Choose an empty slot for the split-off part'}>
                   <span>
                     <button className="btn" disabled={armyFull} onClick={() => onSplit!(stack.stackId, splitCount)}>
-                      Split &amp; Place
+                      Split Off
                     </button>
                   </span>
                 </Tip>
