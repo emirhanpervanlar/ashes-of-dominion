@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { BUILDING_DEFINITIONS, DOCTRINE_DEFINITIONS, LEVEL_SLOTS, LEVEL_UP_COST, MAGE_TOWER_TIERS, canRecruitUnit, mageTowerDescription, recruitCost } from '../engine/run/index.js';
-import type { CardRemovalQuote, CityState, RunEvent } from '../engine/run/index.js';
+import { BUILDING_DEFINITIONS, DOCTRINE_DEFINITIONS, FARM_TIERS, LEVEL_SLOTS, LEVEL_UP_COST, MAGE_TOWER_TIERS, canRecruitUnit, cardRemovalQuote, cityRemovalPrice, farmDescription, mageTowerDescription, recruitCost } from '../engine/run/index.js';
+import type { RunState } from '../engine/run/index.js';
 import { UNIT_DEFINITIONS } from '../engine/index.js';
-import type { ArmyStack, CardInstance, HeroId, Position, RelicDefinition, UnitId } from '../engine/index.js';
+import type { Position, UnitId } from '../engine/index.js';
 import { BUILDING_ICONS } from './mapIcons.js';
 import { Icon } from './pixel/Icon.js';
 import { UnitArt } from './UnitArt.js';
@@ -10,19 +10,12 @@ import { GarrisonBar } from './GarrisonBar.js';
 import { CardRemovalPicker } from './CardRemovalPicker.js';
 
 interface Props {
-  city: CityState;
-  gold: number;
-  food: number;
-  hero: { name: string; heroType: HeroId; hp: number; maxHp: number };
-  army: ArmyStack[];
-  relics: RelicDefinition[];
-  log: RunEvent[];
-  deck: CardInstance[];
-  removalQuote: CardRemovalQuote;
+  run: RunState;
   onRecruit: (unitId: UnitId, count: number) => void;
   onBuild: (buildingId: string) => void;
   onUpgradeCity: () => void;
   onUpgradeMageTower: () => void;
+  onUpgradeFarm: () => void;
   onRemoveCard: (instanceId: string) => void;
   onChooseDoctrine: (doctrineId: string) => void;
   onOpenMenu: () => void;
@@ -30,6 +23,7 @@ interface Props {
   onSplitStack: (stackId: string, splitCount: number) => void;
   onMergeStacks: (stackIdA: string, stackIdB: string) => void;
   onMoveStack: (stackId: string, toPosition: Position) => void;
+  onDismissStack: (stackId: string, count?: number) => void;
 }
 
 const RECRUITABLE: UnitId[] = ['swordsman', 'archer', 'knight', 'priest'];
@@ -44,13 +38,17 @@ const HOTSPOTS: Record<string, { top: string; left: string }> = {
   market: { top: '58%', left: '15%' },
   gold_mine: { top: '60%', left: '85%' },
   mage_tower: { top: '68%', left: '33%' },
+  farm: { top: '80%', left: '80%' },
   stable: { top: '68%', left: '67%' },
   training_hall: { top: '44%', left: '42%' },
   forge: { top: '46%', left: '62%' },
   shrine: { top: '72%', left: '50%' },
 };
 
-export function CityScreen({ city, gold, food, hero, army, relics, log, deck, removalQuote, onRecruit, onBuild, onUpgradeCity, onUpgradeMageTower, onRemoveCard, onChooseDoctrine, onOpenMenu, onLeave, onSplitStack, onMergeStacks, onMoveStack }: Props) {
+export function CityScreen({ run, onRecruit, onBuild, onUpgradeCity, onUpgradeMageTower, onUpgradeFarm, onRemoveCard, onChooseDoctrine, onOpenMenu, onLeave, onSplitStack, onMergeStacks, onMoveStack, onDismissStack }: Props) {
+  const { city, gold, food, army, masterDeck: deck } = run;
+  const removalQuote = cardRemovalQuote(run);
+  const removalUses = run.cardRemoval.cityUses;
   const [panel, setPanel] = useState<Panel>(null);
   const [counts, setCounts] = useState<Record<string, number>>({});
   const [recentRecruit, setRecentRecruit] = useState<{ unitId: UnitId; amount: number } | null>(null);
@@ -113,7 +111,7 @@ export function CityScreen({ city, gold, food, hero, army, relics, log, deck, re
                 <Icon name={BUILDING_ICONS[building.id]!} size={2} />
               </span>
               <span className="th-hotspot-name">{building.name}</span>
-              <span className="th-hotspot-sub">{built ? (building.id === 'mage_tower' ? `Tier ${ROMAN[city.mageTowerTier - 1]}` : 'Built') : `${building.cost}g`}</span>
+              <span className="th-hotspot-sub">{built ? (building.id === 'mage_tower' ? `Tier ${ROMAN[city.mageTowerTier - 1]}` : building.id === 'farm' ? `Tier ${ROMAN[city.farmTier - 1]}` : 'Built') : `${building.cost}g`}</span>
             </div>
           );
         })}
@@ -144,6 +142,11 @@ export function CityScreen({ city, gold, food, hero, army, relics, log, deck, re
                 )}
                 <div className="divider" />
                 <h3>Deck</h3>
+                <p className="subtitle">
+                  {removalUses === 0
+                    ? `Card removal: the first is free, then ${cityRemovalPrice(1)}g, ${cityRemovalPrice(2)}g, ${cityRemovalPrice(3)}g and so on.`
+                    : `Card removal now costs ${cityRemovalPrice(removalUses)}g, then ${cityRemovalPrice(removalUses + 1)}g, ${cityRemovalPrice(removalUses + 2)}g and so on.`}
+                </p>
                 <CardRemovalPicker deck={deck} quote={removalQuote} onRemove={onRemoveCard} />
               </>
             )}
@@ -232,9 +235,11 @@ export function CityScreen({ city, gold, food, hero, army, relics, log, deck, re
                   <h3>
                     <Icon name={BUILDING_ICONS[building.id]!} /> {building.name}
                   </h3>
-                  <p className="subtitle">{building.id === 'mage_tower' ? mageTowerDescription(city.mageTowerTier) : building.description}</p>
+                  <p className="subtitle">{building.id === 'mage_tower' ? mageTowerDescription(city.mageTowerTier) : building.id === 'farm' ? farmDescription(city.farmTier) : building.description}</p>
                   {built && building.id === 'mage_tower' ? (
                     <MageTowerUpgrade tier={city.mageTowerTier} gold={gold} onUpgrade={onUpgradeMageTower} />
+                  ) : built && building.id === 'farm' ? (
+                    <FarmUpgrade tier={city.farmTier} gold={gold} onUpgrade={onUpgradeFarm} />
                   ) : built ? (
                     <p className="subtitle">Already built.</p>
                   ) : (
@@ -250,27 +255,20 @@ export function CityScreen({ city, gold, food, hero, army, relics, log, deck, re
       )}
 
       <GarrisonBar
-        stats={[
-          { icon: 'gold', text: String(gold) },
-          { icon: 'food', text: String(food) },
-          { icon: 'slots', text: `${slotsUsed}/${slotsMax}` },
-        ]}
+        run={run}
         onLeave={onLeave}
-        hero={hero}
-        relics={relics}
-        army={army}
-        log={log}
         recentRecruit={recentRecruit}
         onOpenMenu={onOpenMenu}
         onMoveStack={onMoveStack}
         onSplitStack={onSplitStack}
         onMergeStacks={onMergeStacks}
+        onDismissStack={onDismissStack}
       />
     </div>
   );
 }
 
-const ROMAN = ['I', 'II', 'III'];
+const ROMAN = ['I', 'II', 'III', 'IV', 'V'];
 
 function MageTowerUpgrade({ tier, gold, onUpgrade }: { tier: 0 | 1 | 2 | 3; gold: number; onUpgrade: () => void }) {
   const next = MAGE_TOWER_TIERS[tier];
@@ -280,6 +278,24 @@ function MageTowerUpgrade({ tier, gold, onUpgrade }: { tier: 0 | 1 | 2 | 3; gold
       {next ? (
         <button className="btn" disabled={gold < next.cost} onClick={onUpgrade}>
           Upgrade to Tier {ROMAN[tier]} - {next.cost} Gold
+        </button>
+      ) : (
+        <p className="subtitle">Max tier</p>
+      )}
+    </>
+  );
+}
+
+function FarmUpgrade({ tier, gold, onUpgrade }: { tier: number; gold: number; onUpgrade: () => void }) {
+  const next = FARM_TIERS[tier];
+  return (
+    <>
+      <p className="mage-tower-tier">
+        Tier {ROMAN[tier - 1]} — +{FARM_TIERS[tier - 1]!.food} Food per day
+      </p>
+      {next ? (
+        <button className="btn" disabled={gold < next.cost} onClick={onUpgrade}>
+          Upgrade to Tier {ROMAN[tier]} (+{next.food} Food per day) - {next.cost} Gold
         </button>
       ) : (
         <p className="subtitle">Max tier</p>

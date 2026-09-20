@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { CARD_DEFINITIONS, UNIT_DEFINITIONS, computeValidHealTargets, computeValidTargets } from './engine/index.js';
 import type { ArmyStack, CardEffect, CardTargeting, EnemyIntent, PlayerAction, Position } from './engine/index.js';
-import { applyRunAction, cardRemovalQuote, createRun, migrateRun } from './engine/run/index.js';
+import { applyRunAction, cardRemovalQuote, createRun, enemyStrengthAfterCityVisits, eventView, migrateRun } from './engine/run/index.js';
 import type { RunEvent, RunState } from './engine/run/index.js';
 import { StackTile } from './ui/StackTile.js';
 import { UnitPopup } from './ui/UnitPopup.js';
@@ -217,36 +217,52 @@ export default function App() {
     setToasts((t) => t.filter((x) => x.id !== id));
   }
 
-  /** Resource-gain toasts (AGENT.md UX feedback) — a generic before/after diff plus a few event-specific call-outs. */
-  function toastsForRunEvents(events: RunEvent[], before: RunState, after: RunState) {
+  /** Toasts for run events (resource gains, losses, milestones); the history drawer carries the full text via describeRunEvent. */
+  function toastsForRunEvents(events: RunEvent[]) {
     for (const e of events) {
-      if (e.type === 'RESOURCE_FOUND') {
-        pushToast('gold', `+${e.gold} Gold, +${e.food} Food`);
-      }
-      if (e.type === 'EVENT_RESOLVED') {
-        const goldDelta = after.gold - before.gold;
-        const foodDelta = after.food - before.food;
-        const hpDelta = after.hero.hp - before.hero.hp;
-        const parts: string[] = [];
-        if (goldDelta !== 0) parts.push(`${goldDelta > 0 ? '+' : ''}${goldDelta} Gold`);
-        if (foodDelta !== 0) parts.push(`${foodDelta > 0 ? '+' : ''}${foodDelta} Food`);
-        if (hpDelta !== 0) parts.push(`${hpDelta > 0 ? '+' : ''}${hpDelta} HP`);
-        if (e.outcome === 'search_relic') parts.push('a relic!');
-        if (e.outcome === 'search_trap') parts.push('a trap!');
-        const icon: IconName = e.outcome === 'search_relic' ? 'relic' : e.outcome === 'search_trap' ? 'ui_warn' : hpDelta > 0 ? 'hp' : 'fx_sparkle';
-        pushToast(icon, parts.length ? parts.join(', ') : 'Nothing happened.');
-      }
-      if (e.type === 'STARVING') {
-        pushToast('fx_skull', `Starving! Lost ${e.unitsLost} unit(s).`);
-      }
-      if (e.type === 'CARD_REMOVED') {
-        pushToast('discard', describeRunEvent(e) ?? 'Card removed.');
-      }
-      if (e.type === 'MAGE_TOWER_UPGRADED') {
-        pushToast('bld_mage_tower', describeRunEvent(e) ?? 'Mage Tower upgraded.');
-      }
-      if (e.type === 'ACTION_REJECTED') {
-        pushToast('ui_warn', e.reason);
+      const text = describeRunEvent(e);
+      switch (e.type) {
+        case 'RESOURCE_FOUND':
+          pushToast('gold', `+${e.gold} Gold, +${e.food} Food`);
+          break;
+        case 'BATTLE_LOOT':
+          pushToast('gold', text ?? 'Loot');
+          break;
+        case 'EVENT_RESOLVED':
+          pushToast('fx_sparkle', text ?? 'Nothing happened.');
+          break;
+        case 'STARVED':
+          pushToast('fx_skull', text ?? 'The army starved.');
+          break;
+        case 'UNITS_LOST':
+          pushToast('fx_skull', text ?? 'Units lost.');
+          break;
+        case 'UNITS_GAINED':
+        case 'UNITS_DISMISSED':
+        case 'UNIT_GAIN_DECLINED':
+          pushToast('crest', text ?? 'The army changed.');
+          break;
+        case 'CARD_REMOVED':
+          pushToast('discard', text ?? 'Card removed.');
+          break;
+        case 'MAGE_TOWER_UPGRADED':
+          pushToast('bld_mage_tower', text ?? 'Mage Tower upgraded.');
+          break;
+        case 'FARM_UPGRADED':
+          pushToast('bld_farm', text ?? 'Farm upgraded.');
+          break;
+        case 'THREAT_CHANGED':
+          pushToast('threat', text ?? 'Threat changed.');
+          break;
+        case 'BOSS_DEFEATED':
+          pushToast('node_boss', text ?? 'Boss defeated.');
+          break;
+        case 'CHAPTER_STARTED':
+          pushToast('day', text ?? 'A new chapter begins.');
+          break;
+        case 'ACTION_REJECTED':
+          pushToast('ui_warn', e.reason);
+          break;
       }
     }
   }
@@ -264,9 +280,11 @@ export default function App() {
   }
 
   function dispatchRun(action: Parameters<typeof applyRunAction>[1]) {
-    const before = run;
     const result = applyRunAction(run, action);
-    toastsForRunEvents(result.events, before, result.run);
+    toastsForRunEvents(result.events);
+    if (action.type === 'LEAVE_CITY' && result.run.phase === 'on_map') {
+      pushToast('threat', `Enemies grew stronger: Threat ${result.run.threat} (x${enemyStrengthAfterCityVisits(result.run).toFixed(2)} enemy strength).`);
+    }
     setRun(result.run);
     return result;
   }
@@ -689,11 +707,12 @@ export default function App() {
         <WorldMapScreen
           run={run}
           onMoveTo={(nodeId) => dispatchRun({ type: 'MOVE_TO', nodeId })}
-          onEnterCity={() => dispatchRun({ type: 'ENTER_CITY' })}
+          onEnterCity={() => dispatchRun({ type: 'TRAVEL_TO_CITY' })}
           onOpenMenu={() => setMenuOpen(true)}
           onSplitStack={(stackId, splitCount) => dispatchRun({ type: 'SPLIT_STACK', stackId, splitCount })}
           onMergeStacks={(stackIdA, stackIdB) => dispatchRun({ type: 'MERGE_STACKS', stackIdA, stackIdB })}
           onMoveStack={(stackId, toPosition) => dispatchRun({ type: 'MOVE_STACK', stackId, toPosition })}
+          onDismissStack={(stackId, count) => dispatchRun({ type: 'DISMISS_STACK', stackId, count })}
         />
       </>
     );
@@ -704,38 +723,42 @@ export default function App() {
       <>
         {gameChromeNoMenuBtn}
         <CityScreen
-          city={run.city}
-          gold={run.gold}
-          food={run.food}
-          hero={run.hero}
-          army={run.army}
-          relics={run.relics}
-          log={run.log}
+          run={run}
           onRecruit={(unitId, count) => dispatchRun({ type: 'RECRUIT', unitId, count })}
           onBuild={(buildingId) => dispatchRun({ type: 'BUILD_BUILDING', buildingId })}
           onUpgradeCity={() => dispatchRun({ type: 'UPGRADE_CITY' })}
           onUpgradeMageTower={() => dispatchRun({ type: 'UPGRADE_MAGE_TOWER' })}
+          onUpgradeFarm={() => dispatchRun({ type: 'UPGRADE_FARM' })}
           onRemoveCard={(instanceId) => dispatchRun({ type: 'REMOVE_CARD', instanceId })}
-          deck={run.masterDeck}
-          removalQuote={cardRemovalQuote(run)}
           onChooseDoctrine={(doctrineId) => dispatchRun({ type: 'CHOOSE_DOCTRINE', doctrineId })}
           onOpenMenu={() => setMenuOpen(true)}
           onLeave={() => dispatchRun({ type: 'LEAVE_CITY' })}
           onSplitStack={(stackId, splitCount) => dispatchRun({ type: 'SPLIT_STACK', stackId, splitCount })}
           onMergeStacks={(stackIdA, stackIdB) => dispatchRun({ type: 'MERGE_STACKS', stackIdA, stackIdB })}
           onMoveStack={(stackId, toPosition) => dispatchRun({ type: 'MOVE_STACK', stackId, toPosition })}
+          onDismissStack={(stackId, count) => dispatchRun({ type: 'DISMISS_STACK', stackId, count })}
         />
       </>
     );
   }
 
-  if (run.phase === 'event' && run.pendingEvent) {
+  const pendingEventView = run.phase === 'event' ? eventView(run) : null;
+  if (pendingEventView) {
     return (
       <>
         {gameChrome}
         <EventScreen
-          eventId={run.pendingEvent.eventId}
+          view={pendingEventView}
+          deck={run.masterDeck}
+          army={run.army}
+          newcomer={run.pendingUnitChoice?.newcomer ?? null}
+          resolved={run.pendingEvent?.resolved ?? null}
           onChoose={(optionId) => dispatchRun({ type: 'CHOOSE_EVENT_OPTION', optionId })}
+          onChooseCard={(instanceId) => dispatchRun({ type: 'CHOOSE_EVENT_CARD', instanceId })}
+          onChooseUnit={(unitId) => dispatchRun({ type: 'CHOOSE_EVENT_UNIT', unitId })}
+          onCancelChoice={() => dispatchRun({ type: 'CANCEL_EVENT_CHOICE' })}
+          onDismissStack={(stackId, count) => dispatchRun({ type: 'DISMISS_STACK', stackId, count })}
+          onDeclineGain={() => dispatchRun({ type: 'DECLINE_UNIT_GAIN' })}
         />
       </>
     );

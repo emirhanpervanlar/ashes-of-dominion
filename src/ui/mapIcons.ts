@@ -2,13 +2,12 @@ import type { NodeType } from '../engine/run/worldMap.js';
 import type { IconName } from './pixel/icons.js';
 
 export const NODE_ICONS: Record<NodeType, IconName> = {
-  road: 'node_road',
+  start: 'node_start',
   battle: 'node_battle',
   elite_battle: 'node_elite',
   resource: 'node_resource',
   merchant: 'node_merchant',
   event: 'node_event',
-  city: 'node_city',
   boss: 'node_boss',
 };
 
@@ -20,6 +19,7 @@ export const BUILDING_ICONS: Record<string, IconName> = {
   market: 'bld_market',
   gold_mine: 'bld_gold_mine',
   mage_tower: 'bld_mage_tower',
+  farm: 'bld_farm',
   stable: 'bld_stable',
   training_hall: 'bld_training',
   forge: 'bld_forge',
