@@ -6,7 +6,7 @@ import { Tip } from './Tip.js';
 import { blockTip, roleTip, statusTip } from './tipContent.js';
 import { UnitArt } from './UnitArt.js';
 import { UNIT_ROLE_ICONS } from './unitIcons.js';
-import { STATUS_ICONS, stackStates } from './stackStatus.js';
+import { STATUS_ICONS, groupStatuses, stackStates } from './stackStatus.js';
 import type { Floater } from './FloatingText.js';
 
 interface StackTileProps {
@@ -28,7 +28,7 @@ const CHAINS = chainsUrl(88, 76);
 export function StackTile({ stack, side, ownArmy, selectable, selected, dimmed, floaters, onClick, onInspect }: StackTileProps) {
   // Rendered in the wiped branch too so a killing blow's floater still shows.
   const floatersEl = floaters?.map((f) => (
-    <span key={f.id} className={`floater floater-${f.kind}`} style={{ animationDelay: `${f.delayMs}ms` }}>
+    <span key={f.id} className={`floater floater-${f.kind}`} style={{ animationDelay: `${f.delayMs}ms`, ['--lane' as string]: f.lane ?? 0 }}>
       {f.icon && <Icon name={f.icon} />}
       {f.text}
     </span>
@@ -36,16 +36,16 @@ export function StackTile({ stack, side, ownArmy, selectable, selected, dimmed, 
 
   if (!stack || stack.count === 0) {
     const classes = ['portrait-slot', side, 'empty'];
-    if (stack?.count === 0) classes.push('dead');
+    if (stack) classes.push('dead');
     return (
       <div className={classes.join(' ')} data-stack-id={stack?.stackId}>
         <div className="portrait-frame" onClick={selectable ? onClick : undefined}>
           {stack && (
             <span className="portrait-art">
-              <UnitArt unitId={stack.unitId} team={side} seed={stack.stackId} />
+              <Icon name="ui_grave" size={3} />
             </span>
           )}
-          <span className="unit-name">{stack ? 'Wiped' : 'Empty'}</span>
+          <span className="unit-name">{stack ? 'Fallen' : 'Empty'}</span>
         </div>
         {floatersEl}
       </div>
@@ -68,7 +68,16 @@ export function StackTile({ stack, side, ownArmy, selectable, selected, dimmed, 
     <div className={classes.join(' ')} data-stack-id={stack.stackId}>
       <div
         className="portrait-frame"
+        role="button"
+        tabIndex={0}
+        aria-label={`${side === 'enemy' ? 'Enemy ' : ''}${def.name}, ${stack.count} ${stack.count === 1 ? 'unit' : 'units'}${states.acted ? ', already acted' : ''}${selectable ? '' : ', not selectable'}`}
+        aria-disabled={!selectable}
         onClick={selectable ? onClick : undefined}
+        onKeyDown={(e) => {
+          if (e.key !== 'Enter' && e.key !== ' ') return;
+          e.preventDefault();
+          if (selectable) onClick();
+        }}
         onContextMenu={(e) => {
           e.preventDefault();
           onInspect();
@@ -87,7 +96,7 @@ export function StackTile({ stack, side, ownArmy, selectable, selected, dimmed, 
         </span>
         <span className="portrait-count">×{stack.count}</span>
         <Tip tip={roleTip(stack.unitId)}>
-          <span className="portrait-role-badge">
+          <span className="portrait-role-badge" tabIndex={-1}>
             <Icon name={UNIT_ROLE_ICONS[stack.unitId]} />
           </span>
         </Tip>
@@ -98,7 +107,7 @@ export function StackTile({ stack, side, ownArmy, selectable, selected, dimmed, 
         )}
         {states.blocked && (
           <Tip tip={{ title: 'Blocked', icon: 'ui_blocked', body: 'A melee stack in the back row cannot attack while an ally stands directly in front of it.' }}>
-            <span className="portrait-blocked-badge">
+            <span className="portrait-blocked-badge" tabIndex={-1}>
               <Icon name="ui_blocked" />
             </span>
           </Tip>
@@ -107,17 +116,18 @@ export function StackTile({ stack, side, ownArmy, selectable, selected, dimmed, 
           <div className="portrait-statuses">
             {stack.block > 0 && (
               <Tip tip={blockTip(stack.block)}>
-                <span className="portrait-status">
+                <span className="portrait-status" tabIndex={-1}>
                   <Icon name="shield" />
                   <b>{stack.block}</b>
                 </span>
               </Tip>
             )}
-            {stack.statuses.map((st, i) => (
-              <Tip key={`${st.type}-${i}`} tip={statusTip(st.type, st.amount, st.duration)}>
-                <span className="portrait-status">
+            {groupStatuses(stack.statuses).map((st) => (
+              <Tip key={st.type} tip={statusTip(st.type, st.amount, st.duration, st.stacks)}>
+                <span className="portrait-status" tabIndex={-1}>
                   <Icon name={STATUS_ICONS[st.type]} />
                   <b>{st.amount}</b>
+                  {st.stacks > 1 && <i>×{st.stacks}</i>}
                 </span>
               </Tip>
             ))}

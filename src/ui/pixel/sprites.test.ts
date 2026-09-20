@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { HERO_DEFINITIONS, UNIT_DEFINITIONS } from '../../engine/index.js';
 import { MASTER } from './palette.js';
-import { SPRITE_SIZE, withIdleBob } from './sprite.js';
+import { SPRITE_SIZE, mixHex, withIdleBob } from './sprite.js';
 import type { Sprite } from './sprite.js';
 import { HERO_SPRITES } from './sprites/heroes.js';
 import { UNIT_SPRITES } from './sprites/units.js';
@@ -43,5 +43,13 @@ describe('withIdleBob', () => {
     expect(frames[1][6]).toBe(rows[5]);
     expect(frames[1][5]).toBe('.'.repeat(SPRITE_SIZE));
     expect(frames[1][20]).toBe(rows[20]);
+  });
+});
+
+describe('enemy palette', () => {
+  it('mixHex blends per channel and keeps the ends', () => {
+    expect(mixHex('#000000', '#ffffff', 0)).toBe('#000000');
+    expect(mixHex('#000000', '#ffffff', 1)).toBe('#ffffff');
+    expect(mixHex('#102030', '#305070', 0.5)).toBe('#203850');
   });
 });

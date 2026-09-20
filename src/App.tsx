@@ -29,6 +29,7 @@ import { HistoryDrawer } from './ui/HistoryDrawer.js';
 import { DeckViewer } from './ui/DeckViewer.js';
 import { HeroPopup } from './ui/HeroPopup.js';
 import { Tip } from './ui/Tip.js';
+import { TurnEffects } from './ui/TurnEffectsStrip.js';
 import { cardBlockedTip, pileTip, relicTip } from './ui/tipContent.js';
 import { ToastStack } from './ui/Toast.js';
 import type { ToastItem } from './ui/Toast.js';
@@ -128,24 +129,26 @@ export default function App() {
     function typing(t: EventTarget | null): boolean {
       return t instanceof HTMLElement && (t.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName));
     }
+    /** A control the player reached with the keyboard: Space then belongs to it (select, play, press), not to End Turn. */
+    function controlHasKeyboardFocus(): boolean {
+      const a = document.activeElement;
+      return a instanceof HTMLElement && a !== document.body && a.matches(':focus-visible') && a.matches('button, [role="button"], a[href], input, select, textarea, [tabindex]');
+    }
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === 'Escape') setPending(null);
+      if (e.code !== 'Space' || e.repeat || typing(e.target)) return;
       // Any open modal (card info, deck viewer, hero popup...) owns the keyboard.
-      if (e.code === 'Space' && !e.repeat && !typing(e.target) && !document.querySelector('.modal-layer') && (skipPlayback.current ?? spaceEndTurn.current)) {
+      if (document.querySelector('.modal-layer')) return;
+      if (skipPlayback.current) {
         e.preventDefault();
-        (skipPlayback.current ?? spaceEndTurn.current)?.();
+        skipPlayback.current();
+      } else if (spaceEndTurn.current && !controlHasKeyboardFocus()) {
+        e.preventDefault();
+        spaceEndTurn.current();
       }
     }
-    // A focused button would otherwise also "click" itself when Space is released.
-    function onKeyUp(e: KeyboardEvent) {
-      if (e.code === 'Space' && !typing(e.target) && document.activeElement instanceof HTMLButtonElement) e.preventDefault();
-    }
     window.addEventListener('keydown', onKeyDown);
-    window.addEventListener('keyup', onKeyUp);
-    return () => {
-      window.removeEventListener('keydown', onKeyDown);
-      window.removeEventListener('keyup', onKeyUp);
-    };
+    return () => window.removeEventListener('keydown', onKeyDown);
   }, []);
 
   const combat = playbackBoard ?? run.combat;
@@ -584,7 +587,7 @@ export default function App() {
   const toastLayer = <ToastStack toasts={toasts} onDismiss={dismissToast} />;
   const menuButton = (
     <Tip tip="Menu">
-      <button className="btn btn--sq pause-menu-btn" onClick={() => setMenuOpen(true)}>
+      <button className="btn btn--sq pause-menu-btn" aria-label="Menu" onClick={() => setMenuOpen(true)}>
         <Icon name="ui_menu" />
       </button>
     </Tip>
@@ -742,7 +745,7 @@ export default function App() {
   /** Clicking bare battlefield (not a unit, the drop zone or End Turn) drops the selection and any pending card. */
   function onFieldClick(e: React.MouseEvent) {
     if (flyingCard || fxBusy) return;
-    if ((e.target as HTMLElement).closest('.portrait-slot:not(.empty), .portrait-slot.selectable, .drop-zone, .endturn-bar')) return;
+    if ((e.target as HTMLElement).closest('.portrait-slot:not(.empty), .portrait-slot.selectable, .drop-zone')) return;
     setPending(null);
   }
 
@@ -760,7 +763,7 @@ export default function App() {
       <div className="frame-topbar">
         <div className="frame-hero-chip">
           <Tip tip="Hero stats">
-            <button className="hero-portrait" onClick={() => setHeroOpen(true)}>
+            <button className="hero-portrait" aria-label="Hero stats" onClick={() => setHeroOpen(true)}>
               <HeroArt heroId={run.hero.heroType} />
             </button>
           </Tip>
@@ -788,6 +791,8 @@ export default function App() {
             </div>
           </div>
         </div>
+
+        <TurnEffects army={combat.playerArmy} />
 
         <div className="frame-turn-chip">
           <strong>Turn {combat.turnNumber}</strong>
@@ -842,7 +847,18 @@ export default function App() {
 
         <div className="frame-scene">
           {pending?.targeting === 'none' && (
-            <div className="drop-zone" onClick={() => finalize({})}>
+            <div
+              className="drop-zone"
+              role="button"
+              tabIndex={0}
+              aria-label={pending.kind === 'card' ? 'Drop card' : 'Confirm'}
+              onClick={() => finalize({})}
+              onKeyDown={(e) => {
+                if (e.key !== 'Enter' && e.key !== ' ') return;
+                e.preventDefault();
+                finalize({});
+              }}
+            >
               <Icon name="deck" size={2} />
               <div className="drop-zone-label">{pending.kind === 'card' ? 'Drop Card' : 'Confirm'}</div>
             </div>
@@ -898,7 +914,7 @@ export default function App() {
       <div className="frame-bottombar">
         <div className="frame-pile-container">
           <Tip tip={pileTip('draw', combat.deck.length)}>
-            <button className="frame-pile deck-pile" onClick={() => setPileOpen('draw')}>
+            <button className="frame-pile deck-pile" aria-label={`Draw pile, ${combat.deck.length} cards`} onClick={() => setPileOpen('draw')}>
               <div className="pile-card-back">
                 <Icon name="deck" size={2} />
               </div>
@@ -946,7 +962,7 @@ export default function App() {
         
         <div className="frame-pile-container">
           <Tip tip={pileTip('discard', combat.discard.length)}>
-            <button className="frame-pile discard-pile" onClick={() => setPileOpen('discard')}>
+            <button className="frame-pile discard-pile" aria-label={`Discard pile, ${combat.discard.length} cards`} onClick={() => setPileOpen('discard')}>
               <div className="pile-card-back discard">
                 <Icon name="discard" size={2} />
               </div>
@@ -957,12 +973,12 @@ export default function App() {
         </div>
         <div className="frame-round-buttons-end">
             <Tip tip="Battle Log">
-              <button className="btn round-btn" onClick={() => setHistoryOpen(true)}>
+              <button className="btn round-btn" aria-label="Battle log" onClick={() => setHistoryOpen(true)}>
                 <Icon name="ui_log" size={2} />
               </button>
             </Tip>
             <Tip tip="Menu">
-              <button className="btn round-btn" onClick={() => setMenuOpen(true)}>
+              <button className="btn round-btn" aria-label="Menu" onClick={() => setMenuOpen(true)}>
                 <Icon name="ui_menu" size={2} />
               </button>
             </Tip>

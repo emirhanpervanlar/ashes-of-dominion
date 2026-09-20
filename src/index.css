@@ -883,6 +883,43 @@ p { margin: 0; }
   box-shadow: inset 0 2px 0 var(--steel-300), inset 0 -2px 0 var(--steel-700);
 }
 
+/* Turn effects strip: fills the middle of the top bar; two chip rows at most so the bar never grows and the field never shrinks. */
+.turn-effects {
+  flex: 1;
+  min-width: 0;
+  max-height: 52px;
+  align-self: center;
+  display: flex;
+  flex-wrap: wrap;
+  align-content: center;
+  gap: var(--s-1);
+  padding: 0 var(--s-4);
+  overflow: hidden;
+}
+
+.turn-effects-label {
+  align-self: center;
+  margin-right: var(--s-1);
+  font: var(--t-label);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--text-faint);
+}
+
+.turn-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  height: 24px;
+  padding: 0 var(--s-2);
+  font: var(--t-small);
+  color: var(--gold-200);
+  white-space: nowrap;
+  background: var(--stone-950);
+  box-shadow: inset 0 0 0 2px var(--gold-700);
+  animation: status-pop calc(120ms / var(--speed)) steps(2, end) both;
+}
+
 .frame-turn-chip {
   display: flex;
   flex-direction: column;
@@ -914,6 +951,8 @@ p { margin: 0; }
   flex-wrap: nowrap;
   padding: var(--s-3);
   overflow: hidden;
+  /* The tile grid sizes itself from the field height (cqh), so a short viewport shrinks the tiles instead of overflowing. */
+  container-type: size;
   background: var(--bg-stone);
   box-shadow: inset 2px 2px 0 var(--bev-dark), inset -2px -2px 0 var(--bev-light);
 }
@@ -950,15 +989,6 @@ p { margin: 0; }
   flex: 1;
   min-width: 0;
   align-self: stretch;
-}
-
-/* Bottom of the enemy half of the field (style proof battle mock). */
-.frame-body > .endturn-bar {
-  position: absolute;
-  right: var(--s-3);
-  bottom: var(--s-3);
-  width: calc(50% - var(--s-4));
-  z-index: 5;
 }
 
 .endturn-btn { width: 150px; float: right; }
@@ -1027,7 +1057,8 @@ p { margin: 0; }
   --bev-dark: var(--iron-900);
   position: relative;
   width: 96px;
-  height: 112px;
+  /* 112px when the field is tall enough, else a third of it (three rows, two 8px gaps), never below the 64px sprite window. */
+  height: clamp(100px, calc((100cqh - 16px) / 3), 112px);
   flex-shrink: 0;
   overflow: hidden;
   background: var(--bg-iron);
@@ -1085,7 +1116,15 @@ p { margin: 0; }
 .portrait-slot.empty .unit-name { color: var(--stone-400); }
 
 .portrait-slot.empty .portrait-art { background: none; box-shadow: none; opacity: 0.35; }
-.portrait-slot.dead .portrait-frame { opacity: 0.35; }
+/* Fallen stack (count 0): a grave marker in a sunken, cold window; never targetable. */
+.portrait-slot.dead .portrait-frame { opacity: 0.8; }
+.portrait-slot.dead .portrait-frame::after { border-color: var(--blood-700); }
+.portrait-slot.dead .portrait-art {
+  opacity: 1;
+  background: var(--stone-900);
+  box-shadow: inset 2px 2px 0 var(--stone-950), inset -2px -2px 0 var(--stone-700);
+}
+.portrait-slot.dead .unit-name { color: var(--blood-300); }
 
 /* AO-D024: acted = faded, no lock icon. */
 .portrait-slot.acted .portrait-frame { filter: saturate(0.35) brightness(0.6); }
@@ -1171,16 +1210,16 @@ p { margin: 0; }
 /* Back-row melee held up by the ally in front (AO-D033): a small marker, not an overlay. */
 .portrait-blocked-badge {
   position: absolute;
-  top: 12px;
   right: 8px;
+  bottom: 32px;
   z-index: 4;
   display: flex;
 }
 
 .portrait-select-badge {
   position: absolute;
-  top: 12px;
   right: 8px;
+  bottom: 32px;
   z-index: 5;
   width: 20px;
   height: 20px;
@@ -1216,15 +1255,24 @@ p { margin: 0; }
   color: var(--stone-100);
 }
 
+/* Number of stacked applications behind the total (several armor buffs are one chip). */
+.portrait-status i {
+  font: var(--t-label);
+  font-style: normal;
+  color: var(--gold-200);
+}
+
+/* Count chip in the top-right corner of the sprite window: the corner is empty in every sprite, so it never covers the art. */
 .portrait-count {
   position: absolute;
-  right: 8px;
-  bottom: 32px;
+  right: 4px;
+  top: 8px;
   z-index: 4;
-  padding: 4px 6px;
-  font: var(--t-num);
+  padding: 2px 4px;
+  font: 400 12px/12px var(--font-pixel);
   color: var(--stone-100);
   background: var(--stone-950);
+  box-shadow: inset 0 -2px 0 var(--iron-600);
 }
 
 .unit-name {
@@ -1248,29 +1296,33 @@ p { margin: 0; }
   align-items: center;
   gap: var(--s-1);
   position: absolute;
-  top: 24px;
+  top: calc(60px - var(--lane, 0) * 30px);
   left: 50%;
   z-index: 60;
   transform: translateX(-50%);
   white-space: nowrap;
+  padding: 4px 8px;
   font: var(--t-num);
   text-transform: uppercase;
-  text-shadow: 0 2px 0 var(--stone-950);
+  /* A dark plate with a coloured edge keeps the text readable over any sprite (DL 6). */
+  background: var(--stone-950);
+  box-shadow: inset 0 0 0 2px var(--floater-edge, var(--stone-500)), 0 4px 0 rgba(0, 0, 0, 0.6);
   pointer-events: none;
   opacity: 0;
-  animation: floater-rise 1.3s steps(8, end) both;
+  animation: floater-rise 1.6s steps(10, end) both;
 }
 
-.floater-damage { color: var(--blood-300); }
-.floater-block { color: var(--steel-300); }
-.floater-heal { color: var(--moss-300); }
-.floater-status { color: var(--stone-100); }
+.floater-damage { --floater-edge: var(--blood-500); color: var(--blood-300); font-size: 20px; line-height: 20px; }
+.floater-wound { --floater-edge: var(--blood-700); color: var(--stone-200); }
+.floater-block { --floater-edge: var(--steel-500); color: var(--steel-300); }
+.floater-heal { --floater-edge: var(--moss-500); color: var(--moss-300); }
+.floater-status { --floater-edge: var(--stone-500); color: var(--stone-100); }
 
 @keyframes floater-rise {
   0% { opacity: 0; transform: translate(-50%, 8px); }
-  15% { opacity: 1; transform: translate(-50%, 0); }
-  70% { opacity: 1; }
-  100% { opacity: 0; transform: translate(-50%, -48px); }
+  10% { opacity: 1; transform: translate(-50%, 0); }
+  75% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -32px); }
 }
 
 /* Battle effects (DESIGN_LANGUAGE 8, AO-D023): one pointer-events-none layer over the battlefield, code-drawn, stepped. */
@@ -1510,8 +1562,7 @@ p { margin: 0; }
   gap: var(--s-3);
   flex: 1;
   min-width: 0;
-  overflow-x: auto;
-  overflow-y: hidden;
+  overflow: hidden;
   justify-content: center;
   /* room so a lifted card is not clipped */
   padding: 32px var(--s-1) var(--s-1);
@@ -1592,10 +1643,14 @@ p { margin: 0; }
   padding: 0;
 }
 
+/* A big hand fans out instead of scrolling: slots narrow and the cards overlap, the last one always shows whole. */
 .hand-card-slot {
-  flex-shrink: 0;
+  flex: 0 1 144px;
+  min-width: 0;
   transition: transform var(--dur-1) var(--ease-step2);
 }
+
+.hand-card-slot:last-child { flex-shrink: 0; }
 
 .hand-card-slot:hover { transform: translateY(-8px); z-index: 50; }
 .hand-card-slot:has(.action-card.pending) { transform: translateY(-16px); z-index: 50; }

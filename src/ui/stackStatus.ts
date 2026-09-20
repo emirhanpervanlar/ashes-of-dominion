@@ -14,6 +14,32 @@ export const STATUS_ICONS: Record<StatusType, IconName> = {
   freeze: 'st_freeze',
 };
 
+export interface StatusGroup {
+  type: StatusType;
+  /** Sum of every application: the engine adds them (armor, strength, poison...) so this is what the stack really has. */
+  amount: number;
+  /** How many separate applications were added up. */
+  stacks: number;
+  /** Turns left on the longest-lasting application. */
+  duration: number;
+}
+
+/** One entry per status type, in order of first appearance, so several armor buffs read as one chip with the total. */
+export function groupStatuses(statuses: readonly { type: StatusType; amount: number; duration: number }[]): StatusGroup[] {
+  const groups: StatusGroup[] = [];
+  for (const s of statuses) {
+    const group = groups.find((g) => g.type === s.type);
+    if (group) {
+      group.amount += s.amount;
+      group.stacks += 1;
+      group.duration = Math.max(group.duration, s.duration);
+    } else {
+      groups.push({ type: s.type, amount: s.amount, stacks: 1, duration: s.duration });
+    }
+  }
+  return groups;
+}
+
 export interface StackStates {
   /** Player stack that already used its basic action this turn. */
   acted: boolean;

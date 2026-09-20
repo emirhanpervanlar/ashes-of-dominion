@@ -37,13 +37,11 @@ export interface TipContent {
 const plural = (n: number, word: string): string => `${n} ${word}${n === 1 ? '' : 's'}`;
 const signed = (n: number): string => (n > 0 ? `+${n}` : `${n}`);
 
-export function statusTip(type: StatusType, amount: number, duration?: number): TipContent {
-  return {
-    title: STATUS_INFO[type].name,
-    icon: STATUS_ICONS[type],
-    body: statusEffectText(type, amount),
-    lines: duration === undefined ? undefined : [{ text: `Lasts ${plural(duration, 'more turn')}.`, tone: 'dim' }],
-  };
+export function statusTip(type: StatusType, amount: number, duration?: number, stacks = 1): TipContent {
+  const lines: TipLine[] = [];
+  if (stacks > 1) lines.push({ text: `${stacks} applications added together.`, tone: 'dim' });
+  if (duration !== undefined) lines.push({ text: `Lasts ${plural(duration, 'more turn')}.`, tone: 'dim' });
+  return { title: STATUS_INFO[type].name, icon: STATUS_ICONS[type], body: statusEffectText(type, amount), lines: lines.length > 0 ? lines : undefined };
 }
 
 export function blockTip(amount: number): TipContent {

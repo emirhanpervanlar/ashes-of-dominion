@@ -6,7 +6,7 @@ export type Grid = readonly string[];
 const urlCache = new Map<string, string>();
 
 /** Rasterises palette-indexed grids side by side to one PNG data URL, one canvas pixel per grid cell. Cached by `cacheKey`. */
-export function gridsToUrl(cacheKey: string, grids: readonly Grid[], palette: Palette = MASTER): string {
+export function gridsToUrl(cacheKey: string, grids: readonly Grid[], palette: Palette = MASTER, rim?: string): string {
   const hit = urlCache.get(cacheKey);
   if (hit) return hit;
   const w = grids[0]?.[0]?.length ?? 0;
@@ -26,6 +26,17 @@ export function gridsToUrl(cacheKey: string, grids: readonly Grid[], palette: Pa
         ctx.fillRect(frame * w + x, y, 1, 1);
       }
     });
+    if (rim) {
+      // A one-pixel halo on the empty cells next to the picture, drawn under nothing (it only fills transparent cells).
+      ctx.fillStyle = rim;
+      const opaque = (x: number, y: number) => (grid[y]?.charAt(x) ?? TRANSPARENT) !== TRANSPARENT;
+      for (let y = 0; y < grid.length; y++) {
+        for (let x = 0; x < w; x++) {
+          if (opaque(x, y)) continue;
+          if (opaque(x - 1, y) || opaque(x + 1, y) || opaque(x, y - 1) || opaque(x, y + 1)) ctx.fillRect(frame * w + x, y, 1, 1);
+        }
+      }
+    }
   });
   const url = canvas.toDataURL();
   urlCache.set(cacheKey, url);
