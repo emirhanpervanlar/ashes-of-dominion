@@ -12,7 +12,7 @@ import { generateWorldMap } from '../worldMap.js';
 import type { NodeType } from '../worldMap.js';
 
 function onMap(seed: number, relicId = 'royal_banner'): RunState {
-  return applyRunAction(createRun(seed), { type: 'CHOOSE_STARTING_RELIC', relicId }).run;
+  return createRun(seed, 'warlord', undefined, relicId);
 }
 
 function withNextNodeType(run: RunState, type: NodeType): { run: RunState; nodeId: string } {
@@ -48,9 +48,7 @@ describe('AO-D037: starting relic pool', () => {
   });
 
   it('rejects a found relic as a starting pick', () => {
-    const result = applyRunAction(createRun(3), { type: 'CHOOSE_STARTING_RELIC', relicId: 'blood_banner' });
-    expect(result.run.phase).toBe('choosing_starting_relic');
-    expect(result.run.relics).toHaveLength(0);
+    expect(() => createRun(3, 'warlord', undefined, 'blood_banner')).toThrow('Unknown starting relic');
   });
 });
 

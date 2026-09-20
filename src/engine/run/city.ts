@@ -1,3 +1,4 @@
+import { clearCombatState } from '../army.js';
 import { UNIT_DEFINITIONS } from '../data/units.js';
 import type { ArmyStack, Position, RelicEffect, UnitId } from '../types.js';
 
@@ -182,7 +183,7 @@ export const RECRUIT_COSTS: Partial<Record<UnitId, { gold: number; food: number 
  * AO-D019 + AO-D020, run after every won battle: with a Shrine 10% of each
  * stack's casualties revive (never past its pre-battle count), then every
  * surviving unit is restored to full HP and the new count becomes the
- * baseline for the next battle.
+ * baseline for the next battle. Per-battle state (flags, statuses, block, acted marker) is dropped.
  */
 export function settleArmyAfterVictory(army: ArmyStack[], city: CityState): { army: ArmyStack[]; revived: number } {
   const hasShrine = city.buildings.includes('shrine');
@@ -191,10 +192,10 @@ export function settleArmyAfterVictory(army: ArmyStack[], city: CityState): { ar
     const casualties = Math.max(0, stack.preBattleMaxCount - stack.count);
     const back = hasShrine ? Math.floor(casualties * SHRINE_REVIVE_RATIO) : 0;
     const count = stack.count + back;
-    if (count === 0) return stack;
+    if (count === 0) return clearCombatState(stack);
     revived += back;
     const maxHp = count * UNIT_DEFINITIONS[stack.unitId].hpPerUnit;
-    return { ...stack, count, currentHp: maxHp, maxHp, startingCount: count, preBattleMaxCount: count };
+    return { ...clearCombatState(stack), count, currentHp: maxHp, maxHp, startingCount: count, preBattleMaxCount: count };
   });
   return { army: settled, revived };
 }

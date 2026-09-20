@@ -14,7 +14,7 @@ function act(run: RunState, action: RunAction) {
 const rejected = (events: { type: string }[]) => events.some((e) => e.type === 'ACTION_REJECTED');
 
 function onMap(seed: number, hero: 'warlord' | 'rogue' | 'mage' = 'warlord'): RunState {
-  return act(createRun(seed, hero), { type: 'CHOOSE_STARTING_RELIC', relicId: 'royal_banner' }).run;
+  return createRun(seed, hero);
 }
 
 function moveToNextAs(run: RunState, type: NodeType): RunState {
@@ -214,7 +214,7 @@ describe('AO-D027: run stats', () => {
     expect(migrated.stats).toEqual(createRunStats());
     expect(migrated.cardRemoval).toEqual({ merchantUses: 0, cityUses: 0 });
     // ...and the reducer accepts it directly.
-    const result = applyRunAction(legacy as unknown as RunState, { type: 'CHOOSE_STARTING_RELIC', relicId: 'royal_banner' });
+    const result = applyRunAction(legacy as unknown as RunState, { type: 'TRAVEL_TO_CITY' });
     expect(result.run.stats.nodesVisited).toBe(0);
     expect(result.run.cardRemoval.merchantUses).toBe(0);
   });

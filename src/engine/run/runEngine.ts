@@ -9,7 +9,7 @@ import { buildHeroStartingArmy, createHero } from '../scenario.js';
 import { createRng, nextInt, shuffle } from '../rng.js';
 import type { ArmyStack, CardInstance, CombatState, Hero, HeroId, PlayerAction, Position, RelicDefinition, RelicEffect, UnitId } from '../types.js';
 import { cardRemovalQuote, createCardRemovalState, type CardRemovalState } from './cardRemoval.js';
-import { CARD_UPGRADES } from './cardUpgrades.js';
+import { isUpgradable } from '../cardUpgrades.js';
 import {
   BUILDING_DEFINITIONS,
   DOCTRINE_DEFINITIONS,
@@ -50,6 +50,8 @@ import { findNode, generateWorldMap, visitNode } from './worldMap.js';
 
 const STARTING_GOLD = 100;
 const STARTING_FOOD = 50;
+/** Relic granted when an old save is still waiting on the removed relic choice. */
+export const DEFAULT_STARTING_RELIC_ID = 'royal_banner';
 
 function cloneRun(run: RunState): RunState {
   return JSON.parse(JSON.stringify(run)) as RunState;
@@ -79,6 +81,14 @@ export function migrateRun(run: RunState): RunState {
     pendingReward: run.pendingReward && { ...run.pendingReward, relicChoices: run.pendingReward.relicChoices ?? [] },
   };
   delete (migrated as { finalBattle?: boolean }).finalBattle;
+  if ((run.phase as string) === 'choosing_starting_relic') {
+    // Saves from before AO-D029: the relic was picked in a separate phase. Grant the default one and move on.
+    migrated.phase = 'on_map';
+    migrated.army = run.army.map((s) => ({ ...s }));
+    migrated.hero = { ...run.hero };
+    migrated.relics = [...run.relics];
+    grantRelic(migrated, STARTING_RELIC_DEFINITIONS[DEFAULT_STARTING_RELIC_ID]!, []);
+  }
   if (run.chapter === undefined) {
     // Saves from before AO-D045/D046: the old 7-layer map (road and city nodes) is replaced by a fresh chapter-1 map from today's day.
     migrated.worldMap = generateWorldMap(createRng(run.seed + run.day), 1, run.day);
@@ -130,11 +140,18 @@ function buildStartingDeck(heroId: HeroId): CardInstance[] {
   return HERO_DEFINITIONS[heroId].startingDeck.map((cardId, i) => ({ instanceId: `${cardId}#${i}`, cardId }));
 }
 
-export function createRun(seed: number, heroId: HeroId = 'warlord', heroName?: string): RunState {
+/**
+ * AO-D029: hero and starting relic are one choice, so a run is created in one step: the relic's
+ * one-time effects are applied and the run lands on the map. Applying the relic draws no RNG,
+ * so a seed still yields the same map whatever the relic.
+ */
+export function createRun(seed: number, heroId: HeroId = 'warlord', heroName?: string, relicId: string = DEFAULT_STARTING_RELIC_ID): RunState {
   const rng = createRng(seed);
   const hero: Hero = createHero(heroId, heroName);
+  const relic = STARTING_RELIC_DEFINITIONS[relicId];
+  if (!relic) throw new Error(`Unknown starting relic: ${relicId}`);
 
-  return {
+  const run: RunState = {
     seed,
     rng,
     hero,
@@ -155,7 +172,7 @@ export function createRun(seed: number, heroId: HeroId = 'warlord', heroName?: s
     seenEventIds: [],
     lastCasualties: [],
     bossBattle: false,
-    phase: 'choosing_starting_relic',
+    phase: 'on_map',
     combat: null,
     pendingReward: null,
     pendingEvent: null,
@@ -163,15 +180,21 @@ export function createRun(seed: number, heroId: HeroId = 'warlord', heroName?: s
     pendingMerchant: null,
     log: [{ type: 'RUN_STARTED' }],
   };
+  grantRelic(run, relic, []);
+  noteLargestStack(run);
+  run.log.push({ type: 'STARTING_RELIC_CHOSEN', relicId });
+  return run;
 }
 
 const MIN_HERO_MAX_MANA = 1;
 
+/** A living stack never drops below 1 unit and keeps its wounds (HP is only capped at the new maximum). */
 function rescaleStack(stack: ArmyStack, multiplier: number): ArmyStack {
+  if (stack.count <= 0) return stack;
   const def = UNIT_DEFINITIONS[stack.unitId];
-  const newCount = Math.max(0, Math.floor(stack.count * multiplier));
+  const newCount = Math.max(1, Math.floor(stack.count * multiplier));
   const newMaxHp = newCount * def.hpPerUnit;
-  return { ...stack, count: newCount, currentHp: newMaxHp, maxHp: newMaxHp, startingCount: newCount, preBattleMaxCount: newCount };
+  return { ...stack, count: newCount, currentHp: Math.min(stack.currentHp, newMaxHp), maxHp: newMaxHp, startingCount: newCount, preBattleMaxCount: newCount };
 }
 
 function addFlatToLargestStack(army: ArmyStack[], amount: number): ArmyStack[] {
@@ -189,8 +212,8 @@ function addFlatToLargestStack(army: ArmyStack[], amount: number): ArmyStack[] {
 /**
  * "Stat-boost" relic effects are applied once, permanently, right when the
  * relic is granted — see the RelicEffect doc comment in engine/types.ts.
- * ARMY_SIZE_* kinds only ever appear on starting relics, applied before any
- * casualties exist, so rescaling to a fresh maxHp/currentHp is safe.
+ * ARMY_SIZE_MULT can also arrive mid-run (a found relic): stacks are floored to at
+ * least 1 unit and wounded stacks stay wounded, so it never empties or heals the army.
  */
 function applyRelicStatEffectsOnce(run: RunState, def: RelicDefinition): void {
   for (const effect of def.effects) {
@@ -243,22 +266,6 @@ function reject(events: RunEvent[], reason: string): void {
   events.push({ type: 'ACTION_REJECTED', reason });
 }
 
-function chooseStartingRelic(run: RunState, relicId: string, events: RunEvent[]): RunApplyResult {
-  if (run.phase !== 'choosing_starting_relic') {
-    reject(events, 'Starting relic already chosen.');
-    return { run, events };
-  }
-  const def = STARTING_RELIC_DEFINITIONS[relicId];
-  if (!def) {
-    reject(events, 'Unknown starting relic.');
-    return { run, events };
-  }
-  grantRelic(run, def, events);
-  events[events.length - 1] = { type: 'STARTING_RELIC_CHOSEN', relicId }; // replace the generic RELIC_CLAIMED with a more specific event
-  run.phase = 'on_map';
-  return { run, events };
-}
-
 /** A modest, deterministic one-time pickup — see AGENT.md §35 (ongoing per-day production is future work). */
 function resolveResourceNode(run: RunState, events: RunEvent[]): void {
   const econMult = run.city.doctrine === 'economic' ? 1.3 : 1;
@@ -301,7 +308,9 @@ function payUpkeep(run: RunState, need: number, events: RunEvent[]): 'fed' | 'st
   run.starvationDays += 1;
   const result = starveArmy(run.army, run.rng, shortageRatio, run.starvationDays);
   run.army = result.army;
-  run.stats.unitsLost += result.deaths.reduce((n, d) => n + d.count, 0);
+  const starved = result.deaths.reduce((n, d) => n + d.count, 0);
+  run.stats.unitsLost += starved;
+  run.stats.unitsStarved += starved;
   events.push({ type: 'STARVED', deaths: result.deaths, day: run.day, consecutiveDays: run.starvationDays });
   return 'starved';
 }
@@ -392,10 +401,12 @@ function forwardCombatAction(run: RunState, action: PlayerAction, events: RunEve
     run.battlesWon += 1;
     run.stats.battlesWon += 1;
     run.stats.unitsRevived += settled.revived;
+    const arrivedAt = findNode(run.worldMap, run.worldMap.currentNodeId);
+    if (run.bossBattle) run.stats.bossesDefeated += 1;
+    else if (arrivedAt?.type === 'elite_battle') run.stats.elitesDefeated += 1;
     run.lastCasualties = tallyCasualties(result.state.playerArmy, settled.army);
     events.push({ type: 'BATTLE_WON' });
     if (settled.revived > 0) events.push({ type: 'UNITS_REVIVED', count: settled.revived });
-    const arrivedAt = findNode(run.worldMap, run.worldMap.currentNodeId);
     const loot = rollBattleLoot(run.rng, { chapter: run.chapter, day: run.day, elite: run.bossBattle || arrivedAt?.type === 'elite_battle', threat: run.threat });
     changeGold(run, loot.gold);
     changeFood(run, loot.food);
@@ -480,13 +491,12 @@ function claimUpgrade(run: RunState, instanceId: string, events: RunEvent[]): Ru
   }
   const idx = run.masterDeck.findIndex((c) => c.instanceId === instanceId);
   const card = run.masterDeck[idx];
-  const upgradedId = card && CARD_UPGRADES[card.cardId];
-  if (!card || !upgradedId) {
+  if (!card || !isUpgradable(card)) {
     reject(events, 'That card can no longer be upgraded.');
     return { run, events };
   }
-  events.push({ type: 'CARD_UPGRADED', instanceId, fromCardId: card.cardId, toCardId: upgradedId });
-  run.masterDeck[idx] = { ...card, cardId: upgradedId };
+  events.push({ type: 'CARD_UPGRADED', instanceId, cardId: card.cardId });
+  run.masterDeck[idx] = { ...card, upgraded: true };
   finishReward(run, events);
   return { run, events };
 }
@@ -628,7 +638,7 @@ function applyEventEffect(run: RunState, effect: EventEffect, pick: EventPick, t
       const idx = run.masterDeck.findIndex((c) => c.instanceId === pick.instanceId);
       const card = run.masterDeck[idx]!;
       run.masterDeck[idx] = { ...card, upgraded: true };
-      events.push({ type: 'CARD_UPGRADED', instanceId: card.instanceId, fromCardId: card.cardId, toCardId: card.cardId });
+      events.push({ type: 'CARD_UPGRADED', instanceId: card.instanceId, cardId: card.cardId });
       break;
     }
     case 'REMOVE_CARD':
@@ -693,6 +703,7 @@ function executeEventOption(run: RunState, option: EventOption, pick: EventPick,
 
 function closeEvent(run: RunState, resolved: { optionId: string; outcome: string; text: string }, events: RunEvent[]): void {
   events.push({ type: 'EVENT_RESOLVED', eventId: run.pendingEvent!.eventId, ...resolved });
+  run.stats.eventsResolved += 1;
   run.pendingEvent = null;
   run.phase = 'on_map';
 }
@@ -1143,9 +1154,6 @@ export function applyRunAction(run: RunState, action: RunAction): RunApplyResult
 
   let result: RunApplyResult;
   switch (action.type) {
-    case 'CHOOSE_STARTING_RELIC':
-      result = chooseStartingRelic(working, action.relicId, events);
-      break;
     case 'MOVE_TO':
       result = moveTo(working, action.nodeId, events);
       break;

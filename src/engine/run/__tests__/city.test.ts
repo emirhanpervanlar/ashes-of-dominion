@@ -35,7 +35,6 @@ function resolveUntilOnMapOrCity(run: RunState): RunState {
 /** Opens the city from the map (AO-D047: reachable any time). */
 function reachCity(seed: number): RunState {
   let run = createRun(seed);
-  run = applyRunAction(run, { type: 'CHOOSE_STARTING_RELIC', relicId: 'royal_banner' }).run;
   run = applyRunAction(run, { type: 'TRAVEL_TO_CITY' }).run;
   if (run.phase !== 'city') throw new Error(`reachCity(${seed}) ended in unexpected phase: ${run.phase}`);
   return run;

@@ -21,9 +21,7 @@ function withNextNodeType(run: RunState, type: NodeType): { run: RunState; nodeI
 }
 
 function startOnMap(seed: number): RunState {
-  const run = createRun(seed);
-  const started = applyRunAction(run, { type: 'CHOOSE_STARTING_RELIC', relicId: 'royal_banner' });
-  return started.run;
+  return createRun(seed);
 }
 
 /**
@@ -51,13 +49,15 @@ function reachBattle(seed: number): RunState {
 }
 
 describe('run creation', () => {
-  it('starts in choosing_starting_relic with the default Hero (Warlord) army/deck/map/resources', () => {
+  it('starts on the map with the default Hero (Warlord), the default relic, deck, map and resources', () => {
     const run = createRun(1);
-    expect(run.phase).toBe('choosing_starting_relic');
-    expect(run.army.map((s) => s.count)).toEqual([6, 2]);
+    expect(run.phase).toBe('on_map');
+    expect(run.relics.map((r) => r.id)).toEqual(['royal_banner']);
+    expect(run.army.map((s) => s.count)).toEqual([12, 2]);
     expect(run.masterDeck.length).toBe(10);
     expect(run.combat).toBeNull();
     expect(run.gold).toBe(100);
+    expect(run.log.map((e) => e.type)).toEqual(['RUN_STARTED', 'STARTING_RELIC_CHOSEN']);
     expect(run.food).toBe(50);
     expect(run.day).toBe(1);
     expect(run.worldMap.nodes.length).toBeGreaterThan(10);
@@ -68,26 +68,25 @@ describe('run creation', () => {
 
 describe('starting relic', () => {
   it('Royal Banner adds +6 to the largest starting stack and moves to the map', () => {
-    const run = createRun(2);
-    const result = applyRunAction(run, { type: 'CHOOSE_STARTING_RELIC', relicId: 'royal_banner' });
-    const swordsman = result.run.army.find((s) => s.unitId === 'swordsman')!;
+    const run = createRun(2, 'warlord', undefined, 'royal_banner');
+    const swordsman = run.army.find((s) => s.unitId === 'swordsman')!;
     expect(swordsman.count).toBe(12); // 6 (Warlord's largest starting stack) + 6 (AO-D014)
-    expect(result.run.phase).toBe('on_map');
-    expect(result.run.combat).toBeNull();
+    expect(run.phase).toBe('on_map');
+    expect(run.combat).toBeNull();
   });
 
   it("Traveler's Purse grants +50 Gold once at run start and does not count as gathered income (AO-D043)", () => {
-    const run = createRun(3);
-    const result = applyRunAction(run, { type: 'CHOOSE_STARTING_RELIC', relicId: 'travelers_purse' });
-    expect(result.run.gold).toBe(run.gold + 50);
-    expect(result.run.stats.goldGathered).toBe(run.stats.goldGathered);
+    const run = createRun(3, 'warlord', undefined, 'travelers_purse');
+    expect(run.gold).toBe(150);
+    expect(run.stats.goldGathered).toBe(0);
   });
 
-  it('rejects choosing a starting relic twice', () => {
-    const run = createRun(4);
-    const first = applyRunAction(run, { type: 'CHOOSE_STARTING_RELIC', relicId: 'royal_banner' });
-    const second = applyRunAction(first.run, { type: 'CHOOSE_STARTING_RELIC', relicId: 'arcane_crystal' });
-    expect(second.events.some((e) => e.type === 'ACTION_REJECTED')).toBe(true);
+  it('refuses a relic outside the starting pool', () => {
+    expect(() => createRun(4, 'warlord', undefined, 'arcane_crystal')).toThrow('Unknown starting relic');
+  });
+
+  it('the same seed builds the same map whatever the relic', () => {
+    expect(createRun(5, 'mage', undefined, 'whetstone').worldMap).toEqual(createRun(5, 'mage', undefined, 'lucky_charm').worldMap);
   });
 });
 
@@ -158,13 +157,10 @@ describe('battle -> reward -> back to map loop', () => {
     expect(claimed.run.masterDeck.length).toBe(11);
   });
 
-  // The v3 canonical doc's upgrade model (§15) modifies a card's own state rather than
-  // swapping to a "_plus" card id — that system isn't implemented yet (Phase 3 "Deck /
-  // Build"), so the id-swap CARD_UPGRADES map is intentionally empty for now and no
-  // upgrade options are offered.
-  it('offers no upgrade options while CARD_UPGRADES is empty (pending the v3 upgrade system)', () => {
+  it('offers one upgrade of a deck card and two new cards (AO-D060)', () => {
     const won = forceVictory(reachBattle(21));
-    expect(won.pendingReward!.upgradeOptions).toHaveLength(0);
+    expect(won.pendingReward!.upgradeOptions).toHaveLength(1);
+    expect(won.pendingReward!.cardOptions).toHaveLength(2);
   });
 
   it('losing a battle moves to defeat, not run_complete', () => {

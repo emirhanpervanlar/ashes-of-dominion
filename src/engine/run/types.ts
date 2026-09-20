@@ -7,7 +7,6 @@ import type { RunStats } from './stats.js';
 import type { WorldMapState } from './worldMap.js';
 
 export type RunPhase =
-  | 'choosing_starting_relic'
   | 'on_map'
   | 'in_battle'
   | 'reward'
@@ -20,7 +19,7 @@ export type RunPhase =
 /** One pick resolves the reward (AO-D026): a card, an upgrade, a removal or a skip. */
 export interface PendingReward {
   cardOptions: string[];
-  upgradeOptions: { instanceId: string; cardId: string; upgradedCardId: string }[];
+  upgradeOptions: { instanceId: string; cardId: string }[];
   /** Elite victories only (AO-D037): one extra relic, claimed separately; leaving the reward screen forfeits it. */
   relicOffer: string | null;
   /** Boss victories before the last chapter (AO-D046): pick one via CLAIM_RELIC; the rest are forfeited. */
@@ -65,7 +64,7 @@ export type RunEvent =
   | { type: 'BATTLE_LOST' }
   | { type: 'RELIC_CLAIMED'; relicId: string }
   | { type: 'CARD_REWARD_CLAIMED'; cardId: string }
-  | { type: 'CARD_UPGRADED'; instanceId: string; fromCardId: string; toCardId: string }
+  | { type: 'CARD_UPGRADED'; instanceId: string; cardId: string }
   | { type: 'REWARD_SKIPPED' }
   | { type: 'CARD_REMOVED'; instanceId: string; cardId: string; goldPaid: number }
   | { type: 'UNITS_REVIVED'; count: number }
@@ -129,7 +128,6 @@ export interface RunState {
 }
 
 export type RunAction =
-  | { type: 'CHOOSE_STARTING_RELIC'; relicId: string }
   | { type: 'MOVE_TO'; nodeId: string }
   | { type: 'COMBAT_ACTION'; action: PlayerAction }
   | { type: 'CLAIM_CARD'; cardId: string }
