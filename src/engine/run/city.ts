@@ -1,7 +1,8 @@
-import { clearCombatState, findFreeArmyPosition } from '../army.js';
+import { MAX_ARMY_STACKS, clearCombatState, findFreeArmyPosition } from '../army.js';
 import { floorSafe, roundSafe } from '../floatSafe.js';
 import { UNIT_DEFINITIONS } from '../data/units.js';
 import type { ArmyStack, RelicEffect, UnitId } from '../types.js';
+import type { RunState } from './types.js';
 
 export type BuildingCategory = 'economy' | 'army' | 'hero' | 'special';
 
@@ -236,6 +237,19 @@ export function recruitCost(city: CityState, unitId: UnitId, count: number): { g
     gold: roundSafe(base.gold * count * discount),
     food: base.food * count,
   };
+}
+
+/**
+ * Why `count` recruits of `unitId` cannot happen right now, or null (AO-D071 investigation: there is no time or per-visit rule; only
+ * these gates exist and each names itself). The reducer and the UI read this one function.
+ */
+export function recruitBlocker(run: Pick<RunState, 'city' | 'gold' | 'food' | 'army'>, unitId: UnitId, count: number): string | null {
+  const cost = recruitCost(run.city, unitId, count);
+  if (!canRecruitUnit(run.city, unitId) || !cost) return 'That unit cannot be recruited.';
+  if (run.gold < cost.gold) return 'Not enough Gold.';
+  if (run.food < cost.food) return 'Not enough Food (every recruit costs Food too).';
+  if (!addUnitsToArmy(run.army, unitId, count)) return `Field army is full (${MAX_ARMY_STACKS} stacks) and has no matching stack to merge into.`;
+  return null;
 }
 
 /**

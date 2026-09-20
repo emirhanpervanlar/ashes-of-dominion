@@ -23,7 +23,7 @@ import {
   RECRUIT_COSTS,
   TRAINING_HALL_MAX_MANA,
   addUnitsToArmy,
-  canRecruitUnit,
+  recruitBlocker,
   createInitialCityState,
   recruitCost,
   settleArmyAfterVictory,
@@ -1005,28 +1005,15 @@ function recruit(run: RunState, unitId: UnitId, count: number, events: RunEvent[
     reject(events, 'Not at the city.');
     return { run, events };
   }
-  if (!canRecruitUnit(run.city, unitId)) {
-    reject(events, 'That unit cannot be recruited yet (missing building).');
+  const blocker = recruitBlocker(run, unitId, count);
+  if (blocker) {
+    reject(events, blocker);
     return { run, events };
   }
-  const cost = recruitCost(run.city, unitId, count);
-  if (!cost) {
-    reject(events, 'Unknown recruitable unit.');
-    return { run, events };
-  }
-  if (run.gold < cost.gold || run.food < cost.food) {
-    reject(events, 'Not enough Gold/Food to recruit that many.');
-    return { run, events };
-  }
-
-  const updatedArmy = addUnitsToArmy(run.army, unitId, count);
-  if (!updatedArmy) {
-    reject(events, `Field army is full (${MAX_ARMY_STACKS} stacks) and has no matching stack to merge into.`);
-    return { run, events };
-  }
+  const cost = recruitCost(run.city, unitId, count)!;
   changeGold(run, -cost.gold);
   run.food -= cost.food;
-  run.army = updatedArmy;
+  run.army = addUnitsToArmy(run.army, unitId, count)!;
   run.stats.unitsRecruited += count;
   events.push({ type: 'UNITS_RECRUITED', unitId, count });
   return { run, events };

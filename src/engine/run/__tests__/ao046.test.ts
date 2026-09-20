@@ -103,3 +103,55 @@ describe('AO-046 item 2 (AO-D070): free city visits', () => {
     expect(validateSave({ ...fresh, threat: 3 })!.cityVisitsThisChapter).toBe(1);
   });
 });
+
+describe('AO-046 item 3 (AO-D071): recruiting at any city visit', () => {
+  const reason = (events: { type: string }[]) => (events.find((e) => e.type === 'ACTION_REJECTED') as { reason: string } | undefined)?.reason;
+
+  /** Walks `days` resource nodes forward so the run is on that day, then visits the city. */
+  function cityOnDay(seed: number, days: number): RunState {
+    let run = createRun(seed);
+    for (let i = 0; i < days; i++) run = arriveAt(run, 'resource');
+    return act(run, { type: 'TRAVEL_TO_CITY' }).run;
+  }
+
+  it('there is no time or per-visit rule: every unit can be recruited on every day of the chapter and at every visit', () => {
+    for (const day of [0, 1, 6, 7, 8, 13, 14, 15, 21, 22, 28]) {
+      const city = cityOnDay(4, day);
+      expect(city.day).toBe(1 + day);
+      for (const unitId of ['swordsman', 'archer', 'knight', 'priest'] as const) {
+        expect(rejected(act(city, { type: 'RECRUIT', unitId, count: 2 }).events), `${unitId} on day ${city.day}`).toBe(false);
+      }
+    }
+    let run = createRun(4);
+    for (let visit = 1; visit <= 6; visit++) {
+      run = act(act(run, { type: 'TRAVEL_TO_CITY' }).run, { type: 'RECRUIT', unitId: 'swordsman', count: 1 }).run;
+      run = act(run, { type: 'LEAVE_CITY' }).run;
+      expect(run.stats.unitsRecruited, `visit ${visit}`).toBe(visit);
+    }
+  });
+
+  it('the only gates are Gold, Food (every recruit also costs Food) and the 6-stack cap, and each rejection names itself', () => {
+    const city = cityOnDay(4, 3);
+    const broke = act({ ...city, gold: 0 }, { type: 'RECRUIT', unitId: 'swordsman', count: 1 });
+    expect(reason(broke.events)).toBe('Not enough Gold.');
+    const hungry = act({ ...city, food: 0 }, { type: 'RECRUIT', unitId: 'swordsman', count: 1 });
+    expect(reason(hungry.events)).toContain('Not enough Food');
+
+    const kinds = ['swordsman', 'swordsman', 'swordsman', 'archer', 'archer', 'knight'] as const;
+    const six = kinds.map((unitId, i) => ({ ...city.army[0]!, stackId: `s${i}`, unitId, position: (i + 1) as 1, count: 3 }));
+    const full = { ...city, army: six, gold: 500, food: 500 };
+    expect(rejected(act(full, { type: 'RECRUIT', unitId: 'swordsman', count: 1 }).events)).toBe(false); // merges into a stack of its type
+    expect(reason(act(full, { type: 'RECRUIT', unitId: 'priest', count: 1 }).events)).toContain('Field army is full');
+  });
+
+  it('a stack wiped out in the last battle does not take a slot away from a recruit', () => {
+    const base = createRun(12);
+    const filler = ['archer', 'priest', 'knight'].map((unitId, i) => ({ ...base.army[0]!, stackId: `f${i}`, unitId: unitId as 'archer', position: (i + 3) as 3, count: 2 }));
+    const army = [{ ...base.army[0]!, position: 1 as const }, { ...base.army[1]!, position: 2 as const }, ...filler];
+    const fighting = arriveAt({ ...base, army, gold: 500, food: 500 }, 'battle');
+    const won = winFight({ ...fighting, combat: { ...fighting.combat!, playerArmy: fighting.combat!.playerArmy.map((s, i) => (i === 0 ? { ...s, count: 0, currentHp: 0 } : s)) } });
+    const city = act(pickReward(won).run, { type: 'TRAVEL_TO_CITY' }).run;
+    expect(city.army.filter((s) => s.count > 0)).toHaveLength(won.army.filter((s) => s.count > 0).length);
+    expect(rejected(act(city, { type: 'RECRUIT', unitId: 'swordsman', count: 3 }).events)).toBe(false);
+  });
+});
