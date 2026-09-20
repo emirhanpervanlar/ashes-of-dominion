@@ -643,21 +643,19 @@ Check: `grep -P "[\x{1F300}-\x{1FAFF}\x{2600}-\x{27BF}\x{FE0F}]" src` returns no
 ### 7.5 Card art
 Until illustrations exist, every card's art window shows one 32x32 (hand) / 64x64 (large) pixel icon chosen by `cardVisuals.ts`: an icon per card *effect* (attack, block, buff, heal, draw, freeze, etc.) drawn from the icon set scaled x2/x4 (16 -> 32/64). No per-card unique art required in this phase.
 
-### 7.6 Sprite format and renderer (later phase, specify now)
-Unit sprites 32x32 (heroes and large popups 32x32 shown x3), a second 24x24 grid is allowed for small units; one file `src/ui/pixel/sprites.ts`:
-```ts
-export type Palette = Record<string, string>;            // single char -> '#rrggbb' | null
-export interface Sprite { w: 24 | 32; h: 24 | 32; palette?: Palette; rows: string[]; }  // palette optional: falls back to MASTER
-export const MASTER: Palette = { k:'#100e0c', w:'#e6dcc3', /* ...as in 7 */ };
-export const SPRITES: Record<string, Sprite> = {
-  swordsman: { w: 32, h: 32, rows: [ '................................', /* 32 rows of 32 chars */ ] },
-};
-```
-Renderer (`PixelSprite.tsx`): draws to an offscreen `<canvas>` once per (name, palette-variant) with `ctx.fillRect(x,y,1,1)` per non-`.` char, caches as `ImageBitmap`/`toDataURL`, and shows `<img src style="image-rendering: pixelated; width: w*scale; height: h*scale">`. Requirements: scale is an integer (2 or 3), enemy variants mirror horizontally (`transform: scaleX(-1)`) and swap the team-colour characters `b`/`B` (player steel blue) to `r`/`R` (enemy red) via `palette` override so one sprite serves both sides. Animation frames (idle bob, attack) = optional `frames: string[][]`; with none, motion is CSS (section 8). Tests: every unit id in `data/units.ts` has a sprite; every row length equals `w`; row count equals `h`; only palette characters used.
-Icons (7) use the identical structure with w = h = 16.
+### 7.6 Sprites actually drawn (AO-040, src/ui/pixel/sprite.ts, PixelSprite.tsx, sprites/*)
+Format: a `Sprite` is two 32x32 palette-indexed grids (`frames: [idleA, idleB]`), every character a key of the master palette (`palette.ts`) or `.` for transparent. At most 16 colours besides the `k` outline. Idle B is either drawn (the five style-proof sprites) or made by `withIdleBob(rows, feetRow)`: everything above `feetRow` sinks one row, the feet stay planted.
 
-### 7.7 Icons actually drawn (AO-020, src/ui/pixel/icons/*)
-Deviations from the list in 7: `day` reuses the proof hourglass, `hp` is the proof heart, `ui_log` is the proof scroll, `card_attack` = `role_melee` art, `card_defense` = `shield` art. Added beyond the list: `crest` (title), `ornament_dragon` (battle frame), unit portraits `unit_<unitId>` (8), hero portraits `hero_<heroId>` (3), relics `rel_<relicId>` (19), card effect art `fx_bolt fx_target fx_wind fx_horse fx_helm fx_dagger fx_sparkle fx_flag fx_banner fx_skull`. Palette keys beyond the 8-colour set are those of the style proof (see `src/ui/pixel/palette.ts`). Completeness is enforced by `src/ui/pixel/icons.test.ts`.
+Renderer: `gridsToUrl` (render.ts) paints the frames side by side on a canvas once per (id, team) and caches the PNG data URL. `PixelSprite` shows it as a `.px-sprite` background at an integer scale (1 = 32px ... 4 = 128px), `image-rendering: pixelated`; the idle loop is a 1s `steps(1)` background-position swap (CSS `sprite-idle`), offset per stack (`seed`) so neighbours do not bob in lockstep; it stops under `prefers-reduced-motion`.
+
+Teams: the team characters `a` `A` `h` (terracotta) are substituted by steel blue `#4a6a8a #26384e #86a8c8` for `team="enemy"`, and enemy sprites are mirrored (`.mirrored`, scaleX(-1)) so they face the player. Player sprites stay warm. One grid serves both sides. Units with no team characters (goblin, orc, shaman, wolf) look the same on both sides; the blue enemy frame line and the mirror mark the side.
+
+`UnitArt` (unit id, `size` scale, `team`, `seed`) is the only place a unit picture is drawn; `HeroArt` does the same for the hero busts. Scales in use: battle tile and army slot 2 (64px in the 88x76 window / 64px slot), Barracks card and event offers 2, unit popup 3, hero plaque and battle hero chip 1, hero popup 3, hero setup 2, stack previews (hero setup, end screen, event gains) 1. Frozen, chained and acted overlays sit on top of the sprite; the death ghost clones the tile, so the frozen frame is kept. The hit flash is the existing `fx-flash` overlay, no separate hit frame.
+
+Sprites drawn: swordsman, archer, knight, goblin, orc (the approved style proof grids, unchanged); priest (bone hood and robe, terracotta mantle, gold-orb staff, red tome), shaman (green orc, feather crest, purple robe, skull staff, purple orb), wolf (grey wolf in profile facing right, open jaws); hero busts filling the 32x32 frame: warlord (horned steel helm, terracotta beard, spiked pauldrons), rogue (green hood, terracotta scarf, two daggers), mage (blue pointed hat, white beard, purple orb). Completeness and format: `sprites.test.ts` (a sprite for every unit id and hero id, two 32x32 frames, master palette keys, at most 16 colours, idle frame differs).
+
+### 7.7 Icons actually drawn (AO-020, AO-040, src/ui/pixel/icons/*)
+Deviations from the list in 7: `day` reuses the proof hourglass, `hp` is the proof heart, `ui_log` is the proof scroll, `card_attack` = `role_melee` art, `card_defense` = `shield` art. Added beyond the list: `crest` (title), `ornament_dragon` (battle frame), relics `rel_<relicId>` (19), card effect art `fx_bolt fx_target fx_wind fx_horse fx_helm fx_dagger fx_sparkle fx_flag fx_banner fx_skull`, doctrine icons `doctrine_military doctrine_arcane doctrine_necromantic doctrine_economic` (Temple cards and the active effects list). The per-unit `unit_<id>` and hero `hero_<id>` 16x16 portraits were deleted when the 32x32 sprites (7.6) replaced them; the six `role_*` badges stay. AO-040 redrew the weak icons: `ornament_dragon` (horned head with open jaws), `card_buff` / `card_debuff` (green up arrow, violet down arrow), `st_weak` (snapped sword), `st_taunt` (red shout burst with an exclamation mark), `node_resource` (pickaxe over an ore pile), `rel_crown_of_champions`, `rel_shadow_ring`, `rel_glass_cannon_idol` (icy cannon), `rel_whetstone`, and `role_tank` (steel tower shield, no longer the same silhouette as the blue defense `shield`). `node_road` no longer exists (AO-D045). Palette keys beyond the 8-colour set are those of the style proof (see `src/ui/pixel/palette.ts`). Completeness is enforced by `src/ui/pixel/icons.test.ts`.
 
 ---
 

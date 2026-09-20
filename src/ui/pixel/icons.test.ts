@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest';
-import { CARD_DEFINITIONS, HERO_DEFINITIONS, UNIT_DEFINITIONS } from '../../engine/index.js';
+import { CARD_DEFINITIONS, UNIT_DEFINITIONS } from '../../engine/index.js';
 import { RELIC_DEFINITIONS, STARTING_RELIC_DEFINITIONS } from '../../engine/data/relics.js';
 import { BUILDING_DEFINITIONS } from '../../engine/run/city.js';
+import { DOCTRINE_DEFINITIONS } from '../../engine/run/index.js';
 import { CARD_VISUALS, POLARITY_ICONS } from '../cardVisuals.js';
-import { BUILDING_ICONS, NODE_ICONS } from '../mapIcons.js';
-import { HERO_ICONS } from '../heroIcons.js';
+import { BUILDING_ICONS, DOCTRINE_ICONS, NODE_ICONS } from '../mapIcons.js';
 import { relicIcon } from '../relicIcons.js';
 import { STATUS_ICONS } from '../stackStatus.js';
-import { UNIT_ICONS, UNIT_ROLE_ICONS } from '../unitIcons.js';
+import { UNIT_ROLE_ICONS } from '../unitIcons.js';
 import { ICONS } from './icons.js';
 import type { IconName } from './icons.js';
 import { MASTER } from './palette.js';
@@ -35,11 +35,8 @@ describe('game ids have icons', () => {
     for (const name of names) expect(registered(name), `${label}: missing icon "${name}"`).toBe(true);
   };
 
-  it('units, unit roles and heroes', () => {
-    for (const id of Object.keys(UNIT_DEFINITIONS)) {
-      expectAll(`unit ${id}`, [UNIT_ICONS[id as keyof typeof UNIT_ICONS], UNIT_ROLE_ICONS[id as keyof typeof UNIT_ROLE_ICONS]]);
-    }
-    for (const id of Object.keys(HERO_DEFINITIONS)) expectAll(`hero ${id}`, [HERO_ICONS[id as keyof typeof HERO_ICONS]]);
+  it('unit role badges', () => {
+    for (const id of Object.keys(UNIT_DEFINITIONS)) expectAll(`unit ${id}`, [UNIT_ROLE_ICONS[id as keyof typeof UNIT_ROLE_ICONS]]);
   });
 
   it('every engine status type', () => {
@@ -74,6 +71,13 @@ describe('game ids have icons', () => {
     for (const id of [...Object.keys(BUILDING_DEFINITIONS), 'townhall', 'barracks', 'temple']) {
       expect(BUILDING_ICONS[id], `building ${id}`).toBeDefined();
       expectAll(`building ${id}`, [BUILDING_ICONS[id]!]);
+    }
+  });
+
+  it('every doctrine has its own Temple icon', () => {
+    for (const id of Object.keys(DOCTRINE_DEFINITIONS)) {
+      expect(DOCTRINE_ICONS[id], `doctrine ${id}`).toBe(`doctrine_${id}`);
+      expectAll(`doctrine ${id}`, [DOCTRINE_ICONS[id]!]);
     }
   });
 });

@@ -22,7 +22,7 @@ import { CityScreen } from './ui/CityScreen.js';
 import { describeEvent } from './ui/eventText.js';
 import { describeRunEvent } from './ui/runEventText.js';
 import { relicIcon } from './ui/relicIcons.js';
-import { HERO_ICONS } from './ui/heroIcons.js';
+import { HeroArt } from './ui/HeroArt.js';
 import { Icon } from './ui/pixel/Icon.js';
 import type { IconName } from './ui/pixel/icons.js';
 import { HistoryDrawer } from './ui/HistoryDrawer.js';
@@ -761,7 +761,7 @@ export default function App() {
         <div className="frame-hero-chip">
           <Tip tip="Hero stats">
             <button className="hero-portrait" onClick={() => setHeroOpen(true)}>
-              <Icon name={HERO_ICONS[run.hero.heroType]} size={2} />
+              <HeroArt heroId={run.hero.heroType} />
             </button>
           </Tip>
           <div className="hero-info">
@@ -970,6 +970,7 @@ export default function App() {
           stack={inspectedStack}
           army={combat.playerArmy.includes(inspectedStack) ? combat.playerArmy : combat.enemyArmy}
           inBattle
+          team={combat.playerArmy.includes(inspectedStack) ? 'player' : 'enemy'}
           onClose={() => setInspectStackId(null)}
         />
       )}

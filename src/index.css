@@ -297,6 +297,23 @@ p { margin: 0; }
   vertical-align: middle;
 }
 
+/* Pixel sprites (DL-10): a two-frame strip, the frame is stepped by the idle loop and never blended */
+.px-sprite {
+  display: inline-block;
+  flex: none;
+  image-rendering: pixelated;
+  background-repeat: no-repeat;
+  animation: sprite-idle 1s steps(1, end) infinite;
+}
+.px-sprite.mirrored { transform: scaleX(-1); }
+@keyframes sprite-idle {
+  0% { background-position: 0 0; }
+  50% { background-position: var(--sprite-step) 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .px-sprite { animation: none; }
+}
+
 /* Bevel helpers: light top-left, dark bottom-right. Materials set --bev-light / --bev-dark. */
 .bevel-2 { box-shadow: inset 2px 2px 0 var(--bev-light), inset -2px -2px 0 var(--bev-dark); }
 .bevel-4 { box-shadow: inset 4px 4px 0 var(--bev-light), inset -4px -4px 0 var(--bev-dark); }
@@ -1073,8 +1090,8 @@ p { margin: 0; }
 /* AO-D024: acted = faded, no lock icon. */
 .portrait-slot.acted .portrait-frame { filter: saturate(0.35) brightness(0.6); }
 
-.portrait-slot.frozen .portrait-art > .px-icon { filter: saturate(0.5); }
-.portrait-slot.chained .portrait-art > .px-icon { filter: brightness(0.75); }
+.portrait-slot.frozen .portrait-art > .px-sprite { filter: saturate(0.5); }
+.portrait-slot.chained .portrait-art > .px-sprite { filter: brightness(0.75); }
 
 /* Frozen: ice tint, a jagged 4px rim and three shards. */
 .unit-ice {

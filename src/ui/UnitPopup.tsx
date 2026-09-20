@@ -3,6 +3,7 @@ import { STATUS_INFO, UNIT_DEFINITIONS } from '../engine/index.js';
 import type { ArmyStack } from '../engine/index.js';
 import { stackUpkeep } from '../engine/run/index.js';
 import { Icon } from './pixel/Icon.js';
+import type { Team } from './pixel/sprite.js';
 import { UnitArt } from './UnitArt.js';
 import { UNIT_DESCRIPTIONS } from './unitText.js';
 import { STATUS_ICONS } from './stackStatus.js';
@@ -17,13 +18,15 @@ interface Props {
   onClose: () => void;
   /** Shows live battle state (statuses, morale, veterancy, block). */
   inBattle?: boolean;
+  /** Enemy stacks are drawn cold-tinted and mirrored, as on the battle tiles. */
+  team?: Team;
   onSplit?: (stackId: string, splitCount: number) => void;
   onMerge?: (stackIdA: string, stackIdB: string) => void;
   /** Outside battle only; the popup closes after a dismissal. count omitted = the whole stack. */
   onDismiss?: (stackId: string, count?: number) => void;
 }
 
-export function UnitPopup({ stack, army, onClose, inBattle, onSplit, onMerge, onDismiss }: Props) {
+export function UnitPopup({ stack, army, onClose, inBattle, team, onSplit, onMerge, onDismiss }: Props) {
   const def = UNIT_DEFINITIONS[stack.unitId];
   const totalHp = stack.count * def.hpPerUnit;
   const [splitCount, setSplitCount] = useState(Math.max(1, Math.floor(stack.count / 2)));
@@ -44,7 +47,7 @@ export function UnitPopup({ stack, army, onClose, inBattle, onSplit, onMerge, on
     <Modal heading={def.name} trim onClose={onClose} width={320}>
       <div className="unit-popup-card">
         <div className="unit-popup-icon">
-          <UnitArt unitId={stack.unitId} size={4} />
+          <UnitArt unitId={stack.unitId} size={3} team={team} />
         </div>
         <Tip tip={role}>
           <div className="unit-popup-role">

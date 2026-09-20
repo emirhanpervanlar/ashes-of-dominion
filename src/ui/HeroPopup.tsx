@@ -1,6 +1,6 @@
 import { HERO_DEFINITIONS } from '../engine/index.js';
 import type { RunState } from '../engine/run/index.js';
-import { HERO_ICONS } from './heroIcons.js';
+import { HeroArt } from './HeroArt.js';
 import { Modal } from './Modal.js';
 import { Icon } from './pixel/Icon.js';
 import { relicIcon } from './relicIcons.js';
@@ -17,7 +17,7 @@ export function HeroPopup({ run, onClose }: { run: Pick<RunState, 'hero' | 'reli
       <div className="hero-popup">
         <div className="hero-popup-side">
           <div className="hero-popup-portrait step">
-            <Icon name={HERO_ICONS[hero.heroType]} size={4} />
+            <HeroArt heroId={hero.heroType} size={3} />
           </div>
           <div className="hero-popup-class">{HERO_DEFINITIONS[hero.heroType].name}</div>
         </div>

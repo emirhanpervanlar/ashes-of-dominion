@@ -8,7 +8,7 @@ import { FoodPopup } from './FoodPopup.js';
 import { HistoryDrawer } from './HistoryDrawer.js';
 import { DeckViewer } from './DeckViewer.js';
 import { polarityTabs } from './deckView.js';
-import { HERO_ICONS } from './heroIcons.js';
+import { HeroArt } from './HeroArt.js';
 import { HeroPopup } from './HeroPopup.js';
 import { Icon } from './pixel/Icon.js';
 import { relicIcon } from './relicIcons.js';
@@ -113,7 +113,7 @@ export function GarrisonBar({ run, onLeave, onOpenCardRemoval, recentRecruit, on
           <div className="plaque plaque--iron garrison-hero-plaque">{hero.name}</div>
           <Tip tip="Hero stats">
             <button className="garrison-hero-portrait-rect" onClick={() => setHeroOpen(true)}>
-              <Icon name={HERO_ICONS[hero.heroType]} size={2} />
+              <HeroArt heroId={hero.heroType} />
             </button>
           </Tip>
           <div className="garrison-relic-grid">

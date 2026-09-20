@@ -256,7 +256,7 @@ export function ArmyGrid({ army, recentRecruit, disabled, placing, onMoveStack, 
                         else iconRefs.current.delete(s.stackId);
                       }}
                     >
-                      <UnitArt unitId={s.unitId} />
+                      <UnitArt unitId={s.unitId} seed={s.stackId} />
                       <Tip tip={roleTip(s.unitId)}>
                         <span className="army-slot-role">
                           <Icon name={UNIT_ROLE_ICONS[s.unitId]} />

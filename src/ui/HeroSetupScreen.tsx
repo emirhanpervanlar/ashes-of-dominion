@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { HERO_DEFINITIONS, UNIT_DEFINITIONS } from '../engine/index.js';
 import type { HeroId } from '../engine/index.js';
 import { STARTING_RELIC_DEFINITIONS, previewStart, startingRelicList } from '../engine/run/index.js';
-import { HERO_ICONS } from './heroIcons.js';
+import { HeroArt } from './HeroArt.js';
 import { Icon } from './pixel/Icon.js';
 import { RelicText } from './RelicText.js';
 import { relicIcon } from './relicIcons.js';
@@ -60,7 +60,7 @@ export function HeroSetupScreen({ onBack, onBegin }: Props) {
                 <button key={hero.id} className={`hero-choice${heroId === hero.id ? ' selected' : ''}`} onClick={() => setHeroId(hero.id)}>
                   <span className="hero-choice-top">
                     <span className="hero-choice-portrait step">
-                      <Icon name={HERO_ICONS[hero.id]} size={4} />
+                      <HeroArt heroId={hero.id} size={2} />
                     </span>
                     <span className="hero-choice-title">
                       <span className="hero-choice-name">{hero.name}</span>
@@ -116,7 +116,7 @@ export function HeroSetupScreen({ onBack, onBegin }: Props) {
                           <div key={position} className={`preview-slot${stack ? '' : ' empty'}`}>
                             {stack && (
                               <>
-                                <UnitArt unitId={stack.unitId} size={2} />
+                                <UnitArt unitId={stack.unitId} size={1} />
                                 <span className="preview-count">x{stack.count}</span>
                                 <span className="preview-unit">{UNIT_DEFINITIONS[stack.unitId].name}</span>
                               </>
