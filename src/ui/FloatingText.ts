@@ -1,8 +1,7 @@
 import { useCallback, useState } from 'react';
-import { UNIT_DEFINITIONS } from '../engine/index.js';
-import type { CombatEvent, CombatState } from '../engine/index.js';
 import type { IconName } from './pixel/icons.js';
 import { STATUS_ICONS } from './stackStatus.js';
+import type { Cue, HitCue } from './battleCues.js';
 
 export interface Floater {
   id: number;
@@ -16,8 +15,8 @@ export interface Floater {
 const LIFETIME_MS = 1400;
 let nextFloaterId = 1;
 
-/** Turns the events an action just appended to the combat log into floating-text entries. */
-export function floatersFromEvents(events: CombatEvent[], after: CombatState): Omit<Floater, 'id'>[] {
+/** Turns visual cues into floating-text entries: "-N units" / "Wounded" (AO-D022), Blocked, +N Block, heal in units, statuses. */
+export function floatersFromCues(cues: Cue[]): Omit<Floater, 'id'>[] {
   const out: Omit<Floater, 'id'>[] = [];
   const perStack = new Map<string, number>();
   function add(stackId: string, text: string, kind: Floater['kind'], icon?: IconName) {
@@ -25,20 +24,18 @@ export function floatersFromEvents(events: CombatEvent[], after: CombatState): O
     perStack.set(stackId, n + 1);
     out.push({ stackId, text, icon, kind, delayMs: n * 260 });
   }
-  for (const e of events) {
-    if (e.type === 'STACK_ATTACKED') {
-      if (e.unitsKilled > 0) add(e.targetStackId, `-${e.unitsKilled} ${e.unitsKilled === 1 ? 'unit' : 'units'}`, 'damage');
-      else if (e.finalDamage > 0) add(e.targetStackId, 'Wounded', 'damage');
-      if (e.blocked > 0) add(e.targetStackId, `Blocked ${e.blocked}`, 'block');
-    } else if (e.type === 'STACK_HEALED' && e.amount > 0) {
-      const stack = [...after.playerArmy, ...after.enemyArmy].find((s) => s.stackId === e.stackId);
-      const units = stack ? Math.floor(e.amount / UNIT_DEFINITIONS[stack.unitId].hpPerUnit) : 0;
-      add(e.stackId, units > 0 ? `+${units} ${units === 1 ? 'unit' : 'units'}` : 'Healed', 'heal');
-    } else if (e.type === 'BLOCK_GAINED' && e.amount > 0) {
-      add(e.stackId, `+${e.amount} Block`, 'block');
-    } else if (e.type === 'STATUS_APPLIED') {
-      add(e.stackId, e.status, 'status', STATUS_ICONS[e.status]);
-    }
+  function addHit(hit: HitCue) {
+    if (hit.dodged) add(hit.targetStackId, 'Dodged', 'status');
+    else if (hit.unitsKilled > 0) add(hit.targetStackId, `-${hit.unitsKilled} ${hit.unitsKilled === 1 ? 'unit' : 'units'}`, 'damage');
+    else if (hit.hpDamage > 0) add(hit.targetStackId, 'Wounded', 'damage');
+    if (hit.blocked > 0) add(hit.targetStackId, `Blocked ${hit.blocked}`, 'block');
+  }
+  for (const cue of cues) {
+    if (cue.kind === 'attack') cue.hits.forEach(addHit);
+    else if (cue.kind === 'dot') addHit(cue.hit);
+    else if (cue.kind === 'heal') add(cue.stackId, cue.units > 0 ? `+${cue.units} ${cue.units === 1 ? 'unit' : 'units'}` : 'Healed', 'heal');
+    else if (cue.kind === 'block') add(cue.stackId, `+${cue.amount} Block`, 'block');
+    else add(cue.stackId, cue.status, 'status', STATUS_ICONS[cue.status]);
   }
   return out;
 }
