@@ -21,14 +21,12 @@ interface Props {
 
 type RewardSlot =
   | { kind: 'card'; key: string; cardId: string }
-  | { kind: 'upgrade'; key: string; instanceId: string; cardId: string; upgradedCardId: string };
+  | { kind: 'upgrade'; key: string; instanceId: string; cardId: string };
 
 export function RewardScreen({ reward, deck, removalQuote, loot, isBoss, onClaimRelic, onClaimCard, onClaimUpgrade, onRemoveCard, onSkip }: Props) {
   const slots: RewardSlot[] = [
     ...reward.cardOptions.map((cardId): RewardSlot => ({ kind: 'card', key: cardId, cardId })),
-    ...reward.upgradeOptions.map(
-      (o): RewardSlot => ({ kind: 'upgrade', key: o.instanceId, instanceId: o.instanceId, cardId: o.cardId, upgradedCardId: o.upgradedCardId })
-    ),
+    ...reward.upgradeOptions.map((o): RewardSlot => ({ kind: 'upgrade', key: o.instanceId, instanceId: o.instanceId, cardId: o.cardId })),
   ];
 
   const relics = reward.relicChoices.length > 0 ? reward.relicChoices : reward.relicOffer ? [reward.relicOffer] : [];
@@ -70,8 +68,9 @@ export function RewardScreen({ reward, deck, removalQuote, loot, isBoss, onClaim
           return (
             <LargeCard
               key={slot.key}
-              cardId={isUpgrade ? slot.upgradedCardId : slot.cardId}
-              visualId={slot.cardId}
+              cardId={slot.cardId}
+              upgraded={isUpgrade}
+              showBase={isUpgrade}
               tag={isUpgrade ? 'Upgrade' : undefined}
               onClick={isUpgrade ? () => onClaimUpgrade(slot.instanceId) : () => onClaimCard(slot.cardId)}
             />

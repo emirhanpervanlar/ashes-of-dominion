@@ -3,6 +3,7 @@ import { ActionCardTile } from './ActionCardTile.js';
 
 export interface FlyingCardState {
   cardId: string;
+  upgraded?: boolean;
   /** Viewport rect of the hand slot the card left, and the viewport point it travels to. */
   from: { left: number; top: number; width: number; height: number };
   to: { x: number; y: number };
@@ -20,7 +21,7 @@ export function FlyingCard({ card }: { card: FlyingCardState }) {
   } as CSSProperties;
   return (
     <div className="flying-card" style={style}>
-      <ActionCardTile id={card.cardId} affordable />
+      <ActionCardTile id={card.cardId} upgraded={card.upgraded} affordable />
     </div>
   );
 }

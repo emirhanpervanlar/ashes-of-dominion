@@ -31,6 +31,12 @@ describe('groupCards', () => {
     expect(groupCards(ids.map((cardId) => ({ cardId })))).toEqual(groups);
   });
 
+  it('sorts an upgraded card by its reduced Mana cost', () => {
+    // Arrow Rain costs 3, its "+" costs 2, so the "+" copy lists before the 3-cost base copy.
+    const groups = groupCards([{ cardId: 'arrow_rain' }, { cardId: 'arrow_rain', upgraded: true }]);
+    expect(groups.map((g) => g.upgraded)).toEqual([true, false]);
+  });
+
   it('returns nothing for an empty pile', () => {
     expect(groupCards([])).toEqual([]);
   });
