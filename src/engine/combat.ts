@@ -195,7 +195,10 @@ function resolveAttack(
   const passiveMult = passiveDamageBonusMultiplier(attacker, attackerDef, actualTarget.side, army, actualTarget);
   const heroEffectiveness = attacker.side === 'player' ? statEffectiveness(state.hero.stats[damageStatFor(attackerDef.tags)]) : 1;
 
-  const nextAttackBonus = attacker.flags.nextAttackDamageBonusPercent ? 1 + attacker.flags.nextAttackDamageBonusPercent / 100 : 1;
+  // Focus Fire: the first friendly attack of the player's turn consumes the army-wide bonus (counterattacks on the enemy turn do not).
+  const armyBonusPercent = attacker.side === 'player' && state.phase === 'player' ? state.nextFriendlyAttackBonusPercent : 0;
+  if (armyBonusPercent > 0) state.nextFriendlyAttackBonusPercent = 0;
+  const nextAttackBonus = (attacker.flags.nextAttackDamageBonusPercent ? 1 + attacker.flags.nextAttackDamageBonusPercent / 100 : 1) * (1 + armyBonusPercent / 100);
   const ignoresArmor = !!attacker.flags.nextAttackIgnoresArmor;
 
   let execMult = 1;
@@ -481,10 +484,8 @@ function executeEffect(state: CombatState, effect: CardEffect, action: TargetedA
       }
       return;
     }
-    case 'DEFENSE_BUFF_ADJACENT_THREE': {
-      const source = findStack(state.playerArmy, action.actingStackId)!;
-      const affected = [source, ...adjacentAllies(state.playerArmy, source)].slice(0, 3);
-      for (const stack of affected) {
+    case 'DEFENSE_BUFF_ALL': {
+      for (const stack of state.playerArmy.filter((s) => s.count > 0)) {
         const amount = defenseBuffAmount(stack.unitId, effect.amount);
         const updated = { ...stack, statuses: [...stack.statuses, { type: 'armor' as const, amount, duration: effect.duration }] };
         replaceStack(state.playerArmy, updated);
@@ -504,20 +505,22 @@ function executeEffect(state: CombatState, effect: CardEffect, action: TargetedA
       return;
     }
     case 'DAMAGE_AND_DEFENSE_BUFF': {
-      const target = findStack(state.playerArmy, action.targetStackId ?? action.actingStackId)!;
-      const dmgAmount = Math.round((UNIT_DEFINITIONS[target.unitId].attack * effect.damageAmount) / 100);
-      const defAmount = defenseBuffAmount(target.unitId, effect.defenseAmount);
-      const updated = {
-        ...target,
-        statuses: [
-          ...target.statuses,
-          { type: 'strength' as const, amount: dmgAmount, duration: effect.duration },
-          { type: 'armor' as const, amount: defAmount, duration: effect.duration },
-        ],
-      };
-      replaceStack(state.playerArmy, updated);
-      events.push({ type: 'STATUS_APPLIED', stackId: target.stackId, status: 'strength', amount: dmgAmount, duration: effect.duration });
-      events.push({ type: 'STATUS_APPLIED', stackId: target.stackId, status: 'armor', amount: defAmount, duration: effect.duration });
+      const targets = effect.scope === 'army' ? state.playerArmy.filter((s) => s.count > 0) : [findStack(state.playerArmy, action.targetStackId ?? action.actingStackId)!];
+      for (const target of targets) {
+        const dmgAmount = Math.round((UNIT_DEFINITIONS[target.unitId].attack * effect.damageAmount) / 100);
+        const defAmount = defenseBuffAmount(target.unitId, effect.defenseAmount);
+        const updated = {
+          ...target,
+          statuses: [
+            ...target.statuses,
+            { type: 'strength' as const, amount: dmgAmount, duration: effect.duration },
+            { type: 'armor' as const, amount: defAmount, duration: effect.duration },
+          ],
+        };
+        replaceStack(state.playerArmy, updated);
+        events.push({ type: 'STATUS_APPLIED', stackId: target.stackId, status: 'strength', amount: dmgAmount, duration: effect.duration });
+        events.push({ type: 'STATUS_APPLIED', stackId: target.stackId, status: 'armor', amount: defAmount, duration: effect.duration });
+      }
       return;
     }
     case 'APPLY_STATUS': {
@@ -561,12 +564,6 @@ function executeEffect(state: CombatState, effect: CardEffect, action: TargetedA
       events.push({ type: 'STACK_MOVED', stackId: stack.stackId, fromPosition: from, toPosition: to });
       return;
     }
-    case 'GAIN_MORALE': {
-      const stack = findStack(state.playerArmy, action.actingStackId)!;
-      stack.morale = Math.min(100, stack.morale + effect.amount);
-      events.push({ type: 'MORALE_CHANGED', stackId: stack.stackId, amount: effect.amount });
-      return;
-    }
     case 'GAIN_MORALE_ALL': {
       for (const stack of state.playerArmy) {
         if (stack.count > 0) {
@@ -574,6 +571,10 @@ function executeEffect(state: CombatState, effect: CardEffect, action: TargetedA
           events.push({ type: 'MORALE_CHANGED', stackId: stack.stackId, amount: effect.amount });
         }
       }
+      return;
+    }
+    case 'ARMY_NEXT_ATTACK_BONUS': {
+      state.nextFriendlyAttackBonusPercent += effect.percent;
       return;
     }
     case 'GAIN_MANA': {
@@ -999,6 +1000,7 @@ export function startBattle(params: StartBattleParams): ApplyResult {
     discard: [],
     exhausted: [],
     enemiesCleared: false,
+    nextFriendlyAttackBonusPercent: 0,
     enemyIntents: [],
     activeRelicEffects: params.activeRelicEffects ?? [],
     log: [],

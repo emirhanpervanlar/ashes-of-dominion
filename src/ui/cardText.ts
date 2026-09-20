@@ -24,9 +24,9 @@ export const CARD_DESCRIPTIONS: Record<string, string> = {
   mass_charge: 'All Knight stacks +30% damage this turn.',
   hold_the_line: 'All frontline stacks +25% Defense this turn.',
   brutal_command: 'Next attack +100% damage; cannot be redirected.',
-  rally: 'Restore morale; draw 1 card.',
+  rally: 'All friendly stacks regain morale; draw 1 card.',
   last_stand: 'Target gains +50% Damage, +30% Defense. 1 turn.',
-  formation: 'Three adjacent friendly stacks +15% Defense.',
+  formation: 'All friendly stacks +15% Defense this turn.',
   execution_order: '+100% damage if the target is below 30% HP.',
 
   // Hero Cards — Rogue
@@ -56,5 +56,5 @@ export const CARD_DESCRIPTIONS: Record<string, string> = {
   tactical_insight: 'Draw 2 cards.',
   emergency_retreat: 'Selected stack cannot be targeted or attack this turn.',
   second_wind: 'Restore 10% of lost soldiers. Exhaust.',
-  battle_hardened: '+20% Damage, +20% Defense. 1 turn.',
+  battle_hardened: '+20% Damage, +20% Defense to all friendly stacks. 1 turn.',
 };

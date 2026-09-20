@@ -265,9 +265,9 @@ export const CARD_DEFINITIONS: Record<string, CardDefinition> = {
     rarity: 'common',
     manaCost: 1,
     tags: ['warlord', 'morale', 'support'],
-    targeting: 'ally-stack',
+    targeting: 'none',
     effects: [
-      { kind: 'GAIN_MORALE', amount: 30 },
+      { kind: 'GAIN_MORALE_ALL', amount: 30 },
       { kind: 'DRAW', amount: 1 },
     ],
   },
@@ -288,8 +288,8 @@ export const CARD_DEFINITIONS: Record<string, CardDefinition> = {
     rarity: 'uncommon',
     manaCost: 1,
     tags: ['warlord', 'defense', 'formation'],
-    targeting: 'ally-stack',
-    effects: [{ kind: 'DEFENSE_BUFF_ADJACENT_THREE', amount: 15, duration: 1 }],
+    targeting: 'none',
+    effects: [{ kind: 'DEFENSE_BUFF_ALL', amount: 15, duration: 1 }],
   },
   execution_order: {
     id: 'execution_order',
@@ -508,8 +508,8 @@ export const CARD_DEFINITIONS: Record<string, CardDefinition> = {
     rarity: 'common',
     manaCost: 1,
     tags: ['neutral', 'damage'],
-    targeting: 'ally-stack',
-    effects: [{ kind: 'SET_FLAGS', target: 'self', flags: { nextAttackDamageBonusPercent: 50 } }],
+    targeting: 'none',
+    effects: [{ kind: 'ARMY_NEXT_ATTACK_BONUS', percent: 50 }],
   },
   reposition: {
     id: 'reposition',
@@ -562,7 +562,7 @@ export const CARD_DEFINITIONS: Record<string, CardDefinition> = {
     rarity: 'rare',
     manaCost: 2,
     tags: ['neutral', 'buff'],
-    targeting: 'ally-stack',
-    effects: [{ kind: 'DAMAGE_AND_DEFENSE_BUFF', damageAmount: 20, defenseAmount: 20, duration: 1 }],
+    targeting: 'none',
+    effects: [{ kind: 'DAMAGE_AND_DEFENSE_BUFF', damageAmount: 20, defenseAmount: 20, duration: 1, scope: 'army' }],
   },
 };

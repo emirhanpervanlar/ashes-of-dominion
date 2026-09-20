@@ -178,7 +178,6 @@ export type CardEffect =
   | { kind: 'MODIFY_STAT'; stat: 'attack' | 'defense'; amount: number; duration: number; scope: 'self' | 'adjacent-allies' }
   | { kind: 'APPLY_STATUS'; status: StatusType; amount: number; duration: number }
   | { kind: 'REMOVE_STATUSES'; statuses: StatusType[] }
-  | { kind: 'GAIN_MORALE'; amount: number }
   | { kind: 'GAIN_MORALE_ALL'; amount: number }
   | { kind: 'GAIN_MANA'; amount: number }
   | { kind: 'DRAW'; amount: number }
@@ -187,9 +186,13 @@ export type CardEffect =
   | { kind: 'GAIN_BLOCK'; amount: number }
   | { kind: 'GAIN_BLOCK_ALL_FRONT'; amount: number }
   | { kind: 'DEFENSE_BUFF_ALL_FRONTLINE'; amount: number; duration: number }
-  | { kind: 'DEFENSE_BUFF_ADJACENT_THREE'; amount: number; duration: number }
+  /** Formation - every living friendly stack, no target needed. */
+  | { kind: 'DEFENSE_BUFF_ALL'; amount: number; duration: number }
+  /** Focus Fire - the next friendly attack (any stack) deals +percent damage; consumed by the first attack. */
+  | { kind: 'ARMY_NEXT_ATTACK_BONUS'; percent: number }
   | { kind: 'DAMAGE_BUFF_ALL_WITH_TAG'; tag: string; amount: number; duration: number }
-  | { kind: 'DAMAGE_AND_DEFENSE_BUFF'; damageAmount: number; defenseAmount: number; duration: number }
+  /** `scope` 'army' (Battle Hardened) buffs every living friendly stack; the default buffs the chosen one. */
+  | { kind: 'DAMAGE_AND_DEFENSE_BUFF'; damageAmount: number; defenseAmount: number; duration: number; scope?: 'target' | 'army' }
   | { kind: 'SET_FLAGS'; target: 'self' | 'other'; flags: Partial<StackFlags> }
   /** Venomous Army — applies the flags to every living friendly stack carrying `tag` (e.g. all ranged stacks). */
   | { kind: 'SET_FLAGS_ALL_WITH_TAG'; tag: string; flags: Partial<StackFlags> }
@@ -319,6 +322,8 @@ export interface CombatState {
   result: 'ongoing' | 'victory' | 'defeat';
   /** AO-D067: every enemy stack is dead; the battle still runs until the player ends the turn (a last window for cards and heals). */
   enemiesCleared: boolean;
+  /** Pending Focus Fire bonus: the next friendly attack deals this much extra damage, then it resets to 0. */
+  nextFriendlyAttackBonusPercent: number;
   hero: Hero;
   playerArmy: ArmyStack[];
   enemyArmy: ArmyStack[];
