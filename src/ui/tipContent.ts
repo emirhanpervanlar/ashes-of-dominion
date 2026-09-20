@@ -88,8 +88,9 @@ export function roleTip(unitId: UnitId): TipContent {
   return { title: info.name, icon, body: info.text };
 }
 
-export function manaCostTip(cost: number): TipContent {
-  return { title: 'Mana cost', icon: 'mana', body: `Costs ${cost} Mana to play.` };
+/** `was` is the unupgraded cost when the card is cheaper than it. */
+export function manaCostTip(cost: number, was?: number): TipContent {
+  return { title: 'Mana cost', icon: 'mana', body: was !== undefined && was > cost ? `Costs ${cost} (was ${was}).` : `Costs ${cost} Mana to play.` };
 }
 
 export function pileTip(kind: 'draw' | 'discard', count: number): TipContent {

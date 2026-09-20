@@ -4,7 +4,7 @@ import { cardView } from './cardView.js';
 
 describe('cardView', () => {
   it('shows the base card unchanged', () => {
-    expect(cardView('charge')).toEqual({ name: 'Charge', manaCost: 1, description: 'Attack with +50% damage.', upgraded: false });
+    expect(cardView('charge')).toEqual({ name: 'Charge', manaCost: 1, baseManaCost: 1, description: 'Attack with +50% damage.', upgraded: false });
   });
 
   it('shows the "+" name and text', () => {
@@ -17,6 +17,7 @@ describe('cardView', () => {
   it('uses the reduced Mana cost of a cost-upgrade', () => {
     expect(CARD_DEFINITIONS.arrow_rain!.manaCost).toBe(3);
     expect(cardView('arrow_rain', true)!.manaCost).toBe(2);
+    expect(cardView('arrow_rain', true)!.baseManaCost).toBe(3);
     expect(cardView('arrow_rain')!.manaCost).toBe(3);
   });
 

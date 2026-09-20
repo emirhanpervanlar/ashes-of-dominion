@@ -61,6 +61,8 @@ describe('role tips', () => {
 describe('cost, pile and resource tips', () => {
   it('states the Mana cost', () => {
     expect(manaCostTip(2).body).toBe('Costs 2 Mana to play.');
+    expect(manaCostTip(2, 2).body).toBe('Costs 2 Mana to play.');
+    expect(manaCostTip(1, 2).body).toBe('Costs 1 (was 2).');
   });
 
   it('counts pile cards with the right plural', () => {

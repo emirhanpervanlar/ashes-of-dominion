@@ -4,6 +4,7 @@ import { cardView } from './cardView.js';
 import { cardVisual } from './cardVisuals.js';
 import { Icon } from './pixel/Icon.js';
 import { Tip } from './Tip.js';
+import { manaCostTip } from './tipContent.js';
 import type { TipContent } from './tipContent.js';
 
 interface ActionCardTileProps {
@@ -27,6 +28,7 @@ export function ActionCardTile({ id, upgraded, count, affordable, pending, condi
   const view = cardView(id, upgraded);
   if (!view) return null;
   const visual = cardVisual(id);
+  const cheaper = view.manaCost < view.baseManaCost;
   const classes = ['action-card', `polarity-${visual.polarity}`];
   if (!affordable) classes.push('disabled');
   if (pending) classes.push('pending');
@@ -41,7 +43,9 @@ export function ActionCardTile({ id, upgraded, count, affordable, pending, condi
           cardInfo.open(id, { upgraded, playability });
         }}
       >
-        <div className="action-card-cost">{view.manaCost}M</div>
+        <Tip tip={cheaper ? manaCostTip(view.manaCost, view.baseManaCost) : null}>
+          <div className={`action-card-cost${cheaper ? ' cost-cheaper' : ''}`}>{view.manaCost}M</div>
+        </Tip>
         {conditionBlocked && (
           <span className="action-card-warn">
             <Icon name="ui_warn" />

@@ -1716,6 +1716,10 @@ p { margin: 0; }
   background: var(--steel-300);
 }
 
+/* A "+" card that costs less than its base version: the gem turns green (a cost cut is good news). */
+.cost-cheaper::before { background: var(--moss-500); }
+.cost-cheaper::after { background: var(--moss-300); }
+
 .action-card.disabled .action-card-cost::before,
 .merchant-card.disabled .reward-card-cost::before { background: var(--stone-600); }
 

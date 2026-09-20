@@ -49,8 +49,8 @@ export function LargeCard({ cardId, upgraded, showBase, tag, count, price, disab
           : undefined
       }
     >
-      <Tip tip={manaCostTip(view.manaCost)}>
-        <div className="reward-card-cost">{view.manaCost}</div>
+      <Tip tip={manaCostTip(view.manaCost, view.baseManaCost)}>
+        <div className={`reward-card-cost${view.manaCost < view.baseManaCost ? ' cost-cheaper' : ''}`}>{view.manaCost}</div>
       </Tip>
       <div className="reward-card-icon">
         <Icon name={visual.icon} size={3} />
