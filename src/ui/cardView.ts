@@ -1,6 +1,6 @@
 import { CARD_DEFINITIONS, CARD_UPGRADES, resolveCard } from '../engine/index.js';
 import type { HeroCastStat } from '../engine/index.js';
-import { CARD_DESCRIPTIONS } from './cardText.js';
+import { CARD_DESCRIPTIONS, numberedCardText } from './cardText.js';
 
 /** A card as the player sees and pays for it: the base card, or its "+" version (AO-D060). */
 export interface CardView {
@@ -24,7 +24,7 @@ export function cardView(cardId: string, upgraded = false): CardView | undefined
     name: card.name,
     manaCost: card.manaCost,
     baseManaCost: CARD_DEFINITIONS[cardId]?.manaCost ?? card.manaCost,
-    description: upgrade?.description ?? CARD_DESCRIPTIONS[cardId] ?? cardId,
+    description: numberedCardText(cardId, upgraded) ?? upgrade?.description ?? CARD_DESCRIPTIONS[cardId] ?? cardId,
     upgraded: !!upgrade,
     scalesWith: card.scalesWith,
   };

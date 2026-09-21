@@ -9,6 +9,6 @@ export const UNIT_DESCRIPTIONS: Record<UnitId, string> = {
   skeleton: 'Raised from your fallen by the Necromantic Doctrine. Weak, needs no Food and cannot be recruited.',
   goblin: 'Cheap raider. Adjacent Goblins deal +10% damage.',
   orc: 'Brutal frontline raider. +20% damage vs targets below 50% count.',
-  shaman: 'Buffs the weakest allied stack at the start of each enemy turn.',
-  wolf: 'Fast beast. +50% damage against backline targets.',
+  shaman: 'Gives the weakest allied stack +4 Strength at the start of each enemy turn.',
+  wolf: 'Fast beast. +25% damage against backline targets.',
 };

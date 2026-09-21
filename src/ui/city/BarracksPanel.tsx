@@ -56,7 +56,7 @@ export function BarracksPanel({ run, recent, onRecruit, onUpgrade, onClose }: Pr
 
       <div className="city-barracks-upgrade well step">
         <span className="city-strip-item city-strip-item--big">
-          <Icon name="bld_barracks" size={2} /> Tier {ROMAN[tier - 1]} of {rows.length}
+          <Icon name="bld_barracks" /> Tier {ROMAN[tier - 1]} of {rows.length}
         </span>
         {next ? (
           <>
@@ -66,7 +66,7 @@ export function BarracksPanel({ run, recent, onRecruit, onUpgrade, onClose }: Pr
             <span className={`city-strip-item city-cost${run.gold < next.cost ? ' city-cost--short' : ''}`}>
               <Icon name="gold" /> {next.cost}
             </span>
-            <button className="btn btn--primary" disabled={run.gold < next.cost} onClick={onUpgrade}>
+            <button className="btn btn--primary btn--s" disabled={run.gold < next.cost} onClick={onUpgrade}>
               Upgrade to {next.label}
             </button>
             {run.gold < next.cost && (
@@ -161,7 +161,6 @@ export function BarracksPanel({ run, recent, onRecruit, onUpgrade, onClose }: Pr
                   ) : (
                     <>
                       <div className="city-recruit-cost">
-                        <span className="t-label-text city-recruit-costlabel">Cost per unit</span>
                         <span>
                           <Icon name="gold" /> {fmt(quote.goldPerUnit)} each
                         </span>
@@ -195,7 +194,7 @@ export function BarracksPanel({ run, recent, onRecruit, onUpgrade, onClose }: Pr
                       >
                         Recruit {count}
                       </button>
-                      <div className="city-blocker city-recruit-blocker">{quote.blocker && quote.placement !== 'full' ? quote.blocker : ''}</div>
+                      {quote.blocker && quote.placement !== 'full' && <div className="city-blocker city-recruit-blocker">{quote.blocker}</div>}
                     </>
                   )}
                 </div>
