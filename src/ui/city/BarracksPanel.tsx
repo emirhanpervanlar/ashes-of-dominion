@@ -12,7 +12,6 @@ import { roleTip } from '../tipContent.js';
 import { UnitArt } from '../UnitArt.js';
 import { UNIT_ROLE_ICONS } from '../unitIcons.js';
 import { UNIT_DESCRIPTIONS } from '../unitText.js';
-import { BuildAction } from './BuildAction.js';
 import { MAX_RECRUIT, RECRUITABLE_UNITS, barracksRows, daysToGarrison, garrisonRows, placementText, recruitQuote } from './cityView.js';
 
 interface Props {
@@ -20,8 +19,6 @@ interface Props {
   /** The last recruit, shown as a confirmation line. */
   recent: { unitId: UnitId; amount: number } | null;
   onRecruit: (unitId: UnitId, count: number) => void;
-  /** Tier 0 only: builds the Barracks, so both engine states work (AO-D080). */
-  onBuild: (buildingId: string) => void;
   onUpgrade: () => void;
   /** No unit = collect every type that fits. */
   onCollect: (unitId?: UnitId) => void;
@@ -32,8 +29,9 @@ const fmt = (n: number): string => (Number.isInteger(n) ? `${n}` : n.toFixed(1))
 
 const TIER_TAG = { built: 'Built', next: 'Next', locked: 'Locked' } as const;
 
-/** Barracks: the tier ladder, the garrison waiting for collection, then one recruit card per unit (locked ones greyed) with a quantity stepper. */
-export function BarracksPanel({ run, recent, onRecruit, onBuild, onUpgrade, onCollect, onClose }: Props) {
+/** Barracks (a fixed building, AO-D080): a Recruit tab with one card per unit (locked ones greyed) and a quantity stepper, and a Garrison tab with the tier ladder and the soldiers waiting for collection. */
+export function BarracksPanel({ run, recent, onRecruit, onUpgrade, onCollect, onClose }: Props) {
+  const [tab, setTab] = useState<'recruit' | 'garrison'>('recruit');
   const [counts, setCounts] = useState<Record<string, number>>({});
   const stacks = run.army.filter((s) => s.count > 0);
   const tier = run.city.barracksTier;
@@ -61,12 +59,16 @@ export function BarracksPanel({ run, recent, onRecruit, onBuild, onUpgrade, onCo
         </span>
       </div>
 
-      {tier === 0 ? (
-        <div className="city-section">
-          <p className="city-effect-big">The Barracks is not built yet: nothing can be recruited and no garrison grows.</p>
-          <BuildAction run={run} buildingId="barracks" onBuild={onBuild} label="Build Barracks" />
-        </div>
-      ) : (
+      <div className="tabs" role="tablist">
+        <button role="tab" aria-selected={tab === 'recruit'} className={`tab${tab === 'recruit' ? ' active' : ''}`} onClick={() => setTab('recruit')}>
+          Recruit
+        </button>
+        <button role="tab" aria-selected={tab === 'garrison'} className={`tab${tab === 'garrison' ? ' active' : ''}`} onClick={() => setTab('garrison')}>
+          Garrison{waiting.length > 0 ? ` (${waiting.reduce((n, g) => n + g.waiting, 0)})` : ''}
+        </button>
+      </div>
+
+      {tab === 'garrison' && (
         <>
           <div className="city-hall">
             <section className="city-hall-col">
@@ -128,21 +130,15 @@ export function BarracksPanel({ run, recent, onRecruit, onBuild, onUpgrade, onCo
                         {row.waiting} of {row.cap} waiting, +{row.weekly} a week
                       </span>
                     </span>
-                    <Tip
-                      tip={
-                        row.waiting === 0
-                          ? 'Nobody is waiting yet.'
-                          : row.fits
-                            ? `Adds ${unitCountText(row.unitId, row.waiting)} to your army.`
-                            : `Army full: ${MAX_ARMY_STACKS} stacks and no ${UNIT_DEFINITIONS[row.unitId].name} stack to join.`
-                      }
-                    >
-                      <span>
-                        <button className="btn btn--s" disabled={!row.fits} onClick={() => onCollect(row.unitId)}>
-                          {row.waiting > 0 ? `Collect ${row.waiting}` : 'Collect'}
-                        </button>
-                      </span>
-                    </Tip>
+                    {row.waiting > 0 && (
+                      <Tip tip={row.fits ? `Adds ${unitCountText(row.unitId, row.waiting)} to your army.` : `Army full: ${MAX_ARMY_STACKS} stacks and no ${UNIT_DEFINITIONS[row.unitId].name} stack to join.`}>
+                        <span>
+                          <button className="btn btn--s" disabled={!row.fits} onClick={() => onCollect(row.unitId)}>
+                            Collect {row.waiting}
+                          </button>
+                        </span>
+                      </Tip>
+                    )}
                   </div>
                 ))}
               </div>
@@ -166,7 +162,11 @@ export function BarracksPanel({ run, recent, onRecruit, onBuild, onUpgrade, onCo
               </div>
             </section>
           </div>
+        </>
+      )}
 
+      {tab === 'recruit' && (
+        <>
           <p className="city-note city-recruit-note">A recruit joins the stack of its type, or takes the first free slot. With {MAX_ARMY_STACKS} stacks and no stack of that type there is no room.</p>
 
           <div className="city-recruits">

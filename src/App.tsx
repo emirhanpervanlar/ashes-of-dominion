@@ -223,6 +223,9 @@ export default function App() {
       const text = describeRunEvent(e);
       switch (e.type) {
         // Gold and Food changes are not toasted: the reward screen shows the loot pills and the bar floats the change (resourceDeltas).
+        case 'MINE_CAPTURED':
+          pushToast('node_mine', text ?? 'Mine captured.', 6000);
+          break;
         case 'EVENT_RESOLVED':
           pushToast('fx_sparkle', text ?? 'Nothing happened.', 8000);
           break;
@@ -695,6 +698,7 @@ export default function App() {
           reward={run.pendingReward}
           loot={lastLoot(run.log)}
           isBoss={run.bossBattle}
+          isFort={!run.bossBattle && run.worldMap.nodes.find((n) => n.id === run.worldMap.currentNodeId)?.type === 'fort'}
           onClaimRelic={(relicId) => dispatchRun({ type: 'CLAIM_RELIC', relicId })}
           onClaimCard={(cardId) => dispatchRun({ type: 'CLAIM_CARD', cardId })}
           onClaimUpgrade={(instanceId) => dispatchRun({ type: 'CLAIM_UPGRADE', instanceId })}

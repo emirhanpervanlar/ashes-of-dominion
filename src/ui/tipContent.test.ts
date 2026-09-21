@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { STATUS_INFO, UNIT_DEFINITIONS, statusEffectText } from '../engine/index.js';
 import type { StatusType, UnitId } from '../engine/index.js';
-import { RELIC_DEFINITIONS, STARTING_RELIC_DEFINITIONS, createRun } from '../engine/run/index.js';
+import { MINE, RELIC_DEFINITIONS, STARTING_RELIC_DEFINITIONS, createRun } from '../engine/run/index.js';
+import { VILLAGE } from '../engine/run/villages.js';
 import { STATUS_ICONS } from './stackStatus.js';
-import { blockTip, relicBenefit, buildingTip, foodTip, heroStatRows, manaCostTip, pileTip, relicTip, roleTip, statusTip, threatTip } from './tipContent.js';
+import { blockTip, relicBenefit, buildingTip, foodTip, goldTip, heroStatRows, manaCostTip, nodeTip, pileTip, relicTip, roleTip, statusTip, threatTip, villageHelpGain } from './tipContent.js';
+import type { TipContent } from './tipContent.js';
 
 describe('status tips', () => {
   it('cover every status type with a name and a numeric effect', () => {
@@ -55,6 +57,30 @@ describe('role tips', () => {
       expect(tip.body, unitId).toBeTruthy();
       expect(tip.title).not.toBe(UNIT_DEFINITIONS[unitId].name);
     }
+  });
+});
+
+describe('road node tips', () => {
+  it('explain forts and mines with engine numbers, and leave plain nodes as their label', () => {
+    expect(nodeTip('fort', 'Fort')).toMatchObject({ title: 'Fort' });
+    const mine = nodeTip('mine', 'Mine') as TipContent;
+    expect(mine.lines?.[0]?.text).toContain(`+${MINE.dailyGold} Gold every day`);
+    expect(mine.lines?.[0]?.text).toContain(`${MINE.payingMines} mines`);
+    expect(nodeTip('battle', 'Battle')).toBe('Battle');
+  });
+
+  it('the Gold tip lists captured mines only when there are some', () => {
+    const base = { gold: 10, city: createRun(3).city };
+    expect(goldTip({ ...base, mines: 0 }).lines).toEqual([]);
+    expect(goldTip({ ...base, mines: 2 }).lines?.[0]?.text).toBe('2 captured mines: +2 Gold every day.');
+  });
+});
+
+describe('village help gain', () => {
+  it('adds daily Food for every village but militia only below the engine cap', () => {
+    expect(villageHelpGain(0)).toEqual({ food: VILLAGE.dailyFood, militia: VILLAGE.militiaPerVillage });
+    expect(villageHelpGain(VILLAGE.militiaVillageCap - 1).militia).toBe(VILLAGE.militiaPerVillage);
+    expect(villageHelpGain(VILLAGE.militiaVillageCap)).toEqual({ food: VILLAGE.dailyFood, militia: 0 });
   });
 });
 

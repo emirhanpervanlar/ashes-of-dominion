@@ -1,5 +1,6 @@
 import { CARD_DEFINITIONS, UNIT_DEFINITIONS } from '../engine/index.js';
 import { RELIC_DEFINITIONS, ROMAN, STARTING_RELIC_DEFINITIONS } from '../engine/run/index.js';
+import { villageDailyFood, villageMilitiaPerWeek } from '../engine/run/villages.js';
 import type { RunEvent, UnitCount } from '../engine/run/index.js';
 
 function relicName(relicId: string): string {
@@ -37,10 +38,10 @@ export function describeRunEvent(event: RunEvent): string | null {
       return `Moved onward (−${event.foodCost} Food).`;
     case 'STARVED':
       return `${unitCountsText(event.deaths)} starved (starving day ${event.consecutiveDays}).`;
-    case 'RESOURCE_FOUND':
-      return `Found a cache: +${event.gold} Gold, +${event.food} Food.`;
+    case 'MINE_CAPTURED':
+      return `Mine captured: +${event.gold} Gold, +${event.food} Food, ${event.mines} ${event.mines === 1 ? 'mine' : 'mines'}.`;
     case 'ARRIVED_AT_NODE':
-      return null; // redundant with MOVED/RESOURCE_FOUND/etc.
+      return null; // redundant with MOVED/MINE_CAPTURED/etc.
     case 'BATTLE_WON':
       return 'Battle won!';
     case 'BATTLE_LOST':
@@ -84,7 +85,7 @@ export function describeRunEvent(event: RunEvent): string | null {
     case 'VILLAGE_RAIDED':
       return `Raided a village: +${event.gold} Gold, +${event.food} Food.`;
     case 'VILLAGE_HELPED':
-      return `Helped a village: +${event.gold} Gold, +${event.food} Food. It now sends Food every day and militia every week (${event.villages} helped).`;
+      return `Helped a village: +${event.gold} Gold, +${event.food} Food. Helped villages now send ${villageDailyFood(event)} Food every day and ${villageMilitiaPerWeek(event)} militia every week (${event.villages} helped).`;
     case 'MAGE_TOWER_UPGRADED':
       return `Mage Tower upgraded to tier ${event.tier}.`;
     case 'EVENT_RESOLVED':

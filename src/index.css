@@ -1989,7 +1989,7 @@ p { margin: 0; }
   position: fixed;
   top: 64px;
   right: var(--s-2);
-  z-index: 1000;
+  z-index: 940; /* under the modal backdrop (950): a toast never covers an open city panel */
   display: flex;
   flex-direction: column;
   gap: var(--s-2);
@@ -2051,8 +2051,8 @@ p { margin: 0; }
 /* Node type accent: the 4px band on cards and the marker on the current location. */
 .node-start { --node: var(--iron-500); }
 .node-battle { --node: var(--blood-500); }
-.node-elite_battle { --node: var(--ember-500); }
-.node-resource { --node: var(--moss-500); }
+.node-fort { --node: var(--ember-500); }
+.node-mine { --node: var(--moss-500); }
 .node-merchant { --node: var(--gold-500); }
 .node-village { --node: var(--moss-300); }
 .node-event { --node: var(--steel-500); }
@@ -4596,7 +4596,7 @@ button.frame-pile:hover .pile-card-back::before { --bev-light: var(--gold-400); 
 }
 
 .reward-relic-heading { font: var(--t-h3); color: var(--gold-200); text-align: center; }
-.reward-relic-note { font: var(--t-small); color: var(--text-dim); }
+.reward-relic-warn { display: flex; justify-content: center; align-items: center; gap: var(--s-2); font: var(--t-small); color: var(--blood-300); }
 .reward-relic-row { display: flex; gap: var(--s-5); justify-content: center; flex-wrap: wrap; }
 
 .modal-scroll .subtitle { margin-bottom: var(--s-3); }

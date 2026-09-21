@@ -4,8 +4,8 @@ import type { IconName } from './pixel/icons.js';
 export const NODE_ICONS: Record<NodeType, IconName> = {
   start: 'node_start',
   battle: 'node_battle',
-  elite_battle: 'node_elite',
-  resource: 'node_resource',
+  fort: 'node_fort',
+  mine: 'node_mine',
   merchant: 'node_merchant',
   event: 'node_event',
   boss: 'node_boss',

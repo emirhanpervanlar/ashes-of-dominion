@@ -25,8 +25,8 @@ interface Props {
 const NODE_LABELS: Record<MapNode['type'], string> = {
   start: 'Start',
   battle: 'Battle',
-  elite_battle: 'Elite Battle',
-  resource: 'Resource',
+  fort: 'Fort',
+  mine: 'Mine',
   merchant: 'Merchant',
   event: 'Event',
   boss: 'Boss',
