@@ -27,6 +27,7 @@ import {
   addUnitsToArmy,
   recruitBlocker,
   createInitialCityState,
+  type CityState,
   recruitCost,
   raiseSkeletons,
   settleArmyAfterVictory,
@@ -157,11 +158,13 @@ function renameLegacyNodes(run: RunState): RunState {
   };
 }
 
-/** Version 3 to 4 (AO-047): resource nodes became mines and elite battles forts; the run counts captured mines and forts taken instead of elites defeated. */
+/** Version 3 to 4 (AO-047, AO-D080): resource nodes became mines and elite battles forts, the Barracks is fixed; the run counts captured mines and forts taken instead of elites defeated. */
 function fromVersion3(run: RunState): RunState {
   const { elitesDefeated, ...stats } = run.stats as RunState['stats'] & { elitesDefeated?: number };
   return {
     ...run,
+    // AO-D080: the Barracks is a fixed building now: at least tier I, and no longer a built one that occupies a slot.
+    city: { ...run.city, barracksTier: Math.max(1, run.city.barracksTier) as CityState['barracksTier'], buildings: run.city.buildings.filter((id) => id !== 'barracks') },
     mines: run.mines ?? 0,
     stats: { ...createRunStats(), ...stats, fortsTaken: stats.fortsTaken ?? elitesDefeated ?? 0 },
     log: run.log.map((e) => ((e.type as string) === 'RESOURCE_FOUND' ? ({ ...e, type: 'MINE_CAPTURED', mines: 0 } as unknown as RunEvent) : e)),
@@ -170,11 +173,11 @@ function fromVersion3(run: RunState): RunState {
 
 /** Version 2 to 3 (AO-046): the elite relic is granted at victory (AO-D068), so an unclaimed offer in a saved reward is granted now. */
 function fromVersion2(run: RunState): RunState {
-  // Saves from before AO-D071 could recruit everything: they keep that as a free tier IV Barracks (it takes a building slot).
+  // Saves from before AO-D071 could recruit everything: they keep that as a free tier IV Barracks.
   const barracksTier = run.city.barracksTier ?? 4;
   const migrated: RunState = {
     ...run,
-    city: { ...run.city, barracksTier, buildings: barracksTier > 0 && !run.city.buildings.includes('barracks') ? [...run.city.buildings, 'barracks'] : run.city.buildings },
+    city: { ...run.city, barracksTier },
     garrison: run.garrison ?? {},
     foodPurchases: run.foodPurchases ?? 0,
     villages: run.villages ?? 0,
@@ -1182,7 +1185,6 @@ function buildBuilding(run: RunState, buildingId: string, events: RunEvent[]): R
   }
 
   if (buildingId === 'farm') run.city.farmTier = 1;
-  if (buildingId === 'barracks') run.city.barracksTier = 1;
 
   events.push({ type: 'BUILDING_BUILT', buildingId });
   return { run, events };
@@ -1219,10 +1221,6 @@ function upgradeBarracks(run: RunState, events: RunEvent[]): RunApplyResult {
     return { run, events };
   }
   const tier = run.city.barracksTier;
-  if (tier === 0) {
-    reject(events, 'Build the Barracks first.');
-    return { run, events };
-  }
   const next = BARRACKS_TIERS[tier];
   if (!next) {
     reject(events, 'Barracks is already at max tier.');

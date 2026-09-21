@@ -44,7 +44,7 @@ function isHero(v: unknown): boolean {
 }
 
 function isCity(v: unknown): boolean {
-  return isRec(v) && [1, 2, 3].includes(v.level as number) && allOf(v.buildings, isStr) && (v.doctrine === null || isStr(v.doctrine)) && isWhole(v.mageTowerTier) && v.mageTowerTier <= 3 && isWhole(v.farmTier) && v.farmTier <= 5 && isWhole(v.barracksTier) && v.barracksTier <= 4;
+  return isRec(v) && [1, 2, 3].includes(v.level as number) && allOf(v.buildings, isStr) && (v.doctrine === null || isStr(v.doctrine)) && isWhole(v.mageTowerTier) && v.mageTowerTier <= 3 && isWhole(v.farmTier) && v.farmTier <= 5 && isWhole(v.barracksTier) && v.barracksTier >= 1 && v.barracksTier <= 4;
 }
 
 function isReward(v: unknown): boolean {

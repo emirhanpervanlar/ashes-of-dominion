@@ -171,23 +171,20 @@ describe('AO-046 item 4 (AO-D071): tiered Barracks and the weekly garrison', () 
     for (let i = 0; i < days; i++) current = arriveAt(current, 'mine');
     return current;
   };
-  const withTier = (run: RunState, tier: 0 | 1 | 2 | 3 | 4): RunState => ({ ...run, city: { ...run.city, barracksTier: tier } });
+  const withTier = (run: RunState, tier: 1 | 2 | 3 | 4): RunState => ({ ...run, city: { ...run.city, barracksTier: tier } });
 
-  it('is one building slot at every tier, built for 60 Gold, then 120 / 240 / 480 for tiers II-IV; recruiting is locked until it stands', () => {
+  it('is a fixed building at tier I from the start (AO-D080: no slot, no build), upgraded for 120 / 240 / 480 Gold to tiers II-IV', () => {
     expect(BARRACKS_TIERS.map((t) => t.cost)).toEqual([60, 120, 240, 480]);
     let run = inCity({ ...createRun(20), gold: 2000, food: 500 });
-    expect(reason(act(run, { type: 'RECRUIT', unitId: 'swordsman', count: 1 }).events)).toBe('Build the Barracks to recruit.');
-    expect(rejected(act(run, { type: 'UPGRADE_BARRACKS' }).events)).toBe(true);
-
-    run = act(run, { type: 'BUILD_BUILDING', buildingId: 'barracks' }).run;
-    expect([run.city.barracksTier, run.city.buildings, run.gold]).toEqual([1, ['barracks'], 1940]);
+    expect([run.city.barracksTier, run.city.buildings]).toEqual([1, []]);
     expect(rejected(act(run, { type: 'BUILD_BUILDING', buildingId: 'barracks' }).events)).toBe(true);
+    expect(rejected(act(run, { type: 'RECRUIT', unitId: 'swordsman', count: 1 }).events)).toBe(false);
     for (const [tier, cost] of [[2, 120], [3, 240], [4, 480]] as const) {
       const before = run.gold;
       const result = act(run, { type: 'UPGRADE_BARRACKS' });
       run = result.run;
       expect(result.events).toContainEqual({ type: 'BARRACKS_UPGRADED', tier });
-      expect([run.city.barracksTier, before - run.gold, run.city.buildings]).toEqual([tier, cost, ['barracks']]);
+      expect([run.city.barracksTier, before - run.gold, run.city.buildings]).toEqual([tier, cost, []]);
     }
     expect(rejected(act(run, { type: 'UPGRADE_BARRACKS' }).events)).toBe(true);
     expect(rejected(act({ ...run, city: { ...run.city, barracksTier: 1 }, gold: 100 }, { type: 'UPGRADE_BARRACKS' }).events)).toBe(true);
@@ -196,7 +193,7 @@ describe('AO-046 item 4 (AO-D071): tiered Barracks and the weekly garrison', () 
   it('each tier unlocks exactly one recruitable unit type (I Swordsman, II Archer, III Priest, IV Knight)', () => {
     const base = inCity({ ...createRun(21), gold: 2000, food: 500 });
     const unitOrder = ['swordsman', 'archer', 'priest', 'knight'] as const;
-    for (const tier of [0, 1, 2, 3, 4] as const) {
+    for (const tier of [1, 2, 3, 4] as const) {
       for (const [i, unitId] of unitOrder.entries()) {
         const result = act(withTier(base, tier), { type: 'RECRUIT', unitId, count: 1 });
         expect(rejected(result.events), `${unitId} at tier ${tier}`).toBe(i >= tier);
@@ -205,13 +202,8 @@ describe('AO-046 item 4 (AO-D071): tiered Barracks and the weekly garrison', () 
     expect(reason(act(withTier(base, 1), { type: 'RECRUIT', unitId: 'knight', count: 1 }).events)).toBe('Knight needs Barracks tier IV.');
   });
 
-  it('the garrison grows every 7th day of the world clock: nothing without a Barracks, weekly units by tier with one', () => {
-    const none = walk(createRun(22), 13);
-    expect(none.day).toBe(14);
-    expect(none.garrison).toEqual({});
-    expect(none.log.some((e) => e.type === 'GARRISON_GROWN')).toBe(false);
-
-    const tier1 = walk(withTier(createRun(22), 1), 6);
+  it('the garrison grows every 7th day of the world clock: tier I from the start, weekly units by tier', () => {
+    const tier1 = walk(createRun(22), 6);
     expect([tier1.day, tier1.garrison]).toEqual([7, { swordsman: 4 }]);
     expect(tier1.log).toContainEqual({ type: 'GARRISON_GROWN', units: [{ unitId: 'swordsman', count: 4 }] });
 
@@ -278,7 +270,15 @@ describe('AO-046 item 4 (AO-D071): tiered Barracks and the weekly garrison', () 
     delete old.city.barracksTier;
     delete old.garrison;
     const loaded = validateSave(old)!;
-    expect([loaded.city.barracksTier, loaded.city.buildings, loaded.garrison]).toEqual([4, ['barracks'], {}]);
+    expect([loaded.city.barracksTier, loaded.city.buildings, loaded.garrison]).toEqual([4, [], {}]);
+  });
+
+  it('a version-3 save with an unbuilt Barracks gets tier I and one with a built Barracks keeps its tier but frees the slot (AO-D080)', () => {
+    const save = (tier: number, buildings: string[]) => roundTrip({ ...createRun(28), saveVersion: 3, city: { ...createRun(28).city, barracksTier: tier, buildings } });
+    const unbuilt = validateSave(save(0, ['market']))!;
+    expect([unbuilt.city.barracksTier, unbuilt.city.buildings]).toEqual([1, ['market']]);
+    const built = validateSave(save(3, ['barracks', 'farm']))!;
+    expect([built.city.barracksTier, built.city.buildings]).toEqual([3, ['farm']]);
   });
 });
 
@@ -393,17 +393,16 @@ describe('AO-046 item 6 (AO-D072): villages', () => {
     expect(day.log).toContainEqual({ type: 'DAILY_INCOME', gold: 0, food: FARM_TIERS[0]!.food + 2 * VILLAGE.dailyFood });
   });
 
-  it('helped villages add Swordsman militia to the weekly garrison (capped) even without a Barracks, and the garrison cap follows', () => {
+  it('helped villages add Swordsman militia to the weekly garrison (capped) on top of the Barracks, and the garrison cap follows', () => {
     const three = { ...createRun(41), villages: 3 };
-    expect(weeklyGarrison(three)).toEqual({ swordsman: 3 });
-    expect(weeklyGarrison({ ...three, villages: VILLAGE.militiaVillageCap + 4 })).toEqual({ swordsman: VILLAGE.militiaVillageCap });
+    expect(weeklyGarrison(three)).toEqual({ swordsman: 4 + 3 });
+    expect(weeklyGarrison({ ...three, villages: VILLAGE.militiaVillageCap + 4 })).toEqual({ swordsman: 4 + VILLAGE.militiaVillageCap });
     let run = three;
     for (let i = 0; i < 6; i++) run = arriveAt(run, 'mine');
     expect(run.day).toBe(7);
-    expect(run.garrison).toEqual({ swordsman: 3 });
-    const withBarracks = { ...three, city: { ...three.city, barracksTier: 1 as const } };
-    expect(weeklyGarrison(withBarracks)).toEqual({ swordsman: 4 + 3 });
-    expect(garrisonCap(withBarracks)).toEqual({ swordsman: 14 });
+    expect(run.garrison).toEqual({ swordsman: 4 + 3 });
+    expect(weeklyGarrison(three)).toEqual({ swordsman: 4 + 3 });
+    expect(garrisonCap(three)).toEqual({ swordsman: 14 });
   });
 
   it('both choices are rejected outside a village and change nothing', () => {
@@ -474,14 +473,13 @@ describe('AO-046 item 8 (AO-D074): starting armies and the start', () => {
     expect(mage.some((s) => s.unitId === 'archer') && mage.some((s) => s.unitId === 'priest')).toBe(true);
   });
 
-  it('the free first city visit lets a fresh run raise a Barracks and recruit before the first fight without Threat', () => {
+  it('the free first city visit lets a fresh run recruit from the fixed Barracks before the first fight without Threat', () => {
     let run = createRun(5, 'mage');
     run = act(run, { type: 'TRAVEL_TO_CITY' }).run;
-    run = act(run, { type: 'BUILD_BUILDING', buildingId: 'barracks' }).run;
     const before = run.army.reduce((n, s) => n + s.count, 0);
     const recruited = act(run, { type: 'RECRUIT', unitId: 'swordsman', count: 5 });
     expect(rejected(recruited.events)).toBe(false);
     expect(recruited.run.army.reduce((n, s) => n + s.count, 0)).toBe(before + 5);
-    expect([recruited.run.threat, recruited.run.gold]).toEqual([0, STARTING_GOLD - BARRACKS_TIERS[0]!.cost - 5 * 8]);
+    expect([recruited.run.threat, recruited.run.gold]).toEqual([0, STARTING_GOLD - 5 * 8]);
   });
 });
