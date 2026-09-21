@@ -3,7 +3,7 @@ import { RELIC_DEFINITIONS, STARTING_RELIC_DEFINITIONS } from '../../data/relics
 import { createRng } from '../../rng.js';
 import type { CombatState } from '../../types.js';
 import { generateMerchantInventory } from '../merchant.js';
-import { pickRelicId, RELIC_PRICE_BY_RARITY, RELIC_WEIGHTS } from '../relicSources.js';
+import { isSimpleRelic, pickBossRelicChoices, pickRelicId, RELIC_PRICE_BY_RARITY } from '../relicSources.js';
 import { dailyUpkeep } from '../food.js';
 import { applyRunAction, createRun } from '../runEngine.js';
 import { pendingEventOf } from './eventHelpers.js';
@@ -138,7 +138,7 @@ describe('AO-D037: merchant relic', () => {
 
   it('has nothing to sell once every found relic is owned', () => {
     expect(generateMerchantInventory(createRng(1), Object.values(RELIC_DEFINITIONS)).relicOffer).toBeNull();
-    expect(pickRelicId(createRng(1), 'elite', Object.values(RELIC_DEFINITIONS))).toBeNull();
+    expect(pickRelicId(createRng(1), 'fort', Object.values(RELIC_DEFINITIONS))).toBeNull();
   });
 
   it('buying charges the rarity price and grants the relic', () => {
@@ -152,7 +152,7 @@ describe('AO-D037: merchant relic', () => {
 describe('AO-D068: elite relic reward', () => {
   it('an elite victory grants one unowned found relic automatically; a normal victory grants none (AO-D006)', () => {
     for (let seed = 1; seed <= 15; seed++) {
-      const elite = winBattleAt(seed, 'elite_battle');
+      const elite = winBattleAt(seed, 'fort');
       expect(elite.phase).toBe('reward');
       const gained = elite.pendingReward!.relicGained!;
       expect(RELIC_DEFINITIONS[gained]).toBeDefined();
@@ -166,7 +166,7 @@ describe('AO-D068: elite relic reward', () => {
   });
 
   it('the relic cannot be claimed again, and the card pick still closes the reward', () => {
-    const elite = winBattleAt(9, 'elite_battle');
+    const elite = winBattleAt(9, 'fort');
     const gained = elite.pendingReward!.relicGained!;
     const again = applyRunAction(elite, { type: 'CLAIM_RELIC', relicId: gained });
     expect(again.events.some((e) => e.type === 'ACTION_REJECTED')).toBe(true);
@@ -178,25 +178,40 @@ describe('AO-D068: elite relic reward', () => {
   });
 
   it('rejects claiming a relic that is not on offer', () => {
-    const elite = winBattleAt(9, 'elite_battle');
+    const elite = winBattleAt(9, 'fort');
     const other = Object.keys(RELIC_DEFINITIONS).find((id) => id !== elite.pendingReward!.relicGained)!;
     const result = applyRunAction(elite, { type: 'CLAIM_RELIC', relicId: other });
     expect(result.events.some((e) => e.type === 'ACTION_REJECTED')).toBe(true);
     expect(result.run.relics.some((r) => r.id === other)).toBe(false);
   });
 
-  it('elites draw rare/epic more often than merchants and events do', () => {
-    const share = (source: 'elite' | 'merchant' | 'event') => {
-      let high = 0;
-      for (let seed = 1; seed <= 1000; seed++) {
-        const id = pickRelicId(createRng(seed), source, [])!;
-        if (RELIC_DEFINITIONS[id]!.rarity !== 'common') high++;
-      }
-      return high / 1000;
-    };
-    expect(share('elite')).toBeGreaterThan(share('merchant') + 0.1);
-    expect(share('elite')).toBeGreaterThan(share('event') + 0.1);
-    expect(RELIC_WEIGHTS.elite.epic).toBeGreaterThan(RELIC_WEIGHTS.merchant.epic);
+  it('fort relics come only from the simple pool: no drawbacks, ever (AO-D077)', () => {
+    const simple = Object.values(RELIC_DEFINITIONS).filter((r) => (r.drawbacks ?? []).length === 0);
+    expect(simple.length).toBeGreaterThan(0);
+    expect(simple.length).toBeLessThan(Object.keys(RELIC_DEFINITIONS).length);
+    expect(simple.every(isSimpleRelic)).toBe(true);
+    const drawn = new Set<string>();
+    for (let seed = 1; seed <= 500; seed++) drawn.add(pickRelicId(createRng(seed), 'fort', [])!);
+    expect([...drawn].sort()).toEqual(simple.map((r) => r.id).sort());
+    for (let seed = 1; seed <= 15; seed++) {
+      const gained = winBattleAt(seed, 'fort').pendingReward!.relicGained;
+      if (gained) expect(RELIC_DEFINITIONS[gained]!.drawbacks ?? []).toEqual([]);
+    }
+  });
+
+  it('a fort with every simple relic owned grants none; merchants and events still reach the drawback relics', () => {
+    const owned = Object.values(RELIC_DEFINITIONS).filter(isSimpleRelic);
+    expect(pickRelicId(createRng(3), 'fort', owned)).toBeNull();
+    const drawbackIds = new Set(Object.values(RELIC_DEFINITIONS).filter((r) => !isSimpleRelic(r)).map((r) => r.id));
+    const merchant = new Set<string>();
+    for (let seed = 1; seed <= 300; seed++) merchant.add(pickRelicId(createRng(seed), 'merchant', [])!);
+    expect([...merchant].some((id) => drawbackIds.has(id))).toBe(true);
+  });
+
+  it('boss relic choices never carry drawbacks either', () => {
+    for (let seed = 1; seed <= 100; seed++) {
+      for (const id of pickBossRelicChoices(createRng(seed), [])) expect(RELIC_DEFINITIONS[id]!.drawbacks ?? []).toEqual([]);
+    }
   });
 });
 
@@ -233,7 +248,7 @@ describe('AO-D039 + AO-D049: no early Elite Battle', () => {
     let deepElites = 0;
     for (let seed = 1; seed <= 500; seed++) {
       for (const node of generateWorldMap(createRng(seed)).nodes) {
-        if (node.type !== 'elite_battle') continue;
+        if (node.type !== 'fort') continue;
         expect(node.layer).toBeGreaterThan(5);
         deepElites++;
       }

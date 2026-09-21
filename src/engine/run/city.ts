@@ -32,7 +32,7 @@ export const SHRINE_REVIVE_RATIO = 0.1;
 export const MILITARY_DAMAGE_MULTIPLIER = 1.15;
 export const ARCANE_CASTER_MULTIPLIER = 1.2;
 export const NECROMANTIC_RAISE_RATIO = 0.25;
-/** Economic Doctrine: multiplier on the Gold and Food a resource node pays. */
+/** Economic Doctrine: multiplier on the one-off Gold and Food a mine capture finds. */
 export const ECONOMIC_DOCTRINE_MULTIPLIER = 1.3;
 
 /** A fraction (0.15) or a multiplier's surplus (1.05 - 1) as the whole percent the descriptions print. */
@@ -61,7 +61,7 @@ export const FARM_TIERS: ReadonlyArray<{ cost: number; food: number }> = [
 export const ROMAN: readonly string[] = ['I', 'II', 'III', 'IV', 'V'];
 
 /**
- * AO-D071 Barracks: cumulative Gold cost per tier (index 0 = tier I, which is the build itself; one building slot at every tier). Each
+ * AO-D071, AO-D080 Barracks: a fixed building every city starts with at tier I (index 0, cost unused: it is never built and takes no building slot); cost is the Gold to upgrade TO that tier. Each
  * tier unlocks recruiting one unit type and adds `weekly` free soldiers of that type to the city garrison every GARRISON.intervalDays.
  * Kept small on purpose: a player who collects every week gets about 4 / 7 / 9 / 10 free soldiers per week at tiers I-IV.
  */
@@ -75,12 +75,11 @@ export const BARRACKS_TIERS: ReadonlyArray<{ cost: number; unitId: UnitId; weekl
 /** AO-D071 garrison: it grows every `intervalDays` world days and never holds more than `capWeeks` weeks of any unit type. */
 export const GARRISON = { intervalDays: 7, capWeeks: 2 } as const;
 
-/** Tier text for the Barracks card, same shape as the Farm's. `tier` 0 = not built. */
+/** Tier text for the Barracks card, same shape as the Farm's (tier 1-4). */
 export function barracksDescription(tier: number): string {
   const units = (n: number) => BARRACKS_TIERS.slice(0, n).map((t) => `${t.weekly} ${UNIT_DEFINITIONS[t.unitId].name}`).join(', ');
   const next = BARRACKS_TIERS[tier];
-  const current = tier > 0 ? `Tier ${ROMAN[tier - 1]}: recruit ${UNIT_DEFINITIONS[BARRACKS_TIERS[tier - 1]!.unitId].name}; the garrison gains ${units(tier)} every ${GARRISON.intervalDays} days.` : `Tier I unlocks ${UNIT_DEFINITIONS[BARRACKS_TIERS[0]!.unitId].name} recruits and a weekly garrison (${units(1)}).`;
-  if (tier === 0) return `${current} Upgradeable to tier ${ROMAN[BARRACKS_TIERS.length - 1]}.`;
+  const current = `Tier ${ROMAN[tier - 1]}: recruit ${UNIT_DEFINITIONS[BARRACKS_TIERS[tier - 1]!.unitId].name}; the garrison gains ${units(tier)} every ${GARRISON.intervalDays} days.`;
   return next ? `${current} Next: tier ${ROMAN[tier]} (${UNIT_DEFINITIONS[next.unitId].name}, +${next.weekly} a week) for ${next.cost} Gold.` : `${current} Max tier.`;
 }
 
@@ -107,15 +106,15 @@ export interface CityState {
   mageTowerTier: 0 | 1 | 2 | 3;
   /** 0 = no Farm (AO-D048). One building slot at every tier. */
   farmTier: 0 | 1 | 2 | 3 | 4 | 5;
-  /** 0 = no Barracks (AO-D071): nothing can be recruited and no garrison grows. One building slot at every tier. */
-  barracksTier: 0 | 1 | 2 | 3 | 4;
+  /** AO-D080: the Barracks is fixed (no building slot) and starts at tier I; UPGRADE_BARRACKS raises it to IV. */
+  barracksTier: 1 | 2 | 3 | 4;
 }
 
 /**
  * City Doctrines (AO-D062, Temple) — one permanent specialization choice.
  * Military/Arcane/Necromantic route through the same RelicEffect pipeline
  * combat already reads for relics (see runEngine.ts's startBattleForRun);
- * Economic is checked directly at the resource-node payout call site
+ * Economic is checked directly at the mine-capture payout call site
  * since it isn't a combat effect.
  */
 export interface CityDoctrineDefinition {
@@ -147,23 +146,16 @@ export const DOCTRINE_DEFINITIONS: Record<string, CityDoctrineDefinition> = {
   economic: {
     id: 'economic',
     name: 'Economic Doctrine',
-    description: `Resource nodes yield +${percentOf(ECONOMIC_DOCTRINE_MULTIPLIER - 1)}% Gold/Food.`,
+    description: `The one-off find of a mine capture is +${percentOf(ECONOMIC_DOCTRINE_MULTIPLIER - 1)}% Gold/Food.`,
     combatEffects: [],
   },
 };
 
 /**
  * Buildings (AO-D020, AO-D036, AO-D048, AO-D062, AO-D071). LEVEL_SLOTS gives 3/5/6 slots
- * for 9 buildings, so the player cannot build everything and must choose what to skip.
+ * for 8 buildings (the Barracks is fixed, AO-D080), so the player cannot build everything and must choose what to skip.
  */
 export const BUILDING_DEFINITIONS: Record<string, CityBuildingDefinition> = {
-  barracks: {
-    id: 'barracks',
-    name: 'Barracks',
-    description: barracksDescription(0),
-    category: 'army',
-    cost: BARRACKS_TIERS[0]!.cost,
-  },
   market: {
     id: 'market',
     name: 'Market',
@@ -227,10 +219,10 @@ export const LEVEL_SLOTS: Record<1 | 2 | 3, number> = { 1: 3, 2: 5, 3: 6 };
 export const LEVEL_UP_COST: Record<2 | 3, number> = { 2: 150, 3: 300 };
 
 export const RECRUIT_COSTS: Partial<Record<UnitId, { gold: number; food: number }>> = {
-  swordsman: { gold: 8, food: 1 },
-  archer: { gold: 10, food: 1 },
-  knight: { gold: 15, food: 2 },
-  priest: { gold: 12, food: 1 },
+  swordsman: { gold: 14, food: 1 },
+  archer: { gold: 17, food: 1 },
+  knight: { gold: 26, food: 2 },
+  priest: { gold: 21, food: 1 },
 };
 
 /**
@@ -266,7 +258,7 @@ export function raiseSkeletons(army: ArmyStack[], casualties: number, ratio: num
 }
 
 export function createInitialCityState(): CityState {
-  return { level: 1, buildings: [], doctrine: null, mageTowerTier: 0, farmTier: 0, barracksTier: 0 };
+  return { level: 1, buildings: [], doctrine: null, mageTowerTier: 0, farmTier: 0, barracksTier: 1 };
 }
 
 /** Unit types the Barracks has unlocked so far (AO-D071), in tier order. */
@@ -297,7 +289,7 @@ export function recruitBlocker(run: Pick<RunState, 'city' | 'gold' | 'food' | 'a
   if (!cost) return 'That unit cannot be recruited.';
   if (!canRecruitUnit(run.city, unitId)) {
     const tier = BARRACKS_TIERS.findIndex((t) => t.unitId === unitId) + 1;
-    return run.city.barracksTier === 0 ? 'Build the Barracks to recruit.' : `${UNIT_DEFINITIONS[unitId].name} needs Barracks tier ${ROMAN[tier - 1]}.`;
+    return `${UNIT_DEFINITIONS[unitId].name} needs Barracks tier ${ROMAN[tier - 1]}.`;
   }
   if (run.gold < cost.gold) return 'Not enough Gold.';
   if (run.food < cost.food) return 'Not enough Food (every recruit costs Food too).';

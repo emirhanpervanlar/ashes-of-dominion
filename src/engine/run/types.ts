@@ -64,7 +64,8 @@ export type RunEvent =
   | { type: 'MOVED'; nodeId: string; foodCost: number }
   /** AO-D057: a day (or an event's upkeep payment) the Food could not cover; `deaths` is the units that starved, `consecutiveDays` the streak including this one. */
   | { type: 'STARVED'; deaths: UnitCount[]; day: number; consecutiveDays: number }
-  | { type: 'RESOURCE_FOUND'; gold: number; food: number }
+  /** AO-D076: a mine was captured; the one-off find and the number of captured mines now (each pays Gold every day). */
+  | { type: 'MINE_CAPTURED'; gold: number; food: number; mines: number }
   | { type: 'ARRIVED_AT_NODE'; nodeId: string; nodeType: string }
   | { type: 'BATTLE_WON' }
   | { type: 'BATTLE_LOST' }
@@ -133,6 +134,8 @@ export interface RunState {
   foodPurchases: number;
   /** Helped villages (AO-D072): permanent, each gives Food every day and militia to the weekly garrison. */
   villages: number;
+  /** Captured mines (AO-D076): permanent, each pays Gold every day next to the Gold Mine building. */
+  mines: number;
   /** 1-3 (AO-D046): the boss is due on day 30 x chapter. */
   chapter: number;
   /** Raised by each city visit after the free one (AO-D047, AO-D070); scales enemy unit counts. */

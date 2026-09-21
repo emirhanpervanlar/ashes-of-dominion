@@ -24,11 +24,13 @@ export interface RunStats {
   /** Units that died of hunger (also counted in unitsLost). */
   unitsStarved: number;
   bossesDefeated: number;
-  elitesDefeated: number;
+  fortsTaken: number;
   eventsResolved: number;
   /** AO-D072 village choices. */
   villagesHelped: number;
   villagesRaided: number;
+  /** AO-D076 mines captured (each pays Gold every day). */
+  minesCaptured: number;
 }
 
 export function createRunStats(): RunStats {
@@ -52,10 +54,11 @@ export function createRunStats(): RunStats {
     nodesVisited: 0,
     unitsStarved: 0,
     bossesDefeated: 0,
-    elitesDefeated: 0,
+    fortsTaken: 0,
     eventsResolved: 0,
     villagesHelped: 0,
     villagesRaided: 0,
+    minesCaptured: 0,
   };
 }
 

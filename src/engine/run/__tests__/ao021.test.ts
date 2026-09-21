@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import type { CombatState } from '../../types.js';
 import { RELIC_DEFINITIONS } from '../../data/relics.js';
+import { isSimpleRelic } from '../relicSources.js';
 import { createRng } from '../../rng.js';
-import { BOSS_CHAPTER_MULTIPLIER, CITY_VISIT_WARNING, DAYS_PER_CHAPTER, ELITE_FREE_STEPS, TOTAL_CHAPTERS, bossWarning, daysUntilBoss, enemyStrengthAfterCityVisits, threatMultiplier } from '../chapters.js';
-import { generateBattleEncounter, generateBossEncounter } from '../encounters.js';
+import { BOSS_CHAPTER_MULTIPLIER, CITY_VISIT_WARNING, DAYS_PER_CHAPTER, FORT_FREE_STEPS, TOTAL_CHAPTERS, bossWarning, daysUntilBoss, enemyStrengthAfterCityVisits, threatMultiplier } from '../chapters.js';
+import { BOSS_FORMATION, generateBattleEncounter, generateBossEncounter } from '../encounters.js';
 import { applyRunAction, createRun, migrateRun } from '../runEngine.js';
 import type { RunAction, RunState } from '../types.js';
 import { generateWorldMap } from '../worldMap.js';
@@ -49,7 +50,7 @@ describe('chapter map generation (AO-D045, AO-D046, AO-D049)', () => {
   });
 
   it('has no road or city nodes and only the start node is neutral', () => {
-    const allowed = new Set(['start', 'battle', 'elite_battle', 'resource', 'village', 'merchant', 'event', 'boss']);
+    const allowed = new Set(['start', 'battle', 'fort', 'mine', 'village', 'merchant', 'event', 'boss']);
     for (let seed = 1; seed <= 100; seed++) {
       for (const chapter of [1, 2, 3]) {
         for (const node of generateWorldMap(createRng(seed), chapter, (chapter - 1) * 30 + 1).nodes) {
@@ -64,8 +65,8 @@ describe('chapter map generation (AO-D045, AO-D046, AO-D049)', () => {
     let later = 0;
     for (let seed = 1; seed <= 300; seed++) {
       for (const node of generateWorldMap(createRng(seed)).nodes) {
-        if (node.type !== 'elite_battle') continue;
-        expect(node.layer).toBeGreaterThan(ELITE_FREE_STEPS);
+        if (node.type !== 'fort') continue;
+        expect(node.layer).toBeGreaterThan(FORT_FREE_STEPS);
         later++;
       }
     }
@@ -95,7 +96,7 @@ describe('boss cycle and win condition (AO-D046)', () => {
     expect(daysUntilBoss(run)).toBe(0);
   });
 
-  it('boss 1 and 2 offer an epic-first relic choice of 3 and start the next chapter; boss 3 wins the run', () => {
+  it('boss 1 and 2 offer a relic choice of up to 3 drawback-free relics and start the next chapter; boss 3 wins the run', () => {
     let run = onMap(4);
     for (let chapter = 1; chapter <= TOTAL_CHAPTERS; chapter++) {
       expect(run.chapter).toBe(chapter);
@@ -107,16 +108,19 @@ describe('boss cycle and win condition (AO-D046)', () => {
 
       if (chapter < TOTAL_CHAPTERS) {
         const choices = run.pendingReward!.relicChoices;
-        expect(choices).toHaveLength(3);
+        // AO-D077: only drawback-free relics are offered, so a small pool may leave fewer than 3.
         const owned = new Set(run.relics.map((r) => r.id));
-        const epics = Object.values(RELIC_DEFINITIONS).filter((r) => r.rarity === 'epic' && !owned.has(r.id)).length;
-        expect(choices.slice(0, epics).every((id) => RELIC_DEFINITIONS[id]!.rarity === 'epic')).toBe(true);
-        const claimed = act(run, { type: 'CLAIM_RELIC', relicId: choices[0]! });
-        expect(claimed.run.relics.map((r) => r.id)).toContain(choices[0]);
-        expect(claimed.run.pendingReward!.relicChoices).toEqual([]);
-        expect(claimed.run.phase).toBe('reward');
-        expect(rejected(act(claimed.run, { type: 'CLAIM_RELIC', relicId: choices[1]! }).events)).toBe(true);
-        run = claimed.run;
+        const unowned = Object.values(RELIC_DEFINITIONS).filter((r) => isSimpleRelic(r) && !owned.has(r.id)).length;
+        expect(choices.every((id) => isSimpleRelic(RELIC_DEFINITIONS[id]!))).toBe(true);
+        expect(choices).toHaveLength(Math.min(3, unowned));
+        if (choices.length > 0) {
+          const claimed = act(run, { type: 'CLAIM_RELIC', relicId: choices[0]! });
+          expect(claimed.run.relics.map((r) => r.id)).toContain(choices[0]);
+          expect(claimed.run.pendingReward!.relicChoices).toEqual([]);
+          expect(claimed.run.phase).toBe('reward');
+          if (choices.length > 1) expect(rejected(act(claimed.run, { type: 'CLAIM_RELIC', relicId: choices[1]! }).events)).toBe(true);
+          run = claimed.run;
+        }
       } else {
         expect(run.pendingReward!.relicChoices).toEqual([]);
       }
@@ -208,7 +212,7 @@ describe('city any time with Threat (AO-D047, AO-D051)', () => {
     const stronger = total(generateBattleEncounter(12, false, 1, 10));
     expect(stronger).toBeGreaterThan(base);
     expect(stronger).toBeGreaterThanOrEqual(Math.round(base * 1.5) - 6); // per-stack rounding only
-    expect(total(generateBossEncounter(1, 10))).toBe(Math.round(60 * 1.6) * 3 + Math.round(30 * 1.6) * 2 + Math.round(18 * 1.6));
+    expect(total(generateBossEncounter(1, 10))).toBe(BOSS_FORMATION.reduce((n, [, , count]) => n + Math.round(count * 1.6), 0));
   });
 
   it('battles started after visits use the run threat', () => {

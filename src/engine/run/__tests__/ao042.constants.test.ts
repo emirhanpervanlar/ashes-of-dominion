@@ -23,7 +23,7 @@ import {
   settleArmyAfterVictory,
 } from '../city.js';
 import { moveFoodCost } from '../food.js';
-import { RESOURCE_NODE_LOOT, rollResourceNode } from '../loot.js';
+import { MINE, rollMineFind } from '../mines.js';
 import { MERCHANT_CARD_PRICE, generateMerchantInventory } from '../merchant.js';
 import { STARTING_FOOD, STARTING_GOLD, applyRunAction, createRun } from '../runEngine.js';
 import type { RunAction, RunState } from '../types.js';
@@ -99,36 +99,36 @@ describe('AO-042: building and doctrine numbers are single constants, and the te
     expect(DOCTRINE_DEFINITIONS.arcane!.description).toBe(`Caster units (Mage) +${pct(ARCANE_CASTER_MULTIPLIER - 1)}% Attack.`);
     expect(DOCTRINE_DEFINITIONS.necromantic!.combatEffects).toEqual([{ kind: 'NECROMANCY', ratio: NECROMANTIC_RAISE_RATIO }]);
     expect(DOCTRINE_DEFINITIONS.necromantic!.description).toBe(`${pct(NECROMANTIC_RAISE_RATIO)}% of your casualties rise again as Skeletons.`);
-    expect(DOCTRINE_DEFINITIONS.economic!.description).toBe(`Resource nodes yield +${pct(ECONOMIC_DOCTRINE_MULTIPLIER - 1)}% Gold/Food.`);
+    expect(DOCTRINE_DEFINITIONS.economic!.description).toBe(`The one-off find of a mine capture is +${pct(ECONOMIC_DOCTRINE_MULTIPLIER - 1)}% Gold/Food.`);
   });
 
   it('Economic Doctrine: a resource node pays exactly the plain roll times the constant', () => {
     const base = createRun(4);
     const current = base.worldMap.nodes.find((n) => n.id === base.worldMap.currentNodeId)!;
     const nextId = current.connectsTo[0]!;
-    const worldMap = { ...base.worldMap, nodes: base.worldMap.nodes.map((n) => (n.id === nextId ? { ...n, type: 'resource' as const } : n)) };
-    const found = (doctrine: string | null) => applyRunAction({ ...base, worldMap, city: { ...base.city, doctrine } }, { type: 'MOVE_TO', nodeId: nextId }).events.find((e) => e.type === 'RESOURCE_FOUND')!;
+    const worldMap = { ...base.worldMap, nodes: base.worldMap.nodes.map((n) => (n.id === nextId ? { ...n, type: 'mine' as const } : n)) };
+    const found = (doctrine: string | null) => applyRunAction({ ...base, worldMap, city: { ...base.city, doctrine } }, { type: 'MOVE_TO', nodeId: nextId }).events.find((e) => e.type === 'MINE_CAPTURED')!;
     const rng = () => createRng(base.rng.seed);
-    expect(found(null)).toMatchObject(rollResourceNode(rng(), 1));
-    expect(found('economic')).toMatchObject(rollResourceNode(rng(), ECONOMIC_DOCTRINE_MULTIPLIER));
+    expect(found(null)).toMatchObject(rollMineFind(rng(), 1));
+    expect(found('economic')).toMatchObject(rollMineFind(rng(), ECONOMIC_DOCTRINE_MULTIPLIER));
   });
 });
 
 describe('AO-042: loot, merchant and start constants', () => {
-  it('resource nodes roll inside RESOURCE_NODE_LOOT (inclusive ends reachable) and scale by the multiplier', () => {
+  it('resource nodes roll inside MINE.find (inclusive ends reachable) and scale by the multiplier', () => {
     const rng = createRng(11);
     const seen = { gold: new Set<number>(), food: new Set<number>() };
     for (let i = 0; i < 3000; i++) {
-      const { gold, food } = rollResourceNode(rng, 1);
+      const { gold, food } = rollMineFind(rng, 1);
       seen.gold.add(gold);
       seen.food.add(food);
     }
-    expect(Math.min(...seen.gold)).toBe(RESOURCE_NODE_LOOT.gold[0]);
-    expect(Math.max(...seen.gold)).toBe(RESOURCE_NODE_LOOT.gold[1]);
-    expect(Math.min(...seen.food)).toBe(RESOURCE_NODE_LOOT.food[0]);
-    expect(Math.max(...seen.food)).toBe(RESOURCE_NODE_LOOT.food[1]);
-    const scaled = rollResourceNode(createRng(5), 2);
-    const plain = rollResourceNode(createRng(5), 1);
+    expect(Math.min(...seen.gold)).toBe(MINE.find.gold[0]);
+    expect(Math.max(...seen.gold)).toBe(MINE.find.gold[1]);
+    expect(Math.min(...seen.food)).toBe(MINE.find.food[0]);
+    expect(Math.max(...seen.food)).toBe(MINE.find.food[1]);
+    const scaled = rollMineFind(createRng(5), 2);
+    const plain = rollMineFind(createRng(5), 1);
     expect(scaled).toEqual({ gold: roundSafe(plain.gold * 2), food: roundSafe(plain.food * 2) });
   });
 

@@ -3,6 +3,7 @@ import { applyRunAction, createRun } from '../runEngine.js';
 import { resolveEventToMap } from './eventHelpers.js';
 import type { RunState } from '../types.js';
 import type { CombatState } from '../../types.js';
+import { RECRUIT_COSTS } from '../city.js';
 import { pickReward } from './rewardHelpers.js';
 import { withBarracks } from './cityHelpers.js';
 
@@ -61,7 +62,7 @@ describe('recruitment', () => {
     expect(result.events.some((e) => e.type === 'ACTION_REJECTED')).toBe(false);
     const swordsmanAfter = result.run.army.find((s) => s.unitId === 'swordsman')!.count;
     expect(swordsmanAfter).toBe(swordsmanBefore + 10);
-    expect(result.run.gold).toBe(200 - 8 * 10);
+    expect(result.run.gold).toBe(200 - RECRUIT_COSTS.swordsman!.gold * 10);
     expect(result.run.food).toBe(200 - 1 * 10);
   });
 
@@ -164,7 +165,7 @@ describe('doctrines', () => {
     const withNextResource = (r: RunState) => {
       const current = r.worldMap.nodes.find((n) => n.id === r.worldMap.currentNodeId)!;
       const nextId = current.connectsTo[0]!;
-      const worldMap = { ...r.worldMap, nodes: r.worldMap.nodes.map((n) => (n.id === nextId ? { ...n, type: 'resource' as const } : n)) };
+      const worldMap = { ...r.worldMap, nodes: r.worldMap.nodes.map((n) => (n.id === nextId ? { ...n, type: 'mine' as const } : n)) };
       return { run: { ...r, worldMap }, nodeId: nextId };
     };
 
@@ -173,11 +174,11 @@ describe('doctrines', () => {
     const baseResult = applyRunAction(baseNode.run, { type: 'MOVE_TO', nodeId: baseNode.nodeId });
     const doctrineResult = applyRunAction(doctrineNode.run, { type: 'MOVE_TO', nodeId: doctrineNode.nodeId });
 
-    const baseFound = baseResult.events.find((e) => e.type === 'RESOURCE_FOUND');
-    const doctrineFound = doctrineResult.events.find((e) => e.type === 'RESOURCE_FOUND');
-    expect(baseFound?.type).toBe('RESOURCE_FOUND');
-    expect(doctrineFound?.type).toBe('RESOURCE_FOUND');
-    if (baseFound?.type === 'RESOURCE_FOUND' && doctrineFound?.type === 'RESOURCE_FOUND') {
+    const baseFound = baseResult.events.find((e) => e.type === 'MINE_CAPTURED');
+    const doctrineFound = doctrineResult.events.find((e) => e.type === 'MINE_CAPTURED');
+    expect(baseFound?.type).toBe('MINE_CAPTURED');
+    expect(doctrineFound?.type).toBe('MINE_CAPTURED');
+    if (baseFound?.type === 'MINE_CAPTURED' && doctrineFound?.type === 'MINE_CAPTURED') {
       expect(doctrineFound.gold).toBeGreaterThan(baseFound.gold);
     }
   });

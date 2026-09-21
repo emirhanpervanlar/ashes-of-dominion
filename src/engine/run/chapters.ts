@@ -5,8 +5,8 @@ export const DAYS_PER_CHAPTER = 30;
 export const TOTAL_CHAPTERS = 3;
 /** AO-D046: the "Boss in N days" warning shows from day 23, i.e. when 7 days or fewer remain. */
 export const BOSS_WARNING_DAYS = 7;
-/** AO-D049: no Elite Battle in the first 5 steps of the run. */
-export const ELITE_FREE_STEPS = 5;
+/** AO-D049: no fort in the first 5 steps of the run. */
+export const FORT_FREE_STEPS = 5;
 
 /** AO-D047 defaults (tuned later by qa-playtest); a city visit costs no days (AO-D051). */
 export const THREAT_PER_CITY_VISIT = 1;
@@ -14,9 +14,13 @@ export const THREAT_ENEMY_COUNT_PER_POINT = 0.06;
 
 /** Encounter difficulty depth: one step deeper every N map layers, plus a flat bonus per chapter after the first. */
 export const LAYERS_PER_DEPTH = 4;
-export const CHAPTER_DEPTH_BONUS = 4;
+export const CHAPTER_DEPTH_BONUS = 6;
+/** Each depth step adds this share of the base stack sizes (AO-D078: a gentler slope than 0.18, so late-chapter fights stop outgrowing the army). */
+export const ENCOUNTER_DEPTH_SLOPE = 0.08;
+/** Formation slots every regular fight fields beyond `depth` (AO-D078: the first fights were too easy; also applies to forts, which start one slot larger). */
+export const ENCOUNTER_EXTRA_SLOTS = 1;
 /** Boss formation size multiplier by chapter (index 0 = chapter 1). */
-export const BOSS_CHAPTER_MULTIPLIER: readonly number[] = [1, 1.6, 2.4];
+export const BOSS_CHAPTER_MULTIPLIER: readonly number[] = [1, 1.3, 1.75];
 
 export function bossDay(chapter: number): number {
   return chapter * DAYS_PER_CHAPTER;

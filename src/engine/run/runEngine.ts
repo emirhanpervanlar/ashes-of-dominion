@@ -27,6 +27,7 @@ import {
   addUnitsToArmy,
   recruitBlocker,
   createInitialCityState,
+  type CityState,
   recruitCost,
   raiseSkeletons,
   settleArmyAfterVictory,
@@ -50,13 +51,14 @@ import {
   type EventOption,
 } from './events.js';
 import { dailyProduction, dailyUpkeep, moveFoodCost, removeUnits, starvationMoraleMalus, starveArmy, totalArmyCount } from './food.js';
-import { rollBattleLoot, rollResourceNode } from './loot.js';
+import { rollBattleLoot } from './loot.js';
+import { mineDailyGold, rollMineFind } from './mines.js';
 import { generateMerchantInventory } from './merchant.js';
 import { pickRelicByRarity, pickRelicId } from './relicSources.js';
 import { buildPendingReward, generateCardOptions } from './rewards.js';
 import { createRunStats, tallyCombatEvents } from './stats.js';
 import type { PendingReward, RunAction, RunApplyResult, RunEvent, RunState, UnitCount } from './types.js';
-import { findNode, generateWorldMap, visitNode } from './worldMap.js';
+import { findNode, generateWorldMap, visitNode, type NodeType } from './worldMap.js';
 
 export const STARTING_GOLD = 100;
 export const STARTING_FOOD = 50;
@@ -68,13 +70,13 @@ function cloneRun(run: RunState): RunState {
 }
 
 /** Version of the persisted RunState shape. A save without the field predates versioning and counts as version 1. */
-export const CURRENT_SAVE_VERSION = 3;
+export const CURRENT_SAVE_VERSION = 4;
 
 /**
  * Upgrades one version step. Every field-by-field guess for pre-versioning saves lives in `fromVersion1`;
  * a future format change adds `fromVersion2` here instead of another "field is undefined" check.
  */
-const MIGRATIONS: Record<number, (run: RunState) => RunState> = { 1: fromVersion1, 2: fromVersion2 };
+const MIGRATIONS: Record<number, (run: RunState) => RunState> = { 1: fromVersion1, 2: fromVersion2, 3: fromVersion3 };
 
 /**
  * Brings a run loaded from storage to the current save format (the reducer also applies it, so an old run keeps
@@ -82,7 +84,8 @@ const MIGRATIONS: Record<number, (run: RunState) => RunState> = { 1: fromVersion
  * gate for anything that may be corrupt or from a newer build.
  */
 export function migrateRun(run: RunState): RunState {
-  let migrated = run;
+  // The node rename (AO-047) comes first: the version-1 step rebuilds a battle from its node, which must already be a fort.
+  let migrated = (run.saveVersion ?? 1) < 4 ? renameLegacyNodes(run) : run;
   for (let version = run.saveVersion ?? 1; version < CURRENT_SAVE_VERSION; version++) {
     migrated = { ...MIGRATIONS[version]!(migrated), saveVersion: version + 1 };
   }
@@ -143,13 +146,38 @@ function fromVersion1(run: RunState): RunState {
   return migrated;
 }
 
+const LEGACY_NODE_TYPES: Record<string, NodeType> = { resource: 'mine', elite_battle: 'fort' };
+
+/** AO-047: map nodes (and the arrival log) named the old way (resource, elite_battle) get the new names; node ids never carried a type. */
+function renameLegacyNodes(run: RunState): RunState {
+  const rename = (type: string) => LEGACY_NODE_TYPES[type] ?? type;
+  return {
+    ...run,
+    worldMap: { ...run.worldMap, nodes: run.worldMap.nodes.map((n) => ({ ...n, type: rename(n.type) as NodeType })) },
+    log: (run.log ?? []).map((e) => (e.type === 'ARRIVED_AT_NODE' ? { ...e, nodeType: rename(e.nodeType) } : e)),
+  };
+}
+
+/** Version 3 to 4 (AO-047, AO-D080): resource nodes became mines and elite battles forts, the Barracks is fixed; the run counts captured mines and forts taken instead of elites defeated. */
+function fromVersion3(run: RunState): RunState {
+  const { elitesDefeated, ...stats } = run.stats as RunState['stats'] & { elitesDefeated?: number };
+  return {
+    ...run,
+    // AO-D080: the Barracks is a fixed building now: at least tier I, and no longer a built one that occupies a slot.
+    city: { ...run.city, barracksTier: Math.max(1, run.city.barracksTier) as CityState['barracksTier'], buildings: run.city.buildings.filter((id) => id !== 'barracks') },
+    mines: run.mines ?? 0,
+    stats: { ...createRunStats(), ...stats, fortsTaken: stats.fortsTaken ?? elitesDefeated ?? 0 },
+    log: run.log.map((e) => ((e.type as string) === 'RESOURCE_FOUND' ? ({ ...e, type: 'MINE_CAPTURED', mines: 0 } as unknown as RunEvent) : e)),
+  };
+}
+
 /** Version 2 to 3 (AO-046): the elite relic is granted at victory (AO-D068), so an unclaimed offer in a saved reward is granted now. */
 function fromVersion2(run: RunState): RunState {
-  // Saves from before AO-D071 could recruit everything: they keep that as a free tier IV Barracks (it takes a building slot).
+  // Saves from before AO-D071 could recruit everything: they keep that as a free tier IV Barracks.
   const barracksTier = run.city.barracksTier ?? 4;
   const migrated: RunState = {
     ...run,
-    city: { ...run.city, barracksTier, buildings: barracksTier > 0 && !run.city.buildings.includes('barracks') ? [...run.city.buildings, 'barracks'] : run.city.buildings },
+    city: { ...run.city, barracksTier },
     garrison: run.garrison ?? {},
     foodPurchases: run.foodPurchases ?? 0,
     villages: run.villages ?? 0,
@@ -174,19 +202,19 @@ function fromVersion2(run: RunState): RunState {
   return migrated;
 }
 
-/** Rebuilds the encounter of the node the run stands on (boss, elite, normal; an event ambush is a normal battle) and starts it over. */
+/** Rebuilds the encounter of the node the run stands on (boss, fort, normal; an event ambush is a normal battle) and starts it over. */
 function restartBattle(run: RunState): void {
   const node = findNode(run.worldMap, run.worldMap.currentNodeId);
-  const encounter = run.bossBattle ? generateBossEncounter(run.chapter, run.threat) : generateBattleEncounter(node?.layer ?? 1, node?.type === 'elite_battle', run.chapter, run.threat);
+  const encounter = run.bossBattle ? generateBossEncounter(run.chapter, run.threat) : generateBattleEncounter(node?.layer ?? 1, node?.type === 'fort', run.chapter, run.threat);
   run.rng = { ...run.rng };
   run.hero = { ...run.hero };
   run.army = run.army.map((s) => ({ ...s }));
   run.combat = startBattleForRun(run, encounter);
 }
 
-/** Builds the reward of a won battle; an elite's relic is granted on the spot (AO-D068). */
-function rollReward(run: RunState, elite: boolean, events: RunEvent[]): PendingReward {
-  const reward = buildPendingReward(run.rng, run.relics, run.masterDeck, elite, run.bossBattle && run.chapter < TOTAL_CHAPTERS);
+/** Builds the reward of a won battle; a fort's relic is granted on the spot (AO-D068). */
+function rollReward(run: RunState, fort: boolean, events: RunEvent[]): PendingReward {
+  const reward = buildPendingReward(run.rng, run.relics, run.masterDeck, fort, run.bossBattle && run.chapter < TOTAL_CHAPTERS);
   if (reward.relicGained) grantRelic(run, RELIC_DEFINITIONS[reward.relicGained]!, events);
   return reward;
 }
@@ -207,7 +235,7 @@ function settlePendingReward(run: RunState): void {
   run.army = run.army.map((s) => ({ ...s }));
   run.hero = { ...run.hero };
   run.relics = [...run.relics];
-  run.pendingReward = rollReward(run, node?.type === 'elite_battle', []);
+  run.pendingReward = rollReward(run, node?.type === 'fort', []);
 }
 
 function changeGold(run: RunState, delta: number): void {
@@ -274,6 +302,7 @@ export function createRun(seed: number, heroId: HeroId = 'warlord', heroName?: s
     garrison: {},
     foodPurchases: 0,
     villages: 0,
+    mines: 0,
     chapter: 1,
     threat: 0,
     cityVisitsThisChapter: 0,
@@ -375,19 +404,21 @@ function reject(events: RunEvent[], reason: string): void {
   events.push({ type: 'ACTION_REJECTED', reason });
 }
 
-/** A modest, deterministic one-time pickup; ongoing income comes from the Farm and Gold Mine (AO-D020, AO-D048). */
-function resolveResourceNode(run: RunState, events: RunEvent[]): void {
-  const { gold, food } = rollResourceNode(run.rng, run.city.doctrine === 'economic' ? ECONOMIC_DOCTRINE_MULTIPLIER : 1);
+/** AO-D076: capturing a mine finds a small one-off amount and adds a permanent Gold income (paid every day in advanceDay). */
+function captureMine(run: RunState, events: RunEvent[]): void {
+  const { gold, food } = rollMineFind(run.rng, run.city.doctrine === 'economic' ? ECONOMIC_DOCTRINE_MULTIPLIER : 1);
   changeGold(run, gold);
   changeFood(run, food);
-  events.push({ type: 'RESOURCE_FOUND', gold, food });
+  run.mines += 1;
+  run.stats.minesCaptured += 1;
+  events.push({ type: 'MINE_CAPTURED', gold, food, mines: run.mines });
 }
 
 /** One world day: Farm production, per-unit food upkeep, Gold Mine income, the weekly garrison (AO-D071), starvation. Returns the food the day cost. */
 function advanceDay(run: RunState, events: RunEvent[]): number {
   const foodCost = moveFoodCost(run.army, run.city);
   const farmFood = dailyProduction(run);
-  const mineGold = run.city.buildings.includes('gold_mine') ? GOLD_MINE_DAILY_GOLD : 0;
+  const mineGold = (run.city.buildings.includes('gold_mine') ? GOLD_MINE_DAILY_GOLD : 0) + mineDailyGold(run);
   changeFood(run, farmFood); // produced before the army eats, so a Farm can prevent this day's starvation
   run.day += 1;
   run.stats.daysElapsed += 1;
@@ -454,14 +485,14 @@ function moveTo(run: RunState, nodeId: string, events: RunEvent[]): RunApplyResu
       run.combat = startBattleForRun(run, generateBossEncounter(run.chapter, run.threat));
       break;
     case 'battle':
-    case 'elite_battle': {
-      const encounter = generateBattleEncounter(destination.layer, destination.type === 'elite_battle', run.chapter, run.threat);
+    case 'fort': {
+      const encounter = generateBattleEncounter(destination.layer, destination.type === 'fort', run.chapter, run.threat);
       run.phase = 'in_battle';
       run.combat = startBattleForRun(run, encounter);
       break;
     }
-    case 'resource':
-      resolveResourceNode(run, events);
+    case 'mine':
+      captureMine(run, events);
       break;
     case 'village':
       run.pendingVillage = villageOffer(run.chapter);
@@ -520,18 +551,18 @@ function forwardCombatAction(run: RunState, action: PlayerAction, events: RunEve
     run.stats.unitsRevived += settled.revived;
     const arrivedAt = findNode(run.worldMap, run.worldMap.currentNodeId);
     if (run.bossBattle) run.stats.bossesDefeated += 1;
-    else if (arrivedAt?.type === 'elite_battle') run.stats.elitesDefeated += 1;
+    else if (arrivedAt?.type === 'fort') run.stats.fortsTaken += 1;
     run.lastCasualties = tallyCasualties(result.state.playerArmy, settled.army);
     events.push({ type: 'BATTLE_WON' });
     if (settled.revived > 0) events.push({ type: 'UNITS_REVIVED', count: settled.revived });
     const raising = raiseSkeletons(run.army, run.lastCasualties.reduce((n, c) => n + c.count, 0), necromancyRatio(result.state.activeRelicEffects));
     run.army = raising.army;
     if (raising.raised > 0) events.push({ type: 'UNITS_RAISED', count: raising.raised });
-    const loot = rollBattleLoot(run.rng, { chapter: run.chapter, day: run.day, elite: run.bossBattle || arrivedAt?.type === 'elite_battle', threat: run.threat });
+    const loot = rollBattleLoot(run.rng, { chapter: run.chapter, day: run.day, fort: run.bossBattle || arrivedAt?.type === 'fort', threat: run.threat });
     changeGold(run, loot.gold);
     changeFood(run, loot.food);
     events.push({ type: 'BATTLE_LOOT', gold: loot.gold, food: loot.food });
-    run.pendingReward = rollReward(run, arrivedAt?.type === 'elite_battle', events);
+    run.pendingReward = rollReward(run, arrivedAt?.type === 'fort', events);
     run.phase = 'reward';
   } else if (result.state.result === 'defeat') {
     run.hero = result.state.hero;
@@ -1154,7 +1185,6 @@ function buildBuilding(run: RunState, buildingId: string, events: RunEvent[]): R
   }
 
   if (buildingId === 'farm') run.city.farmTier = 1;
-  if (buildingId === 'barracks') run.city.barracksTier = 1;
 
   events.push({ type: 'BUILDING_BUILT', buildingId });
   return { run, events };
@@ -1191,10 +1221,6 @@ function upgradeBarracks(run: RunState, events: RunEvent[]): RunApplyResult {
     return { run, events };
   }
   const tier = run.city.barracksTier;
-  if (tier === 0) {
-    reject(events, 'Build the Barracks first.');
-    return { run, events };
-  }
   const next = BARRACKS_TIERS[tier];
   if (!next) {
     reject(events, 'Barracks is already at max tier.');

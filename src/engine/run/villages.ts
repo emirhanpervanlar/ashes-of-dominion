@@ -7,16 +7,14 @@ import type { RunState } from './types.js';
  * Village upgrades are out of scope. Amounts are indexed by chapter (index 0 = chapter 1); every number lives here.
  */
 export const VILLAGE = {
-  /** Every Nth resource node of a chapter map becomes a village (deterministic, no RNG). */
-  resourceNodeShare: 3,
   raid: { gold: [60, 100, 150], food: [15, 25, 35], threat: 1 },
-  help: { gold: [15, 25, 40], food: [5, 8, 12] },
+  help: { gold: [15, 15, 15], food: [4, 6, 8] },
   /** Food per day for every helped village (stacks; paid in the daily hook next to the Farm). */
-  dailyFood: 3,
+  dailyFood: 1,
   /** Free militia added to the weekly garrison per helped village; only the first `militiaVillageCap` villages send any. */
   militiaUnit: 'swordsman' as UnitId,
   militiaPerVillage: 1,
-  militiaVillageCap: 5,
+  militiaVillageCap: 2,
 } as const;
 
 export interface VillageOffer {

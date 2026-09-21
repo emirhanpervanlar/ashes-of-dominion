@@ -44,7 +44,7 @@ function isHero(v: unknown): boolean {
 }
 
 function isCity(v: unknown): boolean {
-  return isRec(v) && [1, 2, 3].includes(v.level as number) && allOf(v.buildings, isStr) && (v.doctrine === null || isStr(v.doctrine)) && isWhole(v.mageTowerTier) && v.mageTowerTier <= 3 && isWhole(v.farmTier) && v.farmTier <= 5 && isWhole(v.barracksTier) && v.barracksTier <= 4;
+  return isRec(v) && [1, 2, 3].includes(v.level as number) && allOf(v.buildings, isStr) && (v.doctrine === null || isStr(v.doctrine)) && isWhole(v.mageTowerTier) && v.mageTowerTier <= 3 && isWhole(v.farmTier) && v.farmTier <= 5 && isWhole(v.barracksTier) && v.barracksTier >= 1 && v.barracksTier <= 4;
 }
 
 function isReward(v: unknown): boolean {
@@ -69,7 +69,7 @@ function isEvent(v: unknown): boolean {
 /** True when the object has the current RunState shape well enough that the reducer, the UI and the summary can read it without crashing. */
 function isCurrentRun(r: Rec): boolean {
   if (!PHASES.has(r.phase as string) || !isRec(r.rng) || !isNum(r.rng.seed) || !isNum(r.seed)) return false;
-  const counters = [r.gold, r.food, r.day, r.battlesWon, r.chapter, r.threat, r.cityVisitsThisChapter, r.foodPurchases, r.villages, r.starvationDays];
+  const counters = [r.gold, r.food, r.day, r.battlesWon, r.chapter, r.threat, r.cityVisitsThisChapter, r.foodPurchases, r.villages, r.mines, r.starvationDays];
   if (!counters.every(isWhole) || (r.chapter as number) < 1 || (r.day as number) < 1) return false;
   if (!isHero(r.hero) || !allOf(r.army, isStack) || (r.army as unknown[]).length > MAX_ARMY_STACKS) return false;
   if (!allOf(r.masterDeck, isCard) || !allOf(r.relics, isRelic) || !isCity(r.city) || !isGarrison(r.garrison)) return false;

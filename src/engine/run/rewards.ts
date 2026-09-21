@@ -28,18 +28,18 @@ export function generateUpgradeOptions(rng: RngState, masterDeck: CardInstance[]
 }
 
 /**
- * Normal battles reward no relics (AO-D006); an elite victory carries one relic that is granted automatically (AO-D068:
+ * Normal battles reward no relics (AO-D006); a fort victory carries one relic that is granted automatically (AO-D068:
  * `relicGained` is the id the reducer grants), a boss victory offers a choice (AO-D046).
  * Card/upgrade choices are REWARD_OPTION_COUNT in total, split between fresh cards and in-deck upgrades.
  * The relic is drawn last so a normal battle's rng stream is untouched.
  */
-export function buildPendingReward(rng: RngState, owned: RelicDefinition[], masterDeck: CardInstance[], elite: boolean, bossRelicChoices = false): PendingReward {
+export function buildPendingReward(rng: RngState, owned: RelicDefinition[], masterDeck: CardInstance[], fort: boolean, bossRelicChoices = false): PendingReward {
   const upgradeOptions = generateUpgradeOptions(rng, masterDeck, REWARD_UPGRADE_COUNT);
   const cardOptions = generateCardOptions(rng, Math.max(MIN_REWARD_NEW_CARDS, REWARD_OPTION_COUNT - upgradeOptions.length));
   return {
     cardOptions,
     upgradeOptions,
-    relicGained: elite ? pickRelicId(rng, 'elite', owned) : null,
+    relicGained: fort ? pickRelicId(rng, 'fort', owned) : null,
     relicChoices: bossRelicChoices ? pickBossRelicChoices(rng, owned) : [],
   };
 }
