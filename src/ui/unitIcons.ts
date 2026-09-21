@@ -9,6 +9,7 @@ export const UNIT_ROLE_ICONS: Record<UnitId, IconName> = {
   priest: 'role_support',
   skeleton: 'role_undead',
   goblin: 'role_melee',
+  goblin_archer: 'role_ranged',
   orc: 'role_melee',
   shaman: 'role_caster',
   wolf: 'role_beast',
