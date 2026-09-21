@@ -1,4 +1,4 @@
-import { CARD_DEFINITIONS, UNIT_DEFINITIONS } from '../engine/index.js';
+import { CARD_DEFINITIONS, HERO_ATTACKER_ID, UNIT_DEFINITIONS } from '../engine/index.js';
 import type { ArmyStack, CombatEvent, CombatState, EnemyStep, StatusType } from '../engine/index.js';
 
 /** How an attack travels: melee lunges and slashes, ranged fires a bolt, casters throw an orb. */
@@ -43,17 +43,24 @@ function attackStyle(attacker: ArmyStack | undefined, magic: boolean): AttackSty
   return 'melee';
 }
 
+/** A hero-cast card travels by the stat it scales with: Intelligence throws a fire orb, Dexterity shoots arrows, Strength slashes. */
+function heroAttackStyle(cardId: string | undefined): AttackStyle {
+  const stat = cardId ? CARD_DEFINITIONS[cardId]?.scalesWith : undefined;
+  return stat === 'intelligence' ? 'orb' : stat === 'dexterity' ? 'bolt' : 'melee';
+}
+
 function isMagicCard(cardId: string | undefined): boolean {
   return !!cardId && !!CARD_DEFINITIONS[cardId]?.tags.includes('magic');
 }
 
-function pushAttack(cues: Cue[], board: CombatState, attackerStackId: string, hit: HitCue, magic: boolean): void {
+function pushAttack(cues: Cue[], board: CombatState, attackerStackId: string, hit: HitCue, magic: boolean, cardId?: string): void {
   const last = cues[cues.length - 1];
   if (last?.kind === 'attack' && last.attackerStackId === attackerStackId) {
     last.hits.push(hit);
     return;
   }
-  cues.push({ kind: 'attack', attackerStackId, style: attackStyle(findStack(board, attackerStackId), magic), hits: [hit] });
+  const style = attackerStackId === HERO_ATTACKER_ID ? heroAttackStyle(cardId) : attackStyle(findStack(board, attackerStackId), magic);
+  cues.push({ kind: 'attack', attackerStackId, style, hits: [hit] });
 }
 
 /** Cues for the events one player action appended to the log; `before` / `board` are the states around the action. */
@@ -72,7 +79,7 @@ export function cuesFromEvents(events: CombatEvent[], before: CombatState, board
         countAfter: e.countAfter,
       };
       if (e.attackerStackId === e.targetStackId) cues.push({ kind: 'dot', stackId: e.targetStackId, hit });
-      else pushAttack(cues, board, e.attackerStackId, hit, magic);
+      else pushAttack(cues, board, e.attackerStackId, hit, magic, cardId);
     } else if (e.type === 'STACK_HEALED' && e.amount > 0) {
       // Soldiers actually restored (count is the health readout); a second heal on the same stack reports none.
       const gained = healed.has(e.stackId) ? 0 : (findStack(board, e.stackId)?.count ?? 0) - (findStack(before, e.stackId)?.count ?? 0);

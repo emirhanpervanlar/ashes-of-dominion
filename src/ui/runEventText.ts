@@ -68,7 +68,7 @@ export function describeRunEvent(event: RunEvent): string | null {
     case 'UNITS_REVIVED':
       return `Revived ${event.count} fallen unit(s) after the battle.`;
     case 'UNITS_RAISED':
-      return `${event.count} of your fallen rose again as Skeletons.`;
+      return event.count === 1 ? '1 fallen soldier rose as a Skeleton.' : `${event.count} fallen soldiers rose as Skeletons.`;
     case 'DAILY_INCOME': {
       const parts = [event.gold > 0 && `+${event.gold} Gold`, event.food > 0 && `+${event.food} Food`].filter(Boolean);
       return parts.length ? `Daily income: ${parts.join(', ')}.` : null;

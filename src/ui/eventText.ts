@@ -1,4 +1,4 @@
-import { UNIT_DEFINITIONS } from '../engine/index.js';
+import { CARD_DEFINITIONS, HERO_ATTACKER_ID, UNIT_DEFINITIONS } from '../engine/index.js';
 import type { ArmyStack, CombatEvent, CombatState } from '../engine/index.js';
 
 function findStackAnywhere(state: CombatState, stackId: string): ArmyStack | undefined {
@@ -7,6 +7,7 @@ function findStackAnywhere(state: CombatState, stackId: string): ArmyStack | und
 
 function stackLabel(state: CombatState, stackId: string | null | undefined): string {
   if (!stackId) return 'unknown';
+  if (stackId === HERO_ATTACKER_ID) return state.hero.name;
   const stack = findStackAnywhere(state, stackId);
   if (!stack) return stackId;
   return `${UNIT_DEFINITIONS[stack.unitId].name} (pos ${stack.position})`;
@@ -19,14 +20,16 @@ export function describeEvent(state: CombatState, event: CombatEvent): string | 
       return 'Battle started.';
     case 'TURN_STARTED':
       return event.side === 'player' ? `— Turn ${event.turnNumber}: Player —` : `— Turn ${event.turnNumber}: Enemy —`;
-    case 'CARD_PLAYED':
-      return `Played ${event.cardId}.`;
+    case 'CARD_PLAYED': {
+      const card = CARD_DEFINITIONS[event.cardId];
+      return card?.cast === 'hero' ? `${state.hero.name} casts ${card.name}.` : `Played ${card?.name ?? event.cardId}.`;
+    }
     case 'CARD_EXHAUSTED':
-      return `${event.cardId} exhausted.`;
+      return `${CARD_DEFINITIONS[event.cardId]?.name ?? event.cardId} exhausted.`;
     case 'DECK_RESHUFFLED':
       return 'Deck reshuffled.';
     case 'STACK_ATTACKED':
-      return `${stackLabel(state, event.attackerStackId)} attacks ${stackLabel(state, event.targetStackId)} for ${event.finalDamage} dmg${event.blocked > 0 ? ` (${event.blocked} blocked)` : ''}: ${event.unitsKilled} unit(s) killed, ${event.countAfter} left.`;
+      return `${stackLabel(state, event.attackerStackId)} ${event.attackerStackId === HERO_ATTACKER_ID ? 'hits' : 'attacks'} ${stackLabel(state, event.targetStackId)} for ${event.finalDamage} dmg${event.blocked > 0 ? ` (${event.blocked} blocked)` : ''}: ${event.unitsKilled} unit(s) killed, ${event.countAfter} left.`;
     case 'STACK_DESTROYED':
       return `${stackLabel(state, event.stackId)} was destroyed!`;
     case 'BLOCK_GAINED':

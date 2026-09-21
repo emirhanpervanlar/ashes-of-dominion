@@ -1,4 +1,16 @@
-import { STATUS_INFO, UNIT_DEFINITIONS, dodgeChancePercent, maxManaFromWisdom, statEffectiveness, statusEffectText } from '../engine/index.js';
+import {
+  HERO_STAT_NEUTRAL,
+  HERO_STAT_SCALING_MIN,
+  HERO_STAT_SCALING_PER_POINT,
+  STATUS_INFO,
+  UNIT_DEFINITIONS,
+  WISDOM_PER_BONUS_MANA,
+  dodgeChancePercent,
+  heroSpellScaling,
+  maxManaFromWisdom,
+  statEffectiveness,
+  statusEffectText,
+} from '../engine/index.js';
 import type { HeroStats, RelicDefinition, StatusType, UnitId } from '../engine/index.js';
 import {
   GOLD_MINE_DAILY_GOLD,
@@ -72,11 +84,12 @@ export function relicTip(relic: Pick<RelicDefinition, 'name' | 'rarity' | 'descr
 
 /** Role badge text keyed by the role icon; the icons come from unitIcons.ts. */
 const ROLE_INFO: Partial<Record<IconName, { name: string; text: string }>> = {
-  role_melee: { name: 'Melee', text: 'Hits its own or an adjacent lane, the front row first. A back-row melee stack cannot attack while an ally stands directly in front of it.' },
+  role_melee: { name: 'Melee', text: 'Hits its own or an adjacent lane, the front row first. A back-row melee stack cannot attack while any ally stands in the front row.' },
   role_ranged: { name: 'Ranged', text: 'Can attack any enemy stack, front or back, from any lane.' },
   role_tank: { name: 'Heavy', text: 'Armoured melee frontliner. Hits its own or an adjacent lane and shields its neighbours.' },
   role_support: { name: 'Support', text: 'Uses its free action to heal a friendly stack instead of attacking.' },
   role_caster: { name: 'Caster', text: 'Magic user that backs up its allies.' },
+  role_undead: { name: 'Undead', text: 'Raised from your fallen by the Necromantic Doctrine. A weak melee stack that needs no Food.' },
   role_beast: { name: 'Beast', text: 'Fast melee raider that goes after ranged units first.' },
 };
 
@@ -177,22 +190,32 @@ const BONUS_PER_POINT = Math.round((statEffectiveness(11) - 1) * 100);
 const BONUS_CAP = Math.round((statEffectiveness(99) - 1) * 100);
 const DODGE_CAP = dodgeChancePercent(99);
 const MAX_MANA_CAP = maxManaFromWisdom(0, 99);
-const WISDOM_PER_MANA = [...Array(20).keys()].map((i) => i + 11).find((w) => maxManaFromWisdom(0, w) >= 1)! - 10;
+const SPELL_PER_POINT = Math.round(HERO_STAT_SCALING_PER_POINT * 100);
+const SPELL_SCALING_TEXT = `+${SPELL_PER_POINT}% damage for each point above ${HERO_STAT_NEUTRAL}, -${SPELL_PER_POINT}% for each point below (never under x${HERO_STAT_SCALING_MIN}).`;
+
+/** Hero spell damage change at this stat value, in percent (Intelligence 18 -> +40). */
+const spellPercent = (stat: number): number => Math.round((heroSpellScaling(stat) - 1) * 100);
 
 /**
- * What each hero stat does in the game today, in one place. `used: false` stats are not read by the engine yet and say
- * "Not used yet". AO-D064 will make Intelligence, Dexterity and Strength scale hero spells: edit these lines when it lands.
+ * What each hero stat does in the game today, in one place (AO-D064). `used: false` stats are not read by the engine
+ * and say "Not used yet" (Vitality).
  */
 export const HERO_STAT_INFO: Record<keyof HeroStats, { what: string; used: boolean }> = {
-  strength: { what: `Melee units deal +${BONUS_PER_POINT}% damage for each point above 10 (up to +${BONUS_CAP}%).`, used: true },
-  dexterity: {
-    what: `Ranged units deal +${BONUS_PER_POINT}% damage for each point above 10 (up to +${BONUS_CAP}%). Also gives 1% Dodge per point above 10 (up to ${DODGE_CAP}%).`,
+  strength: {
+    what: `Melee units deal +${BONUS_PER_POINT}% damage for each point above 10 (up to +${BONUS_CAP}%). Also scales Command: Strike: ${SPELL_SCALING_TEXT}`,
     used: true,
   },
-  intelligence: { what: 'Magic power. Not used yet.', used: false },
+  dexterity: {
+    what: `Ranged units deal +${BONUS_PER_POINT}% damage for each point above 10 (up to +${BONUS_CAP}%), and 1% Dodge per point above 10 (up to ${DODGE_CAP}%). Also scales the volleys Arrow Rain and Volley: ${SPELL_SCALING_TEXT}`,
+    used: true,
+  },
+  intelligence: {
+    what: `Scales the hero's magic spells (Fireball, Frost, Chain Lightning, Arcane Storm): ${SPELL_SCALING_TEXT}`,
+    used: true,
+  },
   vitality: { what: 'Toughness. Not used yet.', used: false },
   wisdom: {
-    what: `Healing +${BONUS_PER_POINT}% per point above 10 (up to +${BONUS_CAP}%). Every ${WISDOM_PER_MANA} points above 10 add 1 Max Mana (${MAX_MANA_CAP} at most).`,
+    what: `Healing +${BONUS_PER_POINT}% per point above 10 (up to +${BONUS_CAP}%). Every ${WISDOM_PER_BONUS_MANA} points above 10 add 1 Max Mana (${MAX_MANA_CAP} at most).`,
     used: true,
   },
 };
@@ -208,22 +231,29 @@ function effectText(...parts: (string | null)[]): string {
 }
 
 /**
- * The five hero stats with what each does now. Strength, Dexterity and Wisdom feed combat (heroStats.ts);
- * Intelligence and Vitality are not read by the engine yet, and the row says so instead of promising an effect.
+ * The five hero stats with what each does now. Strength, Dexterity, Intelligence and Wisdom feed combat (heroStats.ts,
+ * heroSpells.ts); Vitality is not read by the engine, and the row says so instead of promising an effect.
  */
 export function heroStatRows(stats: HeroStats, baseMana: number): HeroStatRow[] {
   const extraMana = maxManaFromWisdom(baseMana, stats.wisdom) - baseMana;
   const dodge = dodgeChancePercent(stats.dexterity);
+  const spell = (stat: number, what: string): string | null => (spellPercent(stat) !== 0 ? `${what} ${signed(spellPercent(stat))}% damage.` : null);
   return [
-    withTip({ key: 'strength', label: 'Strength', icon: 'role_melee', value: stats.strength, effect: effectText(percentAbove(stats.strength) > 0 ? `Melee units deal +${percentAbove(stats.strength)}% damage.` : null) }),
+    withTip({
+      key: 'strength',
+      label: 'Strength',
+      icon: 'role_melee',
+      value: stats.strength,
+      effect: effectText(percentAbove(stats.strength) > 0 ? `Melee units deal +${percentAbove(stats.strength)}% damage.` : null, spell(stats.strength, 'Command: Strike')),
+    }),
     withTip({
       key: 'dexterity',
       label: 'Dexterity',
       icon: 'role_ranged',
       value: stats.dexterity,
-      effect: effectText(percentAbove(stats.dexterity) > 0 ? `Ranged units deal +${percentAbove(stats.dexterity)}% damage.` : null, dodge > 0 ? `${dodge}% Dodge.` : null),
+      effect: effectText(percentAbove(stats.dexterity) > 0 ? `Ranged units deal +${percentAbove(stats.dexterity)}% damage.` : null, dodge > 0 ? `${dodge}% Dodge.` : null, spell(stats.dexterity, 'Volleys')),
     }),
-    withTip({ key: 'intelligence', label: 'Intelligence', icon: 'role_caster', value: stats.intelligence, effect: 'Not used yet.' }),
+    withTip({ key: 'intelligence', label: 'Intelligence', icon: 'role_caster', value: stats.intelligence, effect: effectText(spell(stats.intelligence, 'Magic spells')) }),
     withTip({ key: 'vitality', label: 'Vitality', icon: 'hp', value: stats.vitality, effect: 'Not used yet.' }),
     withTip({
       key: 'wisdom',

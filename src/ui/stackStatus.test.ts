@@ -27,13 +27,27 @@ describe('stackStates', () => {
     expect(cannotAct(rooted, 'player')).toBe(false);
   });
 
-  it('a back-row melee stack behind a living ally is blocked (AO-D033); ranged is not', () => {
+  it('a back-row melee stack is blocked by ANY living front-row ally, whatever the lane (AO-D069)', () => {
+    const frontRight = createStack('knight', 'player', 3, 3);
+    const backLeftMelee = createStack('swordsman', 'player', 4, 5);
+    expect(stackStates(backLeftMelee, 'player', [frontRight, backLeftMelee]).blocked).toBe(true);
+    expect(cannotAct(backLeftMelee, 'player', [frontRight, backLeftMelee])).toBe(true);
+    expect(stackStates(backLeftMelee, 'player', [backLeftMelee]).blocked).toBe(false);
+    const deadFront = { ...frontRight, count: 0 };
+    expect(stackStates(backLeftMelee, 'player', [deadFront, backLeftMelee]).blocked).toBe(false);
+  });
+
+  it('ranged and support stacks are never blocked by the front row', () => {
     const front = createStack('knight', 'player', 1, 3);
-    const backMelee = createStack('swordsman', 'player', 4, 5);
     const backRanged = createStack('archer', 'player', 4, 5);
-    expect(stackStates(backMelee, 'player', [front, backMelee]).blocked).toBe(true);
-    expect(cannotAct(backMelee, 'player', [front, backMelee])).toBe(true);
+    const backPriest = createStack('priest', 'player', 5, 5);
     expect(stackStates(backRanged, 'player', [front, backRanged]).blocked).toBe(false);
-    expect(stackStates(backMelee, 'player', [backMelee]).blocked).toBe(false);
+    expect(stackStates(backPriest, 'player', [front, backPriest]).blocked).toBe(false);
+    expect(cannotAct(backPriest, 'player', [front, backPriest])).toBe(false);
+  });
+
+  it('an enemy frozen by Frost cannot act (engine cannotAct)', () => {
+    const frozenEnemy = { ...createStack('goblin', 'enemy', 1, 4), statuses: [{ type: 'freeze' as const, amount: 1, duration: 1 }] };
+    expect(cannotAct(frozenEnemy, 'enemy')).toBe(true);
   });
 });
