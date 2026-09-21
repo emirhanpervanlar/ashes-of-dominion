@@ -23,7 +23,7 @@ import {
   weeklyGarrison,
 } from '../../engine/run/index.js';
 import type { RunState } from '../../engine/run/index.js';
-import { BUILDING_ICONS, DOCTRINE_ICONS } from '../mapIcons.js';
+import { BUILDING_ICONS, BUILDING_LEVEL_ICONS, DOCTRINE_ICONS } from '../mapIcons.js';
 import type { IconName } from '../pixel/icons.js';
 
 /** Units the Barracks sells, in tier order (the engine's BARRACKS_TIERS decides which tier unlocks which). */
@@ -62,6 +62,36 @@ export function plotState(run: Pick<RunState, 'city' | 'gold'>, buildingId: stri
   if (run.city.buildings.includes(buildingId)) return 'built';
   if (freeSlots(run) <= 0) return 'locked';
   return run.gold >= BUILDING_DEFINITIONS[buildingId]!.cost ? 'buildable' : 'unaffordable';
+}
+
+export interface BuildingLevel {
+  level: number;
+  max: number;
+}
+
+/** The level a plot shows: Town Hall = city level, Barracks / Farm / Mage Tower = tier; every other building has one level, so it is always at max. Null while an optional building is not built. */
+export function buildingLevel(city: RunState['city'], buildingId: string): BuildingLevel | null {
+  switch (buildingId) {
+    case 'townhall':
+      return { level: city.level, max: Object.keys(LEVEL_SLOTS).length };
+    case 'barracks':
+      return { level: city.barracksTier, max: BARRACKS_TIERS.length };
+    case 'farm':
+      return city.buildings.includes('farm') ? { level: city.farmTier, max: FARM_TIERS.length } : null;
+    case 'mage_tower':
+      return city.buildings.includes('mage_tower') ? { level: city.mageTowerTier, max: MAGE_TOWER_TIERS.length } : null;
+    default:
+      return buildingId in BUILDING_DEFINITIONS && !city.buildings.includes(buildingId) ? null : { level: 1, max: 1 };
+  }
+}
+
+export const levelLabel = ({ level, max }: BuildingLevel): string => (level >= max ? 'Max' : `Lv ${level}`);
+
+/** The icon of a building at its level: buildings with several visual stages spread their levels evenly over them, the others keep one icon. */
+export function buildingArt(buildingId: string, level: BuildingLevel | null): IconName {
+  const stages = BUILDING_LEVEL_ICONS[buildingId];
+  if (!stages || !level) return stages?.[0] ?? BUILDING_ICONS[buildingId]!;
+  return stages[Math.ceil((level.level * stages.length) / level.max) - 1]!;
 }
 
 export type Placement = 'merge' | 'free' | 'full';
@@ -265,4 +295,16 @@ export function daysToGarrison(day: number): number {
   let n = 1;
   while (!isGarrisonDay(day + n)) n++;
   return n;
+}
+
+/** The bottom bar's Garrison block: one slot per Barracks tier, filled (in tier order) by the unit types the garrison grows; the rest are empty. */
+export function garrisonSlots(run: Pick<RunState, 'city' | 'villages' | 'garrison' | 'army'>): (GarrisonRow | null)[] {
+  const rows = garrisonRows(run);
+  return Array.from({ length: BARRACKS_TIERS.length }, (_, i) => rows[i] ?? null);
+}
+
+/** Why a waiting group cannot be collected (the Tip of a disabled slot), or null when it can. */
+export function collectBlocker(row: GarrisonRow): string | null {
+  if (row.waiting === 0) return `No ${UNIT_DEFINITIONS[row.unitId].name} waiting.`;
+  return row.fits ? null : `Army full: ${MAX_ARMY_STACKS} stacks and no ${UNIT_DEFINITIONS[row.unitId].name} stack to join.`;
 }

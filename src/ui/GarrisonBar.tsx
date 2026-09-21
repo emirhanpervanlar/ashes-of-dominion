@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import type { Position } from '../engine/index.js';
+import type { Position, UnitId } from '../engine/index.js';
 import { LEVEL_SLOTS, TOTAL_CHAPTERS, bossWarning, dailyFoodNet, daysUntilBoss, foodWarning, starvationForecast } from '../engine/run/index.js';
 import type { RunState } from '../engine/run/index.js';
 import { ArmyGrid } from './ArmyGrid.js';
 import type { PlacingSplit } from './ArmyGrid.js';
 import { FoodPopup } from './FoodPopup.js';
+import { GoldPopup } from './GoldPopup.js';
 import { HistoryDrawer } from './HistoryDrawer.js';
 import { DeckViewer } from './DeckViewer.js';
 import { polarityTabs } from './deckView.js';
@@ -16,7 +17,10 @@ import { useResourceDeltas } from './resourceDeltas.js';
 import { describeRunEvent } from './runEventText.js';
 import { Tip } from './Tip.js';
 import { bossTip, chapterTip, dayTip, foodTip, goldTip, relicTip, slotsTip, threatTip } from './tipContent.js';
+import { UnitArt } from './UnitArt.js';
 import { UnitPopup } from './UnitPopup.js';
+import { unitCountText } from './runEventText.js';
+import { collectBlocker, dailyChange, garrisonSlots } from './city/cityView.js';
 
 const RELIC_GRID_SLOTS = 15;
 
@@ -26,6 +30,8 @@ interface Props {
   onLeave?: () => void;
   /** City only: the Deck viewer links to card removal. */
   onOpenCardRemoval?: () => void;
+  /** City only: shows the Garrison block between Hero and Army; a click collects one unit type. */
+  onCollectGarrison?: (unitId: UnitId) => void;
   recentRecruit?: { unitId: string; amount: number } | null;
   onOpenMenu: () => void;
   onMoveStack: (stackId: string, toPosition: Position) => void;
@@ -38,11 +44,12 @@ interface Props {
   onDismissStack: (stackId: string, count?: number) => void;
 }
 
-/** The bottom bar shared by Road and City (AO-D010/D016): resources | hero | army 3x2 | Log + Menu. */
-export function GarrisonBar({ run, onLeave, onOpenCardRemoval, recentRecruit, onOpenMenu, onMoveStack, onSplitStack, onSplitMerge, onMergeStacks, onDismissStack }: Props) {
+/** The bottom bar shared by Road and City (AO-D010/D016, AO-D086): resources | hero | garrison (City only) | army 3x2 | Log + Menu. */
+export function GarrisonBar({ run, onLeave, onOpenCardRemoval, onCollectGarrison, recentRecruit, onOpenMenu, onMoveStack, onSplitStack, onSplitMerge, onMergeStacks, onDismissStack }: Props) {
   const [popupStackId, setPopupStackId] = useState<string | null>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [foodOpen, setFoodOpen] = useState(false);
+  const [goldOpen, setGoldOpen] = useState(false);
   const [deckOpen, setDeckOpen] = useState(false);
   const [heroOpen, setHeroOpen] = useState(false);
   const [placing, setPlacing] = useState<PlacingSplit | null>(null);
@@ -51,6 +58,7 @@ export function GarrisonBar({ run, onLeave, onOpenCardRemoval, recentRecruit, on
   const historyLines = run.log.map(describeRunEvent).filter((line): line is string => line !== null);
 
   const net = dailyFoodNet(run);
+  const goldNet = dailyChange(run).gold;
   const foodBad = foodWarning(run);
   const starving = starvationForecast(run).willStarve;
   const warning = bossWarning(run);
@@ -70,9 +78,10 @@ export function GarrisonBar({ run, onLeave, onOpenCardRemoval, recentRecruit, on
           ))}
           <div className="garrison-bar-row">
             <Tip tip={goldTip(run)}>
-              <div className="pill pill--gold garrison-bar-stat">
+              <button className="pill pill--gold garrison-bar-stat garrison-gold" onClick={() => setGoldOpen(true)}>
                 <Icon name="gold" /> {run.gold}
-              </div>
+                <span className="garrison-food-net">{goldNet > 0 ? `+${goldNet}` : goldNet}/day</span>
+              </button>
             </Tip>
             {inCity ? (
               <Tip tip={slotsTip(run)}>
@@ -143,11 +152,36 @@ export function GarrisonBar({ run, onLeave, onOpenCardRemoval, recentRecruit, on
           </div>
         </div>
 
+        {onCollectGarrison && (
+          <div className="garrison-bar-col garrison-bar-garrison">
+            <div className="plaque plaque--iron garrison-hero-plaque">Garrison</div>
+            <div className="garrison-slots">
+              {garrisonSlots(run).map((row, i) => {
+                if (!row) return <span key={`empty-${i}`} className="garrison-slot empty" />;
+                const blocker = collectBlocker(row);
+                return (
+                  <Tip key={row.unitId} tip={blocker ?? `Collect ${unitCountText(row.unitId, row.waiting)}: they join your army.`}>
+                    <span>
+                      <button className="garrison-slot" disabled={!!blocker} data-garrison-unit={row.unitId} onClick={() => onCollectGarrison(row.unitId)}>
+                        <UnitArt unitId={row.unitId} size={1} />
+                        <span className="garrison-slot-count">
+                          {row.waiting}
+                          <span className="garrison-slot-cap">/{row.cap}</span>
+                        </span>
+                      </button>
+                    </span>
+                  </Tip>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         <div className="garrison-bar-main">
           <ArmyGrid
             army={army}
             recentRecruit={recentRecruit}
-            disabled={popupStack !== null || historyOpen || foodOpen || deckOpen || heroOpen}
+            disabled={popupStack !== null || historyOpen || foodOpen || goldOpen || deckOpen || heroOpen}
             placing={placing}
             onMoveStack={onMoveStack}
             onMergeStacks={onMergeStacks}
@@ -185,6 +219,7 @@ export function GarrisonBar({ run, onLeave, onOpenCardRemoval, recentRecruit, on
 
       <HistoryDrawer open={historyOpen} onClose={() => setHistoryOpen(false)} heading="History" lines={historyLines} />
       {foodOpen && <FoodPopup run={run} onClose={() => setFoodOpen(false)} />}
+      {goldOpen && <GoldPopup run={run} onClose={() => setGoldOpen(false)} />}
       {heroOpen && <HeroPopup run={run} onClose={() => setHeroOpen(false)} />}
       {deckOpen && (
         <DeckViewer

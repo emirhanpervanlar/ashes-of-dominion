@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { BARRACKS_TIERS, BUILDING_DEFINITIONS, DOCTRINE_DEFINITIONS, FARM_TIERS, LEVEL_SLOTS, MAGE_TOWER_TIERS, GOLD_MINE_DAILY_GOLD, MARKET_RECRUIT_DISCOUNT, MINE, RECRUIT_COSTS, createRun, isGarrisonDay, mineDailyGold, recruitCost } from '../../engine/run/index.js';
 import type { RunState } from '../../engine/run/index.js';
-import { FIXED_BUILDINGS, RECRUITABLE_UNITS, SCENE_BUILDINGS, activeEffects, barracksRows, buildBlocker, buildingEffect, dailyChange, daysToGarrison, garrisonRows, levelRows, placementText, plotState, recruitQuote, tierRows } from './cityView.js';
+import { FIXED_BUILDINGS, RECRUITABLE_UNITS, SCENE_BUILDINGS, activeEffects, barracksRows, buildBlocker, buildingArt, buildingEffect, buildingLevel, collectBlocker, dailyChange, daysToGarrison, garrisonRows, garrisonSlots, levelLabel, levelRows, placementText, plotState, recruitQuote, tierRows } from './cityView.js';
 
 function cityRun(patch: Partial<RunState> = {}, city: Partial<RunState['city']> = {}): RunState {
   const run = createRun(7, 'warlord', 'Tester');
@@ -188,5 +188,54 @@ describe('activeEffects', () => {
     const big = { ...run, army: run.army.map((s) => ({ ...s, count: 40 })) };
     expect(buildingEffect(big, 'stable')!.text).toMatch(/Saves \d+ Food a day/);
     expect(buildingEffect(run, 'market')).toBeNull();
+  });
+});
+
+describe('building levels and art', () => {
+  it('tiered buildings show their tier, the Town Hall its level, everything else one level; unbuilt optionals show none', () => {
+    const run = cityRun({}, { level: 2, barracksTier: 2, buildings: ['farm', 'forge'], farmTier: 5, mageTowerTier: 1 });
+    expect(buildingLevel(run.city, 'townhall')).toEqual({ level: 2, max: 3 });
+    expect(buildingLevel(run.city, 'barracks')).toEqual({ level: 2, max: BARRACKS_TIERS.length });
+    expect(buildingLevel(run.city, 'farm')).toEqual({ level: FARM_TIERS.length, max: FARM_TIERS.length });
+    expect(buildingLevel(run.city, 'forge')).toEqual({ level: 1, max: 1 });
+    expect(buildingLevel(run.city, 'mage_tower')).toBeNull();
+    expect(buildingLevel(run.city, 'market')).toBeNull();
+    expect(buildingLevel(run.city, 'temple')).toEqual({ level: 1, max: 1 });
+  });
+
+  it('the label is "Lv n" until the top level, then "Max"', () => {
+    expect(levelLabel({ level: 2, max: 5 })).toBe('Lv 2');
+    expect(levelLabel({ level: 5, max: 5 })).toBe('Max');
+    expect(levelLabel({ level: 1, max: 1 })).toBe('Max');
+  });
+
+  it('grows the art from the first stage at level 1 to the last at max level', () => {
+    expect(buildingArt('farm', null)).toBe('bld_farm');
+    expect(buildingArt('farm', { level: 1, max: 5 })).toBe('bld_farm');
+    expect(buildingArt('farm', { level: 3, max: 5 })).toBe('bld_farm_2');
+    expect(buildingArt('farm', { level: 5, max: 5 })).toBe('bld_farm_3');
+    expect(buildingArt('mage_tower', { level: 2, max: 3 })).toBe('bld_mage_tower_2');
+    expect(buildingArt('barracks', { level: 4, max: 4 })).toBe('bld_barracks_3');
+    expect(buildingArt('forge', { level: 1, max: 1 })).toBe('bld_forge');
+  });
+});
+
+describe('garrison bar slots', () => {
+  it('has one slot per Barracks tier: grown unit types first (with their cap), the rest empty', () => {
+    const run = cityRun({ garrison: { swordsman: 5 } }, { barracksTier: 2 });
+    const slots = garrisonSlots(run);
+    expect(slots).toHaveLength(BARRACKS_TIERS.length);
+    expect(slots[0]).toMatchObject({ unitId: 'swordsman', waiting: 5, cap: garrisonRows(run)[0]!.cap });
+    expect(slots[1]).toMatchObject({ unitId: 'archer', waiting: 0 });
+    expect(slots[2]).toBeNull();
+    expect(slots[3]).toBeNull();
+  });
+
+  it('a slot is collectable only when something waits and the army has room', () => {
+    const run = cityRun({ garrison: { swordsman: 5 } }, { barracksTier: 2 });
+    const [sword, archer] = garrisonSlots(run) as NonNullable<ReturnType<typeof garrisonSlots>[number]>[];
+    expect(collectBlocker(sword!)).toBeNull();
+    expect(collectBlocker(archer!)).toBe('No Archer waiting.');
+    expect(collectBlocker({ ...sword!, fits: false })).toMatch(/^Army full/);
   });
 });

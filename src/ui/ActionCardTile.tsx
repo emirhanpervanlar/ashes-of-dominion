@@ -3,7 +3,6 @@ import { useCardInfo } from './cardInfoContext.js';
 import { cardView } from './cardView.js';
 import { cardVisual } from './cardVisuals.js';
 import { Icon } from './pixel/Icon.js';
-import { ScalesBadge } from './ScalesBadge.js';
 import { Tip } from './Tip.js';
 import { manaCostTip } from './tipContent.js';
 import type { TipContent } from './tipContent.js';
@@ -70,7 +69,6 @@ export function ActionCardTile({ id, upgraded, count, affordable, pending, condi
           <Icon name={visual.icon} size={2} />
         </div>
         <div className={`action-card-name${view.upgraded ? ' upgraded' : ''}`}>{view.name}</div>
-        {view.scalesWith && <ScalesBadge stat={view.scalesWith} />}
         <div className="action-card-desc">{view.description}</div>
       </div>
     </Tip>

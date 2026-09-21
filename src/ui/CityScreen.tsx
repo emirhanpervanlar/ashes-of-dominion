@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { BUILDING_DEFINITIONS, DOCTRINE_DEFINITIONS, LEVEL_SLOTS, ROMAN, THREAT_PER_CITY_VISIT, farmDescription, garrisonUnits, mageTowerDescription, threatMultiplier } from '../engine/run/index.js';
+import { BUILDING_DEFINITIONS, DOCTRINE_DEFINITIONS, LEVEL_SLOTS, MAGE_TOWER_TIERS, THREAT_PER_CITY_VISIT, farmDescription, farmProduction, garrisonUnits, mageTowerDescription, threatMultiplier } from '../engine/run/index.js';
 import type { RunEvent, RunState } from '../engine/run/index.js';
 import type { Position, UnitId } from '../engine/index.js';
-import { BUILDING_ICONS } from './mapIcons.js';
 import { Icon } from './pixel/Icon.js';
 import type { IconName } from './pixel/icons.js';
+import { FoodPopup } from './FoodPopup.js';
 import { GarrisonBar } from './GarrisonBar.js';
+import { GoldPopup } from './GoldPopup.js';
 import { ScrollArea } from './ScrollArea.js';
 import { Tip } from './Tip.js';
 import { TitleSkyline } from './TitleSkyline.js';
@@ -18,15 +19,15 @@ import { MarketplacePanel } from './city/MarketplacePanel.js';
 import { TemplePanel } from './city/TemplePanel.js';
 import { TierLadderPanel } from './city/TierLadderPanel.js';
 import { TownHallPanel } from './city/TownHallPanel.js';
-import { FIXED_BUILDINGS, FIXED_BUILDING_INFO, SCENE_BUILDINGS, buildBlocker, plotState } from './city/cityView.js';
-import type { FixedBuildingId, PlotState } from './city/cityView.js';
+import { FIXED_BUILDINGS, FIXED_BUILDING_INFO, SCENE_BUILDINGS, buildBlocker, buildingArt, buildingLevel, levelLabel, plotState } from './city/cityView.js';
+import type { BuildingLevel, FixedBuildingId, PlotState } from './city/cityView.js';
 
 interface Props {
   run: RunState;
   onRecruit: (unitId: UnitId, count: number) => void;
   onBuild: (buildingId: string) => void;
   onUpgradeBarracks: () => void;
-  onCollectGarrison: (unitId?: UnitId) => void;
+  onCollectGarrison: (unitId: UnitId) => void;
   onBuyFood: (packs: number) => void;
   onUpgradeCity: () => void;
   onUpgradeMageTower: () => void;
@@ -60,6 +61,8 @@ interface PlotProps {
   id: string;
   name: string;
   icon: IconName;
+  /** Shown in the corner of the art: "Lv 2", or "Max" at the top level; null while not built. */
+  level: BuildingLevel | null;
   state: PlotState | 'open';
   status: string;
   active: boolean;
@@ -67,17 +70,13 @@ interface PlotProps {
   onOpen: () => void;
 }
 
-function Plot({ id, name, icon, state, status, active, tip, onOpen }: PlotProps) {
+function Plot({ id, name, icon, level, state, status, active, tip, onOpen }: PlotProps) {
   return (
     <Tip tip={tip}>
       <button className={`city-plot city-plot--${state}${active ? ' active' : ''}`} data-building={id} onClick={onOpen}>
         <span className="city-plot-art">
           <Icon name={icon} size={4} />
-          {state === 'built' && (
-            <span className="city-plot-badge city-plot-badge--built">
-              <Icon name="ui_check" />
-            </span>
-          )}
+          {level && <span className={`city-plot-level${level.level >= level.max ? ' city-plot-level--max' : ''}`}>{levelLabel(level)}</span>}
           {state === 'locked' && (
             <span className="city-plot-badge city-plot-badge--locked">
               <Icon name="ui_blocked" />
@@ -97,6 +96,7 @@ export function CityScreen({ run, onRecruit, onBuild, onUpgradeBarracks, onColle
   const { city } = run;
   const visit = lastCityVisit(run.log);
   const [panel, setPanel] = useState<string | null>(null);
+  const [popup, setPopup] = useState<'gold' | 'food' | null>(null);
   const [recentRecruit, setRecentRecruit] = useState<{ unitId: UnitId; amount: number } | null>(null);
 
   useEffect(() => {
@@ -112,14 +112,14 @@ export function CityScreen({ run, onRecruit, onBuild, onUpgradeBarracks, onColle
 
   const waiting = garrisonUnits(run.garrison).reduce((sum, u) => sum + u.count, 0);
   const fixedStatus: Record<FixedBuildingId, string> = {
-    townhall: `Level ${city.level}`,
-    barracks: waiting > 0 ? `Tier ${ROMAN[city.barracksTier - 1]}, ${waiting} waiting` : `Tier ${ROMAN[city.barracksTier - 1]}`,
+    townhall: `${city.buildings.length}/${LEVEL_SLOTS[city.level]} slots`,
+    barracks: waiting > 0 ? `${waiting} waiting` : 'Recruit',
     marketplace: 'Buy Food',
     temple: city.doctrine ? (DOCTRINE_DEFINITIONS[city.doctrine]?.name ?? 'Chosen') : 'Choose',
   };
 
   function optionalStatus(id: string, state: PlotState): string {
-    if (state === 'built') return id === 'mage_tower' ? `Tier ${ROMAN[city.mageTowerTier - 1]}` : id === 'farm' ? `Tier ${ROMAN[city.farmTier - 1]}` : 'Built';
+    if (state === 'built') return id === 'mage_tower' ? `Mana +${MAGE_TOWER_TIERS[city.mageTowerTier - 1]!.maxMana}` : id === 'farm' ? `+${farmProduction(city)} Food/day` : 'Built';
     if (state === 'locked') return 'No free slot';
     return `${state === 'unaffordable' ? 'Need' : 'Build'} ${BUILDING_DEFINITIONS[id]!.cost}g`;
   }
@@ -152,28 +152,34 @@ export function CityScreen({ run, onRecruit, onBuild, onUpgradeBarracks, onColle
             </div>
 
             <div className="city-plots">
-              {FIXED_BUILDINGS.map((id) => (
-                <Plot
-                  key={id}
-                  id={id}
-                  name={FIXED_BUILDING_INFO[id].name}
-                  icon={BUILDING_ICONS[id]!}
-                  state={id === 'barracks' ? 'built' : 'open'}
-                  status={fixedStatus[id]}
-                  active={panel === id}
-                  tip={{ title: FIXED_BUILDING_INFO[id].name, body: FIXED_BUILDING_INFO[id].hint }}
-                  onOpen={() => setPanel(id)}
-                />
-              ))}
+              {FIXED_BUILDINGS.map((id) => {
+                const level = buildingLevel(city, id);
+                return (
+                  <Plot
+                    key={id}
+                    id={id}
+                    name={FIXED_BUILDING_INFO[id].name}
+                    icon={buildingArt(id, level)}
+                    level={level}
+                    state={id === 'barracks' ? 'built' : 'open'}
+                    status={fixedStatus[id]}
+                    active={panel === id}
+                    tip={{ title: FIXED_BUILDING_INFO[id].name, body: FIXED_BUILDING_INFO[id].hint }}
+                    onOpen={() => setPanel(id)}
+                  />
+                );
+              })}
               {SCENE_BUILDINGS.map((id) => {
                 const state = plotState(run, id);
                 const def = BUILDING_DEFINITIONS[id]!;
+                const level = buildingLevel(city, id);
                 return (
                   <Plot
                     key={id}
                     id={id}
                     name={def.name}
-                    icon={BUILDING_ICONS[id]!}
+                    icon={buildingArt(id, level)}
+                    level={level}
                     state={state}
                     status={optionalStatus(id, state)}
                     active={panel === id}
@@ -184,13 +190,13 @@ export function CityScreen({ run, onRecruit, onBuild, onUpgradeBarracks, onColle
               })}
             </div>
           </div>
-          <EffectsPanel run={run} />
+          <EffectsPanel run={run} onOpenGold={() => setPopup('gold')} onOpenFood={() => setPopup('food')} />
         </ScrollArea>
       </div>
 
       {panel === 'townhall' && <TownHallPanel run={run} onUpgradeCity={onUpgradeCity} onRemoveCard={onRemoveCard} onClose={() => setPanel(null)} />}
       {panel === 'barracks' && (
-        <BarracksPanel run={run} recent={recentRecruit} onRecruit={recruit} onUpgrade={onUpgradeBarracks} onCollect={onCollectGarrison} onClose={() => setPanel(null)} />
+        <BarracksPanel run={run} recent={recentRecruit} onRecruit={recruit} onUpgrade={onUpgradeBarracks} onClose={() => setPanel(null)} />
       )}
       {panel === 'marketplace' && <MarketplacePanel run={run} onBuy={onBuyFood} onClose={() => setPanel(null)} />}
       {panel === 'temple' && <TemplePanel run={run} onChoose={onChooseDoctrine} onClose={() => setPanel(null)} />}
@@ -201,9 +207,13 @@ export function CityScreen({ run, onRecruit, onBuild, onUpgradeBarracks, onColle
         <BuildingPanel run={run} buildingId={panel} onBuild={onBuild} onClose={() => setPanel(null)} />
       )}
 
+      {popup === 'gold' && <GoldPopup run={run} onClose={() => setPopup(null)} />}
+      {popup === 'food' && <FoodPopup run={run} onClose={() => setPopup(null)} />}
+
       <GarrisonBar
         run={run}
         onLeave={onLeave}
+        onCollectGarrison={onCollectGarrison}
         onOpenCardRemoval={() => setPanel('townhall')}
         recentRecruit={recentRecruit}
         onOpenMenu={onOpenMenu}
