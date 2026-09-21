@@ -9,7 +9,7 @@ import type { CardDefinition } from '../types.js';
  * Covering Fire's "reacts to an attack" becomes an immediate attack instead.
  */
 /** AO-D074: Fireball (2 Mana) is tuned so that with Intelligence 18 it kills about 2-4 early units, never a whole stack (see heroSpells.ts for the base power). */
-export const FIREBALL_PRIMARY_MULTIPLIER = 1.6;
+export const FIREBALL_PRIMARY_MULTIPLIER = 1.7;
 export const FIREBALL_SPLASH_MULTIPLIER = 0.45;
 /** The 1-Mana basic hero attacks of each hero identity (AO-D075 starting decks). */
 export const HERO_STRIKE_MULTIPLIER = 1.6;
@@ -246,7 +246,7 @@ export const CARD_DEFINITIONS: Record<string, CardDefinition> = {
     manaCost: 1,
     tags: ['warlord', 'defense', 'formation'],
     targeting: 'none',
-    effects: [{ kind: 'DEFENSE_BUFF_ALL_FRONTLINE', amount: 120, duration: 1 }],
+    effects: [{ kind: 'DEFENSE_BUFF_ALL_FRONTLINE', amount: 90, duration: 1 }],
   },
   brutal_command: {
     id: 'brutal_command',

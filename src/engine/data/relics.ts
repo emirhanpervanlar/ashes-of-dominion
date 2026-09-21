@@ -158,23 +158,23 @@ export const STARTING_RELIC_DEFINITIONS: Record<string, RelicDefinition> = {
   royal_banner: {
     id: 'royal_banner',
     name: 'Royal Banner',
-    description: "Army size +3 (added to the run's largest starting stack).",
+    description: "Army size +4 (added to the run's largest starting stack).",
     rarity: 'common',
-    effects: [{ kind: 'ARMY_SIZE_FLAT_LARGEST', amount: 3 }],
+    effects: [{ kind: 'ARMY_SIZE_FLAT_LARGEST', amount: 4 }],
   },
   whetstone: {
     id: 'whetstone',
     name: 'Whetstone',
-    description: 'Army deals +20% damage.',
+    description: 'Army deals +15% damage.',
     rarity: 'common',
-    effects: [{ kind: 'PLAYER_DAMAGE_MULT', multiplier: 1.2 }],
+    effects: [{ kind: 'PLAYER_DAMAGE_MULT', multiplier: 1.15 }],
   },
   padded_vest: {
     id: 'padded_vest',
     name: 'Padded Vest',
-    description: 'Army takes -15% damage.',
+    description: 'Army takes -10% damage.',
     rarity: 'common',
-    effects: [{ kind: 'PLAYER_DAMAGE_TAKEN_MULT', multiplier: 0.85 }],
+    effects: [{ kind: 'PLAYER_DAMAGE_TAKEN_MULT', multiplier: 0.9 }],
   },
   lucky_charm: {
     id: 'lucky_charm',
@@ -186,8 +186,8 @@ export const STARTING_RELIC_DEFINITIONS: Record<string, RelicDefinition> = {
   travelers_purse: {
     id: 'travelers_purse',
     name: "Traveler's Purse",
-    description: '+50 Gold at the start of the run.',
+    description: '+75 Gold at the start of the run.',
     rarity: 'common',
-    effects: [{ kind: 'GOLD_FLAT', amount: 50 }],
+    effects: [{ kind: 'GOLD_FLAT', amount: 75 }],
   },
 };

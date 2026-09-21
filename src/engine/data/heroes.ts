@@ -15,7 +15,7 @@ export const HERO_DEFINITIONS: Record<HeroId, HeroDefinition> = {
   warlord: {
     id: 'warlord',
     name: 'Warlord',
-    stats: { strength: 16, dexterity: 10, intelligence: 8, vitality: 14, wisdom: 8 },
+    stats: { strength: 15, dexterity: 10, intelligence: 8, vitality: 14, wisdom: 8 },
     baseMana: 3,
     // AO-D074 start balance (AO-046 measurements): every hero opens with a solid front line, 8 units in total;
     // the run grows the army from the City and the garrison, not from a day-1 horde.

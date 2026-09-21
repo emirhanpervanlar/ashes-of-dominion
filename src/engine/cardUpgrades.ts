@@ -98,8 +98,8 @@ export const CARD_UPGRADES: Record<string, CardUpgradeDefinition> = {
     effects: [{ kind: 'DAMAGE_BUFF_ALL_WITH_TAG', tag: 'heavy', amount: 40, duration: 1 }],
   },
   hold_the_line: {
-    description: 'All frontline stacks +150% Defense this turn.',
-    effects: [{ kind: 'DEFENSE_BUFF_ALL_FRONTLINE', amount: 150, duration: 1 }],
+    description: 'All frontline stacks +120% Defense this turn.',
+    effects: [{ kind: 'DEFENSE_BUFF_ALL_FRONTLINE', amount: 120, duration: 1 }],
   },
   brutal_command: { description: 'Next attack +100% damage; cannot be redirected.', manaCost: 1 },
   rally: {
@@ -160,7 +160,7 @@ export const CARD_UPGRADES: Record<string, CardUpgradeDefinition> = {
   // Mage
   fireball: {
     description: 'Damages the target and 40% to adjacent stacks.',
-    effects: [{ kind: 'ATTACK_SPLASH', primaryMultiplier: 2.1, secondaryMultiplier: 0.6, maxSecondaryTargets: 2 }],
+    effects: [{ kind: 'ATTACK_SPLASH', primaryMultiplier: 2.2, secondaryMultiplier: 0.6, maxSecondaryTargets: 2 }],
   },
   frost: {
     description: 'Full magic damage and applies Freeze.',
