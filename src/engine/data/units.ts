@@ -13,7 +13,7 @@ export const UNIT_DEFINITIONS: Record<UnitId, UnitDefinition> = {
     side: 'player',
     hpPerUnit: 10,
     foodPerUnit: 0.1,
-    damage: 1,
+    damage: 2,
     attack: 3,
     defense: 2,
     tags: ['infantry', 'melee'],
@@ -58,7 +58,7 @@ export const UNIT_DEFINITIONS: Record<UnitId, UnitDefinition> = {
     defense: 1,
     tags: ['support', 'healer'],
     basicAction: 'heal',
-    healPower: 4,
+    healPower: 3,
     passiveId: 'devotion',
   },
   /** AO-D073: raised by the Necromantic Doctrine after a won battle. Weak, eats nothing, has no recruit cost and cannot be recruited. */
