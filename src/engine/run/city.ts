@@ -146,7 +146,7 @@ export const DOCTRINE_DEFINITIONS: Record<string, CityDoctrineDefinition> = {
   economic: {
     id: 'economic',
     name: 'Economic Doctrine',
-    description: `Resource nodes yield +${percentOf(ECONOMIC_DOCTRINE_MULTIPLIER - 1)}% Gold/Food.`,
+    description: `The one-off find of a mine capture is +${percentOf(ECONOMIC_DOCTRINE_MULTIPLIER - 1)}% Gold/Food.`,
     combatEffects: [],
   },
 };

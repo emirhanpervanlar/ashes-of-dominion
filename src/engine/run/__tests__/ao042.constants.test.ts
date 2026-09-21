@@ -99,7 +99,7 @@ describe('AO-042: building and doctrine numbers are single constants, and the te
     expect(DOCTRINE_DEFINITIONS.arcane!.description).toBe(`Caster units (Mage) +${pct(ARCANE_CASTER_MULTIPLIER - 1)}% Attack.`);
     expect(DOCTRINE_DEFINITIONS.necromantic!.combatEffects).toEqual([{ kind: 'NECROMANCY', ratio: NECROMANTIC_RAISE_RATIO }]);
     expect(DOCTRINE_DEFINITIONS.necromantic!.description).toBe(`${pct(NECROMANTIC_RAISE_RATIO)}% of your casualties rise again as Skeletons.`);
-    expect(DOCTRINE_DEFINITIONS.economic!.description).toBe(`Resource nodes yield +${pct(ECONOMIC_DOCTRINE_MULTIPLIER - 1)}% Gold/Food.`);
+    expect(DOCTRINE_DEFINITIONS.economic!.description).toBe(`The one-off find of a mine capture is +${pct(ECONOMIC_DOCTRINE_MULTIPLIER - 1)}% Gold/Food.`);
   });
 
   it('Economic Doctrine: a resource node pays exactly the plain roll times the constant', () => {
