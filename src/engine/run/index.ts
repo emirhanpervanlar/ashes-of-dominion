@@ -12,6 +12,8 @@ export * from './relicSources.js';
 export * from './city.js';
 export * from './garrison.js';
 export * from './marketplace.js';
+export * from './villages.js';
+export * from './mines.js';
 export { RELIC_DEFINITIONS, STARTING_RELIC_DEFINITIONS } from '../data/relics.js';
 export * from './stats.js';
 export * from './cardRemoval.js';
