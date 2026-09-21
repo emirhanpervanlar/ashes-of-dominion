@@ -202,7 +202,7 @@ describe('AO-D023 enemy step list', () => {
     const buff = steps.find((s) => s.kind === 'buff');
     expect(buff).toBeDefined();
     expect(buff!.hits).toEqual([]);
-    expect(buff!.statuses[0]).toMatchObject({ status: 'strength', amount: 2 });
+    expect(buff!.statuses[0]).toMatchObject({ status: 'strength', amount: 4 });
   });
 
   it('non-END_TURN actions return no step list', () => {

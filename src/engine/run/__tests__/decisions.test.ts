@@ -30,7 +30,7 @@ describe('AO-D007 (amended by AO-D074, AO-050): starting armies per hero', () =>
   const expected: Record<HeroId, Array<[string, number]>> = {
     warlord: [['knight', 2], ['priest', 2], ['swordsman', 4]],
     rogue: [['swordsman', 3], ['knight', 1], ['archer', 3], ['priest', 1]],
-    mage: [['swordsman', 5], ['archer', 2], ['priest', 1]],
+    mage: [['swordsman', 4], ['archer', 2], ['priest', 2]],
   };
 
   for (const hero of HEROES) {
