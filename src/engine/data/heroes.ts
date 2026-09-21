@@ -15,13 +15,14 @@ export const HERO_DEFINITIONS: Record<HeroId, HeroDefinition> = {
   warlord: {
     id: 'warlord',
     name: 'Warlord',
-    stats: { strength: 16, dexterity: 10, intelligence: 8, vitality: 14, wisdom: 8 },
+    stats: { strength: 15, dexterity: 10, intelligence: 8, vitality: 14, wisdom: 8 },
     baseMana: 3,
     // AO-D074 start balance (AO-046 measurements): every hero opens with a solid front line, 8 units in total;
     // the run grows the army from the City and the garrison, not from a day-1 horde.
     startingArmy: [
       { unitId: 'swordsman', count: 4 },
-      { unitId: 'knight', count: 4 },
+      { unitId: 'knight', count: 2 },
+      { unitId: 'priest', count: 2 },
     ],
     // AO-D075: starting decks hold only cards that need no specific unit type (unit skills like Charge come later, as rewards).
     startingDeck: [
@@ -48,12 +49,13 @@ export const HERO_DEFINITIONS: Record<HeroId, HeroDefinition> = {
   rogue: {
     id: 'rogue',
     name: 'Rogue',
-    stats: { strength: 9, dexterity: 17, intelligence: 10, vitality: 9, wisdom: 13 },
+    stats: { strength: 9, dexterity: 18, intelligence: 10, vitality: 9, wisdom: 13 },
     baseMana: 3,
     startingArmy: [
       { unitId: 'swordsman', count: 3 },
       { unitId: 'knight', count: 1 },
-      { unitId: 'archer', count: 4 },
+      { unitId: 'archer', count: 3 },
+      { unitId: 'priest', count: 1 },
     ],
     startingDeck: [
       'volley',

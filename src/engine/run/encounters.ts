@@ -29,9 +29,9 @@ function slotsForDepth(depth: number, fort: boolean): number {
 }
 
 const NON_FORT_TEMPLATE: Array<[UnitId, Position, number]> = [
-  ['goblin', 2, 5],
-  ['orc', 1, 4],
-  ['wolf', 3, 3],
+  ['goblin', 2, 8],
+  ['orc', 1, 7],
+  ['wolf', 3, 6],
   ['goblin', 5, 5],
   ['shaman', 4, 3],
   ['goblin', 6, 5],
@@ -39,7 +39,7 @@ const NON_FORT_TEMPLATE: Array<[UnitId, Position, number]> = [
 
 const FORT_TEMPLATE: Array<[UnitId, Position, number]> = [
   ['orc', 1, 6],
-  ['wolf', 3, 4],
+  ['wolf', 3, 6],
   ['orc', 2, 6],
   ['shaman', 4, 3],
   ['wolf', 5, 4],
@@ -47,7 +47,7 @@ const FORT_TEMPLATE: Array<[UnitId, Position, number]> = [
 ];
 
 export function generateBattleEncounter(layer: number, fort: boolean, chapter = 1, threat = 0): ArmyStack[] {
-  const fortMultiplier = fort ? 1.3 : 1;
+  const fortMultiplier = fort ? 2 : 1;
   const template = fort ? FORT_TEMPLATE : NON_FORT_TEMPLATE;
   const depth = encounterDepth(layer, chapter);
   const activeSlots = template.slice(0, slotsForDepth(depth, fort));
@@ -57,12 +57,12 @@ export function generateBattleEncounter(layer: number, fort: boolean, chapter = 
 
 /** The chapter 1 boss at Threat 0 (AO-D078: about a third of the old 258 units); later chapters multiply it by BOSS_CHAPTER_MULTIPLIER. */
 export const BOSS_FORMATION: ReadonlyArray<readonly [UnitId, Position, number]> = [
-  ['orc', 1, 15],
-  ['orc', 2, 15],
-  ['orc', 3, 15],
-  ['wolf', 4, 8],
-  ['shaman', 5, 4],
-  ['wolf', 6, 8],
+  ['orc', 1, 24],
+  ['orc', 2, 24],
+  ['orc', 3, 24],
+  ['wolf', 4, 13],
+  ['shaman', 5, 5],
+  ['wolf', 6, 13],
 ];
 
 /**

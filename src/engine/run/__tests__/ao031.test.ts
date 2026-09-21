@@ -31,7 +31,7 @@ describe('AO-031: atomic run start', () => {
     expect(run.phase).toBe('on_map');
     expect(run.hero.name).toBe('Ayla');
     expect(run.relics.map((r) => r.id)).toEqual(['travelers_purse']);
-    expect(run.gold).toBe(150);
+    expect(run.gold).toBe(175);
     expect(run.stats.largestStack).toBeGreaterThan(0);
     expect(run.log).toEqual([{ type: 'RUN_STARTED' }, { type: 'STARTING_RELIC_CHOSEN', relicId: 'travelers_purse' }]);
   });
@@ -42,7 +42,7 @@ describe('AO-031: atomic run start', () => {
     const migrated = migrateRun(legacy);
     expect(migrated.phase).toBe('on_map');
     expect(migrated.relics.map((r) => r.id)).toEqual(['royal_banner']);
-    expect(migrated.army.find((s) => s.unitId === 'swordsman')!.count).toBe(10);
+    expect(migrated.army.find((s) => s.unitId === 'swordsman')!.count).toBe(8);
     expect(legacy.army.find((s) => s.unitId === 'swordsman')!.count).toBe(4); // the input is not mutated
     const viaReducer = act(legacy, { type: 'TRAVEL_TO_CITY' }).run;
     expect(viaReducer.phase).toBe('city');
@@ -55,10 +55,10 @@ describe('AO-031: start preview', () => {
     const list = startingRelicList();
     expect(list.map((r) => r.id)).toEqual(['royal_banner', 'whetstone', 'padded_vest', 'lucky_charm', 'travelers_purse']);
     expect(list.map((r) => r.id).sort()).toEqual(Object.keys(STARTING_RELIC_DEFINITIONS).sort());
-    expect(list[0]!.effectSummary).toEqual(['Largest starting stack +6 units']);
-    expect(list[1]!.effectSummary).toEqual(['Damage dealt +10%']);
-    expect(list[2]!.effectSummary).toEqual(['Damage taken -8%']);
-    expect(list[4]!.effectSummary).toEqual(['Starting Gold +50']);
+    expect(list[0]!.effectSummary).toEqual(['Largest starting stack +4 units']);
+    expect(list[1]!.effectSummary).toEqual(['Damage dealt +15%']);
+    expect(list[2]!.effectSummary).toEqual(['Damage taken -10%']);
+    expect(list[4]!.effectSummary).toEqual(['Starting Gold +75']);
     for (const r of list) expect(r.description.length).toBeGreaterThan(0);
   });
 
@@ -75,8 +75,8 @@ describe('AO-031: start preview', () => {
         expect(preview.relic.id).toBe(id);
       }
     }
-    expect(previewStart('warlord', 'travelers_purse')!.gold).toBe(150);
-    expect(previewStart('warlord', 'royal_banner')!.totalUnits).toBe(14);
+    expect(previewStart('warlord', 'travelers_purse')!.gold).toBe(175);
+    expect(previewStart('warlord', 'royal_banner')!.totalUnits).toBe(12);
     expect(previewStart('warlord', 'blood_banner')).toBeUndefined();
   });
 });
@@ -125,7 +125,7 @@ describe('AO-031: runSummary', () => {
     ]);
     expect(summary.rows.find((r) => r.id === 'chapter')!.value).toBe(2);
     expect(summary.rows.find((r) => r.id === 'threat')!.value).toBe(4);
-    expect(summary.rows.find((r) => r.id === 'largestStack')!.value).toBe(10);
+    expect(summary.rows.find((r) => r.id === 'largestStack')!.value).toBe(8);
     expect(summary.relics).toEqual(['Royal Banner']);
     expect(summary.causeOfDeath).toBeNull();
     expect(summary.causeLabel).toBeNull();

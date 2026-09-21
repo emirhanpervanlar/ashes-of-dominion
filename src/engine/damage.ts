@@ -201,7 +201,7 @@ export function passiveDamageBonusMultiplier(attacker: ArmyStack, attackerDef: U
     if (adjacentGoblin) mult *= 1.1;
   }
   if (attackerDef.passiveId === 'brutal' && target && target.count > 0 && target.count / target.preBattleMaxCount < 0.5) mult *= 1.2;
-  if (attackerDef.passiveId === 'pounce' && target && target.position > 3) mult *= 1.5; // Wolf vs backline
+  if (attackerDef.passiveId === 'pounce' && target && target.position > 3) mult *= 1.25; // Wolf vs backline
   return mult;
 }
 

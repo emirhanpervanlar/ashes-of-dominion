@@ -41,16 +41,16 @@ describe('computeRawDamage', () => {
   });
 
   it('a hit with attack below defense still deals damage (AO-D018: -2.5% per point, capped at -70%)', () => {
-    const attacker = stack({ count: 100 }); // swordsman, base damage 1
-    expect(computeRawDamage({ attackerStack: attacker, attackerBaseAttack: 3, targetDefense: 5, multiplier: 1 })).toBe(95);
-    expect(computeRawDamage({ attackerStack: attacker, attackerBaseAttack: 3, targetDefense: 99, multiplier: 1 })).toBe(30);
+    const attacker = stack({ count: 100 }); // swordsman, base damage 2
+    expect(computeRawDamage({ attackerStack: attacker, attackerBaseAttack: 3, targetDefense: 5, multiplier: 1 })).toBe(190); // AO-050: Swordsman base damage 2
+    expect(computeRawDamage({ attackerStack: attacker, attackerBaseAttack: 3, targetDefense: 99, multiplier: 1 })).toBe(60);
     expect(computeRawDamage({ attackerStack: stack({ count: 1 }), attackerBaseAttack: 1, targetDefense: 99, multiplier: 1 })).toBe(1);
   });
 
   it('attack above defense adds 5% per point, capped at +300%', () => {
     const attacker = stack({ count: 100 });
-    expect(computeRawDamage({ attackerStack: attacker, attackerBaseAttack: 5, targetDefense: 3, multiplier: 1 })).toBe(110);
-    expect(computeRawDamage({ attackerStack: attacker, attackerBaseAttack: 100, targetDefense: 0, multiplier: 1 })).toBe(400);
+    expect(computeRawDamage({ attackerStack: attacker, attackerBaseAttack: 5, targetDefense: 3, multiplier: 1 })).toBe(220);
+    expect(computeRawDamage({ attackerStack: attacker, attackerBaseAttack: 100, targetDefense: 0, multiplier: 1 })).toBe(800);
   });
 
   it('AO-D031: base damage comes from the unit definition, attack only feeds the modifier', () => {
@@ -75,7 +75,7 @@ describe('computeRawDamage', () => {
     expect(computeRawDamage(params(knight([{ type: 'weak', amount: 15, duration: 1 }])))).toBe(34);
     // Weak no longer feeds the attack/defense modifier: it does not drop A below D.
     expect(effectiveAttack(knight([{ type: 'weak', amount: 20, duration: 1 }]), 4)).toBe(4);
-    expect(computeRawDamage({ attackerStack: stack({ count: 1, statuses: [{ type: 'weak', amount: 20, duration: 1 }] }), attackerBaseAttack: 3, targetDefense: 0, multiplier: 1 })).toBe(1);
+    expect(computeRawDamage({ attackerStack: stack({ count: 1, statuses: [{ type: 'weak', amount: 20, duration: 1 }] }), attackerBaseAttack: 3, targetDefense: 0, multiplier: 1 })).toBe(2); // AO-050: 2 base damage x0.8 rounds to 2
   });
 
   it('applies Hero stat effectiveness as a multiplier', () => {

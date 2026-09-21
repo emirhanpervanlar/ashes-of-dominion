@@ -4,6 +4,9 @@ import { computeValidTargets, isFrontPosition } from './targeting.js';
 import { nextInt } from './rng.js';
 import type { ArmyStack, CombatState, EnemyIntent, UnitDefinition } from './types.js';
 
+/** AO-050: the enemy Shaman never attacks, so its Strength buff carries its role (+20% damage to the buffed stack against the H3 modifier at 0.05 per point). */
+const SHAMAN_BUFF_STRENGTH = 4;
+
 function alive(stacks: ArmyStack[]): ArmyStack[] {
   return stacks.filter((s) => s.count > 0);
 }
@@ -59,7 +62,7 @@ export function generateEnemyIntents(state: CombatState): EnemyIntent[] {
       const candidates = liveEnemy.filter((s) => s.stackId !== stack.stackId);
       const pool = candidates.length > 0 ? candidates : liveEnemy;
       const weakest = pool.reduce((worst, s) => (s.currentHp / s.maxHp < worst.currentHp / worst.maxHp ? s : worst));
-      intents.push({ stackId: stack.stackId, kind: 'buff', targetStackId: weakest.stackId, buffStatus: 'strength', buffAmount: 2 });
+      intents.push({ stackId: stack.stackId, kind: 'buff', targetStackId: weakest.stackId, buffStatus: 'strength', buffAmount: SHAMAN_BUFF_STRENGTH });
       continue;
     }
 

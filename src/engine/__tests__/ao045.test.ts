@@ -145,7 +145,7 @@ describe('AO-D067 battle end window', () => {
   });
 
   it('AO-D079: a card kill with no healer ends the battle at once through the run reducer too', () => {
-    let run = fightingRun();
+    let run = fightingRun((r) => ({ ...r, army: r.army.filter((s) => s.unitId !== 'priest') })); // AO-050: the Warlord starts with Priests, so drop them for the no-healer case
     expect(run.army.some((s) => s.unitId === 'priest')).toBe(false);
     const one = run.combat!.enemyArmy.map((s, i) => (i === 0 ? { ...s, count: 1, currentHp: 1 } : { ...s, count: 0, currentHp: 0 }));
     run = { ...run, combat: { ...run.combat!, enemyArmy: one } };

@@ -240,12 +240,12 @@ describe('AO-D027: run stats', () => {
 
   it('accumulates through a real run: nodes, days, food, gold, battles, turns, largest stack', () => {
     let run = onMap(11);
-    expect(run.stats.largestStack).toBe(10); // 4 Swordsmen + Royal Banner's +6
+    expect(run.stats.largestStack).toBe(8); // 4 Swordsmen + Royal Banner's +4
     run = moveToNextAs(run, 'mine');
     expect(run.stats).toMatchObject({ nodesVisited: 1, daysElapsed: 1, foodEaten: moveFoodCost(run.army) });
     expect(run.stats.goldGathered).toBeGreaterThanOrEqual(MINE.find.gold[0]);
     expect(run.stats.foodGathered).toBeGreaterThanOrEqual(MINE.find.food[0]);
-    expect(run.stats.largestStack).toBe(10);
+    expect(run.stats.largestStack).toBe(8);
 
     run = moveToNextAs(run, 'battle');
     expect(run.stats.turnsPlayed).toBe(1);

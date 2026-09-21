@@ -61,11 +61,11 @@ describe('AO-036: Royal Banner mid-run', () => {
     const grown = run.army.find((s) => s.stackId === wounded.stackId)!;
     const hp = UNIT_DEFINITIONS.swordsman.hpPerUnit;
     expect(run.relics.map((r) => r.id)).toEqual(['royal_banner']);
-    expect(grown.currentHp).toBe(45 + 6 * hp);
-    expect(grown.count).toBe(5 + 6);
-    expect(grown.maxHp).toBe(16 * hp);
-    expect(grown.preBattleMaxCount).toBe(16);
-    expect(grown.startingCount).toBe(16);
+    expect(grown.currentHp).toBe(45 + 4 * hp);
+    expect(grown.count).toBe(5 + 4);
+    expect(grown.maxHp).toBe(14 * hp);
+    expect(grown.preBattleMaxCount).toBe(14);
+    expect(grown.startingCount).toBe(14);
   });
 
   it('a fresh run still starts the stack at full health', () => {

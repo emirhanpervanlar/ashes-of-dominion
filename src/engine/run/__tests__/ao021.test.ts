@@ -212,7 +212,7 @@ describe('city any time with Threat (AO-D047, AO-D051)', () => {
     const stronger = total(generateBattleEncounter(12, false, 1, 10));
     expect(stronger).toBeGreaterThan(base);
     expect(stronger).toBeGreaterThanOrEqual(Math.round(base * 1.5) - 6); // per-stack rounding only
-    expect(total(generateBossEncounter(1, 10))).toBe(BOSS_FORMATION.reduce((n, [, , count]) => n + Math.round(count * 1.6), 0));
+    expect(total(generateBossEncounter(1, 10))).toBe(BOSS_FORMATION.reduce((n, [, , count]) => n + Math.round(count * BOSS_CHAPTER_MULTIPLIER[0]! * 1.6), 0));
   });
 
   it('battles started after visits use the run threat', () => {
