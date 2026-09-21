@@ -20,3 +20,7 @@ ReactDOM.createRoot(rootEl).render(
     </TipProvider>
   </React.StrictMode>
 );
+
+document.addEventListener('dragstart', (e) => {
+  if (!(e.target instanceof HTMLElement) || !e.target.draggable) e.preventDefault();
+});

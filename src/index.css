@@ -4753,3 +4753,15 @@ button.frame-pile:hover .pile-card-back::before { --bev-light: var(--gold-400); 
 .village-perks li { display: flex; align-items: center; justify-content: center; gap: var(--s-2); }
 
 .village-choice .btn { margin-top: auto; }
+
+/* Selected text turns a later click into a native drag that swallows input. */
+body {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+input,
+textarea {
+  user-select: text;
+  -webkit-user-select: text;
+}
