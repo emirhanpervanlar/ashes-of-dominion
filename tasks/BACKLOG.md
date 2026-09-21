@@ -43,3 +43,10 @@ Status: TODO / IN PROGRESS / BLOCKED (needs owner). Decisions live in docs/DECIS
 - Unlocks after death: cards, starting relics, new heroes (persistent profile).
 - Elemental damage types (poison, fire, freeze, lightning) and immunities (AO-D031).
 - `greater_heal` vs `heal` are identical in data (2 mana, same effect): decide.
+
+## Owner playtest notes (recorded 2026-09-21)
+- [IN PROGRESS AO-047] Mines, villages (done in engine), Forts replace elites, simple eksisiz fort relics + extra resources, chapter difficulty / gold / food targets (AO-D076..D078).
+- [TODO AO-049] Barracks fixed ready building at tier I (AO-D080) + UI for garrison, Marketplace, villages, forts/mines, reward changes.
+- [TODO engine] Battle-end heal window only when a healer exists (AO-D079).
+- [DISCUSS FIRST AO-D081] Real battlefield redesign (H3/Disciples): mock A (rectangles + sprites) vs mock B (free units in scene), realistic hero spell effects (lightning strikes, ice rain over the enemy area, frozen units stay frozen on the field).
+- [TODO balance round] Swordsman weak, Archer/Mage strong, first battles too easy, Frost/Chain Lightning/Arcane Storm/Arrow Rain multipliers, Rogue/Mage mana check.
