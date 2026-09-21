@@ -20,7 +20,7 @@ export const ENCOUNTER_DEPTH_SLOPE = 0.08;
 /** Formation slots every regular fight fields beyond `depth` (AO-D078: the first fights were too easy; also applies to forts, which start one slot larger). */
 export const ENCOUNTER_EXTRA_SLOTS = 1;
 /** Boss formation size multiplier by chapter (index 0 = chapter 1). */
-export const BOSS_CHAPTER_MULTIPLIER: readonly number[] = [1, 1.3, 1.75];
+export const BOSS_CHAPTER_MULTIPLIER: readonly number[] = [0.97, 1.05, 1.3];
 
 export function bossDay(chapter: number): number {
   return chapter * DAYS_PER_CHAPTER;

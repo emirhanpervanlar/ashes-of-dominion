@@ -29,12 +29,12 @@ function slotsForDepth(depth: number, fort: boolean): number {
 }
 
 const NON_FORT_TEMPLATE: Array<[UnitId, Position, number]> = [
-  ['goblin', 2, 5],
-  ['orc', 1, 4],
-  ['wolf', 3, 3],
-  ['goblin', 5, 5],
+  ['goblin', 2, 6],
+  ['orc', 1, 5],
+  ['wolf', 3, 4],
+  ['goblin', 5, 6],
   ['shaman', 4, 3],
-  ['goblin', 6, 5],
+  ['goblin', 6, 6],
 ];
 
 const FORT_TEMPLATE: Array<[UnitId, Position, number]> = [
@@ -57,12 +57,12 @@ export function generateBattleEncounter(layer: number, fort: boolean, chapter = 
 
 /** The chapter 1 boss at Threat 0 (AO-D078: about a third of the old 258 units); later chapters multiply it by BOSS_CHAPTER_MULTIPLIER. */
 export const BOSS_FORMATION: ReadonlyArray<readonly [UnitId, Position, number]> = [
-  ['orc', 1, 15],
-  ['orc', 2, 15],
-  ['orc', 3, 15],
-  ['wolf', 4, 8],
-  ['shaman', 5, 4],
-  ['wolf', 6, 8],
+  ['orc', 1, 24],
+  ['orc', 2, 24],
+  ['orc', 3, 24],
+  ['wolf', 4, 13],
+  ['shaman', 5, 5],
+  ['wolf', 6, 13],
 ];
 
 /**

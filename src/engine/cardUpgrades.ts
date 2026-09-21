@@ -86,8 +86,8 @@ export const CARD_UPGRADES: Record<string, CardUpgradeDefinition> = {
 
   // Warlord
   command_strike: {
-    description: 'Hero attack on the enemy stack with +31% power. Scales with Strength.',
-    effects: [{ kind: 'ATTACK', multiplier: 1.05 }],
+    description: 'Hero attack on the enemy stack with +30% power. Scales with Strength.',
+    effects: [{ kind: 'ATTACK', multiplier: 2.1 }],
   },
   blood_rage: {
     description: 'Next attack +55% damage; loses 5% of its own count after.',
@@ -98,8 +98,8 @@ export const CARD_UPGRADES: Record<string, CardUpgradeDefinition> = {
     effects: [{ kind: 'DAMAGE_BUFF_ALL_WITH_TAG', tag: 'heavy', amount: 40, duration: 1 }],
   },
   hold_the_line: {
-    description: 'All frontline stacks +33% Defense this turn.',
-    effects: [{ kind: 'DEFENSE_BUFF_ALL_FRONTLINE', amount: 33, duration: 1 }],
+    description: 'All frontline stacks +150% Defense this turn.',
+    effects: [{ kind: 'DEFENSE_BUFF_ALL_FRONTLINE', amount: 150, duration: 1 }],
   },
   brutal_command: { description: 'Next attack +100% damage; cannot be redirected.', manaCost: 1 },
   rally: {
@@ -115,7 +115,7 @@ export const CARD_UPGRADES: Record<string, CardUpgradeDefinition> = {
   },
   formation: {
     description: 'All friendly stacks +20% Defense this turn.',
-    effects: [{ kind: 'DEFENSE_BUFF_ALL', amount: 20, duration: 1 }],
+    effects: [{ kind: 'DEFENSE_BUFF_ALL', amount: 80, duration: 1 }],
   },
   execution_order: {
     description: '+160% damage if the target is below 30% HP.',
@@ -124,8 +124,8 @@ export const CARD_UPGRADES: Record<string, CardUpgradeDefinition> = {
 
   // Rogue
   volley: {
-    description: 'Hero attack on the enemy stack with +31% power. Scales with Dexterity.',
-    effects: [{ kind: 'ATTACK', multiplier: 1.05 }],
+    description: 'Hero attack on the enemy stack with +30% power. Scales with Dexterity.',
+    effects: [{ kind: 'ATTACK', multiplier: 2.1 }],
   },
   poison_arrow: {
     description: 'Next Archer attack applies stronger Poison.',
@@ -159,8 +159,8 @@ export const CARD_UPGRADES: Record<string, CardUpgradeDefinition> = {
 
   // Mage
   fireball: {
-    description: 'Damages the target and 50% to adjacent stacks.',
-    effects: [{ kind: 'ATTACK_SPLASH', primaryMultiplier: 1.8, secondaryMultiplier: 0.5, maxSecondaryTargets: 2 }],
+    description: 'Damages the target and 40% to adjacent stacks.',
+    effects: [{ kind: 'ATTACK_SPLASH', primaryMultiplier: 2.1, secondaryMultiplier: 0.6, maxSecondaryTargets: 2 }],
   },
   frost: {
     description: 'Full magic damage and applies Freeze.',
@@ -176,7 +176,7 @@ export const CARD_UPGRADES: Record<string, CardUpgradeDefinition> = {
   },
   heal: {
     description: 'Restores lost soldiers (+35% healing), capped at pre-battle max.',
-    effects: [{ kind: 'HEAL', multiplier: 1.35 }],
+    effects: [{ kind: 'HEAL', multiplier: 0.08 }],
   },
   mana_surge: {
     description: 'Gain +2 Mana this turn. Draw 1 card. Exhaust.',
