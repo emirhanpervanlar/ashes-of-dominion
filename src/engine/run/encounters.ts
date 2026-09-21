@@ -29,17 +29,17 @@ function slotsForDepth(depth: number, fort: boolean): number {
 }
 
 const NON_FORT_TEMPLATE: Array<[UnitId, Position, number]> = [
-  ['goblin', 2, 6],
-  ['orc', 1, 5],
-  ['wolf', 3, 4],
-  ['goblin', 5, 6],
+  ['goblin', 2, 8],
+  ['orc', 1, 7],
+  ['wolf', 3, 6],
+  ['goblin', 5, 5],
   ['shaman', 4, 3],
-  ['goblin', 6, 6],
+  ['goblin', 6, 5],
 ];
 
 const FORT_TEMPLATE: Array<[UnitId, Position, number]> = [
   ['orc', 1, 6],
-  ['wolf', 3, 4],
+  ['wolf', 3, 6],
   ['orc', 2, 6],
   ['shaman', 4, 3],
   ['wolf', 5, 4],

@@ -343,7 +343,7 @@ export const CARD_DEFINITIONS: Record<string, CardDefinition> = {
     manaCost: 1,
     tags: ['rogue', 'defense', 'dodge'],
     targeting: 'ally-stack',
-    effects: [{ kind: 'SET_FLAGS', target: 'self', flags: { dodgeMultiplier: 1.25 } }],
+    effects: [{ kind: 'SET_FLAGS', target: 'self', flags: { dodgeMultiplier: 3 } }],
   },
   ambush: {
     id: 'ambush',

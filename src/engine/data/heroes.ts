@@ -54,7 +54,8 @@ export const HERO_DEFINITIONS: Record<HeroId, HeroDefinition> = {
     startingArmy: [
       { unitId: 'swordsman', count: 3 },
       { unitId: 'knight', count: 1 },
-      { unitId: 'archer', count: 4 },
+      { unitId: 'archer', count: 3 },
+      { unitId: 'priest', count: 1 },
     ],
     startingDeck: [
       'volley',
@@ -83,9 +84,9 @@ export const HERO_DEFINITIONS: Record<HeroId, HeroDefinition> = {
     stats: { strength: 7, dexterity: 9, intelligence: 18, vitality: 8, wisdom: 16 },
     baseMana: 3,
     startingArmy: [
-      { unitId: 'swordsman', count: 4 },
+      { unitId: 'swordsman', count: 5 },
       { unitId: 'archer', count: 2 },
-      { unitId: 'priest', count: 2 },
+      { unitId: 'priest', count: 1 },
     ],
     startingDeck: [
       'fireball',

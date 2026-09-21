@@ -136,8 +136,8 @@ export const CARD_UPGRADES: Record<string, CardUpgradeDefinition> = {
     effects: [{ kind: 'ATTACK_TWICE', firstMultiplier: 1.25, secondMultiplier: 0.8 }],
   },
   evasion: {
-    description: 'Selected stack Dodge chance x1.6 this turn.',
-    effects: [{ kind: 'SET_FLAGS', target: 'self', flags: { dodgeMultiplier: 1.6 } }],
+    description: 'Selected stack Dodge chance x4 this turn.',
+    effects: [{ kind: 'SET_FLAGS', target: 'self', flags: { dodgeMultiplier: 4 } }],
   },
   ambush: {
     description: 'Attack with +60% damage.',

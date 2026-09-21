@@ -24,7 +24,7 @@ export const UNIT_DEFINITIONS: Record<UnitId, UnitDefinition> = {
     id: 'archer',
     name: 'Archer',
     side: 'player',
-    hpPerUnit: 6,
+    hpPerUnit: 7,
     foodPerUnit: 0.2,
     damage: 3,
     attack: 4,
