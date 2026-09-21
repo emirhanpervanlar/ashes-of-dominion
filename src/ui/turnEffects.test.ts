@@ -5,14 +5,14 @@ import { turnEffects } from './turnEffects.js';
 
 const sword = (position: 1 | 2 | 3 | 4 | 5 | 6, extra: Partial<ArmyStack> = {}): ArmyStack => ({ ...createStack('swordsman', 'player', position, 6), ...extra });
 
-/** Plays `cardId` from a hand holding just that card and returns the resulting army. */
-function play(cardId: string, army: ArmyStack[], actingStackId?: string): ArmyStack[] {
+/** Plays `cardId` from a hand holding just that card and returns the resulting state. */
+function play(cardId: string, army: ArmyStack[], actingStackId?: string): CombatState {
   const { state } = createVerticalSliceScenario(1);
   const card: CardInstance = { instanceId: 'c1', cardId };
   const before: CombatState = { ...state, playerArmy: army, hand: [card], hero: { ...state.hero, mana: 5, maxMana: 5 } };
   const result = applyPlayerAction(before, { type: 'PLAY_CARD', instanceId: 'c1', actingStackId });
   expect(result.events.some((e) => e.type === 'ACTION_REJECTED')).toBe(false);
-  return result.state.playerArmy;
+  return result.state;
 }
 
 describe('turnEffects', () => {
@@ -20,16 +20,27 @@ describe('turnEffects', () => {
     expect(turnEffects([sword(1), sword(2)])).toEqual([]);
   });
 
-  it('Focus Fire becomes a "Next attack +50%" chip naming the stack', () => {
-    const army = play('focus_fire', [sword(1), sword(2)], 'player_swordsman_1');
-    const chips = turnEffects(army);
+  it('Focus Fire is army-wide: it sets nextFriendlyAttackBonusPercent and shows one "Next friendly attack +50%" chip', () => {
+    const after = play('focus_fire', [sword(1), sword(2)]);
+    expect(after.nextFriendlyAttackBonusPercent).toBe(50);
+    const chips = turnEffects(after.playerArmy, after.nextFriendlyAttackBonusPercent);
     expect(chips).toHaveLength(1);
-    expect(chips[0]).toMatchObject({ icon: 'st_strength', text: 'Next attack +50%' });
+    expect(chips[0]).toMatchObject({ icon: 'st_strength', text: 'Next friendly attack +50%' });
+  });
+
+  it('the Focus Fire chip disappears once the bonus is used', () => {
+    expect(turnEffects([sword(1)], 0)).toEqual([]);
+  });
+
+  it('a per-stack "next attack" flag (Focus Shot) still becomes a chip naming the stack', () => {
+    const chips = turnEffects([sword(1, { flags: { nextAttackDamageBonusPercent: 60 } })]);
+    expect(chips).toHaveLength(1);
+    expect(chips[0]).toMatchObject({ text: 'Next attack +60%' });
     expect(chips[0]!.tip.lines?.[0]?.text).toContain('Swordsman');
   });
 
   it('Hold the Line puts armor on every frontline stack: one chip with the summed amount', () => {
-    const army = play('hold_the_line', [sword(1), sword(2), sword(4)]);
+    const army = play('hold_the_line', [sword(1), sword(2), sword(4)]).playerArmy;
     const armored = army.filter((s) => s.statuses.some((st) => st.type === 'armor'));
     expect(armored).toHaveLength(2);
     const total = armored.reduce((sum, s) => sum + s.statuses.filter((st) => st.type === 'armor').reduce((a, st) => a + st.amount, 0), 0);

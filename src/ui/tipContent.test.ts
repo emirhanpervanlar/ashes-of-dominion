@@ -111,9 +111,15 @@ describe('heroStatRows', () => {
     expect(rows[4]!.effect).toBe('No bonus: 10 is neutral.');
   });
 
-  it('is honest about stats the engine does not read yet', () => {
+  it('hero spells scale with the stat: Intelligence 18 is +40% magic damage, 8 is -10%, Strength 20 boosts Command: Strike', () => {
+    expect(heroStatRows({ ...stats, intelligence: 18 }, 3)[2]!.effect).toBe('Magic spells +40% damage.');
+    expect(heroStatRows(stats, 3)[2]!.effect).toBe('Magic spells -10% damage.');
+    expect(heroStatRows({ ...stats, strength: 20 }, 3)[0]!.effect).toContain('Command: Strike +50% damage.');
+    expect(heroStatRows({ ...stats, dexterity: 14 }, 3)[1]!.effect).toContain('Volleys +20% damage.');
+  });
+
+  it('is honest about the stat the engine does not read (Vitality)', () => {
     const rows = heroStatRows(stats, 3);
-    expect(rows[2]!.effect).toContain('Not used');
     expect(rows[3]!.effect).toContain('Not used');
   });
 });
@@ -126,15 +132,19 @@ describe('hero stat tips (AO-043 item 13)', () => {
       expect(row.tip.title).toBe(row.label);
       expect(row.tip.body?.length ?? 0).toBeGreaterThan(10);
     }
-    expect(rows[0]!.tip.body).toBe('Melee units deal +2% damage for each point above 10 (up to +40%).');
+    expect(rows[0]!.tip.body).toContain('Melee units deal +2% damage for each point above 10 (up to +40%).');
+    expect(rows[0]!.tip.body).toContain('Command: Strike');
     expect(rows[1]!.tip.body).toContain('up to 20%');
-    expect(rows[4]!.tip.body).toContain('Every 2 points above 10 add 1 Max Mana (12 at most).');
+    expect(rows[1]!.tip.body).toContain('Arrow Rain and Volley');
+    expect(rows[2]!.tip.body).toContain('Fireball, Frost, Chain Lightning, Arcane Storm');
+    expect(rows[2]!.tip.body).toContain('+5% damage for each point above 10');
+    expect(rows[4]!.tip.body).toContain('Every 4 points above 10 add 1 Max Mana (12 at most).');
   });
 
   it('a used stat also states what it gives now; an unused one says Not used yet and nothing more', () => {
-    expect(rows[0]!.tip.lines?.[0]?.text).toBe('Now: Melee units deal +20% damage.');
-    expect(rows[2]!.tip.body).toContain('Not used yet');
-    expect(rows[2]!.tip.lines).toBeUndefined();
+    expect(rows[0]!.tip.lines?.[0]?.text).toBe('Now: Melee units deal +20% damage. Command: Strike +50% damage.');
+    expect(rows[2]!.tip.lines?.[0]?.text).toBe('Now: Magic spells -10% damage.');
     expect(rows[3]!.tip.body).toContain('Not used yet');
+    expect(rows[3]!.tip.lines).toBeUndefined();
   });
 });

@@ -830,7 +830,7 @@ export default function App() {
           </div>
         </div>
 
-        <TurnEffects army={combat.playerArmy} />
+        <TurnEffects army={combat.playerArmy} nextFriendlyAttackBonusPercent={combat.nextFriendlyAttackBonusPercent} />
 
         <div className="frame-turn-chip">
           <strong>Turn {combat.turnNumber}</strong>

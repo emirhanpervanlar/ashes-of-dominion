@@ -30,11 +30,25 @@ const namesLine = (stacks: ArmyStack[]) => ({ text: stacks.map(stackName).join('
 
 /**
  * The buffs that matter this turn: next-attack bonuses, damage reduction, counterattack, redirect, divine shield, dodge,
- * untargetable, plus the strength / armor / taunt statuses. Empty when nothing is active. Order is stable: flags first.
+ * untargetable, plus the strength / armor / taunt statuses. Empty when nothing is active. Order is stable: the army-wide
+ * Focus Fire bonus (`CombatState.nextFriendlyAttackBonusPercent`), then flags, then statuses.
  */
-export function turnEffects(playerArmy: ArmyStack[]): TurnEffect[] {
+export function turnEffects(playerArmy: ArmyStack[], nextFriendlyAttackBonusPercent = 0): TurnEffect[] {
   const living = playerArmy.filter((s) => s.count > 0);
   const out: TurnEffect[] = [];
+
+  if (nextFriendlyAttackBonusPercent > 0) {
+    out.push({
+      id: 'army-next-attack',
+      icon: 'st_strength',
+      text: `Next friendly attack +${nextFriendlyAttackBonusPercent}%`,
+      tip: {
+        title: 'Next friendly attack',
+        icon: 'st_strength',
+        body: `The next attack any of your stacks makes deals +${nextFriendlyAttackBonusPercent}% damage, then the bonus is used up. Hero spells do not use it.`,
+      },
+    });
+  }
 
   for (const [pct, stacks] of byValue(living, (s) => s.flags.nextAttackDamageBonusPercent)) {
     out.push({

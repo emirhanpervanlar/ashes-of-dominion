@@ -4,8 +4,8 @@ import { Tip } from './Tip.js';
 import { turnEffects } from './turnEffects.js';
 
 /** "Turn effects" strip in the battle top bar: the buffs the army carries now (they end with the turn or when used). */
-export function TurnEffects({ army }: { army: ArmyStack[] }) {
-  const effects = turnEffects(army);
+export function TurnEffects({ army, nextFriendlyAttackBonusPercent }: { army: ArmyStack[]; nextFriendlyAttackBonusPercent: number }) {
+  const effects = turnEffects(army, nextFriendlyAttackBonusPercent);
   if (effects.length === 0) return null;
   return (
     <div className="turn-effects" aria-label="Turn effects">

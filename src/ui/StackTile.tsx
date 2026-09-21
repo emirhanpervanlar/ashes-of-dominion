@@ -106,7 +106,7 @@ export function StackTile({ stack, side, ownArmy, selectable, selected, dimmed, 
           </span>
         )}
         {states.blocked && (
-          <Tip tip={{ title: 'Blocked', icon: 'ui_blocked', body: 'A melee stack in the back row cannot attack while an ally stands directly in front of it.' }}>
+          <Tip tip={{ title: 'Blocked', icon: 'ui_blocked', body: 'Front row is occupied: this melee unit cannot attack' }}>
             <span className="portrait-blocked-badge" tabIndex={-1}>
               <Icon name="ui_blocked" />
             </span>
