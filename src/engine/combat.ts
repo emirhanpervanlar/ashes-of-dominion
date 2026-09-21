@@ -108,9 +108,24 @@ function checkBattleResult(state: CombatState): 'ongoing' | 'victory' | 'defeat'
   return 'ongoing';
 }
 
+/** AO-D079: the last-heal window is only worth keeping open while a healer (a living stack whose unit heals with its basic action) can use it. */
+function hasLivingHealer(state: CombatState): boolean {
+  return state.playerArmy.some((s) => s.count > 0 && UNIT_DEFINITIONS[s.unitId].basicAction === 'heal');
+}
+
+/** Ends the battle in victory at once when the field is clear and nobody could heal in the AO-D067 window; returns whether it did. */
+function winAtOnceWithoutHealer(state: CombatState, events: CombatEvent[]): boolean {
+  if (!state.enemiesCleared || hasLivingHealer(state)) return false;
+  state.result = 'victory';
+  state.phase = 'ended';
+  events.push({ type: 'BATTLE_ENDED', result: 'victory' });
+  return true;
+}
+
 /**
- * AO-D067: killing the last enemy does not end the battle: the player keeps acting (cards, heals) until END_TURN,
- * which then resolves the win with no enemy turn. Only the player's own wipe ends it at once.
+ * AO-D067, AO-D079: killing the last enemy does not end the battle while the army has a healer: the player keeps acting
+ * (cards, heals) until END_TURN, which then resolves the win with no enemy turn. Without a living healer the win is
+ * immediate. The player's own wipe ends the battle at once.
  */
 function settleAfterPlayerAction(state: CombatState, events: CombatEvent[]): void {
   state.enemiesCleared = !state.enemyArmy.some((s) => s.count > 0);
@@ -118,7 +133,9 @@ function settleAfterPlayerAction(state: CombatState, events: CombatEvent[]): voi
     state.result = 'defeat';
     state.phase = 'ended';
     events.push({ type: 'BATTLE_ENDED', result: 'defeat' });
+    return;
   }
+  winAtOnceWithoutHealer(state, events);
 }
 
 function drawCards(state: CombatState, amount: number, events: CombatEvent[]): void {
@@ -901,6 +918,7 @@ function startPlayerTurn(state: CombatState, events: CombatEvent[], isFirstTurn:
   }
 
   state.enemiesCleared = !state.enemyArmy.some((s) => s.count > 0); // a DoT tick can clear the field at the turn start
+  if (winAtOnceWithoutHealer(state, events)) return;
   state.enemyIntents = generateEnemyIntents(state);
   events.push({ type: 'INTENTS_GENERATED', intents: state.enemyIntents });
 

@@ -117,7 +117,7 @@ describe('AO-D064 hero-cast cards', () => {
   });
 
   it('is rejected, spending nothing, when no enemy is left; cardPlayability agrees', () => {
-    const state = battle([big('swordsman', 1)], [foe('goblin', 1, 1)], [], 'mage');
+    const state = battle([big('swordsman', 1), big('priest', 4, 10)], [foe('goblin', 1, 1)], [], 'mage'); // the healer keeps the AO-D067 window open
     const killed = cast(state, 'arcane_storm');
     expect(killed.state.enemiesCleared).toBe(true);
     const again = cast(killed.state, 'arcane_storm');

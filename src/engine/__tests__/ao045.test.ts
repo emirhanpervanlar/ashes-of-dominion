@@ -128,6 +128,33 @@ describe('AO-D067 battle end window', () => {
     expect(done.events.filter((e) => e.type === 'BATTLE_ENDED')).toHaveLength(1);
   });
 
+  it('AO-D079: without a healer the last kill wins the battle at once, with no End Turn needed', () => {
+    const state = battle([big('swordsman', 1, 50), big('archer', 4, 10)], [foe('goblin', 1, 1)]);
+    const { state: after, events } = applyPlayerAction(state, { type: 'BASIC_ACTION', stackId: 'player_swordsman_1', targetStackId: 'enemy_goblin_1' });
+    expect(after.result).toBe('victory');
+    expect(after.phase).toBe('ended');
+    expect(events.filter((e) => e.type === 'BATTLE_ENDED')).toEqual([{ type: 'BATTLE_ENDED', result: 'victory' }]);
+  });
+
+  it('AO-D079: a healer that has already died no longer keeps the window open', () => {
+    const dead = { ...big('priest', 4, 10), count: 0, currentHp: 0 };
+    const state = battle([big('swordsman', 1, 50), dead], [foe('goblin', 1, 1)]);
+    const { state: after } = applyPlayerAction(state, { type: 'BASIC_ACTION', stackId: 'player_swordsman_1', targetStackId: 'enemy_goblin_1' });
+    expect(after.result).toBe('victory');
+    expect(after.phase).toBe('ended');
+  });
+
+  it('AO-D079: a card kill with no healer ends the battle at once through the run reducer too', () => {
+    let run = fightingRun();
+    expect(run.army.some((s) => s.unitId === 'priest')).toBe(false);
+    const one = run.combat!.enemyArmy.map((s, i) => (i === 0 ? { ...s, count: 1, currentHp: 1 } : { ...s, count: 0, currentHp: 0 }));
+    run = { ...run, combat: { ...run.combat!, enemyArmy: one } };
+    const attacker = run.combat!.playerArmy.find((s) => s.unitId === 'swordsman')!;
+    const target = one[0]!;
+    const result = applyRunAction(run, { type: 'COMBAT_ACTION', action: { type: 'BASIC_ACTION', stackId: attacker.stackId, targetStackId: target.stackId } });
+    expect(result.run.phase).toBe('reward');
+  });
+
   it('enemies are not cleared while any stack lives', () => {
     const state = battle([big('swordsman', 1, 50)], [foe('goblin', 1, 1), foe('goblin', 2, 5)]);
     const r = applyPlayerAction(state, { type: 'BASIC_ACTION', stackId: 'player_swordsman_1', targetStackId: 'enemy_goblin_1' });
