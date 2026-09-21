@@ -29,3 +29,6 @@ src/engine/** (report gaps).
 
 ## Acceptance criteria
 tsc clean, vitest green (all 683 tests incl. the two currently failing ones fixed properly). Browser (puppeteer-core, dev server port 5211, never 5173/4173, inject state BEFORE load, real clicks): a Mage battle: Fireball on an enemy (no own-unit prompt, no damage to own units, splash on neighbours, hero-cast effect visible), Arcane Storm and Focus Fire played by clicking the empty field, Frost on an enemy then that enemy skipping its turn, killing all enemies then healing with Heal and pressing Finish Battle, a Priest behind a Swordsman healing, a blocked back-row enemy melee, Skeleton stack after a Necromantic-doctrine victory; screenshots looked at; no console errors.
+
+## Status
+- 2026-09-21 ACCEPTED (733 tests on main; 16 tsc errors remain from AO-046 and are AO-049 scope). Gaps noted: engine text "No stack has an enemy in reach." still reaches the player for unit-bound attack cards; hero spells ignore Focus Fire (only unit attacks consume it); upgraded card texts inconsistent; Vitality unused.
