@@ -4,7 +4,7 @@ import { RELIC_DEFINITIONS, STARTING_RELIC_DEFINITIONS } from '../../engine/data
 import { BUILDING_DEFINITIONS } from '../../engine/run/city.js';
 import { DOCTRINE_DEFINITIONS } from '../../engine/run/index.js';
 import { CARD_VISUALS, POLARITY_ICONS } from '../cardVisuals.js';
-import { BUILDING_ICONS, DOCTRINE_ICONS, NODE_ICONS } from '../mapIcons.js';
+import { BUILDING_ICONS, BUILDING_LEVEL_ICONS, DOCTRINE_ICONS, NODE_ICONS } from '../mapIcons.js';
 import { relicIcon } from '../relicIcons.js';
 import { STATUS_ICONS } from '../stackStatus.js';
 import { UNIT_ROLE_ICONS } from '../unitIcons.js';
@@ -63,6 +63,7 @@ describe('game ids have icons', () => {
 
   it('run UI icons: threat, farm, marketplace, garrison and the start node', () => {
     expectAll('run ui', ['threat', 'bld_farm', 'bld_marketplace', 'garrison', 'node_start', 'node_city']);
+    for (const stages of Object.values(BUILDING_LEVEL_ICONS)) expectAll('building level art', stages);
   });
 
   it('every node type and building id', () => {

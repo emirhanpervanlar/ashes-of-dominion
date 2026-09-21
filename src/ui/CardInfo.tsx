@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
-import { CARD_DEFINITIONS, HERO_DEFINITIONS, UNIT_DEFINITIONS, cardRequirement } from '../engine/index.js';
-import type { CardDefinition } from '../engine/index.js';
+import { CARD_DEFINITIONS, HERO_DEFINITIONS, UNIT_DEFINITIONS, cardRequirement, heroSpellScaling } from '../engine/index.js';
+import type { CardDefinition, HeroCastStat, HeroStats } from '../engine/index.js';
 import { CardInfoContext } from './cardInfoContext.js';
 import type { CardInfoOptions } from './cardInfoContext.js';
 import { cardView } from './cardView.js';
@@ -9,9 +9,9 @@ import { POLARITY_ICONS, cardVisual } from './cardVisuals.js';
 import { LargeCard } from './LargeCard.js';
 import { Modal } from './Modal.js';
 import { Icon } from './pixel/Icon.js';
-import { statName } from './ScalesBadge.js';
 
 const POLARITY_NAMES = { attack: 'Attack', defense: 'Defense', buff: 'Buff', debuff: 'Debuff', utility: 'Utility' } as const;
+const STAT_NAMES: Record<HeroCastStat, string> = { strength: 'Strength', dexterity: 'Dexterity', intelligence: 'Intelligence' };
 const RARITY_NAMES: Record<CardDefinition['rarity'], string> = { common: 'Common', uncommon: 'Uncommon', rare: 'Rare', legendary: 'Legendary' };
 
 function sourceLabel(def: CardDefinition): string {
@@ -33,16 +33,23 @@ interface Open {
 /** Hosts the card info popup: any card in the game calls `useCardInfo().open(...)` on right-click. */
 export function CardInfoProvider({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState<Open | null>(null);
-  const api = useMemo(() => ({ open: (cardId: string, options: CardInfoOptions = {}) => setOpen({ cardId, options }) }), []);
+  const [heroStats, setHeroStats] = useState<HeroStats | null>(null);
+  const api = useMemo(() => ({ open: (cardId: string, options: CardInfoOptions = {}) => setOpen({ cardId, options }), setHeroStats }), []);
   return (
     <CardInfoContext.Provider value={api}>
       {children}
-      {open && <CardInfoPopup cardId={open.cardId} options={open.options} onClose={() => setOpen(null)} />}
+      {open && <CardInfoPopup cardId={open.cardId} options={open.options} heroStats={heroStats} onClose={() => setOpen(null)} />}
     </CardInfoContext.Provider>
   );
 }
 
-function CardInfoPopup({ cardId, options, onClose }: { cardId: string; options: CardInfoOptions; onClose: () => void }) {
+/** The change a hero stat makes to a scaling card's damage, e.g. "Intelligence 18: +40% spell damage" (AO-D088). */
+function scalingText(stat: HeroCastStat, value: number): string {
+  const percent = Math.round((heroSpellScaling(value) - 1) * 100);
+  return `${STAT_NAMES[stat]} ${value}: ${percent === 0 ? 'no change to' : `${percent > 0 ? '+' : ''}${percent}%`} spell damage.`;
+}
+
+function CardInfoPopup({ cardId, options, heroStats, onClose }: { cardId: string; options: CardInfoOptions; heroStats: HeroStats | null; onClose: () => void }) {
   const { upgraded, playability } = options;
   const def = CARD_DEFINITIONS[cardId];
   const view = cardView(cardId, upgraded);
@@ -68,7 +75,11 @@ function CardInfoPopup({ cardId, options, onClose }: { cardId: string; options: 
               Costs <b>{view.manaCost}</b> Mana.
               {view.manaCost < view.baseManaCost && <span className="card-info-upgraded"> (was {view.baseManaCost})</span>}
             </li>
-            {view.scalesWith && <li>Damage scales with your hero&apos;s {statName(view.scalesWith)}.</li>}
+            {view.scalesWith && (
+              <li>
+                Scales with <b>{STAT_NAMES[view.scalesWith]}</b>.{heroStats && <> {scalingText(view.scalesWith, heroStats[view.scalesWith])}</>}
+              </li>
+            )}
             {def.exhaust &&<li>Exhaust: removed for the rest of the battle once played.</li>}
             {def.retain && <li>Retain: stays in your hand at the end of the turn.</li>}
             {upgraded && <li className="card-info-upgraded">Upgraded.</li>}

@@ -1794,17 +1794,6 @@ p { margin: 0; }
   pointer-events: none;
 }
 
-/* Hero-cast cards: the stat their damage scales with. */
-.scales-badge {
-  margin-top: 2px;
-  padding: 0 var(--s-1);
-  background: var(--stone-950);
-  border: 2px solid var(--arcane-500);
-  font: 400 12px/14px var(--font-body);
-  color: var(--text-dim);
-  white-space: nowrap;
-}
-
 .polarity-attack { --trim: var(--blood-700); }
 .polarity-defense { --trim: var(--steel-700); }
 .polarity-buff { --trim: var(--moss-700); }
@@ -2350,6 +2339,43 @@ button.pill {
   justify-content: center;
 }
 
+/* Garrison block (City): 2x2 slots of waiting soldiers, sprite over "count/cap"; a click collects the type. */
+.garrison-bar-garrison { width: 168px; gap: var(--s-1); }
+
+.garrison-slots {
+  display: grid;
+  grid-template-columns: repeat(2, 72px);
+  grid-template-rows: repeat(2, 72px);
+  gap: var(--s-2);
+}
+
+.garrison-slots > span { display: block; }
+
+.garrison-slot {
+  --bev-light: var(--wood-500);
+  --bev-dark: var(--wood-900);
+  width: 72px;
+  height: 72px;
+  padding: 0;
+  border: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  cursor: pointer;
+  color: var(--stone-100);
+  background: var(--stone-900);
+  box-shadow: inset 2px 2px 0 var(--bev-light), inset -2px -2px 0 var(--bev-dark);
+}
+
+.garrison-slot:hover:not(:disabled) { --bev-light: var(--gold-400); }
+.garrison-slot:disabled { cursor: default; opacity: 0.55; }
+.garrison-slot.empty { background: none; box-shadow: none; position: relative; }
+.garrison-slot.empty::after { content: ''; position: absolute; inset: 2px; border: 2px dashed var(--stone-600); }
+.garrison-slot-count { font: var(--t-num); color: var(--gold-200); }
+.garrison-slot-cap { color: var(--stone-300); }
+
 .garrison-bar-actions {
   width: 64px;
   flex-shrink: 0;
@@ -2833,7 +2859,23 @@ button.pill {
   justify-content: center;
 }
 
-.city-plot-badge--built { background: var(--moss-700); box-shadow: inset 0 0 0 2px var(--moss-500); }
+
+/* "Lv 2" / "Max" plaque in the corner of a built building's art */
+.city-plot-level {
+  position: absolute;
+  top: var(--s-2);
+  right: var(--s-2);
+  z-index: 2;
+  padding: 0 var(--s-2);
+  font: 400 16px/24px var(--font-pixel);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--gold-200);
+  background: var(--wood-800);
+  box-shadow: inset 0 0 0 2px var(--gold-700);
+}
+
+.city-plot-level--max { color: var(--stone-900); background: var(--gold-400); box-shadow: inset 0 0 0 2px var(--gold-700); }
 .city-plot-badge--locked { background: var(--blood-700); box-shadow: inset 0 0 0 2px var(--blood-500); }
 
 /* Short viewports (1280x720: about 520px of town): a slimmer sky, tighter gaps and signs so all 12 plots show without scrolling. */
@@ -2903,9 +2945,15 @@ button.pill {
   display: inline-flex;
   align-items: center;
   gap: var(--s-1);
+  padding: 2px var(--s-1);
+  border: 0;
+  background: none;
+  cursor: pointer;
   font: var(--t-num);
   color: var(--stone-100);
 }
+
+.city-daily-item:hover { box-shadow: inset 0 0 0 2px var(--gold-400); }
 
 .city-daily-item--good { color: var(--moss-300); }
 .city-daily-item--bad { color: var(--blood-300); }
@@ -3118,7 +3166,14 @@ button.pill {
   color: var(--stone-100);
 }
 
-.city-barracks-strip + .city-note { margin-bottom: var(--s-3); }
+.city-barracks-upgrade {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2) var(--s-4);
+  padding: var(--s-2) var(--s-3);
+  margin-bottom: var(--s-2);
+}
 
 .city-recruits {
   display: grid;
@@ -3190,17 +3245,17 @@ button.pill {
 .city-recruit-costlabel { flex-basis: 100%; justify-content: center; }
 .city-recruit-upkeep { flex-basis: 100%; justify-content: center; color: var(--text-dim); }
 
-/* Big [-] number [+]: the number is a display, changed only by the buttons (hold to repeat). */
+/* Small [-] number [+]: the number is a display, changed only by the buttons (hold to repeat). */
 .quantity-stepper { display: flex; align-items: center; gap: var(--s-2); }
-.quantity-stepper-btn { width: 48px; height: 48px; padding: 0; font: 700 24px/24px var(--font-pixel); touch-action: manipulation; }
+.quantity-stepper-btn { width: 32px; height: 32px; padding: 0; font: 700 16px/16px var(--font-pixel); touch-action: manipulation; }
 .quantity-stepper-value {
-  min-width: 72px;
-  height: 48px;
+  min-width: 48px;
+  height: 32px;
   padding: 0 var(--s-2);
   display: flex;
   align-items: center;
   justify-content: center;
-  font: 400 28px/32px var(--font-display);
+  font: 400 20px/24px var(--font-display);
   color: var(--gold-200);
 }
 

@@ -3,6 +3,7 @@ import { CARD_DEFINITIONS, UNIT_DEFINITIONS, cannotAct as engineCannotAct, cardP
 import type { ArmyStack, CardTargeting, CombatState, PlayerAction, Position } from './engine/index.js';
 import { applyRunAction, cardRemovalQuote, createRun, enemyStrengthAfterCityVisits, eventView } from './engine/run/index.js';
 import type { RunEvent, RunState } from './engine/run/index.js';
+import { useCardInfoHero } from './ui/cardInfoContext.js';
 import { StackTile } from './ui/StackTile.js';
 import { UnitPopup } from './ui/UnitPopup.js';
 import { FlyingCard } from './ui/FlyingCard.js';
@@ -69,6 +70,7 @@ export default function App() {
   // A save the engine's validator rejects (corrupt, or from a newer game) counts as no save: title screen, Continue disabled.
   const [savedRun] = useState(loadSavedRun);
   const [run, setRun] = useState<RunState>(() => savedRun ?? createRun(Date.now() & 0xffffffff));
+  useCardInfoHero(run.hero.stats);
   const [pending, setPending] = useState<PendingAction | null>(null);
   const [toasts, setToasts] = useState<ToastItem[]>([]);
   const [historyOpen, setHistoryOpen] = useState(false);

@@ -118,6 +118,7 @@ export function goldTip(run: Pick<RunState, 'gold' | 'city' | 'mines'>): TipCont
   const lines: TipLine[] = [];
   if (run.city.buildings.includes('gold_mine')) lines.push({ icon: 'gold', text: `Gold Mine: +${GOLD_MINE_DAILY_GOLD} Gold every day.`, tone: 'good' });
   if (run.mines > 0) lines.push({ icon: 'node_mine', text: `${plural(run.mines, 'captured mine')}: +${mineDailyGold(run)} Gold every day.`, tone: 'good' });
+  lines.push({ text: 'Click for the full breakdown.', tone: 'dim' });
   return { title: 'Gold', icon: 'gold', body: `${run.gold} Gold. Pays for recruits, buildings, cards and relics. Battles, mines, villages and events bring more.`, lines };
 }
 

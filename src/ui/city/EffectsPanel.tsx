@@ -5,7 +5,13 @@ import { activeEffects, dailyChange } from './cityView.js';
 const signed = (n: number): string => (n > 0 ? `+${n}` : `${n}`);
 
 /** Everything the built buildings and the doctrine do right now (AO-D062), worded from engine data in cityView.ts. */
-export function EffectsPanel({ run }: { run: Pick<RunState, 'city' | 'army' | 'villages' | 'mines'> }) {
+interface Props {
+  run: Pick<RunState, 'city' | 'army' | 'villages' | 'mines'>;
+  onOpenGold: () => void;
+  onOpenFood: () => void;
+}
+
+export function EffectsPanel({ run, onOpenGold, onOpenFood }: Props) {
   const effects = activeEffects(run);
   const daily = dailyChange(run);
   return (
@@ -30,12 +36,12 @@ export function EffectsPanel({ run }: { run: Pick<RunState, 'city' | 'army' | 'v
       </div>
       <div className="city-daily">
         <span className="t-label-text">Per day</span>
-        <span className={`city-daily-item${daily.gold > 0 ? ' city-daily-item--good' : ''}`}>
+        <button className={`city-daily-item${daily.gold > 0 ? ' city-daily-item--good' : ''}`} aria-label="Gold per day" onClick={onOpenGold}>
           <Icon name="gold" /> {signed(daily.gold)}
-        </span>
-        <span className={`city-daily-item${daily.food < 0 ? ' city-daily-item--bad' : ' city-daily-item--good'}`}>
+        </button>
+        <button className={`city-daily-item${daily.food < 0 ? ' city-daily-item--bad' : ' city-daily-item--good'}`} aria-label="Food per day" onClick={onOpenFood}>
           <Icon name="food" /> {signed(daily.food)}
-        </span>
+        </button>
       </div>
     </aside>
   );

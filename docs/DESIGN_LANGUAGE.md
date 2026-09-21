@@ -566,6 +566,7 @@ Buildings (10)
 50. `bld_training` — target dummy
     `bld_marketplace` — striped-awning stall with produce (Marketplace hotspot, AO-D071)
     `garrison` — plumed helm (Barracks garrison, Day tip, toasts)
+    `bld_farm_2`, `bld_farm_3`, `bld_barracks_2`, `bld_barracks_3`, `bld_mage_tower_2`, `bld_mage_tower_3` — later visual stages of the levelled buildings (AO-D087; `src/ui/pixel/icons/buildingStages.ts`)
 
 UI (10)
 51. `ui_close` (x) 52. `ui_lock` 53. `ui_warn` (triangle with !) 54. `ui_info` (i) 55. `ui_log` (scroll) 56. `ui_menu` (three bars) 57. `ui_swap` (two opposing arrows) 58. `ui_check` (tick) 59. `ui_arrow_l` 60. `ui_arrow_r`

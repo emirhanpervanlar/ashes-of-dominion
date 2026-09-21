@@ -35,3 +35,10 @@ export const DOCTRINE_ICONS: Record<string, IconName> = {
   necromantic: 'doctrine_necromantic',
   economic: 'doctrine_economic',
 };
+
+/** Buildings whose art grows with their level, first stage to fully grown (AO-D087). */
+export const BUILDING_LEVEL_ICONS: Record<string, IconName[]> = {
+  farm: ['bld_farm', 'bld_farm_2', 'bld_farm_3'],
+  barracks: ['bld_barracks', 'bld_barracks_2', 'bld_barracks_3'],
+  mage_tower: ['bld_mage_tower', 'bld_mage_tower_2', 'bld_mage_tower_3'],
+};

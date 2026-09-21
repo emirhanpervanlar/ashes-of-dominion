@@ -71,7 +71,7 @@ describe('road node tips', () => {
 
   it('the Gold tip lists captured mines only when there are some', () => {
     const base = { gold: 10, city: createRun(3).city };
-    expect(goldTip({ ...base, mines: 0 }).lines).toEqual([]);
+    expect(goldTip({ ...base, mines: 0 }).lines).toEqual([{ text: 'Click for the full breakdown.', tone: 'dim' }]);
     expect(goldTip({ ...base, mines: 2 }).lines?.[0]?.text).toBe('2 captured mines: +2 Gold every day.');
   });
 });

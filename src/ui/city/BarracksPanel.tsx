@@ -7,12 +7,12 @@ import { Icon } from '../pixel/Icon.js';
 import { Modal } from '../Modal.js';
 import { QuantityStepper } from '../QuantityStepper.js';
 import { Tip } from '../Tip.js';
-import { unitCountText, unitCountsText } from '../runEventText.js';
+import { unitCountText } from '../runEventText.js';
 import { roleTip } from '../tipContent.js';
 import { UnitArt } from '../UnitArt.js';
 import { UNIT_ROLE_ICONS } from '../unitIcons.js';
 import { UNIT_DESCRIPTIONS } from '../unitText.js';
-import { MAX_RECRUIT, RECRUITABLE_UNITS, barracksRows, daysToGarrison, garrisonRows, placementText, recruitQuote } from './cityView.js';
+import { MAX_RECRUIT, RECRUITABLE_UNITS, barracksRows, daysToGarrison, placementText, recruitQuote } from './cityView.js';
 
 interface Props {
   run: RunState;
@@ -20,8 +20,6 @@ interface Props {
   recent: { unitId: UnitId; amount: number } | null;
   onRecruit: (unitId: UnitId, count: number) => void;
   onUpgrade: () => void;
-  /** No unit = collect every type that fits. */
-  onCollect: (unitId?: UnitId) => void;
   onClose: () => void;
 }
 
@@ -29,17 +27,14 @@ const fmt = (n: number): string => (Number.isInteger(n) ? `${n}` : n.toFixed(1))
 
 const TIER_TAG = { built: 'Built', next: 'Next', locked: 'Locked' } as const;
 
-/** Barracks (a fixed building, AO-D080): a Recruit tab with one card per unit (locked ones greyed) and a quantity stepper, and a Garrison tab with the tier ladder and the soldiers waiting for collection. */
-export function BarracksPanel({ run, recent, onRecruit, onUpgrade, onCollect, onClose }: Props) {
-  const [tab, setTab] = useState<'recruit' | 'garrison'>('recruit');
+/** Barracks (a fixed building, AO-D080): the tier upgrade sits on top of both tabs (AO-D086); a Recruit tab with one card per unit (locked ones greyed) and a quantity stepper, and a Tiers tab comparing what each tier adds. The waiting garrison is collected in the bottom bar. */
+export function BarracksPanel({ run, recent, onRecruit, onUpgrade, onClose }: Props) {
+  const [tab, setTab] = useState<'recruit' | 'tiers'>('recruit');
   const [counts, setCounts] = useState<Record<string, number>>({});
   const stacks = run.army.filter((s) => s.count > 0);
   const tier = run.city.barracksTier;
   const rows = barracksRows(tier);
   const next = rows.find((r) => r.state === 'next') ?? null;
-  const garrison = garrisonRows(run);
-  const waiting = garrison.filter((g) => g.waiting > 0);
-  const collectable = waiting.filter((g) => g.fits);
   const days = daysToGarrison(run.day);
 
   return (
@@ -59,108 +54,63 @@ export function BarracksPanel({ run, recent, onRecruit, onUpgrade, onCollect, on
         </span>
       </div>
 
+      <div className="city-barracks-upgrade well step">
+        <span className="city-strip-item city-strip-item--big">
+          <Icon name="bld_barracks" size={2} /> Tier {ROMAN[tier - 1]} of {rows.length}
+        </span>
+        {next ? (
+          <>
+            <span className="city-strip-item">
+              Next: Tier {ROMAN[next.tier - 1]}, recruit {UNIT_DEFINITIONS[next.unitId].name}, +{next.weekly} a week
+            </span>
+            <span className={`city-strip-item city-cost${run.gold < next.cost ? ' city-cost--short' : ''}`}>
+              <Icon name="gold" /> {next.cost}
+            </span>
+            <button className="btn btn--primary" disabled={run.gold < next.cost} onClick={onUpgrade}>
+              Upgrade to {next.label}
+            </button>
+            {run.gold < next.cost && (
+              <span className="city-blocker">
+                <Icon name="ui_warn" /> Not enough Gold ({next.cost} needed).
+              </span>
+            )}
+          </>
+        ) : (
+          <span className="city-strip-item">Max tier: every unit is unlocked.</span>
+        )}
+      </div>
+
       <div className="tabs" role="tablist">
         <button role="tab" aria-selected={tab === 'recruit'} className={`tab${tab === 'recruit' ? ' active' : ''}`} onClick={() => setTab('recruit')}>
           Recruit
         </button>
-        <button role="tab" aria-selected={tab === 'garrison'} className={`tab${tab === 'garrison' ? ' active' : ''}`} onClick={() => setTab('garrison')}>
-          Garrison{waiting.length > 0 ? ` (${waiting.reduce((n, g) => n + g.waiting, 0)})` : ''}
+        <button role="tab" aria-selected={tab === 'tiers'} className={`tab${tab === 'tiers' ? ' active' : ''}`} onClick={() => setTab('tiers')}>
+          Tiers
         </button>
       </div>
 
-      {tab === 'garrison' && (
+      {tab === 'tiers' && (
         <>
-          <div className="city-hall">
-            <section className="city-hall-col">
-              <div className="city-section-head">
-                <Icon name="bld_barracks" size={2} />
-                <h3>Barracks tiers</h3>
+          <p className="city-note">
+            Free soldiers wait in the city and are collected from the Garrison block in the bottom bar. It grows every {GARRISON.intervalDays} days (next arrival in {days} {days === 1 ? 'day' : 'days'}, on day {run.day + days}) and holds at most {GARRISON.capWeeks} weeks of each type.
+          </p>
+          <div className="city-ladder well step">
+            {rows.map((row) => (
+              <div key={row.tier} className={`city-ladder-row city-ladder-row--${row.state}`}>
+                <span className="city-ladder-num gem">{ROMAN[row.tier - 1]}</span>
+                <UnitArt unitId={row.unitId} size={1} />
+                <span className="city-ladder-info">
+                  <span className="city-ladder-bonus">{UNIT_DEFINITIONS[row.unitId].name}</span>
+                  <span className="city-ladder-tier">Recruit, +{row.weekly} a week</span>
+                </span>
+                {row.state === 'next' && (
+                  <span className={`city-cost${run.gold < row.cost ? ' city-cost--short' : ''}`}>
+                    <Icon name="gold" /> {row.cost}
+                  </span>
+                )}
+                <span className={`city-tag city-tag--${row.state}`}>{TIER_TAG[row.state]}</span>
               </div>
-              <div className="city-ladder well step">
-                {rows.map((row) => (
-                  <div key={row.tier} className={`city-ladder-row city-ladder-row--${row.state}`}>
-                    <span className="city-ladder-num gem">{ROMAN[row.tier - 1]}</span>
-                    <UnitArt unitId={row.unitId} size={1} />
-                    <span className="city-ladder-info">
-                      <span className="city-ladder-bonus">{UNIT_DEFINITIONS[row.unitId].name}</span>
-                      <span className="city-ladder-tier">Recruit, +{row.weekly} a week</span>
-                    </span>
-                    {row.state === 'next' && (
-                      <span className={`city-cost${run.gold < row.cost ? ' city-cost--short' : ''}`}>
-                        <Icon name="gold" /> {row.cost}
-                      </span>
-                    )}
-                    <span className={`city-tag city-tag--${row.state}`}>{TIER_TAG[row.state]}</span>
-                  </div>
-                ))}
-              </div>
-              {next ? (
-                <div className="city-action">
-                  <div className="city-action-row">
-                    <button className="btn btn--primary" disabled={run.gold < next.cost} onClick={onUpgrade}>
-                      Upgrade to {next.label}
-                    </button>
-                  </div>
-                  {run.gold < next.cost && (
-                    <div className="city-blocker">
-                      <Icon name="ui_warn" /> Not enough Gold ({next.cost} needed).
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <p className="city-note">Fully upgraded.</p>
-              )}
-            </section>
-
-            <section className="city-hall-col">
-              <div className="city-section-head">
-                <Icon name="garrison" size={2} />
-                <h3>Garrison</h3>
-              </div>
-              <p className="city-note">
-                Free soldiers wait in the city. It grows every {GARRISON.intervalDays} days (next arrival in {days} {days === 1 ? 'day' : 'days'}, on day {run.day + days}) and holds at most {GARRISON.capWeeks} weeks of each type.
-              </p>
-              <div className="city-ladder well step" data-garrison>
-                {garrison.map((row) => (
-                  <div key={row.unitId} className="city-ladder-row">
-                    <UnitArt unitId={row.unitId} size={1} />
-                    <span className="city-ladder-info">
-                      <span className="city-ladder-bonus">{UNIT_DEFINITIONS[row.unitId].name}</span>
-                      <span className="city-ladder-tier">
-                        {row.waiting} of {row.cap} waiting, +{row.weekly} a week
-                      </span>
-                    </span>
-                    {row.waiting > 0 && (
-                      <Tip tip={row.fits ? `Adds ${unitCountText(row.unitId, row.waiting)} to your army.` : `Army full: ${MAX_ARMY_STACKS} stacks and no ${UNIT_DEFINITIONS[row.unitId].name} stack to join.`}>
-                        <span>
-                          <button className="btn btn--s" disabled={!row.fits} onClick={() => onCollect(row.unitId)}>
-                            Collect {row.waiting}
-                          </button>
-                        </span>
-                      </Tip>
-                    )}
-                  </div>
-                ))}
-              </div>
-              <div className="city-action">
-                <div className="city-action-row">
-                  <button className="btn btn--primary" disabled={collectable.length === 0} onClick={() => onCollect()}>
-                    Collect all
-                  </button>
-                </div>
-                {waiting.length === 0 ? (
-                  <p className="city-note">The garrison is empty.</p>
-                ) : collectable.length === 0 ? (
-                  <div className="city-blocker">
-                    <Icon name="ui_warn" /> Army full: {MAX_ARMY_STACKS} stacks and no matching stack to join.
-                  </div>
-                ) : collectable.length < waiting.length ? (
-                  <p className="city-note">
-                    Only {unitCountsText(collectable.map((g) => ({ unitId: g.unitId, count: g.waiting })))} fit your army now; the rest stay in the garrison.
-                  </p>
-                ) : null}
-              </div>
-            </section>
+            ))}
           </div>
         </>
       )}

@@ -1,3 +1,4 @@
+import { BUILDING_STAGE_ICONS } from './icons/buildingStages.js';
 import { CARD_ICON_GRIDS } from './icons/cards.js';
 import { HUD_ICONS } from './icons/hud.js';
 import { MAP_ICONS } from './icons/map.js';
@@ -13,6 +14,7 @@ export const ICONS = {
   ...STATUS_ICON_GRIDS,
   ...CARD_ICON_GRIDS,
   ...MAP_ICONS,
+  ...BUILDING_STAGE_ICONS,
   ...UI_ICONS,
   ...RELIC_ICON_GRIDS,
 };

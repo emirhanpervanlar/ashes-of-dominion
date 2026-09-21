@@ -3,7 +3,6 @@ import { useCardInfo } from './cardInfoContext.js';
 import { cardView } from './cardView.js';
 import { cardVisual } from './cardVisuals.js';
 import { Icon } from './pixel/Icon.js';
-import { ScalesBadge } from './ScalesBadge.js';
 import { Tip } from './Tip.js';
 import { manaCostTip } from './tipContent.js';
 
@@ -58,7 +57,6 @@ export function LargeCard({ cardId, upgraded, showBase, tag, count, price, disab
       </div>
       <div className={`reward-card-name${view.upgraded ? ' upgraded' : ''}`}>{view.name}</div>
       {tag && <div className="reward-card-tag">{tag}</div>}
-      {view.scalesWith && <ScalesBadge stat={view.scalesWith} />}
       <div className="reward-card-desc">{view.description}</div>
       {base && (
         <div className="reward-card-was">
