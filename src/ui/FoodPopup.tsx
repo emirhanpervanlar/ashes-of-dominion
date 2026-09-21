@@ -1,12 +1,13 @@
 import { UNIT_DEFINITIONS } from '../engine/index.js';
 import type { UnitId } from '../engine/index.js';
-import { STABLE_FOOD_DISCOUNT, dailyFoodNet, dailyProduction, foodDaysLeft, starvationForecast } from '../engine/run/index.js';
+import { STABLE_FOOD_DISCOUNT, dailyFoodNet, farmProduction, foodDaysLeft, starvationForecast } from '../engine/run/index.js';
 import type { RunState } from '../engine/run/index.js';
+import { villageDailyFood } from '../engine/run/villages.js';
 import { Modal } from './Modal.js';
 import { Icon } from './pixel/Icon.js';
 import { foodBreakdown } from './foodView.js';
 
-export type FoodRun = Pick<RunState, 'army' | 'city' | 'food' | 'starvationDays'>;
+export type FoodRun = Pick<RunState, 'army' | 'city' | 'food' | 'starvationDays' | 'villages'>;
 
 interface Props {
   run: FoodRun;
@@ -17,7 +18,8 @@ interface Props {
 export function FoodPopup({ run, onClose }: Props) {
   const food = foodBreakdown(run);
   const upkeep = food.upkeep;
-  const production = dailyProduction(run);
+  const farm = farmProduction(run.city);
+  const villageFood = villageDailyFood(run);
   const net = dailyFoodNet(run);
   const daysLeft = foodDaysLeft(run);
   const forecast = starvationForecast(run);
@@ -58,8 +60,16 @@ export function FoodPopup({ run, onClose }: Props) {
           </div>
           <div className="food-popup-row">
             <span>Farm production per day</span>
-            <span>+{production}</span>
+            <span>+{farm}</span>
           </div>
+          {run.villages > 0 && (
+            <div className="food-popup-row">
+              <span>
+                Villages: {run.villages} helped
+              </span>
+              <span>+{villageFood}</span>
+            </div>
+          )}
           <div className={`food-popup-row food-popup-net${net < 0 ? ' negative' : ''}`}>
             <span>Net per day</span>
             <span>{net > 0 ? `+${net}` : net}</span>
@@ -68,7 +78,7 @@ export function FoodPopup({ run, onClose }: Props) {
         {daysLeft > 0 && (
           <p className="subtitle">{daysLeft === Infinity ? 'Your Food supply is stable.' : `Food lasts ${daysLeft} more ${daysLeft === 1 ? 'day' : 'days'}.`}</p>
         )}
-        <p className="subtitle">Every day of marching costs the upkeep; the Farm is added first. Unfed armies starve.</p>
+        <p className="subtitle">Every day of marching costs the upkeep; the Farm and helped villages are added first. Unfed armies starve.</p>
         {(forecast.willStarve || forecast.consecutiveDays > 0) && (
           <div className="food-popup-warn">
             <Icon name="ui_warn" /> <StarvationLines forecast={forecast} />

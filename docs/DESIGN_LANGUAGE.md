@@ -550,6 +550,7 @@ Node types, one per `NodeType` (8)
 37. `node_merchant` — coin purse, gold/brown
 38. `node_event` — scroll with question mark, parchment
 39. `node_city` — castle towers, stone/red
+    `node_village` — cottage with chimney on grass (village node, AO-D072)
 40. `node_boss` — horned crown with red gem, dark red/gold
 
 Buildings (10)
@@ -563,6 +564,8 @@ Buildings (10)
 48. `bld_market` — stall awning
 49. `bld_gold_mine` — mine cart with nuggets
 50. `bld_training` — target dummy
+    `bld_marketplace` — striped-awning stall with produce (Marketplace hotspot, AO-D071)
+    `garrison` — plumed helm (Barracks garrison, Day tip, toasts)
 
 UI (10)
 51. `ui_close` (x) 52. `ui_lock` 53. `ui_warn` (triangle with !) 54. `ui_info` (i) 55. `ui_log` (scroll) 56. `ui_menu` (three bars) 57. `ui_swap` (two opposing arrows) 58. `ui_check` (tick) 59. `ui_arrow_l` 60. `ui_arrow_r`

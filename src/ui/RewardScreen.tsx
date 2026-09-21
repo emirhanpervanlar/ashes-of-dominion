@@ -1,35 +1,28 @@
-import type { CardInstance } from '../engine/index.js';
-import type { CardRemovalQuote, PendingReward } from '../engine/run/index.js';
-import { CardRemovalPicker } from './CardRemovalPicker.js';
+import type { PendingReward } from '../engine/run/index.js';
 import { Icon } from './pixel/Icon.js';
 import { LargeCard } from './LargeCard.js';
 import { RelicOfferCard } from './RelicOfferCard.js';
 
 interface Props {
   reward: PendingReward;
-  deck: CardInstance[];
-  removalQuote: CardRemovalQuote;
   /** Gold and Food from the last BATTLE_LOOT, or null when nothing dropped. */
   loot: { gold: number; food: number } | null;
   isBoss: boolean;
   onClaimRelic: (relicId: string) => void;
   onClaimCard: (cardId: string) => void;
   onClaimUpgrade: (instanceId: string) => void;
-  onRemoveCard: (instanceId: string) => void;
-  onSkip: () => void;
 }
 
 type RewardSlot =
   | { kind: 'card'; key: string; cardId: string }
   | { kind: 'upgrade'; key: string; instanceId: string; cardId: string };
 
-export function RewardScreen({ reward, deck, removalQuote, loot, isBoss, onClaimRelic, onClaimCard, onClaimUpgrade, onRemoveCard, onSkip }: Props) {
+/** AO-D068: the player must take one card or the upgrade slot (no Skip, no card removal here); an elite's relic is already theirs, a boss offers one of three. */
+export function RewardScreen({ reward, loot, isBoss, onClaimRelic, onClaimCard, onClaimUpgrade }: Props) {
   const slots: RewardSlot[] = [
     ...reward.cardOptions.map((cardId): RewardSlot => ({ kind: 'card', key: cardId, cardId })),
     ...reward.upgradeOptions.map((o): RewardSlot => ({ kind: 'upgrade', key: o.instanceId, instanceId: o.instanceId, cardId: o.cardId })),
   ];
-
-  const relics = reward.relicChoices.length > 0 ? reward.relicChoices : reward.relicOffer ? [reward.relicOffer] : [];
 
   return (
     <div className="screen reward-overlay" data-screen="vault">
@@ -47,14 +40,21 @@ export function RewardScreen({ reward, deck, removalQuote, loot, isBoss, onClaim
         </div>
       )}
 
-      {relics.length > 0 && (
+      {reward.relicGained && (
+        <div className="reward-relic-block" data-relic-gained>
+          <div className="reward-relic-heading">Relic gained</div>
+          <RelicOfferCard relicId={reward.relicGained} compact gained />
+        </div>
+      )}
+
+      {reward.relicChoices.length > 0 && (
         <div className="reward-relic-block">
           <div className="reward-relic-heading">
-            {reward.relicChoices.length > 0 ? 'Boss spoils: take one relic' : 'Elite spoils: take a relic'}
-            <span className="reward-relic-note"> (leaving the reward forfeits it)</span>
+            Boss spoils: take one relic
+            <span className="reward-relic-note"> (picking a card first forfeits them)</span>
           </div>
           <div className="reward-relic-row">
-            {relics.map((relicId) => (
+            {reward.relicChoices.map((relicId) => (
               <RelicOfferCard key={relicId} relicId={relicId} compact onClick={() => onClaimRelic(relicId)} />
             ))}
           </div>
@@ -76,13 +76,6 @@ export function RewardScreen({ reward, deck, removalQuote, loot, isBoss, onClaim
             />
           );
         })}
-      </div>
-
-      <div className="reward-actions">
-        <CardRemovalPicker deck={deck} quote={removalQuote} onRemove={onRemoveCard} />
-        <button className="btn" onClick={onSkip}>
-          Skip
-        </button>
       </div>
     </div>
   );

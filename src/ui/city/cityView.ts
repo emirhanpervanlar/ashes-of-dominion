@@ -1,6 +1,7 @@
 import { MAX_ARMY_STACKS, UNIT_DEFINITIONS } from '../../engine/index.js';
 import type { Position, UnitId } from '../../engine/index.js';
 import {
+  BARRACKS_TIERS,
   BUILDING_DEFINITIONS,
   DOCTRINE_DEFINITIONS,
   FARM_TIERS,
@@ -8,30 +9,34 @@ import {
   LEVEL_SLOTS,
   LEVEL_UP_COST,
   MAGE_TOWER_TIERS,
-  RECRUIT_COSTS,
   ROMAN,
   SHRINE_REVIVE_RATIO,
   addUnitsToArmy,
   dailyFoodNet,
   farmProduction,
+  garrisonCap,
+  isGarrisonDay,
   moveFoodCost,
+  recruitBlocker,
   recruitCost,
+  weeklyGarrison,
 } from '../../engine/run/index.js';
 import type { RunState } from '../../engine/run/index.js';
 import { BUILDING_ICONS, DOCTRINE_ICONS } from '../mapIcons.js';
 import type { IconName } from '../pixel/icons.js';
 
-/** Units the Barracks sells, in display order. */
-export const RECRUITABLE_UNITS: UnitId[] = (['swordsman', 'archer', 'knight', 'priest'] as UnitId[]).filter((id) => id in RECRUIT_COSTS);
+/** Units the Barracks sells, in tier order (the engine's BARRACKS_TIERS decides which tier unlocks which). */
+export const RECRUITABLE_UNITS: UnitId[] = BARRACKS_TIERS.map((t) => t.unitId);
 
-/** The three fixed hotspots are always open; the eight others are built into the slots. */
-export const FIXED_BUILDINGS = ['townhall', 'barracks', 'temple'] as const;
+/** The four fixed hotspots are always open (Marketplace needs no slot, AO-D071); the eight others are built into the slots. */
+export const FIXED_BUILDINGS = ['townhall', 'barracks', 'temple', 'marketplace'] as const;
 export type FixedBuildingId = (typeof FIXED_BUILDINGS)[number];
 
 export const FIXED_BUILDING_INFO: Record<FixedBuildingId, { name: string; hint: string }> = {
   townhall: { name: 'Town Hall', hint: 'Upgrade the city for more building slots, and remove cards from your deck.' },
-  barracks: { name: 'Barracks', hint: 'Recruit units into your army.' },
+  barracks: { name: 'Barracks', hint: 'Recruit units, collect the weekly garrison and upgrade the tiers.' },
   temple: { name: 'Temple', hint: 'Choose one permanent doctrine.' },
+  marketplace: { name: 'Marketplace', hint: 'Buy Food with Gold. Every pack bought makes the next one dearer.' },
 };
 
 /** Optional buildings in scene order (two rows of four). */
@@ -74,7 +79,7 @@ export interface RecruitQuote {
   slot: Position | null;
   /** Largest count Gold and Food allow (0 when even one is too dear), capped at MAX_RECRUIT. */
   maxAffordable: number;
-  /** Why Recruit is disabled, or null. */
+  /** Why Recruit is disabled (the engine's own reason), or null. */
   blocker: string | null;
 }
 
@@ -97,11 +102,7 @@ export function recruitQuote(run: Pick<RunState, 'city' | 'gold' | 'food' | 'arm
   const placement: Placement = !joined ? 'full' : merges ? 'merge' : 'free';
   const slot = placement === 'free' ? joined!.find((s) => !run.army.includes(s))?.position ?? null : null;
 
-  let blocker: string | null = null;
-  if (placement === 'full') blocker = `Army full: ${MAX_ARMY_STACKS} stacks and no stack of this type to join.`;
-  else if (count < 1) blocker = 'Choose how many to recruit.';
-  else if (run.gold < many.gold) blocker = 'Not enough Gold.';
-  else if (run.food < many.food) blocker = 'Not enough Food.';
+  const blocker = count < 1 ? 'Choose how many to recruit.' : recruitBlocker(run, unitId, count);
 
   return {
     gold: many.gold,
@@ -209,6 +210,58 @@ export function activeEffects(run: Pick<RunState, 'city' | 'army'>): CityEffect[
 }
 
 /** Gold and Food change per day from the city, for the "Per day" strip. */
-export function dailyChange(run: Pick<RunState, 'city' | 'army'>): { gold: number; food: number } {
+export function dailyChange(run: Pick<RunState, 'city' | 'army' | 'villages'>): { gold: number; food: number } {
   return { gold: run.city.buildings.includes('gold_mine') ? GOLD_MINE_DAILY_GOLD : 0, food: dailyFoodNet(run) };
+}
+
+export interface BarracksRow {
+  tier: number;
+  label: string;
+  unitId: UnitId;
+  /** Free soldiers of this type the tier adds to the weekly garrison. */
+  weekly: number;
+  /** Gold to reach this tier from the previous one (the engine table is cumulative per step). */
+  cost: number;
+  state: 'built' | 'next' | 'locked';
+}
+
+/** The Barracks ladder I-IV from BARRACKS_TIERS. `currentTier` 0 = nothing built yet. */
+export function barracksRows(currentTier: number): BarracksRow[] {
+  return BARRACKS_TIERS.map((entry, i) => ({
+    tier: i + 1,
+    label: `Tier ${ROMAN[i]}`,
+    unitId: entry.unitId,
+    weekly: entry.weekly,
+    cost: entry.cost,
+    state: i < currentTier ? 'built' : i === currentTier ? 'next' : 'locked',
+  }));
+}
+
+export interface GarrisonRow {
+  unitId: UnitId;
+  waiting: number;
+  cap: number;
+  weekly: number;
+  /** False when the army has no matching stack and no free slot for this type. */
+  fits: boolean;
+}
+
+/** One row per unit type the garrison grows, in Barracks tier order: what waits, the cap, the weekly gain and whether the army has room. */
+export function garrisonRows(run: Pick<RunState, 'city' | 'villages' | 'garrison' | 'army'>): GarrisonRow[] {
+  const weekly = weeklyGarrison(run);
+  const cap = garrisonCap(run);
+  const order = [...RECRUITABLE_UNITS, ...(Object.keys(weekly) as UnitId[])];
+  return [...new Set(order)]
+    .filter((unitId) => (weekly[unitId] ?? 0) > 0)
+    .map((unitId) => {
+      const waiting = run.garrison[unitId] ?? 0;
+      return { unitId, waiting, cap: cap[unitId] ?? 0, weekly: weekly[unitId] ?? 0, fits: waiting > 0 && !!addUnitsToArmy(run.army, unitId, waiting) };
+    });
+}
+
+/** Days until the garrison next grows (1..7): the engine's isGarrisonDay decides which days count. */
+export function daysToGarrison(day: number): number {
+  let n = 1;
+  while (!isGarrisonDay(day + n)) n++;
+  return n;
 }

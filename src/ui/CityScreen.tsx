@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { BUILDING_DEFINITIONS, DOCTRINE_DEFINITIONS, LEVEL_SLOTS, ROMAN, THREAT_PER_CITY_VISIT, farmDescription, mageTowerDescription, threatMultiplier } from '../engine/run/index.js';
-import type { RunState } from '../engine/run/index.js';
+import { BUILDING_DEFINITIONS, DOCTRINE_DEFINITIONS, LEVEL_SLOTS, ROMAN, THREAT_PER_CITY_VISIT, farmDescription, garrisonUnits, mageTowerDescription, threatMultiplier } from '../engine/run/index.js';
+import type { RunEvent, RunState } from '../engine/run/index.js';
 import type { Position, UnitId } from '../engine/index.js';
 import { BUILDING_ICONS } from './mapIcons.js';
 import { Icon } from './pixel/Icon.js';
@@ -14,6 +14,7 @@ import type { TipContent } from './tipContent.js';
 import { BarracksPanel } from './city/BarracksPanel.js';
 import { BuildingPanel } from './city/BuildingPanel.js';
 import { EffectsPanel } from './city/EffectsPanel.js';
+import { MarketplacePanel } from './city/MarketplacePanel.js';
 import { TemplePanel } from './city/TemplePanel.js';
 import { TierLadderPanel } from './city/TierLadderPanel.js';
 import { TownHallPanel } from './city/TownHallPanel.js';
@@ -24,6 +25,9 @@ interface Props {
   run: RunState;
   onRecruit: (unitId: UnitId, count: number) => void;
   onBuild: (buildingId: string) => void;
+  onUpgradeBarracks: () => void;
+  onCollectGarrison: (unitId?: UnitId) => void;
+  onBuyFood: (packs: number) => void;
   onUpgradeCity: () => void;
   onUpgradeMageTower: () => void;
   onUpgradeFarm: () => void;
@@ -40,6 +44,11 @@ interface Props {
 
 const CITY_NAME = 'Ironhold';
 
+/** The visit that brought the player here (AO-D070 free visits do not raise Threat), or null when the log no longer holds it. */
+function lastCityVisit(log: RunEvent[]): Extract<RunEvent, { type: 'CITY_VISITED' }> | null {
+  return [...log].reverse().find((e): e is Extract<RunEvent, { type: 'CITY_VISITED' }> => e.type === 'CITY_VISITED') ?? null;
+}
+
 /** The description a plot's tip shows: the Mage Tower and Farm describe their tier, the rest their engine text. */
 function buildingText(id: string, city: RunState['city']): string {
   if (id === 'mage_tower') return mageTowerDescription(city.mageTowerTier);
@@ -53,16 +62,15 @@ interface PlotProps {
   icon: IconName;
   state: PlotState | 'open';
   status: string;
-  wide?: boolean;
   active: boolean;
   tip: TipContent;
   onOpen: () => void;
 }
 
-function Plot({ id, name, icon, state, status, wide, active, tip, onOpen }: PlotProps) {
+function Plot({ id, name, icon, state, status, active, tip, onOpen }: PlotProps) {
   return (
     <Tip tip={tip}>
-      <button className={`city-plot city-plot--${state}${wide ? ' city-plot--wide' : ''}${active ? ' active' : ''}`} data-building={id} onClick={onOpen}>
+      <button className={`city-plot city-plot--${state}${active ? ' active' : ''}`} data-building={id} onClick={onOpen}>
         <span className="city-plot-art">
           <Icon name={icon} size={4} />
           {state === 'built' && (
@@ -85,8 +93,9 @@ function Plot({ id, name, icon, state, status, wide, active, tip, onOpen }: Plot
   );
 }
 
-export function CityScreen({ run, onRecruit, onBuild, onUpgradeCity, onUpgradeMageTower, onUpgradeFarm, onRemoveCard, onChooseDoctrine, onOpenMenu, onLeave, onSplitStack, onSplitMerge, onMergeStacks, onMoveStack, onDismissStack }: Props) {
+export function CityScreen({ run, onRecruit, onBuild, onUpgradeBarracks, onCollectGarrison, onBuyFood, onUpgradeCity, onUpgradeMageTower, onUpgradeFarm, onRemoveCard, onChooseDoctrine, onOpenMenu, onLeave, onSplitStack, onSplitMerge, onMergeStacks, onMoveStack, onDismissStack }: Props) {
   const { city } = run;
+  const visit = lastCityVisit(run.log);
   const [panel, setPanel] = useState<string | null>(null);
   const [recentRecruit, setRecentRecruit] = useState<{ unitId: UnitId; amount: number } | null>(null);
 
@@ -101,9 +110,11 @@ export function CityScreen({ run, onRecruit, onBuild, onUpgradeCity, onUpgradeMa
     setRecentRecruit({ unitId, amount: count });
   }
 
+  const waiting = garrisonUnits(run.garrison).reduce((sum, u) => sum + u.count, 0);
   const fixedStatus: Record<FixedBuildingId, string> = {
     townhall: `Level ${city.level}`,
-    barracks: 'Recruit',
+    barracks: city.barracksTier === 0 ? 'Build' : waiting > 0 ? `Tier ${ROMAN[city.barracksTier - 1]}, ${waiting} waiting` : `Tier ${ROMAN[city.barracksTier - 1]}`,
+    marketplace: 'Buy Food',
     temple: city.doctrine ? (DOCTRINE_DEFINITIONS[city.doctrine]?.name ?? 'Chosen') : 'Choose',
   };
 
@@ -131,10 +142,12 @@ export function CityScreen({ run, onRecruit, onBuild, onUpgradeCity, onUpgradeMa
                 </span>
               </div>
             </header>
-            <div className="city-threat">
+            <div className={`city-threat${visit?.free ? ' city-threat--free' : ''}`}>
               <Icon name="threat" />
               <span>
-                Each visit to the city makes the enemies stronger (Threat +{THREAT_PER_CITY_VISIT}). Threat is {run.threat}: enemy armies are x{threatMultiplier(run.threat).toFixed(2)} their normal size.
+                {visit?.free
+                  ? `No Threat increase: the first visit of the chapter is free. Threat stays at ${run.threat}: enemy armies are x${threatMultiplier(run.threat).toFixed(2)} their normal size. Later visits make the enemies stronger (Threat +${THREAT_PER_CITY_VISIT}).`
+                  : `Each visit to the city makes the enemies stronger (Threat +${THREAT_PER_CITY_VISIT}). Threat is ${run.threat}: enemy armies are x${threatMultiplier(run.threat).toFixed(2)} their normal size.`}
               </span>
             </div>
 
@@ -147,7 +160,6 @@ export function CityScreen({ run, onRecruit, onBuild, onUpgradeCity, onUpgradeMa
                   icon={BUILDING_ICONS[id]!}
                   state="open"
                   status={fixedStatus[id]}
-                  wide={id === 'townhall'}
                   active={panel === id}
                   tip={{ title: FIXED_BUILDING_INFO[id].name, body: FIXED_BUILDING_INFO[id].hint }}
                   onOpen={() => setPanel(id)}
@@ -177,7 +189,10 @@ export function CityScreen({ run, onRecruit, onBuild, onUpgradeCity, onUpgradeMa
       </div>
 
       {panel === 'townhall' && <TownHallPanel run={run} onUpgradeCity={onUpgradeCity} onRemoveCard={onRemoveCard} onClose={() => setPanel(null)} />}
-      {panel === 'barracks' && <BarracksPanel run={run} recent={recentRecruit} onRecruit={recruit} onClose={() => setPanel(null)} />}
+      {panel === 'barracks' && (
+        <BarracksPanel run={run} recent={recentRecruit} onRecruit={recruit} onBuild={onBuild} onUpgrade={onUpgradeBarracks} onCollect={onCollectGarrison} onClose={() => setPanel(null)} />
+      )}
+      {panel === 'marketplace' && <MarketplacePanel run={run} onBuy={onBuyFood} onClose={() => setPanel(null)} />}
       {panel === 'temple' && <TemplePanel run={run} onChoose={onChooseDoctrine} onClose={() => setPanel(null)} />}
       {(panel === 'mage_tower' || panel === 'farm') && (
         <TierLadderPanel kind={panel} run={run} onBuild={onBuild} onUpgrade={panel === 'farm' ? onUpgradeFarm : onUpgradeMageTower} onClose={() => setPanel(null)} />
