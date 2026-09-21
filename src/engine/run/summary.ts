@@ -40,7 +40,7 @@ export function runSummary(run: RunState): RunSummary {
     { id: 'days', label: 'Days elapsed', value: s.daysElapsed },
     { id: 'battlesWon', label: 'Battles won', value: s.battlesWon },
     { id: 'bossesDefeated', label: 'Bosses defeated', value: s.bossesDefeated },
-    { id: 'elitesDefeated', label: 'Elites defeated', value: s.elitesDefeated },
+    { id: 'fortsTaken', label: 'Forts taken', value: s.fortsTaken },
     { id: 'eventsResolved', label: 'Events resolved', value: s.eventsResolved },
     { id: 'enemiesKilled', label: 'Enemies killed', value: s.enemiesKilled },
     { id: 'unitsLost', label: 'Units lost', value: s.unitsLost },

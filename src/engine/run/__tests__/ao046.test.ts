@@ -14,7 +14,7 @@ import type { RunAction, RunState } from '../types.js';
 import type { NodeType } from '../worldMap.js';
 import { validateSave } from '../save.js';
 import { VILLAGE, villageOffer } from '../villages.js';
-import { generateWorldMap } from '../worldMap.js';
+import { NODE_WEIGHTS, generateWorldMap } from '../worldMap.js';
 import { withBarracks } from './cityHelpers.js';
 import { pickReward } from './rewardHelpers.js';
 
@@ -57,7 +57,7 @@ describe('AO-046 item 1 (AO-D068): the reward cannot be skipped', () => {
   });
 
   it('an elite win grants the relic at once (one RELIC_CLAIMED with the id stored as relicGained); a boss win still offers a choice', () => {
-    const elite = arriveAt(createRun(5), 'elite_battle');
+    const elite = arriveAt(createRun(5), 'fort');
     const won = winFight(elite);
     const id = won.pendingReward!.relicGained!;
     expect(won.relics.map((r) => r.id)).toContain(id);
@@ -118,7 +118,7 @@ describe('AO-046 item 3 (AO-D071): recruiting at any city visit', () => {
   /** Walks `days` resource nodes forward so the run is on that day, then visits the city. */
   function cityOnDay(seed: number, days: number): RunState {
     let run = createRun(seed);
-    for (let i = 0; i < days; i++) run = arriveAt(run, 'resource');
+    for (let i = 0; i < days; i++) run = arriveAt(run, 'mine');
     return act(withBarracks(run), { type: 'TRAVEL_TO_CITY' }).run;
   }
 
@@ -168,7 +168,7 @@ describe('AO-046 item 4 (AO-D071): tiered Barracks and the weekly garrison', () 
   const inCity = (run: RunState): RunState => ({ ...run, phase: 'city' });
   const walk = (run: RunState, days: number): RunState => {
     let current = run;
-    for (let i = 0; i < days; i++) current = arriveAt(current, 'resource');
+    for (let i = 0; i < days; i++) current = arriveAt(current, 'mine');
     return current;
   };
   const withTier = (run: RunState, tier: 0 | 1 | 2 | 3 | 4): RunState => ({ ...run, city: { ...run.city, barracksTier: tier } });
@@ -337,24 +337,21 @@ describe('AO-046 item 6 (AO-D072): villages', () => {
   const atVillage = (seed = 40): RunState => arriveAt(createRun(seed), 'village');
   const mapOf = (seed: number, chapter: number) => generateWorldMap(createRng(seed), chapter, (chapter - 1) * 30 + 1);
 
-  it('every third resource node of a chapter map is a village, deterministically per seed, never on the start or boss layer', () => {
+  it('villages are drawn into the chapter maps by weight, deterministically per seed, never on the start or boss layer', () => {
     let villages = 0;
-    let resources = 0;
+    let nodes = 0;
     for (let seed = 1; seed <= 60; seed++) {
       for (const chapter of [1, 2, 3]) {
         const first = mapOf(seed, chapter);
         expect(mapOf(seed, chapter)).toEqual(first);
         const v = first.nodes.filter((n) => n.type === 'village');
-        const r = first.nodes.filter((n) => n.type === 'resource');
         villages += v.length;
-        resources += r.length;
-        expect(v.length).toBeGreaterThan(0);
-        expect(v.length).toBe(Math.floor((v.length + r.length) / 3));
+        nodes += first.nodes.filter((n) => n.layer > 0 && n.type !== 'boss').length;
         expect(v.every((n) => n.layer > 0 && n.layer < first.nodes.find((x) => x.type === 'boss')!.layer)).toBe(true);
       }
     }
-    expect(villages / (villages + resources)).toBeGreaterThan(0.29);
-    expect(villages / (villages + resources)).toBeLessThan(0.34);
+    const expected = NODE_WEIGHTS.village / Object.values(NODE_WEIGHTS).reduce((n, w) => n + w, 0);
+    expect(Math.abs(villages / nodes - expected)).toBeLessThan(0.02);
   });
 
   it('arriving opens the village choice with the numbers for this chapter', () => {
@@ -392,7 +389,7 @@ describe('AO-046 item 6 (AO-D072): villages', () => {
 
     const two = { ...helped.run, villages: 2, city: { ...helped.run.city, farmTier: 1 as const } };
     expect(dailyProduction(two)).toBe(FARM_TIERS[0]!.food + 2 * VILLAGE.dailyFood);
-    const day = arriveAt(two, 'resource');
+    const day = arriveAt(two, 'mine');
     expect(day.log).toContainEqual({ type: 'DAILY_INCOME', gold: 0, food: FARM_TIERS[0]!.food + 2 * VILLAGE.dailyFood });
   });
 
@@ -401,7 +398,7 @@ describe('AO-046 item 6 (AO-D072): villages', () => {
     expect(weeklyGarrison(three)).toEqual({ swordsman: 3 });
     expect(weeklyGarrison({ ...three, villages: VILLAGE.militiaVillageCap + 4 })).toEqual({ swordsman: VILLAGE.militiaVillageCap });
     let run = three;
-    for (let i = 0; i < 6; i++) run = arriveAt(run, 'resource');
+    for (let i = 0; i < 6; i++) run = arriveAt(run, 'mine');
     expect(run.day).toBe(7);
     expect(run.garrison).toEqual({ swordsman: 3 });
     const withBarracks = { ...three, city: { ...three.city, barracksTier: 1 as const } };
@@ -433,7 +430,7 @@ describe('AO-046 item 6 (AO-D072): villages', () => {
 });
 
 describe('AO-046 item 7 (AO-D074): Food balance', () => {
-  const ctx = { chapter: 1, day: 1, elite: false, threat: 0 };
+  const ctx = { chapter: 1, day: 1, fort: false, threat: 0 };
 
   it('the Food chance after a battle is about 45% early and rises with chapter, day and elites; the amounts are unchanged', () => {
     expect(battleLootBands(ctx).foodChance).toBe(0.45);
@@ -441,8 +438,8 @@ describe('AO-046 item 7 (AO-D074): Food balance', () => {
     expect(battleLootBands({ ...ctx, day: 29 }).foodChance).toBeGreaterThan(0.6);
     expect(battleLootBands({ ...ctx, chapter: 2, day: 31 }).foodChance).toBeGreaterThan(battleLootBands(ctx).foodChance);
     expect(battleLootBands({ ...ctx, chapter: 3, day: 61 }).foodChance).toBeGreaterThan(battleLootBands({ ...ctx, chapter: 2, day: 31 }).foodChance);
-    expect(battleLootBands({ ...ctx, elite: true }).foodChance).toBeGreaterThan(battleLootBands(ctx).foodChance);
-    expect(battleLootBands({ ...ctx, chapter: 3, day: 89, elite: true }).foodChance).toBe(BATTLE_LOOT.maxFoodChance);
+    expect(battleLootBands({ ...ctx, fort: true }).foodChance).toBeGreaterThan(battleLootBands(ctx).foodChance);
+    expect(battleLootBands({ ...ctx, chapter: 3, day: 89, fort: true }).foodChance).toBe(BATTLE_LOOT.maxFoodChance);
   });
 
   it('measured over many rolls, an early battle drops Food about 45% of the time', () => {

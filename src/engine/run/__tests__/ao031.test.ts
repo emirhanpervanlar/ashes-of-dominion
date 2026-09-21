@@ -83,18 +83,18 @@ describe('AO-031: start preview', () => {
 
 describe('AO-031: run summary counters', () => {
   it('counts elite and boss victories separately from normal battles', () => {
-    let run = winCurrentBattle(moveToNextAs(createRun(21), 'elite_battle'));
-    expect(run.stats.elitesDefeated).toBe(1);
+    let run = winCurrentBattle(moveToNextAs(createRun(21), 'fort'));
+    expect(run.stats.fortsTaken).toBe(1);
     run = pickReward(run).run;
 
     run = winCurrentBattle(moveToNextAs(run, 'battle'));
-    expect(run.stats.elitesDefeated).toBe(1);
+    expect(run.stats.fortsTaken).toBe(1);
     expect(run.stats.bossesDefeated).toBe(0);
     run = pickReward(run).run;
 
     run = winCurrentBattle(moveToNextAs(run, 'boss'));
     expect(run.stats.bossesDefeated).toBe(1);
-    expect(run.stats.elitesDefeated).toBe(1);
+    expect(run.stats.fortsTaken).toBe(1);
     expect(run.stats.battlesWon).toBe(3);
   });
 
@@ -120,7 +120,7 @@ describe('AO-031: runSummary', () => {
     const run = { ...createRun(30), threat: 4, chapter: 2 };
     const summary = runSummary(run);
     expect(summary.rows.map((r) => r.id)).toEqual([
-      'chapter', 'days', 'battlesWon', 'bossesDefeated', 'elitesDefeated', 'eventsResolved', 'enemiesKilled', 'unitsLost', 'unitsStarved', 'unitsRevived',
+      'chapter', 'days', 'battlesWon', 'bossesDefeated', 'fortsTaken', 'eventsResolved', 'enemiesKilled', 'unitsLost', 'unitsStarved', 'unitsRevived',
       'largestStack', 'damageDealt', 'damageTaken', 'turnsPlayed', 'cardsPlayed', 'goldGathered', 'foodGathered', 'foodEaten', 'relics', 'threat',
     ]);
     expect(summary.rows.find((r) => r.id === 'chapter')!.value).toBe(2);

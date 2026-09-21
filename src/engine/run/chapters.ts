@@ -5,8 +5,8 @@ export const DAYS_PER_CHAPTER = 30;
 export const TOTAL_CHAPTERS = 3;
 /** AO-D046: the "Boss in N days" warning shows from day 23, i.e. when 7 days or fewer remain. */
 export const BOSS_WARNING_DAYS = 7;
-/** AO-D049: no Elite Battle in the first 5 steps of the run. */
-export const ELITE_FREE_STEPS = 5;
+/** AO-D049: no fort in the first 5 steps of the run. */
+export const FORT_FREE_STEPS = 5;
 
 /** AO-D047 defaults (tuned later by qa-playtest); a city visit costs no days (AO-D051). */
 export const THREAT_PER_CITY_VISIT = 1;

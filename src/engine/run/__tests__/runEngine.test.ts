@@ -122,7 +122,7 @@ describe('movement', () => {
 
   it('a resource node grants Gold and Food and stays on the map', () => {
     const onMap = startOnMap(13);
-    const { run, nodeId } = withNextNodeType(onMap, 'resource');
+    const { run, nodeId } = withNextNodeType(onMap, 'mine');
     const result = applyRunAction(run, { type: 'MOVE_TO', nodeId });
     expect(result.run.phase).toBe('on_map');
     expect(result.run.gold).toBeGreaterThan(run.gold - 3); // food cost only reduces food, not gold

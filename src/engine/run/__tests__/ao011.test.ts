@@ -9,6 +9,7 @@ import type { RunAction, RunState } from '../types.js';
 import type { NodeType } from '../worldMap.js';
 import { legacySave } from './legacy.js';
 import { pickReward } from './rewardHelpers.js';
+import { MINE } from '../mines.js';
 
 function act(run: RunState, action: RunAction) {
   return applyRunAction(run, action);
@@ -240,10 +241,10 @@ describe('AO-D027: run stats', () => {
   it('accumulates through a real run: nodes, days, food, gold, battles, turns, largest stack', () => {
     let run = onMap(11);
     expect(run.stats.largestStack).toBe(10); // 4 Swordsmen + Royal Banner's +6
-    run = moveToNextAs(run, 'resource');
+    run = moveToNextAs(run, 'mine');
     expect(run.stats).toMatchObject({ nodesVisited: 1, daysElapsed: 1, foodEaten: moveFoodCost(run.army) });
-    expect(run.stats.goldGathered).toBeGreaterThanOrEqual(20);
-    expect(run.stats.foodGathered).toBeGreaterThanOrEqual(10);
+    expect(run.stats.goldGathered).toBeGreaterThanOrEqual(MINE.find.gold[0]);
+    expect(run.stats.foodGathered).toBeGreaterThanOrEqual(MINE.find.food[0]);
     expect(run.stats.largestStack).toBe(10);
 
     run = moveToNextAs(run, 'battle');

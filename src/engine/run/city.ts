@@ -32,7 +32,7 @@ export const SHRINE_REVIVE_RATIO = 0.1;
 export const MILITARY_DAMAGE_MULTIPLIER = 1.15;
 export const ARCANE_CASTER_MULTIPLIER = 1.2;
 export const NECROMANTIC_RAISE_RATIO = 0.25;
-/** Economic Doctrine: multiplier on the Gold and Food a resource node pays. */
+/** Economic Doctrine: multiplier on the one-off Gold and Food a mine capture finds. */
 export const ECONOMIC_DOCTRINE_MULTIPLIER = 1.3;
 
 /** A fraction (0.15) or a multiplier's surplus (1.05 - 1) as the whole percent the descriptions print. */
@@ -115,7 +115,7 @@ export interface CityState {
  * City Doctrines (AO-D062, Temple) — one permanent specialization choice.
  * Military/Arcane/Necromantic route through the same RelicEffect pipeline
  * combat already reads for relics (see runEngine.ts's startBattleForRun);
- * Economic is checked directly at the resource-node payout call site
+ * Economic is checked directly at the mine-capture payout call site
  * since it isn't a combat effect.
  */
 export interface CityDoctrineDefinition {

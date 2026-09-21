@@ -235,7 +235,7 @@ describe('AO-D048: net Food and the warning', () => {
 });
 
 describe('AO-D053: battle loot', () => {
-  const ctx = { chapter: 1, day: 1, elite: false, threat: 0 };
+  const ctx = { chapter: 1, day: 1, fort: false, threat: 0 };
   const expectedGold = (b: ReturnType<typeof battleLootBands>) => (b.gold[0] + b.gold[1]) / 2;
   const expectedFood = (b: ReturnType<typeof battleLootBands>) => b.foodChance * ((b.food[0] + b.food[1]) / 2);
 
@@ -294,7 +294,7 @@ describe('AO-D053: battle loot', () => {
     const late = battleLootBands({ ...ctx, day: 29 });
     const ch2 = battleLootBands({ ...ctx, chapter: 2, day: 31 });
     const ch3 = battleLootBands({ ...ctx, chapter: 3, day: 61 });
-    const elite = battleLootBands({ ...ctx, elite: true });
+    const elite = battleLootBands({ ...ctx, fort: true });
     expect(expectedGold(late)).toBeGreaterThan(expectedGold(early));
     expect(late.foodChance).toBeGreaterThan(early.foodChance);
     expect(expectedGold(ch2)).toBeGreaterThan(expectedGold(late));
@@ -304,13 +304,13 @@ describe('AO-D053: battle loot', () => {
     expect(expectedGold(elite)).toBeGreaterThan(expectedGold(early));
     expect(elite.foodChance).toBeGreaterThan(early.foodChance);
     expect(battleLootBands({ ...ctx, threat: 5 }).gold[1]).toBeGreaterThan(early.gold[1]);
-    expect(battleLootBands({ ...ctx, elite: true, chapter: 3, day: 89 }).foodChance).toBeLessThanOrEqual(BATTLE_LOOT.maxFoodChance);
+    expect(battleLootBands({ ...ctx, fort: true, chapter: 3, day: 89 }).foodChance).toBeLessThanOrEqual(BATTLE_LOOT.maxFoodChance);
   });
 
   it('an elite victory rolls elite-band loot', () => {
-    const result = winBattle(onMap(11), 'elite_battle');
+    const result = winBattle(onMap(11), 'fort');
     const loot = result.events.find((e) => e.type === 'BATTLE_LOOT');
-    const bands = battleLootBands({ ...ctx, day: result.run.day, elite: true });
+    const bands = battleLootBands({ ...ctx, day: result.run.day, fort: true });
     if (loot?.type !== 'BATTLE_LOOT') throw new Error('no loot event');
     expect(loot.gold).toBeGreaterThanOrEqual(bands.gold[0]);
     expect(loot.gold).toBeLessThanOrEqual(bands.gold[1]);
