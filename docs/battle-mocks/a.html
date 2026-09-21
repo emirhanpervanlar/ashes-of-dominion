@@ -1,0 +1,988 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Ashes of Dominion - Battle mock A</title>
+<meta name="viewport" content="width=1366">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=MedievalSharp&family=Silkscreen:wght@400;700&family=Alegreya+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  color-scheme: dark;
+  --stone-950:#0e0d0c; --stone-900:#171512; --stone-800:#221f1b; --stone-700:#2e2a24; --stone-600:#3d3830;
+  --stone-500:#544d42; --stone-400:#746b5c; --stone-300:#9a907d; --stone-200:#c4baa4; --stone-100:#e6dcc3;
+  --wood-900:#1c130c; --wood-800:#2b1d11; --wood-700:#3c2916; --wood-600:#523821; --wood-500:#6b4a2b;
+  --parch-100:#e3d3a8; --parch-200:#d2bf8e; --parch-300:#b9a271; --parch-400:#8f7a50; --ink-900:#211a10; --ink-700:#3e3222;
+  --iron-900:#16181b; --iron-800:#23272b; --iron-700:#33393e; --iron-600:#4a5259; --iron-500:#66707a; --iron-300:#9aa4ad;
+  --gold-900:#3d2f0d; --gold-700:#7a5f1c; --gold-500:#b08d2e; --gold-400:#cfa93f; --gold-200:#ecd082;
+  --blood-900:#2a0f0d; --blood-700:#6e1f1a; --blood-500:#9c2f26; --blood-300:#cf6a58;
+  --moss-900:#131f12; --moss-700:#2f4a26; --moss-500:#4f7a3a; --moss-300:#8fb56b;
+  --steel-900:#0f1a24; --steel-700:#21405a; --steel-500:#3f6f95; --steel-300:#86b0cf;
+  --frost-500:#7fb7c4; --frost-200:#cfe8ec; --venom-500:#6f8a2a; --ember-500:#b5651d; --arcane-500:#6d4f96;
+  --teal-700:#1f4a48; --teal-500:#2f7a72; --teal-300:#7fbdb2;
+  --text:var(--stone-200); --text-strong:var(--stone-100); --text-dim:var(--stone-300); --text-faint:var(--stone-400);
+  --focus:var(--gold-200); --selectable:var(--gold-400); --selected:var(--stone-100);
+  --rar-common:var(--stone-300); --rar-uncommon:var(--moss-500); --rar-rare:var(--steel-500); --rar-epic:var(--arcane-500);
+  --font-display:'MedievalSharp','Georgia',serif; --font-pixel:'Silkscreen','Courier New',monospace; --font-body:'Alegreya Sans','Segoe UI',sans-serif;
+  --shadow-1:0 2px 0 rgba(0,0,0,.6); --shadow-2:0 4px 0 rgba(0,0,0,.7);
+  --grain:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' shape-rendering='crispEdges'%3E%3Crect x='2' y='1' width='1' height='1' fill='%23000' fill-opacity='.18'/%3E%3Crect x='9' y='3' width='2' height='1' fill='%23fff' fill-opacity='.07'/%3E%3Crect x='5' y='7' width='1' height='2' fill='%23000' fill-opacity='.14'/%3E%3Crect x='13' y='6' width='1' height='1' fill='%23fff' fill-opacity='.08'/%3E%3Crect x='1' y='11' width='2' height='1' fill='%23fff' fill-opacity='.06'/%3E%3Crect x='10' y='12' width='1' height='2' fill='%23000' fill-opacity='.16'/%3E%3Crect x='14' y='14' width='1' height='1' fill='%23000' fill-opacity='.12'/%3E%3Crect x='6' y='14' width='2' height='1' fill='%23fff' fill-opacity='.05'/%3E%3C/svg%3E");
+}
+* { box-sizing:border-box; margin:0; padding:0; border-radius:0; }
+html { background:var(--stone-950); }
+body { width:1366px; margin:0 auto; padding:24px 24px 64px; background:radial-gradient(ellipse at 50% 0, #2a2010 0, transparent 55%), var(--stone-950); color:var(--text); font:400 16px/24px var(--font-body); -webkit-font-smoothing:none; }
+img.px, .px { image-rendering:pixelated; }
+canvas.px { image-rendering:pixelated; }
+
+/* ---- stepped corners / bevel ---- */
+.step { --c:4px; clip-path:polygon(0 var(--c),var(--c) var(--c),var(--c) 0,calc(100% - var(--c)) 0,calc(100% - var(--c)) var(--c),100% var(--c),100% calc(100% - var(--c)),calc(100% - var(--c)) calc(100% - var(--c)),calc(100% - var(--c)) 100%,var(--c) 100%,var(--c) calc(100% - var(--c)),0 calc(100% - var(--c))); }
+.step-8 { --c:8px; }
+.shadowed { filter:drop-shadow(0 4px 0 rgba(0,0,0,.7)); display:inline-block; }
+.shadowed-1 { filter:drop-shadow(0 2px 0 rgba(0,0,0,.6)); display:inline-block; }
+.bevel-2 { box-shadow:inset 2px 2px 0 var(--bev-light),inset -2px -2px 0 var(--bev-dark); }
+.bevel-4 { box-shadow:inset 4px 4px 0 var(--bev-light),inset -4px -4px 0 var(--bev-dark); }
+.bevel-in { box-shadow:inset 2px 2px 0 var(--bev-dark),inset -2px -2px 0 var(--bev-light); }
+.gem { clip-path:polygon(25% 0,75% 0,75% 12.5%,87.5% 12.5%,87.5% 25%,100% 25%,100% 75%,87.5% 75%,87.5% 87.5%,75% 87.5%,75% 100%,25% 100%,25% 87.5%,12.5% 87.5%,12.5% 75%,0 75%,0 25%,12.5% 25%,12.5% 12.5%,25% 12.5%); }
+
+/* ---- materials ---- */
+.mat-stone { --bev-light:var(--stone-500); --bev-dark:var(--stone-950);
+  background:var(--grain),linear-gradient(90deg,var(--stone-950) 0 2px,transparent 2px) 0 0/32px 16px,linear-gradient(90deg,var(--stone-950) 0 2px,transparent 2px) 16px 16px/32px 16px,linear-gradient(0deg,var(--stone-950) 0 2px,transparent 2px) 0 0/100% 16px,var(--stone-800); }
+.mat-stone-smooth { --bev-light:var(--stone-500); --bev-dark:var(--stone-950); background:var(--grain),var(--stone-800); }
+.mat-wood { --bev-light:var(--wood-500); --bev-dark:var(--wood-900);
+  background:var(--grain),repeating-linear-gradient(90deg,transparent 0 22px,var(--wood-900) 22px 24px),repeating-linear-gradient(0deg,transparent 0 6px,rgba(0,0,0,.10) 6px 8px),linear-gradient(90deg,var(--wood-700),var(--wood-600) 40%,var(--wood-700)); }
+.mat-wood-dark { --bev-light:var(--wood-600); --bev-dark:var(--wood-900); background:var(--grain),repeating-linear-gradient(90deg,transparent 0 22px,var(--wood-900) 22px 24px),var(--wood-800); }
+.mat-parch { --bev-light:var(--parch-100); --bev-dark:var(--parch-400); color:var(--ink-900);
+  background:var(--grain),radial-gradient(ellipse at 20% 15%,var(--parch-100) 0,transparent 45%),radial-gradient(ellipse at 85% 90%,var(--parch-300) 0,transparent 55%),linear-gradient(0deg,var(--parch-300) 0 8px,transparent 8px calc(100% - 8px),var(--parch-300) calc(100% - 8px)),var(--parch-200); }
+.mat-iron { --bev-light:var(--iron-500); --bev-dark:var(--iron-900);
+  background:var(--grain),linear-gradient(180deg,rgba(255,255,255,.05) 0 2px,transparent 2px),linear-gradient(180deg,var(--iron-700),var(--iron-800)); }
+.mat-gold { --bev-light:var(--gold-200); --bev-dark:var(--gold-900); color:var(--gold-900);
+  background:var(--grain),linear-gradient(180deg,rgba(255,255,255,.18) 0 2px,transparent 2px),linear-gradient(180deg,var(--gold-400),var(--gold-500) 55%,var(--gold-700)); }
+.trim-gold { box-shadow:inset 0 0 0 2px var(--gold-900),inset 0 0 0 4px var(--gold-500),inset 0 0 0 6px var(--gold-900); }
+.well { background:var(--grain),var(--stone-900); --bev-light:var(--stone-500); --bev-dark:var(--stone-950); }
+
+/* ---- type ---- */
+.t-title { font:400 64px/72px var(--font-display); }
+.t-h1 { font:400 40px/48px var(--font-display); }
+.t-h2 { font:400 24px/32px var(--font-display); }
+.t-h3 { font:400 20px/24px var(--font-display); }
+.t-label { font:400 8px/16px var(--font-pixel); text-transform:uppercase; letter-spacing:1px; }
+.t-btn { font:700 16px/24px var(--font-pixel); text-transform:uppercase; letter-spacing:1px; }
+.t-num { font:400 16px/16px var(--font-pixel); font-variant-numeric:tabular-nums; }
+.t-num32 { font:400 32px/32px var(--font-pixel); }
+.t-body { font:400 16px/24px var(--font-body); }
+.t-small { font:400 14px/16px var(--font-body); }
+
+/* ---- page structure ---- */
+h2.sec { font:400 32px/40px var(--font-display); color:var(--gold-200); text-shadow:0 2px 0 var(--stone-950); margin:48px 0 8px; }
+h2.sec small { font:400 8px/16px var(--font-pixel); color:var(--stone-400); letter-spacing:1px; text-transform:uppercase; margin-left:16px; text-shadow:none; }
+.divider { height:4px; background:linear-gradient(var(--stone-900) 0 2px,var(--stone-600) 2px 4px); margin:0 0 24px; }
+.sub { font:400 8px/16px var(--font-pixel); color:var(--stone-300); letter-spacing:1px; text-transform:uppercase; margin:16px 0 8px; }
+.row { display:flex; gap:16px; align-items:flex-start; flex-wrap:wrap; }
+.panel { padding:16px; position:relative; }
+
+/* ---- palette ---- */
+.pal-group { margin-bottom:16px; }
+.swatches { display:flex; gap:8px; flex-wrap:wrap; }
+.sw { width:96px; }
+.sw i { display:block; height:48px; box-shadow:inset 2px 2px 0 rgba(255,255,255,.14),inset -2px -2px 0 rgba(0,0,0,.4); }
+.sw b { display:block; font:400 8px/12px var(--font-pixel); color:var(--stone-200); margin-top:4px; letter-spacing:0; }
+.sw span { display:block; font:400 8px/12px var(--font-pixel); color:var(--stone-400); }
+
+/* ---- plaque ---- */
+.plaque { position:relative; display:inline-block; padding:0 40px; height:48px; font:400 24px/48px var(--font-display); text-transform:uppercase; color:var(--gold-900); text-shadow:0 2px 0 var(--gold-200); letter-spacing:1px; white-space:nowrap; }
+.plaque::before,.plaque::after { content:''; position:absolute; top:20px; width:8px; height:8px; background:var(--iron-300); box-shadow:2px 2px 0 var(--iron-900); }
+.plaque::before { left:16px; } .plaque::after { right:18px; }
+.plaque--ribbon { clip-path:polygon(0 0,100% 0,calc(100% - 16px) 50%,100% 100%,0 100%,16px 50%); padding:0 56px; }
+.plaque--ribbon::before { left:28px; } .plaque--ribbon::after { right:30px; }
+.plaque--wood { background:var(--grain),repeating-linear-gradient(90deg,transparent 0 22px,var(--wood-900) 22px 24px),var(--wood-800); --bev-light:var(--wood-600); --bev-dark:var(--wood-900); color:var(--gold-200); text-shadow:0 2px 0 var(--stone-950); }
+.plaque--iron { background:var(--grain),linear-gradient(180deg,var(--iron-700),var(--iron-800)); --bev-light:var(--iron-500); --bev-dark:var(--iron-900); color:var(--stone-100); text-shadow:0 2px 0 var(--stone-950); height:32px; font:400 16px/32px var(--font-display); padding:0 24px; }
+.plaque--iron::before,.plaque--iron::after { display:none; }
+.plaque--blood { background:var(--grain),linear-gradient(180deg,var(--blood-500),var(--blood-700) 60%,var(--blood-900)); --bev-light:var(--blood-300); --bev-dark:var(--blood-900); color:var(--gold-200); text-shadow:0 2px 0 var(--blood-900); }
+
+/* ---- buttons ---- */
+.btn { position:relative; display:inline-block; font:700 16px/24px var(--font-pixel); text-transform:uppercase; letter-spacing:1px; height:40px; padding:8px 24px; border:0; cursor:pointer; color:var(--stone-100); transition:none; white-space:nowrap;
+  --bev-light:var(--iron-500); --bev-dark:var(--iron-900);
+  background:var(--grain),linear-gradient(180deg,rgba(255,255,255,.05) 0 2px,transparent 2px),linear-gradient(180deg,var(--iron-700),var(--iron-800));
+  box-shadow:inset 4px 4px 0 var(--bev-light),inset -4px -4px 0 var(--bev-dark); text-shadow:0 2px 0 var(--stone-950); }
+.btn--primary { color:var(--gold-900); text-shadow:0 2px 0 var(--gold-200); --bev-light:var(--gold-200); --bev-dark:var(--gold-900);
+  background:var(--grain),linear-gradient(180deg,rgba(255,255,255,.18) 0 2px,transparent 2px),linear-gradient(180deg,var(--gold-400),var(--gold-500) 55%,var(--gold-700)); }
+.btn--danger { --bev-light:var(--blood-500); --bev-dark:var(--blood-900); background:var(--grain),linear-gradient(180deg,var(--blood-700),var(--blood-900)); }
+.btn.hover,.btn:hover:not(:disabled):not(.disabled) { transform:translateY(-2px); }
+.btn.hover { --bev-light:var(--gold-400); }
+.btn--primary.hover,.btn--primary:hover:not(:disabled) { --bev-light:var(--gold-200); background:var(--grain),linear-gradient(180deg,rgba(255,255,255,.18) 0 2px,transparent 2px),linear-gradient(180deg,var(--gold-200),var(--gold-400) 40%,var(--gold-500)); }
+.btn:not(.btn--primary):not(.btn--danger):hover:not(:disabled) { --bev-light:var(--gold-400); }
+.btn--danger.hover,.btn--danger:hover:not(:disabled) { --bev-light:var(--blood-300); }
+.btn.active,.btn:active:not(:disabled) { transform:translateY(2px); box-shadow:inset 4px 4px 0 var(--bev-dark),inset -4px -4px 0 var(--bev-light); }
+.btn.disabled,.btn:disabled { cursor:not-allowed; color:var(--stone-400); text-shadow:none; transform:none; background:repeating-linear-gradient(45deg,transparent 0 4px,rgba(0,0,0,.25) 4px 6px),var(--stone-700); box-shadow:inset 4px 4px 0 var(--stone-500),inset -4px -4px 0 var(--stone-900); }
+.btn.focus,.btn:focus-visible { outline:2px solid var(--focus); outline-offset:2px; }
+.btn--sq { width:40px; padding:0; text-align:center; }
+.btn--l { height:56px; padding:16px 32px; }
+.btn-grid { display:grid; grid-template-columns:120px repeat(5,180px); gap:16px 16px; align-items:center; }
+.btn-grid .t-label { color:var(--stone-300); }
+
+/* ---- pills / bar ---- */
+.pill { display:inline-flex; align-items:center; gap:8px; height:32px; padding:0 12px; color:var(--stone-100); font:400 16px/16px var(--font-pixel); background:var(--grain),linear-gradient(180deg,var(--iron-700),var(--iron-800)); --bev-light:var(--iron-500); --bev-dark:var(--iron-900); box-shadow:inset 2px 2px 0 var(--bev-light),inset -2px -2px 0 var(--bev-dark); }
+.pill.gold { color:var(--gold-200); } .pill.warn { color:var(--blood-300); }
+.pill img { width:16px; height:16px; }
+.bar { position:relative; height:24px; width:280px; background:var(--stone-900); box-shadow:inset 2px 2px 0 var(--stone-950),inset -2px -2px 0 var(--stone-500); padding:4px; display:flex; gap:2px; }
+.bar i { flex:1; background:var(--steel-500); box-shadow:inset 0 2px 0 var(--steel-300),inset 0 -2px 0 var(--steel-700); }
+.bar i.off { background:var(--stone-800); box-shadow:inset 0 2px 0 var(--stone-700); }
+.bar.gold i { background:var(--gold-500); box-shadow:inset 0 2px 0 var(--gold-200),inset 0 -2px 0 var(--gold-700); }
+.bar.moss i { background:var(--moss-500); box-shadow:inset 0 2px 0 var(--moss-300),inset 0 -2px 0 var(--moss-700); }
+
+/* ---- tooltip ---- */
+#tip { max-width:280px; padding:8px 12px; pointer-events:none; background:var(--grain),var(--stone-900); box-shadow:inset 0 0 0 2px var(--gold-700); }
+#tip-wrap { position:fixed; z-index:99; display:none; pointer-events:none; filter:drop-shadow(0 4px 0 rgba(0,0,0,.7)); }
+#tip b { display:block; font:400 16px/24px var(--font-display); color:var(--gold-200); }
+#tip span { display:block; font:400 16px/24px var(--font-body); color:var(--text); }
+#tip em { display:flex; gap:8px; align-items:center; font-style:normal; color:var(--blood-300); }
+
+/* ---- card ---- */
+.card { position:relative; width:144px; height:208px; flex:none; }
+.card__frame { position:absolute; inset:0; padding:4px; --bev-light:var(--iron-500); --bev-dark:var(--iron-900);
+  background:var(--grain),linear-gradient(180deg,rgba(255,255,255,.05) 0 2px,transparent 2px),linear-gradient(180deg,var(--iron-700),var(--iron-800));
+  box-shadow:inset 4px 4px 0 var(--bev-light),inset -4px -4px 0 var(--bev-dark); }
+.card__trim { position:absolute; inset:4px; box-shadow:inset 0 0 0 2px var(--trim); }
+.card--attack { --trim:var(--blood-700); --art:#2a1614; --art2:#150c0b; }
+.card--defense { --trim:var(--steel-700); --art:#162433; --art2:#0b141c; }
+.card--buff { --trim:var(--moss-700); --art:#1a2a17; --art2:#0d160c; }
+.card__title { position:absolute; left:8px; right:8px; top:8px; height:32px; padding:4px 8px 0 36px; font:400 16px/24px var(--font-display); color:var(--stone-100); text-shadow:0 2px 0 var(--stone-950); white-space:nowrap; background:var(--grain),repeating-linear-gradient(90deg,transparent 0 22px,var(--wood-900) 22px 24px),var(--wood-800); box-shadow:inset 2px 2px 0 var(--wood-600),inset -2px -2px 0 var(--wood-900); }
+.card__gem { position:absolute; left:-4px; top:-4px; width:32px; height:32px; background:var(--gold-500); z-index:3; }
+.card__gem::before { content:''; position:absolute; inset:2px; background:var(--steel-700); }
+.card__gem::after { content:''; position:absolute; left:8px; top:4px; width:4px; height:2px; background:var(--steel-300); }
+.card__gem span { position:absolute; inset:0; text-align:center; font:400 16px/32px var(--font-pixel); color:var(--stone-100); z-index:1; text-shadow:0 2px 0 var(--stone-950); }
+.card__art { position:absolute; left:8px; right:8px; top:44px; height:80px; background:radial-gradient(ellipse at 50% 55%,var(--art) 0,var(--art2) 100%); box-shadow:inset 2px 2px 0 var(--iron-900),inset -2px -2px 0 var(--iron-500); display:flex; align-items:center; justify-content:center; }
+.card__art > img { width:48px; height:48px; }
+.card__type { position:absolute; right:4px; top:4px; width:16px; height:16px; }
+.card__rar { position:absolute; left:64px; top:36px; width:16px; height:8px; z-index:2; }
+.card__text { position:absolute; left:8px; right:8px; top:128px; bottom:8px; padding:6px 8px; font:400 14px/16px var(--font-body); color:var(--ink-900); text-align:center; display:flex; align-items:center; justify-content:center; box-shadow:inset 2px 2px 0 var(--parch-400),inset -2px -2px 0 var(--parch-100); }
+.card__text b { font-weight:700; }
+.card--hover { transform:translateY(-8px); }
+.card--epic .card__frame { box-shadow:inset 4px 4px 0 var(--gold-200),inset -4px -4px 0 var(--gold-900); }
+.card--dim { filter:brightness(.55) saturate(.6); }
+.card--selected { transform:translateY(-16px); }
+.card--selected::after { content:''; position:absolute; inset:-4px; box-shadow:0 0 0 4px var(--gold-200); pointer-events:none; }
+
+/* ---- relic ---- */
+.relic { position:relative; flex:none; display:flex; align-items:center; justify-content:center; }
+.relic--32 { width:32px; height:32px; } .relic--48 { width:48px; height:48px; } .relic--64 { width:64px; height:64px; }
+.relic img { position:relative; z-index:1; }
+.relic--common { background:var(--stone-900); box-shadow:inset 0 0 0 2px var(--iron-500),inset 0 0 0 4px var(--iron-900); }
+.relic--rare { background:var(--steel-900); box-shadow:inset 0 0 0 2px var(--steel-500),inset 0 0 0 4px var(--steel-700); }
+.relic--epic { background:#1a1226; box-shadow:inset 0 0 0 2px var(--gold-900),inset 0 0 0 4px var(--gold-500),inset 0 0 0 6px var(--arcane-500); }
+.relic--rare::before,.relic--epic::before { content:''; position:absolute; left:2px; top:2px; width:4px; height:4px; background:var(--steel-300); box-shadow:calc(var(--rw) - 12px) 0 0 var(--steel-300),0 calc(var(--rw) - 12px) 0 var(--steel-300),calc(var(--rw) - 12px) calc(var(--rw) - 12px) 0 var(--steel-300); z-index:2; }
+.relic--epic::before { background:var(--gold-200); box-shadow:calc(var(--rw) - 12px) 0 0 var(--gold-200),0 calc(var(--rw) - 12px) 0 var(--gold-200),calc(var(--rw) - 12px) calc(var(--rw) - 12px) 0 var(--gold-200); }
+.relic--32 { --rw:32px; } .relic--48 { --rw:48px; } .relic--64 { --rw:64px; }
+.relic--empty { background:none; box-shadow:none; }
+.relic--empty::after { content:''; position:absolute; inset:2px; border:2px dashed var(--stone-600); }
+
+/* ---- modal mock ---- */
+.stage { position:relative; height:400px; overflow:hidden; background:radial-gradient(ellipse at 50% 0,var(--tint-glow,#10202c) 0,transparent 70%),var(--stone-950); }
+.stage .backdrop { position:absolute; inset:0; background:rgba(8,7,6,.78); }
+.modal { position:absolute; left:50%; top:64px; width:600px; margin-left:-300px; }
+.modal__win { padding:40px 24px 24px; --bev-light:var(--wood-600); --bev-dark:var(--wood-900); box-shadow:inset 4px 4px 0 var(--bev-light),inset -4px -4px 0 var(--bev-dark),inset 0 0 0 6px var(--gold-700); }
+.modal__plaque { position:absolute; left:50%; top:-24px; transform:translateX(-50%); z-index:2; }
+.modal__close { position:absolute; right:12px; top:12px; z-index:2; }
+.modal__foot { display:flex; justify-content:flex-end; gap:16px; margin-top:16px; }
+
+/* ---- sprites / units ---- */
+.spr { flex:none; image-rendering:pixelated; background-repeat:no-repeat; animation:idle 1s steps(1,end) infinite; }
+@keyframes idle { 0% { background-position:0 0; } 50% { background-position:var(--nx) 0; } }
+.flip { transform:scaleX(-1); }
+/* ---- battle mock ---- */
+.mock { position:relative; --bev-light:var(--iron-500); --bev-dark:var(--iron-900); background:var(--grain),linear-gradient(180deg,var(--iron-700),var(--iron-800)); padding:8px; box-shadow:inset 4px 4px 0 var(--bev-light),inset -4px -4px 0 var(--bev-dark); }
+.mock__top { display:flex; justify-content:space-between; align-items:center; padding:4px 8px 12px; }
+.mock__scene { position:relative; }
+.tray { position:relative; margin-top:8px; padding:16px 24px 8px; display:flex; align-items:flex-end; justify-content:center; gap:32px; height:248px; }
+.hand { display:flex; gap:16px; align-items:flex-end; }
+.pile { position:relative; width:96px; height:128px; flex:none; margin-bottom:24px; }
+.pile__back { position:absolute; inset:0; padding:6px; text-align:center; }
+.pile__back img { display:block; margin:24px auto 8px; width:32px; height:32px; }
+.pile .t-num { position:absolute; left:0; right:0; bottom:14px; text-align:center; color:var(--stone-100); text-shadow:0 2px 0 var(--stone-950); }
+.pile .t-label { position:absolute; left:0; right:0; bottom:-20px; text-align:center; color:var(--stone-300); }
+.pile--stack { box-shadow:4px 4px 0 var(--stone-950),8px 8px 0 var(--iron-700),8px 8px 0 1px var(--stone-950); }
+
+/* ---- mock shell (1366x900) ---- */
+html { background:#050403; }
+body { width:1366px; height:900px; margin:0 auto; padding:0; overflow:hidden; background:#000; position:relative; }
+#game { position:absolute; inset:0; width:1366px; height:900px; overflow:hidden; background:var(--stone-950); }
+.topbar { position:absolute; left:0; top:0; width:1366px; height:56px; z-index:30; display:flex; align-items:center; justify-content:space-between; padding:0 16px; --bev-light:var(--iron-500); --bev-dark:var(--iron-900);
+  background:var(--grain),linear-gradient(180deg,var(--iron-700),var(--iron-800)); box-shadow:inset 0 2px 0 var(--iron-500),inset 0 -4px 0 var(--iron-900),0 4px 0 rgba(0,0,0,.6); }
+.topbar .grp { display:flex; align-items:center; gap:12px; }
+.topbar .plaque--iron { height:32px; line-height:32px; }
+#field { position:absolute; left:0; top:56px; width:1366px; height:612px; overflow:hidden; background:#1a1420; }
+#field canvas { image-rendering:pixelated; display:block; }
+#scene { position:absolute; left:0; top:0; width:1370px; height:615px; }
+#fx { position:absolute; left:0; top:0; width:1370px; height:615px; z-index:80; pointer-events:none; }
+#amb { position:absolute; left:0; top:0; width:1370px; height:615px; z-index:79; pointer-events:none; image-rendering:pixelated; }
+#flash, #dim, #tint, #firelight { position:absolute; inset:0; pointer-events:none; opacity:0; }
+#flash { z-index:85; background:#e8f2ff; }
+#dim { z-index:84; background:linear-gradient(180deg,rgba(6,10,36,.62),rgba(6,10,36,.28)); }
+#tint { z-index:83; left:520px; background:repeating-linear-gradient(0deg,rgba(90,150,220,.26) 0 4px,rgba(60,120,200,.18) 4px 8px); -webkit-mask-image:linear-gradient(90deg,transparent 0 20px,rgba(0,0,0,.35) 20px 40px,rgba(0,0,0,.7) 40px 60px,#000 60px); mask-image:linear-gradient(90deg,transparent 0 20px,rgba(0,0,0,.35) 20px 40px,rgba(0,0,0,.7) 40px 60px,#000 60px); }
+#firelight { z-index:84; background:#ff9a3c; mix-blend-mode:soft-light; }
+.tray { position:absolute; left:0; top:668px; width:1366px; height:232px; margin:0; padding:0; display:block; z-index:30; box-shadow:inset 4px 4px 0 var(--wood-600),inset -4px -4px 0 var(--wood-900),inset 0 6px 0 var(--gold-900),0 -4px 0 rgba(0,0,0,.6); }
+.tray .hand { position:absolute; left:283px; top:12px; width:800px; display:flex; gap:16px; align-items:flex-end; }
+.tray .hand .card { cursor:pointer; }
+.tray .left, .tray .right { position:absolute; top:0; height:232px; display:flex; align-items:center; gap:20px; }
+.tray .left { left:72px; } .tray .right { right:56px; }
+.pilebtn { position:relative; width:72px; height:96px; cursor:pointer; }
+.pilebtn .pb { position:absolute; inset:0 0 16px 0; display:flex; align-items:center; justify-content:center; background:var(--grain),linear-gradient(180deg,var(--iron-700),var(--iron-800)); box-shadow:inset 4px 4px 0 var(--iron-500),inset -4px -4px 0 var(--iron-900),3px 3px 0 var(--stone-950),6px 6px 0 var(--iron-700),6px 6px 0 1px var(--stone-950); }
+.pilebtn.disc .pb { box-shadow:inset 4px 4px 0 var(--iron-500),inset -4px -4px 0 var(--iron-900),4px 4px 0 var(--stone-950); }
+.pilebtn .t-label { position:absolute; left:0; right:0; bottom:-6px; text-align:center; color:var(--stone-300); }
+.pilebtn:hover .pb { box-shadow:inset 4px 4px 0 var(--gold-400),inset -4px -4px 0 var(--iron-900),4px 4px 0 var(--stone-950); }
+.endturn { width:150px; }
+.endturn .btn { width:150px; height:56px; padding:16px 0; text-align:center; }
+
+/* ---- units ---- */
+.spr { animation:idle 1s steps(1,end) infinite; }
+.mv { position:relative; display:block; }
+.flip { transform:scaleX(-1); }
+.hit { animation:hit 264ms steps(4,end); }
+@keyframes hit { 0% { transform:translateX(0); filter:brightness(3.2) contrast(.8); } 25% { transform:translateX(-6px); filter:brightness(1.6); } 50% { transform:translateX(6px); filter:none; } 75% { transform:translateX(-4px); } 100% { transform:translateX(0); } }
+.cast { animation:cast 420ms steps(3,end); }
+@keyframes cast { 0% { transform:translateY(0); } 33% { transform:translateY(-12px); } 66% { transform:translateY(-12px); } 100% { transform:translateY(0); } }
+.charge { animation:charge var(--dur,900ms) steps(1,end) forwards; }
+@keyframes charge {
+  0%   { transform:translateX(0); }
+  10%  { transform:translateX(calc(var(--dir) * -12px)); }
+  18%  { transform:translateX(calc(var(--dir) * var(--dx) * .25)); }
+  26%  { transform:translateX(calc(var(--dir) * var(--dx) * .5)); }
+  34%  { transform:translateX(calc(var(--dir) * var(--dx) * .75)); }
+  42%  { transform:translateX(calc(var(--dir) * var(--dx))); }
+  62%  { transform:translateX(calc(var(--dir) * var(--dx))); }
+  70%  { transform:translateX(calc(var(--dir) * var(--dx) * .66)); }
+  78%  { transform:translateX(calc(var(--dir) * var(--dx) * .33)); }
+  86%  { transform:translateX(0); }
+  100% { transform:translateX(0); }
+}
+.glow .mv { animation:glow 528ms steps(1,end) 2; }
+@keyframes glow { 0% { filter:brightness(1.25) saturate(1.1); } 50% { filter:brightness(1.1); } 100% { filter:none; } }
+.floater { position:absolute; z-index:90; font:400 24px/24px var(--font-pixel); color:var(--blood-300); text-shadow:0 2px 0 #000,2px 0 0 #000,-2px 0 0 #000,0 -2px 0 #000; animation:float 990ms steps(9,end) forwards; white-space:nowrap; }
+.floater.good { color:var(--moss-300); } .floater.gold { color:var(--gold-200); } .floater.ice { color:var(--frost-200); }
+@keyframes float { from { transform:translateY(0); opacity:1; } 75% { opacity:1; } to { transform:translateY(-40px); opacity:0; } }
+
+/* frozen: persistent ice block over the sprite */
+.frozen .spr { filter:saturate(.45) brightness(1.12) hue-rotate(-10deg); animation-play-state:paused; }
+.ice { position:absolute; left:0; top:0; width:100%; height:100%; pointer-events:none; z-index:3; image-rendering:pixelated; background-size:100% 100%; }
+.ice.grow { animation:icegrow 400ms steps(6,end) forwards; }
+@keyframes icegrow { from { clip-path:inset(100% 0 0 0); } to { clip-path:inset(0 0 0 0); } }
+.chip { display:inline-flex; align-items:center; gap:2px; height:20px; padding:0 4px 0 2px; background:var(--stone-950); box-shadow:inset 0 0 0 2px var(--iron-600); color:var(--stone-100); font:400 8px/20px var(--font-pixel); }
+.chip img { width:16px; height:16px; }
+.chip.cold { box-shadow:inset 0 0 0 2px var(--steel-500); color:var(--frost-200); }
+.chip.bad { box-shadow:inset 0 0 0 2px var(--blood-700); color:var(--blood-300); }
+.chip.good { box-shadow:inset 0 0 0 2px var(--gold-700); color:var(--gold-200); }
+.count { display:inline-block; height:24px; padding:0 6px; background:var(--stone-950); box-shadow:inset 0 0 0 2px var(--gold-700); font:400 16px/24px var(--font-pixel); color:var(--stone-100); white-space:nowrap; text-shadow:0 2px 0 #000; }
+.enemy .count { box-shadow:inset 0 0 0 2px var(--steel-500); }
+
+/* hero busts on their rampart */
+.hero { position:absolute; z-index:20; width:192px; height:192px; }
+.hero .spr { display:block; }
+.rampart { position:absolute; z-index:22; pointer-events:none; }
+.herotag { position:absolute; z-index:24; height:24px; padding:0 10px; font:400 8px/24px var(--font-pixel); letter-spacing:1px; text-transform:uppercase; color:var(--stone-100); background:var(--stone-950); box-shadow:inset 0 0 0 2px var(--iron-600); white-space:nowrap; text-align:center; }
+.herotag.p { box-shadow:inset 0 0 0 2px var(--gold-700); } .herotag.e { box-shadow:inset 0 0 0 2px var(--steel-500); color:var(--frost-200); }
+.torch { position:absolute; z-index:26; image-rendering:pixelated; background-repeat:no-repeat; animation:idle 400ms steps(1,end) infinite; }
+.torchglow { position:absolute; z-index:5; pointer-events:none; }
+
+/* dev panel */
+.dev { position:absolute; right:10px; top:62px; z-index:100; width:214px; padding:6px; background:rgba(8,7,6,.86); box-shadow:inset 0 0 0 2px var(--stone-600); }
+.dev h6 { font:400 8px/12px var(--font-pixel); color:var(--stone-300); letter-spacing:1px; text-transform:uppercase; margin-bottom:6px; }
+.dev .g { display:grid; grid-template-columns:1fr 1fr; gap:4px; }
+.dev button { font:400 8px/12px var(--font-pixel); text-transform:uppercase; letter-spacing:.5px; padding:5px 4px; border:0; cursor:pointer; color:var(--stone-100); background:var(--iron-700); box-shadow:inset 2px 2px 0 var(--iron-500),inset -2px -2px 0 var(--iron-900); }
+.dev button:hover { background:var(--iron-600); color:var(--gold-200); }
+.dev button.wide { grid-column:1 / 3; }
+
+@media (prefers-reduced-motion: reduce) {
+  .spr, .torch { animation:none !important; }
+  .cast, .charge, .glow .mv, .hit { animation:none !important; }
+  .ice.grow { animation:none !important; }
+  .floater { animation-duration:1ms !important; }
+}
+
+/* ---- OPTION A: framed slots on a real scene ---- */
+#scene { filter:brightness(.8) saturate(.92); }
+#layer { position:absolute; inset:0; }
+.tile { position:absolute; width:176px; height:172px; padding:8px; z-index:10; cursor:pointer;
+  background:var(--grain),linear-gradient(180deg,var(--iron-600),var(--iron-700) 30%,var(--iron-800)); box-shadow:0 0 0 2px var(--stone-950),inset 2px 2px 0 var(--bev-light,var(--iron-300)),inset -2px -2px 0 var(--iron-900),0 6px 0 rgba(0,0,0,.55); }
+.tile::before { content:''; position:absolute; left:8px; right:8px; top:2px; height:4px; z-index:4; background:var(--steel-500); }
+.tile.e::before { background:var(--blood-500); }
+.tile::after { content:''; position:absolute; left:2px; top:2px; width:4px; height:4px; z-index:6; background:var(--iron-300); box-shadow:2px 2px 0 var(--iron-900),166px 0 0 var(--iron-300),168px 2px 0 var(--iron-900),0 162px 0 var(--iron-300),2px 164px 0 var(--iron-900),166px 162px 0 var(--iron-300),168px 164px 0 var(--iron-900); }
+.tile .win { position:relative; width:160px; height:126px; background:linear-gradient(180deg,rgba(38,28,20,.55),rgba(58,42,28,.74)); box-shadow:0 0 0 2px var(--gold-900),inset 2px 2px 0 var(--iron-900),inset -2px -2px 0 var(--iron-500); }
+.tile.e .win { background:linear-gradient(180deg,rgba(14,22,32,.55),rgba(28,40,54,.74)); box-shadow:0 0 0 2px var(--steel-700),inset 2px 2px 0 var(--iron-900),inset -2px -2px 0 var(--iron-500); }
+.tile .win .fl { position:absolute; left:0; right:0; bottom:0; height:22px; background:linear-gradient(180deg,transparent,rgba(0,0,0,.34)); }
+.tile .win .shadow { position:absolute; left:16px; bottom:-2px; width:128px; height:32px; image-rendering:pixelated; }
+.tile .mv { position:absolute; left:0; top:-29px; width:160px; height:160px; }
+.tile .nmbar { position:absolute; left:8px; right:8px; bottom:8px; height:26px; display:flex; align-items:center; justify-content:space-between; padding:0 4px 0 8px; }
+.tile .nmbar .nm { font:400 8px/12px var(--font-pixel); letter-spacing:1px; text-transform:uppercase; color:var(--stone-100); text-shadow:0 2px 0 #000; }
+.tile .nmbar .count { height:20px; line-height:20px; font-size:16px; padding:0 6px; }
+.tile .chips { position:absolute; left:14px; top:18px; display:flex; flex-direction:column; gap:4px; z-index:5; }
+.tile.e .chips { left:auto; right:14px; align-items:flex-end; }
+.tile:hover { --bev-light:var(--gold-200); transform:translateY(-2px); }
+.tile.e:hover { --bev-light:var(--blood-300); }
+.tile.sel { --bev-light:var(--gold-200); --bev-dark:var(--gold-900); box-shadow:inset 4px 4px 0 var(--gold-200),inset -4px -4px 0 var(--gold-700),0 0 0 4px var(--gold-200),0 4px 0 4px rgba(0,0,0,.55); transform:translateY(-4px); }
+.tile.acted .win, .tile.acted .nmbar { filter:saturate(.3) brightness(.62); }
+.tile.acted .spr { animation-play-state:paused; }
+.tile.empty { background:none; box-shadow:none; cursor:default; pointer-events:none; }
+.tile.empty::before, .tile.empty > * { display:none; }
+.tile.empty::after { left:8px; top:8px; right:8px; bottom:8px; width:auto; height:auto; background:none; box-shadow:none; }
+.tile.empty::after { content:'EMPTY'; position:absolute; border:2px dashed rgba(154,144,125,.55); font:400 8px/156px var(--font-pixel); color:rgba(154,144,125,.7); text-align:center; letter-spacing:1px; }
+.tile.grave .win { background:linear-gradient(180deg,rgba(20,16,14,.7),rgba(30,24,20,.85)); }
+.tile.grave { filter:saturate(.6) brightness(.8); }
+.tile.grave::before { background:var(--stone-500); }
+.tile.frozen { --bev-light:var(--frost-200); }
+.tile.frozen .win { background:linear-gradient(180deg,rgba(80,130,160,.55),rgba(40,80,110,.78)); box-shadow:0 0 0 2px var(--frost-200),inset 2px 2px 0 var(--steel-700),inset -2px -2px 0 var(--frost-200); }
+.tile.frozen::before { background:var(--frost-200); }
+.tile .rime { display:none; position:absolute; left:4px; right:4px; top:4px; height:20px; background:var(--frost-200); z-index:6; pointer-events:none; }
+.tile.frozen .rime { display:block; }
+#field[data-mark="ally"] .tile.p:not(.empty):not(.grave), #field[data-mark="foe"] .tile.e:not(.empty) { outline:4px solid var(--gold-200); outline-offset:0; animation:blink 800ms steps(1,end) infinite; }
+#field[data-mark="foe"] .tile.e:not(.empty) { outline-color:var(--blood-300); }
+@keyframes blink { 0% { outline-style:solid; } 50% { outline-style:dashed; } }
+.grave { position:absolute; left:24px; bottom:8px; width:120px; height:96px; image-rendering:pixelated; }
+@media (prefers-reduced-motion: reduce) { #field .tile { animation:none !important; } }
+
+</style>
+</head>
+<body>
+<div id="game">
+  <div class="topbar"></div>
+  <div id="field">
+    <canvas id="scene"></canvas>
+    <div id="layer"></div>
+    <canvas id="amb"></canvas><canvas id="fx"></canvas>
+    <div id="tint"></div><div id="dim"></div><div id="firelight"></div><div id="flash"></div>
+  </div>
+  <div class="tray mat-wood-dark" id="tray"></div>
+  <div class="dev" id="dev"></div>
+</div>
+<script>
+const PAL={"k":"#100e0c","w":"#e6dcc3","W":"#faf3df","g":"#9a907d","d":"#544d42","s":"#66707a","S":"#33393e","l":"#aab5be","y":"#cfa93f","Y":"#7a5f1c","j":"#ecd082","t":"#6b4a2b","T":"#3c2916","u":"#94673a","f":"#dfae82","F":"#a9744c","a":"#c4622d","A":"#7a3416","h":"#e58f52","q":"#a3c452","Q":"#6a9433","O":"#3b561b","z":"#62804a","Z":"#33472a","x":"#8fac6c","b":"#3f6f95","B":"#21405a","n":"#4f7a3a","N":"#22381b","p":"#6d4f96","i":"#7fb7c4","I":"#cfe8ec","o":"#b5651d","r":"#9c2f26","R":"#4a1712","e":"#e8c93a"};
+const SPR={"swordsman":[["........................kWk.....","........................klk.....","........................klk.....",".............kkk.......kWlsk....","............kWWWkkkk...kWlsk....","...........kllllssssk..kWlsk....","..........ksllllsssSSk.kWlsk....",".........kslsssssssSSskkWlsk....",".........ksssssssssSSskkWlsk....",".........ksssssssssSSskkWlsk....",".........ksllsssSssssskkWlsk....",".....kkkkkSSSSSSsSSSSSkkWlsk....","....klsssskksfffsfffkk.kWlsk....","...klsshhsskkfkfsfkkk..kWlsk....","..kllaahhaaskffffFffkk.kWlsk....","..kssaahhaassFFFFFFFhskkWlsk....","..ksaaahhaaasaajyaAAAlssWlskkk..",".kssaaahhaaassayyaAAAlssyyyyyyk.",".kssaaayyaaassayyaAAAlssYYYYYYk.",".kshhhyjyyhhhsayyaAAAlsfffffkk..",".kshhhyyyyhhhsayyaAAAlsFFFFFk...",".kssaaayyaaassayyaAAAskFFFFFk...",".kssaaahhaaassTyyTTTTTkkyyyk....","..ksaaahhaaasTTyyTTTTTkkyyyk....","..kssaahhaassssssssssk..kkk.....","...ksaahhaastttkkutttk..........","....ksshhssutttkkutttkk.........",".....kshhstTTTTTktTTTTTk........","......kkkkTTTTTTkTTTTTTk........",".........kTTTTTTkTTTTTTk........","..........kkkkkk.kkkkkk.........","................................"],[".........................k......","........................kWk.....","........................klk.....","........................klk.....",".............kkk.......kWlsk....","............kWWWkkkk...kWlsk....","...........kllllssssk..kWlsk....","..........ksllllsssSSk.kWlsk....",".........kslsssssssSSskkWlsk....",".........ksssssssssSSskkWlsk....",".........ksssssssssSSskkWlsk....",".........ksllsssSssssskkWlsk....",".....kkkkkSSSSSSsSSSSSkkWlsk....","....klsssskksfffsfffkk.kWlsk....","...klsshhsskkfkfsfkkk..kWlsk....","..kllaahhaaskffffFffkk.kWlsk....","..kssaahhaassFFFFFFFhskkWlsk....","..ksaaahhaaasaajyaAAAlssWlskkk..",".kssaaahhaaassayyaAAAlssyyyyyyk.",".kssaaayyaaassayyaAAAlssYYYYYYk.",".kshhhyjyyhhhsayyaAAAlsfffffkk..",".kshhhyyyyhhhsayyaAAAlsFFFFFk...",".kssaaayyaaassayyaAAAskFFFFFk...",".kssaaahhaaassTyyTTTTTkkyyyk....","..ksaaahhaaasTTyyTTTTTkkyyyk....","..kssaahhaassssssssssk..kkk.....","...ksaahhaastttkkutttkk.........","....ksshhssTTTTTktTTTTTk........",".....kshhsTTTTTTkTTTTTTk........","......kkkkTTTTTTkTTTTTTk........","..........kkkkkk.kkkkkk.........","................................"]],"archer":[["................................","..........................kk....",".........................kttk...",".............kkkkkk......kwttk..","............kaaaaaak.....kwttk..","...........khhhhhaaak....kwtttk.","..........kaaaaaaaaaak..kwkkttk.",".........kaaaaaaaaaaaak.kwkktttk","........kahaAAAAAAAAAak.kwk.kttk","........kwhaAAAAAAAAAak.kwk.kttk","........kwhafAAAAAAAfak.kwk.kttk","........kwaaffAfffAffak.kwk.kttk","........ktaaffkfffkffakkwk.kTTtk","........ktaaffffFffffk.kwkkkTTtk","........ktaaFFFrrrFFFkkfwfllTTtk","........ktaahaaaaaahhhhwwwllWTtk","........ktaaaauaattatttFwFllTTtk","........ktuuuuutttttttttwkkkkttk","........ktuuuuuttttttttkkwk.kttk","........ktuuuuuttttttttkkwk.kttk","........kuuuuuuttttttttkkwk.kttk","........kuuuuuTTTTTttttkkwk.kttk","........kuuuuuTyyTTttttkkwkktttk","........kuuuuuuyyttttttkkwkkttk.","........kAAAAAAAAAAAAAAk.kwkttk.",".........kkktTTkktTTkkk..kwtttk.","...........ktTTkktTTkk...kwttk..","..........kuuuuukuuuuuk..kwttk..","..........ktttttktttttk..kttk...","..........ktttttktttttk..kttk...","...........kkkkk.kkkkk....kk....","................................"],["................................","................................","..........................kk....",".........................kttk...",".............kkkkkk......kwttk..","............kaaaaaak.....kwttk..","...........khhhhhaaak....kwtttk.","..........kaaaaaaaaaak..kwkkttk.",".........kaaaaaaaaaaaak.kwkktttk","........kahaAAAAAAAAAak.kwk.kttk","........kwhaAAAAAAAAAak.kwk.kttk","........kwhafAAAAAAAfak.kwk.kttk","........kwaaffAfffAffak.kwk.kttk","........ktaaffkfffkffakkwk.kTTtk","........ktaaffffFffffk.kwkkkTTtk","........ktaaFFFrrrFFFkkfwfllTTtk","........ktaahaaaaaahhhhwwwllWTtk","........ktaaaauaattatttFwFllTTtk","........ktuuuuutttttttttwkkkkttk","........ktuuuuuttttttttkkwk.kttk","........ktuuuuuttttttttkkwk.kttk","........kuuuuuuttttttttkkwk.kttk","........kuuuuuTTTTTttttkkwk.kttk","........kuuuuuTyyTTttttkkwkktttk","........kuuuuuuyyttttttkkwkkttk.","........kAAAAAAAAAAAAAAk.kwkttk.",".........kkktTTkktTTkkk..kwtttk.","..........kuuuuukuuuuuk..kwttk..","..........ktttttktttttk..kwttk..","..........ktttttktttttk..kttk...","...........kkkkk.kkkkk...kttk...","..........................kk...."]],"knight":[["....................kkk..kllk...",".................kkkaaakkkllk...","...............kkhhhhhhaaallsk..","..............kaaaaaaaaaaallsk..","...........kkkkaaaaaaaaaalllsk..","..........kllllyyyyyAAAAAlllsk..","..........klsssssaaSSkkkkkuthhk.",".........klssssssssssSk..kutaak.",".........klssssssssssSk..kutaak.",".........klskekkkkkekSk..kutak..",".........klskkkkkkkkkSk..kutAAk.",".......kkklssssksssssSkkkkutkk..","..kkkkkssslssksksksksSsssjyyyk..",".klllllllllllssksssSSslllsyyyk..",".kssssssssssslllllllssssssutk...",".ksshhhhhhhssssllsssssssssutk...",".ksshaajyaAssssllsssssssssutk...",".ksshaayyaAssssllsssSsssSSSSk...",".ksshjyyyyyssSSSSSSSSSSsSllSk...",".ksshyyyyyyssssllsssSSSsSllSk...",".ksshaayyaAssssllsssSSSsSSSSk...",".kssaaayyaassssllsssSSSkkkutk...","..kssaayyassTTTyyTTTTTTk.kutk...","...kssayyssTTTTyyTTTTTTk.kutk...","...kssayyssaaAAAAAAAAAk..kutk...","....kssasslsssSkklsssSk..kutk...",".....kssskSSSSSkkSSSSSk..kutk...",".....ksssklsssSkklsssSkk.kutk...","......kskSSSSSSSkSSSSSSSkkutk...",".......kkSSSSSSSkSSSSSSSkkutk...",".........kkkkkkk.kkkkkkk..kk....","................................"],["..........................kk....","....................kkk..kllk...",".................kkkaaakkkllk...","...............kkhhhhhhaaallsk..","..............kaaaaaaaaaaallsk..","...........kkkkaaaaaaaaaalllsk..","..........kllllyyyyyAAAAAlllsk..","..........klsssssaaSSkkkkkuthhk.",".........klssssssssssSk..kutaak.",".........klssssssssssSk..kutaak.",".........klskekkkkkekSk..kutak..",".........klskkkkkkkkkSk..kutAAk.",".......kkklssssksssssSkkkkutkk..","..kkkkkssslssksksksksSsssjyyyk..",".klllllllllllssksssSSslllsyyyk..",".kssssssssssslllllllssssssutk...",".ksshhhhhhhssssllsssssssssutk...",".ksshaajyaAssssllsssssssssutk...",".ksshaayyaAssssllsssSsssSSSSk...",".ksshjyyyyyssSSSSSSSSSSsSllSk...",".ksshyyyyyyssssllsssSSSsSllSk...",".ksshaayyaAssssllsssSSSsSSSSk...",".kssaaayyaassssllsssSSSkkkutk...","..kssaayyassTTTyyTTTTTTk.kutk...","...kssayyssTTTTyyTTTTTTk.kutk...","...kssayyssaaAAAAAAAAAk..kutk...","....kssassSSSSSkkSSSSSk..kutk...",".....ksssklsssSkklsssSkk.kutk...",".....ksssSSSSSSSkSSSSSSSkkutk...","......kskSSSSSSSkSSSSSSSkkutk...",".......k.kkkkkkk.kkkkkkk.kutk...","..........................kk...."]],"priest":[["........................kk......",".......................kWWk.....",".............kkkk.....kWWjyk....","...........kkWWwwkk...kjjyyk....","..........kWWwwwwwgk..kyyYyk....",".........kWwwwwwwwwgk..kYYk.....",".........kwwffffffwgk..kutk.....",".........kwwfkffkfwgk..kutk.....",".........kwwffffffwgk..kutk.....",".........kwwfFFFFfwgk..kutk.....",".........khhaaaaaaAAk..kutk.....","........khhaaaayyaaAAk.kutk.....",".......khhaaaaayyaaaAAkkutk.....","......kkhhaaaaaaaaaaAAkkutk.....",".....kWWwgWwwwwwwwwggWwggtk.....",".....kWWwgWwwwwwwwwggwwggtk.....",".....kWWwgWwwwwwwwwggwwggtk.....","...kkkaaaaWwwwwwwwwggaaaatk.....","..krrrrrAWWwwwwwwwwggkkffffk....","..krryrrAyyyyyyyyyyyyYkFFFFk....","..kryyyrAffwwgwwywwwggkkutk.....","..krryrrAWwwwgwwywwwggkkutk.....","..krrrrrAWwwwgwwYYwwggkkutk.....","..kAAAAAAWwwwgwwwwgwggkkutk.....","...kkkkWWwwwwgwwwwgwwggkutk.....","......kWWwwwwgwwwwgwwggkutk.....","......kWWwwwwgwwwwgwwggkutk.....","......kahaahaahaahaahaakutk.....","......kAAAAAAAAAAAAAAAAkutk.....",".......kktttttkktttttkkkutk.....","........kTTTTTkkTTTTTk.kutk.....",".........kkkkk..kkkkk...kk......"],["................................","........................kk......",".......................kWWk.....",".............kkkk.....kWWjyk....","...........kkWWwwkk...kjjyyk....","..........kWWwwwwwgk..kyyYyk....",".........kWwwwwwwwwgk..kYYk.....",".........kwwffffffwgk..kutk.....",".........kwwfkffkfwgk..kutk.....",".........kwwffffffwgk..kutk.....",".........kwwfFFFFfwgk..kutk.....",".........khhaaaaaaAAk..kutk.....","........khhaaaayyaaAAk.kutk.....",".......khhaaaaayyaaaAAkkutk.....","......kkhhaaaaaaaaaaAAkkutk.....",".....kWWwgWwwwwwwwwggWwggtk.....",".....kWWwgWwwwwwwwwggwwggtk.....",".....kWWwgWwwwwwwwwggwwggtk.....","...kkkaaaaWwwwwwwwwggaaaatk.....","..krrrrrAWWwwwwwwwwggkkffffk....","..krryrrAyyyyyyyyyyyyYkFFFFk....","..kryyyrAffwwgwwywwwggkkutk.....","..krryrrAWwwwgwwywwwggkkutk.....","..krrrrrAWwwwgwwYYwwggkkutk.....","..kAAAAAAWwwwgwwwwgwggkkutk.....","...kkkkWWwwwwgwwwwgwwggkutk.....","......kWWwwwwgwwwwgwwggkutk.....","......kWWwwwwgwwwwgwwggkutk.....","......kAAAAAAAAAAAAAAAAkutk.....",".......kktttttkktttttkkkutk.....","........kTTTTTkkTTTTTk.kutk.....",".........kkkkk..kkkkk...kk......"]],"goblin":[["................................","................................","................................","...............kk...............","..............kRrk..............",".............kRRRk..............",".k..........kRRRRRkk..........k.","kQkk.....kkkqrrrrrrqk.......kkQk","kQQQkk..kqqqqqqqqqqqqk....kkQQQk",".kQqQQkk.kqqqqqqqqqqqqk.kkQQOQk.",".kQqqQQQkqqqOOOOOqOOOOOkQQOOQQk.",".kQQFqqQQqqqOeeeqqqeeeOQQOOOQQk.","..kQQQQQQqqqeekkqQQekkeQQQQQQk..","..kQQQQQQqqqqqqqqQQqqqqQQQQQQk..","...kkkQQQqqqqqqqqQOqqqqQQQkkk...","......kkkQqqqqqqqqqqqqQQWsk.....",".........kqqkWkWkkWkWkQkWsk.....","..........kqkkWkkkkWkkkkWsk.....","........kkuuqqQQQQQQuukkWsk.....",".......kqQQttttttttTTQQQWsk.....",".......kqQQttttttttTTQQQWskk....",".......kqQQttttttttTTQoqqqqok...",".......kqQQTTTTyyTTTTTkqOOqk....","........kktttttttttTTTkqqqqk....",".........ktttttttttTTTkkttk.....",".........kttQQQttQQTTk..kk......",".........kkQQQQkkQQQQkkk........","........ktTTTTTTktTTTTTTk.......","........kTTTTTTTkTTTTTTTk.......","........kTTTTTTTkTTTTTTTk.......",".........kkkkkkk.kkkkkkk........","................................"],["................................","................................","................................","................................","...............kk...............","..............kRrk..............",".............kRRRk..............",".k..........kRRRRRkk..........k.","kQkk.....kkkqrrrrrrqk.......kkQk","kQQQkk..kqqqqqqqqqqqqk....kkQQQk",".kQqQQkk.kqqqqqqqqqqqqk.kkQQOQk.",".kQqqQQQkqqqOOOOOqOOOOOkQQOOQQk.",".kQQFqqQQqqqOeeeqqqeeeOQQOOOQQk.","..kQQQQQQqqqeekkqQQekkeQQQQQQk..","..kQQQQQQqqqqqqqqQQqqqqQQQQQQk..","...kkkQQQqqqqqqqqQOqqqqQQQkkk...","......kkkQqqqqqqqqqqqqQQWsk.....",".........kqqkWkWkkWkWkQkWsk.....","..........kqkkWkkkkWkkkkWsk.....","........kkuuqqQQQQQQuukkWsk.....",".......kqQQttttttttTTQQQWsk.....",".......kqQQttttttttTTQQQWskk....",".......kqQQttttttttTTQoqqqqok...",".......kqQQTTTTyyTTTTTkqOOqk....","........kktttttttttTTTkqqqqk....",".........ktttttttttTTTkkttk.....",".........kttQQQttQQTTkkkkk......","........ktTTTTTTktTTTTTTk.......","........kTTTTTTTkTTTTTTTk.......","........kTTTTTTTkTTTTTTTk.......",".........kkkkkkk.kkkkkkk........","................................"]],"orc":[["...........................kkksW","..............kkkkk......kkssslk",".............krrrrrk....ksllsslk",".............kRRRRRk...klltSsllk","...........kkkRRRRRkkk.klltSsllk","..........kxxxxxrxxxxxkklltSsllk","..........krxxxxrxxxxrkksstSsllk","......k..kxrxxxxxxxxxrxksstSsllk",".....klk.kxxZZZZxZZZZzzksltSsllk","....kklk.kxxxerZZxrezzzkSltSsllk","...ksssskkxxxWxxxxxwzzzssssSsllk","..ksssSsskxxxWwzzzWWzzzssSsssllk","..klllssskxzkWWrrrWWkzzlllsssslk","..kssssssxxzkWWkkkWWkzsssssskklk","..kssssssTtxxxxxxxxxxxssssssk.k.","...ksssszTTtzzZzzZzzZZZssssZk...","...kxzzzzzTTtzZzzZzzZZZzzzZZk...","...kxzzzzzzTTttzzZzzZZZzzzzzzk..","...kxzzzzzzzTTTtzzzzZZZzzzZZZk..","...kxzzzzzzzZZTTtZZZZZZzzzZZZk..","...kZZZZZzzzzzzTTtzzZZZTTTZZZk..","..kttttttzzzzzzzTTtzZZZTTTTTTk..","..kTTTTTTTTTTTyjjyTTTTTTTTTTTk..","..kTTTTTTTTTTTyyyyTTTTTTkkutk...","...kkkkkkzRRRRRRRRRRTTtk.kutk...","........kzRRRRRRRRRRRTTk.kutk...","........kzZZZZZkkzZZZZZkkkutk...",".......kttttttttkttttttttkutk...",".......kTTTTTTTTkTTTTTTTTkutk...",".......kTTTTTTTTkTTTTTTTTkutk...","........kkkkkkkk.kkkkkkkk.kk....","................................"],["..............................kk","...........................kkksW","..............kkkkk......kkssslk",".............krrrrrk....ksllsslk",".............kRRRRRk...klltSsllk","...........kkkRRRRRkkk.klltSsllk","..........kxxxxxrxxxxxkklltSsllk","..........krxxxxrxxxxrkksstSsllk","......k..kxrxxxxxxxxxrxksstSsllk",".....klk.kxxZZZZxZZZZzzksltSsllk","....kklk.kxxxerZZxrezzzkSltSsllk","...ksssskkxxxWxxxxxwzzzssssSsllk","..ksssSsskxxxWwzzzWWzzzssSsssllk","..klllssskxzkWWrrrWWkzzlllsssslk","..kssssssxxzkWWkkkWWkzsssssskklk","..kssssssTtxxxxxxxxxxxssssssk.k.","...ksssszTTtzzZzzZzzZZZssssZk...","...kxzzzzzTTtzZzzZzzZZZzzzZZk...","...kxzzzzzzTTttzzZzzZZZzzzzzzk..","...kxzzzzzzzTTTtzzzzZZZzzzZZZk..","...kxzzzzzzzZZTTtZZZZZZzzzZZZk..","...kZZZZZzzzzzzTTtzzZZZTTTZZZk..","..kttttttzzzzzzzTTtzZZZTTTTTTk..","..kTTTTTTTTTTTyjjyTTTTTTTTTTTk..","..kTTTTTTTTTTTyyyyTTTTTTkkutk...","...kkkkkkzRRRRRRRRRRTTtk.kutk...","........kzRRRRRRRRRRRTTkkkutk...",".......kttttttttkttttttttkutk...",".......kTTTTTTTTkTTTTTTTTkutk...",".......kTTTTTTTTkTTTTTTTTkutk...","........kkkkkkkk.kkkkkkkk.kk....","................................"]],"shaman":[[".............kk........kkkk.....","............keek......kWWWWk....","............keek.....kWWWWWWk...","..........kkkookkk...kWppWpWk...",".........kookrrkeek..kWWWWWWk...","........krorkrrkrork..kWkkWk....","........kWWWWWWWWWWk...kWWk.....",".........kxxxxzzzzk....kutk.....","........kxxxxzzzzzzk...kutk.....","........kxZZZZZZZZzk...kutk.....","..kkk...kzekezzeekzk...kutk.....",".kpppk..kzzzzzzzzzzk...kutk.....","kWWppBk.kxWzzzzzzWzk...kutk.....","kWppBBkkkkzZzzzzZzkkkk.kutk.....","kpppBBtutzzzzzzzzzzutukkutk.....",".kBBBtuuuttttttttttttttkutk.....","..kkzzzzTTTTTTTTTTTTTTTkutk.....","...kzzzzpTpTpTpTpTpTBzzzztk.....","...kzzzzzzppppppppppBzzzzzzk....","....kkzzzzppppppppppBzzzztk.....",".....kzzzzppppppppppBBkkutk.....",".....kzzzzyyyyyyyyyyyyYkutk.....","......kpppppppWWpppppBBkutk.....","......kpppppppggpppppBBkutk.....","......kppppppppppppppBBkutk.....",".....kppppppppppppppppBButk.....",".....kppppppppppppppppBButk.....",".....kppppppppppppppppBButk.....","....kBpBBpBBpBBpBBpBBpBBBtk.....",".....kkkktttttkktttttkkkutk.....","........kTTTTTkkTTTTTk.kutk.....",".........kkkkk..kkkkk...kk......"],["................................",".............kk........kkkk.....","............keek......kWWWWk....","............keek.....kWWWWWWk...","..........kkkookkk...kWppWpWk...",".........kookrrkeek..kWWWWWWk...","........krorkrrkrork..kWkkWk....","........kWWWWWWWWWWk...kWWk.....",".........kxxxxzzzzk....kutk.....","........kxxxxzzzzzzk...kutk.....","........kxZZZZZZZZzk...kutk.....","..kkk...kzekezzeekzk...kutk.....",".kpppk..kzzzzzzzzzzk...kutk.....","kWWppBk.kxWzzzzzzWzk...kutk.....","kWppBBkkkkzZzzzzZzkkkk.kutk.....","kpppBBtutzzzzzzzzzzutukkutk.....",".kBBBtuuuttttttttttttttkutk.....","..kkzzzzTTTTTTTTTTTTTTTkutk.....","...kzzzzpTpTpTpTpTpTBzzzztk.....","...kzzzzzzppppppppppBzzzzzzk....","....kkzzzzppppppppppBzzzztk.....",".....kzzzzppppppppppBBkkutk.....",".....kzzzzyyyyyyyyyyyyYkutk.....","......kpppppppWWpppppBBkutk.....","......kpppppppggpppppBBkutk.....","......kppppppppppppppBBkutk.....",".....kppppppppppppppppBButk.....",".....kppppppppppppppppBButk.....","....kBpBBpBBpBBpBBpBBpBBBtk.....",".....kkkktttttkktttttkkkutk.....","........kTTTTTkkTTTTTk.kutk.....",".........kkkkk..kkkkk...kk......"]],"wolf":[["................................","................................","................................","................................","......................k...k.....",".....................kdk.kdk....",".....................kddkddk....",".....................kdgddgdk...","....................kkdggggdk...","...................kddggdddggkk.","........k.k.k.k.k.kkddgggegggggk","...kkkkkdkdkdkdkdkdkdggggggggwk.","..kggggkddddddddddddggggggggggk.","..kgggddddddddddddddgwwwgrWrWrk.",".kggdgdddddddggggggggggwggwwddk.",".kgggggggggggggggggwggggggkkkk..",".kgdgggggggggggggggwwwwwkk......",".kggggggdggggggggggwwwwwk.......",".kdggkgggdggggggggwwwwwwk.......",".kgdgkgggggddgggggwwwwwwk.......",".kgggkkkgggdddddddgggwwwk.......",".kwwwk.kgggkddkkkkgggddk........","..kwwk.kgggkddk..kgggddk........","...kk..kgggkddk..kgggddk........",".......kgdgkddk..kgdgddk........",".......kgggkddk..kgggddk........",".......kgggkddk..kgggddk........",".......kgggkddk..kgggddkk.......","......kgggggdddkkgggggdddk......","......kWgWgWdddkkWgWgWdddk......",".......kkkkkkkk..kkkkkkkk.......","................................"],["................................","................................","................................","................................","................................","......................k...k.....",".....................kdk.kdk....",".....................kddkddk....",".....................kdgddgdk...","....................kkdggggdk...","...................kddggdddggkk.","........k.k.k.k.k.kkddgggegggggk","...kkkkkdkdkdkdkdkdkdggggggggwk.","..kggggkddddddddddddggggggggggk.","..kgggddddddddddddddgwwwgrWrWrk.",".kggdgdddddddggggggggggwggwwddk.",".kgggggggggggggggggwggggggkkkk..",".kgdgggggggggggggggwwwwwkk......",".kggggggdggggggggggwwwwwk.......",".kdggkgggdggggggggwwwwwwk.......",".kgggkkkgggdddddddgggwwwk.......",".kwwwk.kgggkddkkkkgggddk........","..kwwk.kgggkddk..kgggddk........","...kk..kgggkddk..kgggddk........",".......kgdgkddk..kgdgddk........",".......kgggkddk..kgggddk........",".......kgggkddk..kgggddk........",".......kgggkddk..kgggddkk.......","......kgggggdddkkgggggdddk......","......kWgWgWdddkkWgWgWdddk......",".......kkkkkkkk..kkkkkkkk.......","................................"]]};
+const HERO={"warlord":[["................................","................................","......k..................k......",".....kWk....kkkkkkkk....kWk.....","....kWwk...kllljyssskk..kwWk....","....kwk...kllllyyssssSk..kwk....","....kWk..klllssyysssSSSk.kWk....","....kwWkkllssssyysssSSSkkWwk....",".....kwWklsysssyysssySSkWwk.....","......kwWssssssyysssSSSWwk......",".......kwssssssyysssSSSwk.......",".......kgSSSSSSyySSSSSSgk.......","........kkkffffSSffFFkkk........","...........kkkkllkkkk...........","..........kfkekllkekFk..........","..........kffffllffFFk..........","..........kfFffllffFFk..........","..........kAAaaaaaaAAk..........",".....k....kaaaffffaaak....k.....","....klk...kaahaAaAaaak...kSk....","...klWlk...kaaaaaaaak...kSgSk...","...klllkkkkkahaaAAaakkkkkSSSk...","..kllllsssskkaaaaaakkssssSSSSk..",".klllllsssskkhaAaAk.kssssSSSSSk.","kllllllsSSSkkkaaaakkkSSSsSSSSSSk","ksssysssSSSyyyyyyyyyySSSsssjsssk","ksssssssSSShhayyyyaAASSSsssssssk","kllllllllllhhayjjyaAASSSSSSSSSSk","ssssssssSSShhayjjyaAASSSssssssss","ssssysssSSShhayyyyaAASSSsssyssss","ssssssssSSSAAAAAAAAAASSSssssssss","kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk"],["................................","................................","................................","......k..................k......",".....kWk....kkkkkkkk....kWk.....","....kWwk...kllljyssskk..kwWk....","....kwk...kllllyyssssSk..kwk....","....kWk..klllssyysssSSSk.kWk....","....kwWkkllssssyysssSSSkkWwk....",".....kwWklsysssyysssySSkWwk.....","......kwWssssssyysssSSSWwk......",".......kwssssssyysssSSSwk.......",".......kgSSSSSSyySSSSSSgk.......","........kkkffffSSffFFkkk........","...........kkkkllkkkk...........","..........kfkekllkekFk..........","..........kffffllffFFk..........","..........kfFffllffFFk..........","..........kAAaaaaaaAAk..........",".....k....kaaaffffaaak....k.....","....klk...kaahaAaAaaak...kSk....","...klWlk...kaaaaaaaak...kSgSk...","...klllkkkkkahaaAAaakkkkkSSSk...","..kllllsssskkaaaaaakkssssSSSSk..","kllllllsSSSkkkaaaakkkSSSsSSSSSSk","ksssysssSSSyyyyyyyyyySSSsssjsssk","ksssssssSSShhayyyyaAASSSsssssssk","kllllllllllhhayjjyaAASSSSSSSSSSk","ssssssssSSShhayjjyaAASSSssssssss","ssssysssSSShhayyyyaAASSSsssyssss","ssssssssSSSAAAAAAAAAASSSssssssss","kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk"]],"mage":[["...................kkk..........","..................kbbBk.........",".................kbbBBk.........","...............kkbbbBBk.........","..............kiibbBkk..........",".............kiibbbBk...........","............kiijbbbBk...........","...........kiijWjbbBkk..........","..........kiibbjbbbBBBk.........",".........kiibbbbbbbBBBk.........","........kjjjjjjjjjjjjjjk........",".....kkkkyyyyyyyyyyyyyykkkk.....","....kbbbbbbbbbbbbbbbbbbbbbbk....","....kBBBBBBBBBBBBBBBBBBBBBBk....",".....kkkkkBBBBBBBBBBBBkkkkkkk...","..........kfwwwffwwwFk...kIIIk..","..........kfWiWFFWiWFk..kIpppBk.","..........kffffFFffFFk.kIpppppBk",".........kWWWffffffWWwkkppppppBk",".........kWWWwwwwwwWWwkkpppppBBk",".........kWWWWWWWWWWWwk.kppBBBk.","...kkkkkkkkWgWWWWWWwwkkkkkBBBk..","..kiiiiiiikkWWWWWWwwkkBBBBBBBk..",".kiiiiiiiiikkgWWWwwkkBBBBBBBBBk.","kiiiiiiiiiiiiiiiiiiiiiiiBBBBBBBk","kbbbbbbbbbbbbBBBBBBbbbbbBBBBBBBk","kiiiibbbbbbbbBByyBBbbbbbBBBBBBBk","kiiiibbyyybbbBByyBBbbbyyyBBBBBBk","kiiiipbbbbbbbBByyBBbbbbbBBBpBBBk","kiiiibbbbbbpbBByyBBbpbbbBBBBBBBk","kBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBk",".kkkkkkkkkkkkkkkkkkkkkkkkkkkkkk."],["................................","...................kkk..........","..................kbbBk.........",".................kbbBBk.........","...............kkbbbBBk.........","..............kiibbBkk..........",".............kiibbbBk...........","............kiijbbbBk...........","...........kiijWjbbBkk..........","..........kiibbjbbbBBBk.........",".........kiibbbbbbbBBBk.........","........kjjjjjjjjjjjjjjk........",".....kkkkyyyyyyyyyyyyyykkkk.....","....kbbbbbbbbbbbbbbbbbbbbbbk....","....kBBBBBBBBBBBBBBBBBBBBBBk....",".....kkkkkBBBBBBBBBBBBkkkkkkk...","..........kfwwwffwwwFk...kIIIk..","..........kfWiWFFWiWFk..kIpppBk.","..........kffffFFffFFk.kIpppppBk",".........kWWWffffffWWwkkppppppBk",".........kWWWwwwwwwWWwkkpppppBBk",".........kWWWWWWWWWWWwk.kppBBBk.","...kkkkkkkkWgWWWWWWwwkkkkkBBBk..","..kiiiiiiikkWWWWWWwwkkBBBBBBBk..","kiiiiiiiiiiiiiiiiiiiiiiiBBBBBBBk","kbbbbbbbbbbbbBBBBBBbbbbbBBBBBBBk","kiiiibbbbbbbbBByyBBbbbbbBBBBBBBk","kiiiibbyyybbbBByyBBbbbyyyBBBBBBk","kiiiipbbbbbbbBByyBBbbbbbBBBpBBBk","kiiiibbbbbbpbBByyBBbpbbbBBBBBBBk","kBBBBBBBBBBBBBBBBBBBBBBBBBBBBBBk",".kkkkkkkkkkkkkkkkkkkkkkkkkkkkkk."]],"rogue":[["................................","...............kk...............",".............kknnkk.............","...........kkxxxnnnkk...........","....k.....kxxxxnnnnnnk.....k....","...kWk...kxxxnnnnnnnnnk...kWk...","...kWlk.kxxnnnnnnnnnnnNk.klWk...","...kllkkzznnnnnnnnnnnnNnkkllk...","...kllkkzznNNNNNNNNNNnNNkkllk...","...kllkkzznNNNNNNNNNNNNNkkllk...","...kllkkzznNkkkkkkkkNNNNkkllk...","...kllkkzznNfWkFFkWFNNNNkkllk...","...klskknnnNffFFFFFFNNNNkkslk...","...klskknnnhhhhhhhhAANNNkkslk...","..kklskknnnaaaAaaaaAANNNkkslkk..",".kyyyyyynnnaaaaaaAaAANNNyyyyyyk.","..kkutkkknnAAAAAAAAAANNkkktukk..","...kutkkkNnnnnnnnnnnnnNkkktuk...","...kutkxxNNNNNNNNNNNNNNnnktukkk.","...kuxxxxxnnnnnnnnnnnnnnnNNNNNNk","..kxxxttunnnnnnnnnnnnnnnnNNNNNNk",".knnnnnnttunnnnnnnnnnnnnnNNNNNNk","kzzznnnnnnttunnnnnnnnnnnnNNNNNNk","kzzznnnnnnnnttunnnnnnnnnnNNNNNNk","kzzznnnnnnnnnntyyynnnnnnnNNNNNNk","kzzznnnnnnnnnnnyyyunnnnnnNNNNNNk","kzzznnnnnnnnnnnnnnttunnnnNNNNNNk","kzzznnnnnnnnnnnnnnnnttNnnNNNNNNk","kzzznnnnnnnnnnnnnnnnnnttuNNNNNNk","kzzznnnnnnnnnnnnnnnnnnnnttuNNNNk","kzzznnnnnnnnNnnnnnnnnnnnnNttuNNk",".kkkkkkkkkkkkkkkkkkkkkkkkkkkttuk"],["................................","................................","...............kk...............",".............kknnkk.............","...........kkxxxnnnkk...........","....k.....kxxxxnnnnnnk.....k....","...kWk...kxxxnnnnnnnnnk...kWk...","...kWlk.kxxnnnnnnnnnnnNk.klWk...","...kllkkzznnnnnnnnnnnnNnkkllk...","...kllkkzznNNNNNNNNNNnNNkkllk...","...kllkkzznNNNNNNNNNNNNNkkllk...","...kllkkzznNkkkkkkkkNNNNkkllk...","...kllkkzznNfWkFFkWFNNNNkkllk...","...klskknnnNffFFFFFFNNNNkkslk...","...klskknnnhhhhhhhhAANNNkkslk...","..kklskknnnaaaAaaaaAANNNkkslkk..",".kyyyyyynnnaaaaaaAaAANNNyyyyyyk.","..kkutkkknnAAAAAAAAAANNkkktukk..","...kutkkkNnnnnnnnnnnnnNkkktuk...","...kutkxxNNNNNNNNNNNNNNnnktukkk.","...kuxxxxxnnnnnnnnnnnnnnnNNNNNNk","..kxxxttunnnnnnnnnnnnnnnnNNNNNNk",".knnnnnnttunnnnnnnnnnnnnnNNNNNNk","kzzznnnnnnttunnnnnnnnnnnnNNNNNNk","kzzznnnnnnnnnntyyynnnnnnnNNNNNNk","kzzznnnnnnnnnnnyyyunnnnnnNNNNNNk","kzzznnnnnnnnnnnnnnttunnnnNNNNNNk","kzzznnnnnnnnnnnnnnnnttNnnNNNNNNk","kzzznnnnnnnnnnnnnnnnnnttuNNNNNNk","kzzznnnnnnnnnnnnnnnnnnnnttuNNNNk","kzzznnnnnnnnNnnnnnnnnnnnnNttuNNk",".kkkkkkkkkkkkkkkkkkkkkkkkkkkttuk"]]};
+const ICO={"sword":["..............k.",".............kwk","............kwww","...........kwwsk","..........kwwsk.",".........kwwsk..","...kk...kwwsk...","..kyyk.kwwsk....","..kyyykwwsk.....","...kyyywsk......","....kyyyk.......","....kttyyk......","...ktttyyyk.....",".kktttkkyyk.....","kytttk..kk......","kyytk..........."],"shield":["................","..kkkkkkkkkkkk..",".kssssssssssssk.",".kbwwwwyybbbbbk.",".kbwBBByybbbbbk.",".kbwBBByybbbbbk.",".kbyyyyYYyyyybk.",".kbyyyyYYyyyybk.",".kbbbbbyybbbbbk.","..kbbbbyybbbbk..","...kbbbyybbbk...","....kbbyybbk....",".....kbyybk.....","......kbbk......",".......kk.......","................"],"gold":["................","......kkkk......","....kkYyYYkk....","...kyyyyyyyYk...","..kywwwyyyyyYk..","..kywwwYYyyyYk..",".kYwyyYYYYyyYYk.",".kyyyyyYYyyyyYk.",".kYyyyyYYyyyYYk.",".kYyyyYYYYyyYYk.","..kyyyyYYyyyYk..","..kYyyyyyyyYYk..","...kYYYyYYYYk...","....kkYYYYkk....","......kkkk......","................"],"food":["................","................","....kkkkkk......","...kttttttk.....","..kwwwwoottk....",".kwooooooottk...","ktooooooootttk..","ktooToooootttk..","ktooooooootttkk.","kttoooTooTTTtwwk",".ktttttttTTwwwwk","..kttttttttwwwwk","...kttttttkwwwwk","....kkkkkk.kgggk","............kkk.","................"],"hourglass":["...kkkkkkkkkk...","..kwwwwwwwwwwk..","..kyyyyyyyyyyk..","...kwwwwwwwwk...","....kggggggk....",".....kyyyyk.....",".....kwyywk.....","......kyyk......","......kwwk......",".....kwwwwk.....",".....kwyywk.....","....kwyyyywk....","...kwYYYYYYwk...","..kyyyyyyyyyyk..","..kYYYYYYYYYYk..","...kkkkkkkkkk..."],"heart":["................","...kkkk..kkkk...","..krrrrkkrrrrk..",".krowwrrrrrrrrk.",".krwoorrrrrrrrk.","krrorrrrrrRRRRrk","krrrrrrrrrRRRRk.",".krrrrrrrrrRRrk.","..krrrrrrRRRrk..","...krrrrrRRRk...","....krrrrRRk....",".....krrRRk.....",".....krrRrk.....","......krRk......",".......kk.......","................"],"mana":[".......k........","......kik.......",".....kiibk......","....kiiwbbk.....","...kiiwibbbk....","..kiiiiibbbbk...","..kbwwwwwwwwBk..","...kbbbbBBBBk...","...kbbbbBBBBk...","....kbbbBBBk....","....kbbbBBk.....",".....kbbBBk.....","......kbBk......","......kbBk......",".......kBk......","........k......."],"chain":["................","...kkkkkk.......",".kkwwwwsskk.....","kssssssssssk....","kwskkkkkkssk....","swsk....ksssk...","ksskkkkkSSwSk...","kssssssgSSggdk..",".kksssswSSkggk..","...kkkgwkk.kggk.",".....kgwk..kggk.",".....kggk..kggk.","......kggkkggk..","......kggggggk..",".......kggggk...","........kkkk...."],"freeze":["........k.......","......kkik......","...k.kikwik.k...","..kik.kkwk.kik..","...kik.kwkkik...","..k.kikkwkik.k..",".kik.kikwik.kik.",".kkkkkkwwkkkkkk.","kiwwwwwwwiiiiiik",".kikkkikiikkkik.","..k.kikkikik.k..","...kik.kikkik...","..kik.kkik.kik..","...k.kikiik.k...","......kkik......","........k......."],"poison":["................",".......kk.......","......knnk......","......knnk......",".....knnnnk.....","....knnnnnnk....","....knnnnnnk....","...knnnnnnnnk...","...knwnnnNNNk...","...knwwnnNNNk...","...knwwnnNNNk...","...kniinnNNNk...","....kiinnNNNk...",".....knnnnkk....","......kkkk......","................"],"bow":["....kk..........","...kwtkk........","...kwtttkk......","...kwtttttk.....","...kwkkttttk....","...kwk.kkttk....","...kwkk.kuttk.k.","...kwrrkkkttkkgk","...kwwwwwwwwwwww","...kwrrkkkttkkgk","...kwkk.ktttk.k.","...kwk..kttk....","...kwk.ktttk....","...kwkkkttk.....","...kwkttttk.....","...kwttttk......"],"staff":["..........k...k.",".........kwk.kwk","..k.....kwwpk.k.",".kwk...kwwwppk..","..k....kpppppk..","........kpppBk..",".........kykk...","........kyytk..k",".......kuyytk.kw","......kutttk...k",".....kutttk.....","....kutttk......","...kutttk.......","..kutttk........","..ktttk.........","..kttk.........."],"banner":[".kyyyk..........",".kyyykkkkkkkkk..","..ktooooooooook.","..ktorrrrrrrrrk.","..ktorrryyrrrrk.","..ktorryyyyrrrk.","..ktorrryyrrrrk.","..ktorrrrrrRRRk.","..ktorrrkkRRRRk.","..ktokkk..kkkRk.","..ktk........k..","..ktk...........","..ktk...........","..ktk...........",".kYYYk..........",".kYYYk.........."],"tower":["...kkk.kk.kkk...","..kssskssksssk..","..kssskssksssk..","..kggggggggggk..","..kggggggggggk..","...klllllllSk...","...klsssssSSk...","...klsskksSSk...","...klsskksSSk...","...klSskksSSk...","...klsssssSSk...","...klssTTsSSk...","...klsTTyTSSk...","...klsTTTTSSk...","...klsTTTTSSk...","....kkkkkkkk...."],"skull":["................",".....kkkkkk.....","...kkwwwwwwkk...","..kWWwwwwwwwwk..","..kwwwwwwwwwwk..",".kWwwwwwwwwggwk.",".kwwrkkwwrkkgwk.",".kwwkkkwwkkkgwk.",".kwwkkkwwkkkgwk.","..kwwwwggwwggk..","..kwgwwggwwggk..","...kgwwwwwwggk..","...kgwwwwwwggk..","...kgkwkwkwwk...","....kkkkkkkk....",".....k.k.k......"],"scroll":["...kk.......kk..","..kyykkkkkkkYYk.",".kyjjyWWWWWYYYYk",".kyyYywwwwwYYYYk","..kyywwwwwwgYYk.","...kwddddddggk..","...kwwwwwwwggk..","...kwdddddwggk..","...kwwwwwwwggk..","...kwddddddggk..","...kwwwwwwwggk..","..kyydddwwwgYYk.",".kyyyywwwwwYYYYk",".kyyYywwwwwYYYYk","..kyykkkkkkkYYk.","...kk.......kk.."]};
+
+/* ================= shared helpers ================= */
+const $ = (s, r = document) => r.querySelector(s);
+function h(tag, cls, html) { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; }
+function rng(seed) { let a = seed >>> 0; return () => { a = (a + 0x6D2B79F5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+const RM = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const CELL = 5, CW = 274, CH = 123;
+
+/* ---- pixel renderer (same grids and palette as the game) ---- */
+function mixHex(hex, toward, amount) { const ch = (c, i) => parseInt(c.slice(1 + i * 2, 3 + i * 2), 16); return '#' + [0, 1, 2].map((i) => Math.round(ch(hex, i) * (1 - amount) + ch(toward, i) * amount).toString(16).padStart(2, '0')).join(''); }
+const ENEMY_PAL = (() => { const o = {}; for (const k in PAL) o[k] = (k === 'k' || k === 'e') ? PAL[k] : mixHex(PAL[k], '#5a86b0', 0.22); return Object.assign(o, { a: '#4a6a8a', A: '#26384e', h: '#86a8c8' }); })();
+const cache = {};
+function canvasURL(frames, pal, rim) {
+  const w = frames[0][0].length, hh = frames[0].length;
+  const c = document.createElement('canvas'); c.width = w * frames.length; c.height = hh;
+  const x = c.getContext('2d');
+  frames.forEach((rows, f) => {
+    rows.forEach((r, y) => { for (let i = 0; i < r.length; i++) { const ch = r[i]; if (ch === '.') continue; x.fillStyle = pal[ch]; x.fillRect(f * w + i, y, 1, 1); } });
+    if (rim) {
+      x.fillStyle = rim; const op = (xx, yy) => (rows[yy] ? rows[yy].charAt(xx) : '.') !== '.' && (rows[yy] ? rows[yy].charAt(xx) : '') !== '';
+      for (let y = 0; y < hh; y++) for (let i = 0; i < w; i++) { if (op(i, y)) continue; if (op(i - 1, y) || op(i + 1, y) || op(i, y - 1) || op(i, y + 1)) x.fillRect(f * w + i, y, 1, 1); }
+    }
+  });
+  return c.toDataURL();
+}
+function iconEl(name, scale = 1) {
+  const key = 'i:' + name; cache[key] = cache[key] || canvasURL([ICO[name]], PAL);
+  const im = document.createElement('img'); im.className = 'px'; im.src = cache[key]; im.width = im.height = 16 * scale; im.alt = name; return im;
+}
+function spriteEl(name, scale, o = {}) {
+  const team = o.team || 'player'; const key = 's:' + name + ':' + team;
+  const frames = SPR[name] || HERO[name];
+  cache[key] = cache[key] || canvasURL(frames, team === 'enemy' ? ENEMY_PAL : PAL, team === 'enemy' ? '#557fa8' : null);
+  const d = document.createElement('div'); d.className = 'spr px' + (o.flip ? ' flip' : '');
+  const w = 32 * scale;
+  d.style.cssText = 'width:' + w + 'px;height:' + w + 'px;background-image:url(' + cache[key] + ');background-size:' + (w * 2) + 'px ' + w + 'px;--nx:-' + w + 'px;animation-delay:-' + (o.delay || 0) + 'ms';
+  return d;
+}
+/* stepped ellipse (shadow / ring) as a pixel-art PNG */
+function ellipseURL(wc, hc, mode, col1, col2) {
+  const key = ['e', wc, hc, mode, col1, col2].join('|'); if (cache[key]) return cache[key];
+  const c = document.createElement('canvas'); c.width = wc; c.height = hc; const x = c.getContext('2d');
+  const rx = wc / 2, ry = hc / 2;
+  for (let j = 0; j < hc; j++) for (let i = 0; i < wc; i++) {
+    const d = Math.pow((i + 0.5 - rx) / rx, 2) + Math.pow((j + 0.5 - ry) / ry, 2);
+    if (mode === 'fill') { if (d <= 1) { x.fillStyle = d <= 0.42 ? col2 : col1; x.fillRect(i, j, 1, 1); } }
+    else { const din = Math.pow((i + 0.5 - rx) / (rx - 1.4), 2) + Math.pow((j + 0.5 - ry) / (ry - 1.4), 2); if (d <= 1 && din > 1) { x.fillStyle = (j > ry ? col2 : col1); x.fillRect(i, j, 1, 1); } }
+  }
+  return (cache[key] = c.toDataURL());
+}
+/* ice block that stays on a frozen unit (32x32 grid, scaled with the sprite) */
+function iceURL() {
+  if (cache.ice) return cache.ice;
+  const c = document.createElement('canvas'); c.width = 32; c.height = 32; const x = c.getContext('2d'); const r = rng(77);
+  const inside = (i, j) => { if (i < 1 || i > 30 || j < 5 || j > 31) return false; const dx0 = i - 1, dx1 = 30 - i, dy0 = j - 5, dy1 = 31 - j; if (dx0 + dy0 < 3 || dx1 + dy0 < 4 || dx0 + dy1 < 2 || dx1 + dy1 < 2) return false; return true; };
+  const P = (i, j, col, w = 1, hh = 1) => { x.fillStyle = col; x.fillRect(i, j, w, hh); };
+  for (let j = 5; j <= 31; j++) for (let i = 1; i <= 30; i++) {
+    if (!inside(i, j)) continue;
+    const t = (j - 5) / 26; P(i, j, t < 0.3 ? 'rgba(170,220,238,.20)' : t < 0.7 ? 'rgba(130,195,222,.22)' : 'rgba(100,170,205,.30)');
+    const edge = !inside(i - 1, j) || !inside(i + 1, j) || !inside(i, j - 1) || !inside(i, j + 1);
+    if (edge) P(i, j, 'rgba(24,52,80,.95)');
+    else {
+      if (!inside(i - 1, j) || !inside(i, j - 1)) P(i, j, 'rgba(236,250,255,.9)');
+      else if (!inside(i - 2, j) || !inside(i, j - 2)) P(i, j, 'rgba(210,238,248,.55)');
+      if (!inside(i + 1, j) || !inside(i, j + 1)) P(i, j, 'rgba(70,130,170,.75)');
+    }
+  }
+  for (let k = 0; k < 12; k++) P(5 + k, 26 - k * 1.4 | 0, 'rgba(255,255,255,.42)');
+  for (let k = 0; k < 9; k++) P(10 + k, 28 - k * 1.5 | 0, 'rgba(255,255,255,.28)');
+  for (let k = 0; k < 6; k++) P(20 + k, 26 - k * 1.5 | 0, 'rgba(255,255,255,.3)');
+  for (let k = 0; k < 26; k++) { const i = 2 + (r() * 27 | 0), j = 6 + (r() * 24 | 0); if (inside(i, j)) P(i, j, 'rgba(255,255,255,.55)'); }
+  for (const [i, j] of [[24, 10], [7, 18], [17, 24]]) { P(i, j - 1, '#ffffff'); P(i, j + 1, '#ffffff'); P(i - 1, j, '#ffffff'); P(i + 1, j, '#ffffff'); P(i, j, '#e6f6ff'); }
+  const spike = (cx, base, hgt, w) => { for (let k = 0; k < hgt; k++) { const ww = Math.max(1, Math.round(w * (1 - k / hgt))); P(cx - (ww >> 1), base - k - 1, 'rgba(190,230,244,.92)', ww, 1); P(cx - (ww >> 1) - 1, base - k - 1, '#21405a'); P(cx - (ww >> 1) + ww, base - k - 1, '#21405a'); } P(cx, base - hgt - 1, '#21405a'); };
+  spike(6, 7, 3, 3); spike(14, 6, 4, 4); spike(23, 7, 3, 3);
+  for (let i = 0; i < 32; i += 2) { P(i, 31, 'rgba(240,250,255,.95)'); P(i + 1, 30, 'rgba(210,235,245,.9)'); }
+  for (const [i, j] of [[0, 27], [0, 28], [1, 29], [31, 26], [31, 27], [30, 29]]) P(i, j, 'rgba(200,232,244,.9)');
+  return (cache.ice = c.toDataURL());
+}
+function torchURL() {
+  const pal = Object.assign({}, PAL, { S: '#33393e', r: '#9c2f26' });
+  const A = ['...a....', '..aha...', '..ahya..', '.ahyyha.', '.ahyjyha', '.ahjWjha', '.aahjhaa', '..aayaa.', '.kSSSSk.', '..kSSk..', '..kttk..', '..kttk..', '..kTtk..', '..kTTk..', '..kTTk..', '...kk...'];
+  const B = ['........', '...a.a..', '..aha...', '.ahyhha.', '.ahyyyha', '.ahjWjyh', '.aahjhaa', '..aayaa.', '.kSSSSk.', '..kSSk..', '..kttk..', '..kttk..', '..kTtk..', '..kTTk..', '..kTTk..', '...kk...'];
+  return cache.torch = cache.torch || canvasURL([A, B], pal);
+}
+function torchEl(x, y, scale) {
+  const el = h('div', 'torch'); const w = 8 * scale, hh = 16 * scale;
+  el.style.cssText = 'left:' + x + 'px;top:' + y + 'px;width:' + w + 'px;height:' + hh + 'px;background-image:url(' + torchURL() + ');background-size:' + (w * 2) + 'px ' + hh + 'px;--nx:-' + w + 'px';
+  return el;
+}
+function glowEl(cx, cy, r) {
+  const el = h('div', 'torchglow'); el.style.cssText = 'left:' + (cx - r) + 'px;top:' + (cy - r) + 'px;width:' + (2 * r) + 'px;height:' + (2 * r) + 'px;background:radial-gradient(circle,rgba(255,170,70,.20) 0 30%,rgba(255,150,60,.11) 30% 58%,rgba(255,140,50,.05) 58% 100%)';
+  return el;
+}
+function chipEl(c) { const e = h('span', 'chip ' + (c.cls || '')); e.appendChild(iconEl(c.icon, 1)); if (c.text) e.appendChild(document.createTextNode(c.text)); e.dataset.chip = c.icon; return e; }
+function cardEl(kind, o) {
+  const wrap = h('div', 'shadowed'); wrap.style.cssText = 'display:inline-block';
+  const c = h('div', 'card card--' + kind + (o.cls ? ' ' + o.cls : ''));
+  c.innerHTML = '<div class="card__frame"></div><div class="card__trim"></div><div class="card__title">' + o.name + '</div>';
+  const art = h('div', 'card__art'); art.appendChild(iconEl(o.icon, 3)); c.appendChild(art);
+  const type = h('div', 'card__type'); type.appendChild(iconEl(o.icon, 1)); art.appendChild(type);
+  c.appendChild(h('div', 'card__text mat-parch', o.text));
+  c.appendChild(h('div', 'card__gem gem', '<span>' + o.cost + '</span>'));
+  if (o.rar) { const r = h('div', 'card__rar'); r.style.background = o.rar; r.style.clipPath = 'polygon(50% 0,100% 50%,50% 100%,0 50%)'; c.appendChild(r); }
+  wrap.appendChild(c); return wrap;
+}
+
+/* ================= roster (same in both mocks) ================= */
+const ROSTER = [
+  { id: 'sword', sprite: 'swordsman', name: 'Swordsman', team: 'player', col: 0, lane: 0, count: 12, chips: [], role: 'sword' },
+  { id: 'knight', sprite: 'knight', name: 'Knight', team: 'player', col: 0, lane: 1, count: 4, acted: true, chips: [{ icon: 'shield', text: '8' }], role: 'shield' },
+  { id: 'archer', sprite: 'archer', name: 'Archer', team: 'player', col: 1, lane: 0, count: 8, chips: [], role: 'bow' },
+  { id: 'priest', sprite: 'priest', name: 'Priest', team: 'player', col: 1, lane: 2, count: 3, chips: [], role: 'heart' },
+  { id: 'orc', sprite: 'orc', name: 'Orc', team: 'enemy', col: 0, lane: 0, count: 6, chips: [{ icon: 'poison', text: '3', cls: 'bad' }], role: 'sword' },
+  { id: 'goblin', sprite: 'goblin', name: 'Goblin', team: 'enemy', col: 0, lane: 1, count: 14, chips: [], role: 'sword' },
+  { id: 'wolf', sprite: 'wolf', name: 'Wolf', team: 'enemy', col: 0, lane: 2, count: 9, chips: [{ icon: 'chain', text: '', cls: 'bad' }], role: 'sword' },
+  { id: 'shaman', sprite: 'shaman', name: 'Shaman', team: 'enemy', col: 1, lane: 1, count: 5, chips: [], role: 'staff' },
+];
+const GRAVE = { team: 'player', col: 1, lane: 1 };
+const EMPTY = [{ team: 'player', col: 0, lane: 2 }, { team: 'enemy', col: 1, lane: 0 }, { team: 'enemy', col: 1, lane: 2 }];
+const UNITS = {}; // id -> def with .box {cx, top, feet}, .root, .mv, .scale
+const HEROES = {}; // p / e -> {box, el, mv}
+
+/* ================= chrome: top bar, tray, dev panel ================= */
+function buildChrome() {
+  const top = $('.topbar');
+  top.innerHTML = '';
+  const l = h('div', 'grp'); const pl = h('div', 'shadowed-1'); pl.innerHTML = '<div class="plaque plaque--iron step bevel-2">Lord Aldric</div>'; l.appendChild(pl);
+  const mp = h('div', 'shadowed-1'); const pill = h('div', 'pill step'); pill.appendChild(iconEl('mana', 1)); pill.appendChild(document.createTextNode('6/10')); mp.appendChild(pill); l.appendChild(mp);
+  top.appendChild(l);
+  const r = h('div', 'grp'); const gp = h('div', 'shadowed-1'); const gpill = h('div', 'pill step gold'); gpill.appendChild(iconEl('gold', 1)); gpill.appendChild(document.createTextNode('1,250')); gp.appendChild(gpill); r.appendChild(gp);
+  const tp = h('div', 'shadowed-1'); tp.innerHTML = '<div class="plaque plaque--iron step bevel-2">Turn 3 &middot; Your move</div>'; r.appendChild(tp);
+  top.appendChild(r);
+
+  const tray = $('#tray');
+  const pile = (label, ic, cls, tip) => { const p = h('div', 'pilebtn ' + cls); p.title = tip; const b = h('div', 'pb'); b.appendChild(iconEl(ic, 3)); p.appendChild(b); p.appendChild(h('div', 't-label', label)); return p; };
+  const left = h('div', 'left'); left.appendChild(pile('Deck', 'scroll', 'deck', 'Deck: 14 cards')); tray.appendChild(left);
+  const hand = h('div', 'hand');
+  const cards = [
+    ['attack', { name: 'Lightning', icon: 'mana', cost: 3, text: '<span>Call <b>4 bolts</b>. Deal 9 to every enemy.</span>' }, 'lightning', 'foe'],
+    ['defense', { name: 'Frost Rain', icon: 'freeze', cost: 2, text: '<span><b>Freeze</b> all enemies for 1 turn.</span>', rar: 'var(--rar-rare)' }, 'frost', 'foe'],
+    ['attack', { name: 'Fireball', icon: 'staff', cost: 3, text: '<span>Deal <b>12</b> to a target, <b>6</b> to its neighbours.</span>', rar: 'var(--rar-uncommon)' }, 'fireball', 'foe'],
+    ['buff', { name: 'Blessing', icon: 'heart', cost: 1, text: '<span>Heal <b>8</b> and gain <b>+2 strength</b>.</span>', cls: 'card--hover' }, 'buff', 'ally'],
+    ['attack', { name: 'Cleave', icon: 'sword', cost: 1, text: '<span><b>Deal 8</b> damage to the front enemy.</span>' }, 'slash', 'foe'],
+  ];
+  cards.forEach(([kind, o, spell, mark]) => {
+    const w = cardEl(kind, o); w.style.cssText += ';cursor:pointer'; w.dataset.spell = spell;
+    w.addEventListener('mouseenter', () => { $('#field').dataset.mark = mark; w.querySelector('.card').classList.add('card--hover'); });
+    w.addEventListener('mouseleave', () => { $('#field').dataset.mark = ''; if (o.cls !== 'card--hover') w.querySelector('.card').classList.remove('card--hover'); });
+    w.addEventListener('click', () => runSpell(spell));
+    hand.appendChild(w);
+  });
+  tray.appendChild(hand);
+  const right = h('div', 'right'); right.appendChild(pile('Discard', 'skull', 'disc', 'Discard: 3 cards'));
+  const et = h('div', 'endturn shadowed-1'); et.innerHTML = '<button class="btn btn--primary step">End turn</button>'; right.appendChild(et); tray.appendChild(right);
+
+  const dev = $('#dev');
+  dev.innerHTML = '<h6>Dev panel - spell showcase (not part of the design)</h6>';
+  const g = h('div', 'g');
+  [['Lightning', 'lightning'], ['Frost rain', 'frost'], ['Freeze state', 'freezeToggle'], ['Fireball', 'fireball'], ['Buff / heal', 'buff'], ['Melee slash', 'slash']].forEach(([t, s]) => { const b = h('button', '', t); b.onclick = () => runSpell(s); g.appendChild(b); });
+  const rs = h('button', 'wide', 'Reset field'); rs.onclick = () => resetField(); g.appendChild(rs);
+  dev.appendChild(g);
+}
+
+/* ================= unit state helpers ================= */
+function replay(el, cls, ms) { el.classList.remove(cls); void el.offsetWidth; el.classList.add(cls); setTimeout(() => el.classList.remove(cls), ms || 900); }
+function floatAt(x, y, txt, cls) { const f = h('div', 'floater ' + (cls || ''), txt); f.style.left = (x - 20) + 'px'; f.style.top = (y - 20) + 'px'; $('#field').appendChild(f); setTimeout(() => f.remove(), 1100); }
+function P(id) { const u = UNITS[id]; const b = u.box; return { x: b.cx, top: b.top, feet: b.feet, head: b.top + 3 * u.scale, mid: (b.top + 3 * u.scale + b.feet) / 2, s: u.scale }; }
+function hitUnit(id, txt, cls) { const u = UNITS[id]; if (!u) return; replay(u.mv, 'hit', 300); const p = P(id); if (txt) floatAt(p.x, p.head, txt, cls); }
+function addChip(id, c) { const u = UNITS[id]; if (!u.chipsEl || u.chipsEl.querySelector('[data-chip="' + c.icon + '"]')) return; u.chipsEl.appendChild(chipEl(c)); }
+function removeChip(id, icon) { const u = UNITS[id]; const e = u.chipsEl && u.chipsEl.querySelector('[data-chip="' + icon + '"]'); if (e) e.remove(); }
+function freezeUnit(id, animate) {
+  const u = UNITS[id]; if (!u || u.frozen) return; u.frozen = true; u.root.classList.add('frozen');
+  const ice = h('div', 'ice' + (animate && !RM ? ' grow' : '')); ice.style.backgroundImage = 'url(' + iceURL() + ')'; u.mv.appendChild(ice);
+  addChip(id, { icon: 'freeze', text: '1', cls: 'cold' });
+  if (window.onFreeze) window.onFreeze(id, true);
+}
+function thawUnit(id) {
+  const u = UNITS[id]; if (!u || !u.frozen) return; u.frozen = false; u.root.classList.remove('frozen');
+  const ice = u.mv.querySelector('.ice'); if (ice) ice.remove(); removeChip(id, 'freeze');
+  if (window.onFreeze) window.onFreeze(id, false);
+}
+function resetField() { if (cur) finish(); Object.keys(UNITS).forEach(thawUnit); $('#field').querySelectorAll('.floater').forEach((f) => f.remove()); }
+const foes = () => Object.values(UNITS).filter((u) => u.team === 'enemy');
+
+/* ================= fx canvas (5px cells, same grid as sprites) ================= */
+let fctx = null;
+function fxInit() { const cv = $('#fx'); cv.width = CW; cv.height = CH; fctx = cv.getContext('2d'); }
+function fxClear() { fctx.clearRect(0, 0, CW, CH); }
+function dot(x, y, c, w = 1, hh = 1) { fctx.fillStyle = c; fctx.fillRect(Math.floor(x), Math.floor(y), w, hh); }
+function disc(cx, cy, r, c) { fctx.fillStyle = c; for (let j = -r; j <= r; j++) { const hw = Math.floor(Math.sqrt(r * r - j * j + 0.6)); fctx.fillRect(Math.floor(cx) - hw, Math.floor(cy) + j, hw * 2 + 1, 1); } }
+function blob(cx, cy, r, c, seed) { fctx.fillStyle = c; const R = Math.ceil(r * 1.4); for (let j = -R; j <= R; j++) for (let i = -R; i <= R; i++) { const d = Math.sqrt(i * i + j * j), th = Math.atan2(j, i); const rr = r * (1 + 0.2 * Math.sin(3 * th + seed) + 0.13 * Math.sin(7 * th + seed * 2.3) + (j < 0 ? 0.12 : -0.05)); if (d <= rr) fctx.fillRect(Math.floor(cx) + i, Math.floor(cy) + j, 1, 1); } }
+function ringc(cx, cy, r, th, c) { fctx.fillStyle = c; for (let j = -r; j <= r; j++) for (let i = -r; i <= r; i++) { const d = Math.sqrt(i * i + j * j); if (d <= r + 0.3 && d > r - th + 0.3) fctx.fillRect(Math.floor(cx) + i, Math.floor(cy) + j, 1, 1); } }
+function ellc(cx, cy, rx, ry, c, ringOnly) { fctx.fillStyle = c; for (let j = -ry; j <= ry; j++) for (let i = -rx; i <= rx; i++) { const d = (i * i) / (rx * rx) + (j * j) / (ry * ry); if (ringOnly ? (d <= 1.05 && d > 0.62) : d <= 1) fctx.fillRect(Math.floor(cx) + i, Math.floor(cy) + j, 1, 1); } }
+function line(x0, y0, x1, y1, c, t = 1) {
+  x0 = Math.round(x0); y0 = Math.round(y0); x1 = Math.round(x1); y1 = Math.round(y1);
+  const dx = Math.abs(x1 - x0), dy = -Math.abs(y1 - y0), sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1; let e = dx + dy; fctx.fillStyle = c; const o = Math.floor(t / 2);
+  for (let n = 0; n < 4000; n++) { fctx.fillRect(x0 - o, y0 - o, t, t); if (x0 === x1 && y0 === y1) break; const e2 = 2 * e; if (e2 >= dy) { e += dy; x0 += sx; } if (e2 <= dx) { e += dx; y0 += sy; } }
+}
+function boltPath(x0, y0, x1, y1, seed, rough) {
+  const r = rng(seed); let pts = [[x0, y0], [x1, y1]];
+  for (let it = 0; it < 5; it++) {
+    const n = [];
+    for (let i = 0; i < pts.length - 1; i++) {
+      const a = pts[i], b = pts[i + 1]; const len = Math.hypot(b[0] - a[0], b[1] - a[1]) || 1;
+      const off = (r() - 0.5) * len * (rough || 0.5); const nx = -(b[1] - a[1]) / len, ny = (b[0] - a[0]) / len;
+      n.push(a, [(a[0] + b[0]) / 2 + nx * off, (a[1] + b[1]) / 2 + ny * off]);
+    }
+    n.push(pts[pts.length - 1]); pts = n;
+  }
+  return pts;
+}
+function strokePath(pts, layers) { layers.forEach(([t, c]) => { for (let i = 0; i < pts.length - 1; i++) line(pts[i][0], pts[i][1], pts[i + 1][0], pts[i + 1][1], c, t); }); }
+function ov(id, a) { const e = document.getElementById(id); if (e) e.style.opacity = RM && id === 'flash' ? 0 : a; }
+function shake(dx, dy) { if (RM) return; $('#game').style.transform = (dx || dy) ? 'translate(' + dx + 'px,' + dy + 'px)' : ''; }
+const q = (v, n) => Math.round(v * n) / n;
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const cx5 = (v) => v / CELL;
+
+/* ================= spell runner ================= */
+const FR = 66;
+let cur = null;
+function runSpell(name) {
+  if (name === 'freezeToggle') { const any = foes().some((u) => u.frozen); if (any) foes().forEach((u) => thawUnit(u.id)); else ['orc', 'wolf'].forEach((id) => freezeUnit(id, false)); return; }
+  if (cur) finish();
+  const sp = SPELLS[name]; const ctx = sp.init(); cur = { sp, ctx, t0: performance.now(), fired: 0, paused: null, last: -1, events: sp.events(ctx).sort((a, b) => a.at - b.at) };
+  if (RM) { step(sp.peak, true); cur.fired = cur.events.length; cur.events.forEach((e) => e.fn()); setTimeout(() => { if (cur && cur.ctx === ctx) finish(); }, 900); return; }
+  requestAnimationFrame(loop);
+}
+function step(t, force) {
+  const tq = Math.floor(t / FR) * FR; if (tq === cur.last && !force) return; cur.last = tq;
+  while (cur.fired < cur.events.length && cur.events[cur.fired].at <= tq) cur.events[cur.fired++].fn();
+  fxClear(); cur.sp.draw(tq, cur.ctx);
+}
+function loop(now) { if (!cur || cur.paused != null) return; const t = now - cur.t0; if (t >= cur.sp.dur) { finish(); return; } step(t); requestAnimationFrame(loop); }
+function finish() { if (!cur) return; const c = cur; cur = null; while (c.fired < c.events.length) c.events[c.fired++].fn(); fxClear(); ['flash', 'dim', 'tint', 'firelight'].forEach((i) => ov(i, 0)); shake(0, 0); if (c.sp.done) c.sp.done(c.ctx); }
+window.__seek = (name, t) => { if (cur) finish(); const sp = SPELLS[name]; const ctx = sp.init(); cur = { sp, ctx, t0: 0, fired: 0, paused: t, last: -1, events: sp.events(ctx).sort((a, b) => a.at - b.at) }; step(t, true); };
+window.__end = () => finish();
+
+/* hero anchors */
+function heroHand(side) { const b = HEROES[side].box; return { x: b.cx + (side === 'p' ? 42 : -42), y: b.top + 78 }; }
+function heroCast(side) { const m = HEROES[side].mv; replay(m, 'cast', 450); }
+function castSparks(side, tq, col1, col2, until) {
+  if (tq > until) return; const p = heroHand(side); const r = rng(tq + 5);
+  for (let i = 0; i < 9; i++) { const a = r() * 6.283, d = 3 + r() * 8; dot(cx5(p.x) + Math.cos(a) * d, cx5(p.y) + Math.sin(a) * d, r() < 0.5 ? col1 : col2, r() < 0.3 ? 2 : 1, r() < 0.3 ? 2 : 1); }
+}
+function scorch(x, y, rx, ry, alpha) { ellc(cx5(x), cx5(y), rx, ry, alpha ? '#0e0a10' : '#1c141c'); ellc(cx5(x), cx5(y), rx, ry, '#3a2a30', true); }
+
+const SPELLS = {};
+
+/* ---- 1. LIGHTNING ---- */
+SPELLS.lightning = {
+  dur: 1500, peak: 300,
+  init() {
+    const tg = foes().sort((a, b) => P(a.id).feet - P(b.id).feet); const r = rng(11); const at = [250, 430, 590, 790];
+    return {
+      bolts: tg.map((u, i) => {
+        const p = P(u.id); const tx = cx5(p.x) + (i % 2 ? 2 : -2), ty = cx5(p.mid + 10); const x0 = tx + (r() - 0.5) * 34;
+        const A = boltPath(x0, -2, tx, ty, 100 + i * 7, 0.42), B = boltPath(x0 + (r() - .5) * 4, -2, tx, ty, 300 + i * 13, 0.42);
+        const forks = [0.3, 0.5, 0.68].map((f, k) => { const pt = A[Math.floor(A.length * f)]; const dir = (k % 2 ? 1 : -1); return boltPath(pt[0], pt[1], pt[0] + dir * (7 + r() * 8), pt[1] + 8 + r() * 10, 500 + i * 3 + k, 0.5); });
+        const sparks = Array.from({ length: 9 }, () => ({ a: -Math.PI + r() * Math.PI * 1.0, v: 2.2 + r() * 3.2 }));
+        return { id: u.id, at: at[i % 4], tx, ty, A, B, forks, sparks, feet: cx5(p.feet) };
+      }),
+    };
+  },
+  events(c) { const ev = [{ at: 0, fn: () => heroCast('p') }]; c.bolts.forEach((b) => ev.push({ at: b.at, fn: () => hitUnit(b.id, '-9', 'ice') })); return ev; },
+  draw(tq, c) {
+    ov('dim', q(clamp(tq / 200, 0, 1) * (1 - clamp((tq - 1150) / 300, 0, 1)), 3));
+    castSparks('p', tq, '#cfe8ec', '#7fb7c4', 260);
+    let fl = 0, sh = 0;
+    c.bolts.forEach((b) => { const a = tq - b.at; if (a >= 0 && a < 66) fl = Math.max(fl, 0.34); else if (a >= 66 && a < 132) fl = Math.max(fl, 0.12); if (a >= 0 && a < 200) sh = Math.max(sh, a < 100 ? 7 : 3); });
+    ov('flash', fl); const f = Math.floor(tq / FR); shake(sh ? (f % 2 ? sh : -sh) : 0, sh ? (f % 3 ? 3 : -3) : 0);
+    c.bolts.forEach((b) => {
+      const a = tq - b.at; if (a < 0) return; const k = Math.floor(a / FR);
+      if (a >= 66 && tq < 1400) scorch((b.tx) * CELL, b.feet * CELL, 12, 3);
+      if (k < 4) {
+        const pts = k % 2 ? b.B : b.A;
+        if (k < 2) { strokePath(pts, [[5, '#3a5fc8'], [3, '#9fd0ff'], [1, '#ffffff']]); b.forks.forEach((fk) => strokePath(fk, [[3, '#3a5fc8'], [1, '#cfe8ff']])); }
+        else if (k === 2) { strokePath(pts, [[3, '#3a5fc8'], [1, '#9fd0ff']]); }
+        else { for (let i = 0; i < pts.length - 1; i += 2) line(pts[i][0], pts[i][1], pts[i + 1][0], pts[i + 1][1], '#7fb7ff', 1); }
+      }
+      if (k === 0) { disc(b.tx, b.ty, 5, '#ffffff'); ringc(b.tx, b.ty, 10, 2, '#9fd0ff'); }
+      else if (k === 1) { ringc(b.tx, b.ty, 13, 2, '#9fd0ff'); disc(b.tx, b.ty, 3, '#e6f6ff'); }
+      if (k >= 1 && k < 6) b.sparks.forEach((s) => { const t = (a - 66) / 1000; dot(b.tx + Math.cos(s.a) * s.v * t * 22, b.ty + Math.sin(s.a) * s.v * t * 22 + t * t * 40, k < 4 ? '#ffffff' : '#9fd0ff'); });
+    });
+  },
+};
+
+/* ---- 2. FROST RAIN over the whole enemy area ---- */
+SPELLS.frost = {
+  dur: 2500, peak: 950,
+  init() {
+    const r = rng(21); const parts = [];
+    for (let i = 0; i < 190; i++) {
+      const shard = i % 5 < 2; const sp = 420 + r() * 380; const land = 40 + r() * 76;
+      parts.push({ x: 112 + r() * 162, t0: 250 + r() * 1000, sp: sp / CELL, shard, len: shard ? 4 + (r() * 5 | 0) : 0, big: !shard && r() < 0.3, land, drift: -0.28 - r() * 0.12 });
+    }
+    return { parts, order: foes().sort((a, b) => P(a.id).feet - P(b.id).feet).map((u) => u.id) };
+  },
+  events(c) {
+    const ev = [{ at: 0, fn: () => heroCast('p') }];
+    c.order.forEach((id, i) => { ev.push({ at: 1350 + i * 130, fn: () => hitUnit(id, '-6', 'ice') }); ev.push({ at: 1460 + i * 130, fn: () => freezeUnit(id, true) }); });
+    return ev;
+  },
+  draw(tq, c) {
+    ov('tint', q(clamp(tq / 500, 0, 1) * (1 - clamp((tq - 1800) / 500, 0, 1)), 4));
+    castSparks('p', tq, '#cfe8ec', '#ffffff', 300);
+    c.parts.forEach((p) => {
+      const a = (tq - p.t0) / 1000; if (a < 0) return; const y = -6 + a * p.sp, x = p.x + a * p.sp * p.drift;
+      if (y < p.land) {
+        if (p.shard) { const dx = -p.drift, L = p.len; line(x - dx * L * 0.6, y - L, x, y, '#7fb7c4', 2); line(x - dx * L * 0.6, y - L, x, y, '#cfe8ec', 1); dot(x, y, '#ffffff', 1, 2); dot(x - 1, y + 1, '#ffffff'); }
+        else { dot(x, y, '#ffffff', p.big ? 2 : 1, p.big ? 2 : 1); if (p.big) { dot(x - 1, y, '#cfe8ec'); dot(x + 2, y, '#cfe8ec'); dot(x, y - 1, '#cfe8ec'); dot(x, y + 2, '#cfe8ec'); } }
+      } else if (y - p.land < p.sp * 0.14) { const k = Math.floor((y - p.land) / (p.sp * 0.07)); const lx = x, ly = p.land; if (k === 0) { dot(lx - 2, ly, '#ffffff', 5, 1); dot(lx, ly - 2, '#cfe8ec', 1, 5); } else { dot(lx - 3, ly - 1, '#7fb7c4'); dot(lx + 3, ly - 1, '#7fb7c4'); dot(lx, ly - 3, '#cfe8ec'); } }
+      else if (p.shard && a * 1000 + p.t0 < 1900) { dot(x, p.land + 1, '#cfe8ec', 2, 1); }
+    });
+    if (tq >= 1350) c.order.forEach((id, i) => { const a = tq - (1350 + i * 130); if (a < 0 || a > 300) return; const p = P(id); const k = Math.floor(a / FR); ringc(cx5(p.x), cx5(p.mid), 6 + k * 4, 2, '#cfe8ec'); if (k < 2) disc(cx5(p.x), cx5(p.mid), 3, '#ffffff'); });
+  },
+};
+
+/* ---- 4. FIREBALL ---- */
+SPELLS.fireball = {
+  dur: 2100, peak: 900,
+  init() {
+    const r = rng(31); const a = heroHand('p'), t = P('goblin');
+    const nb = ['orc', 'wolf', 'shaman'];
+    return { a: { x: cx5(a.x), y: cx5(a.y) }, t: { x: cx5(t.x), y: cx5(t.mid) }, nb, embers: Array.from({ length: 18 }, () => ({ a: -Math.PI + r() * Math.PI, v: 12 + r() * 26, c: ['#ffdf6a', '#e58f52', '#c4622d'][r() * 3 | 0] })) };
+  },
+  events() { return [{ at: 0, fn: () => heroCast('p') }, { at: 810, fn: () => hitUnit('goblin', '-12', '') }, { at: 900, fn: () => { ['orc', 'wolf', 'shaman'].forEach((id) => hitUnit(id, '-6', '')); } }]; },
+  draw(tq, c) {
+    const flick = Math.floor(tq / FR) % 2;
+    const pos = (u) => ({ x: c.a.x + (c.t.x - c.a.x) * u, y: c.a.y + (c.t.y - c.a.y) * u - 4 * 20 * u * (1 - u) });
+    const orb = (p, rr) => { disc(p.x, p.y, rr + 1, '#7a3416'); disc(p.x, p.y, rr, '#c4622d'); disc(p.x, p.y, rr - 1, '#e58f52'); disc(p.x, p.y, Math.max(1, rr - 2), '#ecd082'); if (rr > 2) disc(p.x, p.y, 1, '#ffffff'); };
+    if (tq < 250) { castSparks('p', tq, '#ecd082', '#e58f52', 250); orb({ x: c.a.x, y: c.a.y }, 1 + Math.floor(tq / 90)); return; }
+    if (tq < 810) {
+      const u = (tq - 250) / 560; const p = pos(u); const rr = 4 + flick;
+      for (let k = 9; k >= 1; k--) { const pp = pos(Math.max(0, u - k * 0.034)); const j = (k * 7 + Math.floor(tq / FR) * 3) % 5 - 2; const col = k < 3 ? '#ecd082' : k < 6 ? '#e58f52' : k < 8 ? '#9c2f26' : '#544d42'; disc(pp.x + j * 0.5, pp.y + j * 0.5, Math.max(1, 4 - Math.floor(k / 3)), col); }
+      orb(p, rr); return;
+    }
+    const a = tq - 810; const k = Math.floor(a / FR);
+    const ex = (x, y, sc, kk, sd) => {
+      if (kk > 9) return; const R = Math.round([7, 11, 15, 17, 18, 18][Math.min(kk, 5)] * sc);
+      if (kk < 6) {
+        blob(x, y, R, '#5a1c12', sd); blob(x, y - 1, Math.max(1, R - 2), '#9c2f26', sd + 1); blob(x, y - 1, Math.max(1, R - 4 - Math.max(0, kk - 2)), '#e58f52', sd + 2);
+        if (kk < 5) blob(x, y - 2, Math.max(1, R - 7 - kk), '#ecd082', sd + 3); if (kk < 3 && sc >= 1) blob(x, y - 2, Math.max(1, R - 10), '#ffffff', sd + 4);
+        if (kk > 0 && kk < 4) ringc(x, y, R + 3, 1, '#ecd082');
+      } else { for (let i = 0; i < 7; i++) { const ang = i * 0.9 + kk; blob(x + Math.cos(ang) * 8 * sc, y - (kk - 5) * 4 - 6 + Math.sin(ang) * 4, 3, i % 2 ? '#3c3838' : '#544d42', i); } }
+    };
+    ov('firelight', a < 400 ? q(0.85 - a / 500, 4) : 0); ov('flash', 0);
+    const f = Math.floor(tq / FR); shake(a < 330 ? (f % 2 ? 8 : -8) : 0, a < 330 ? (f % 3 ? 4 : -4) : 0);
+    scorch(c.t.x * CELL, P('goblin').feet, 15, 4);
+    ex(c.t.x, c.t.y, 1, k, 1);
+    c.nb.forEach((id, i) => { const b = a - 90 - i * 30; if (b < 0) return; const p = P(id); const kk = Math.floor(b / FR); scorch(p.x, p.feet, 9, 3); ex(cx5(p.x), cx5(p.mid), 0.7, kk, 3 + i * 2); });
+    c.embers.forEach((e) => { const t = a / 1000; if (t > 1) return; dot(c.t.x + Math.cos(e.a) * e.v * t * 1.1, c.t.y - 2 + Math.sin(e.a) * e.v * t + t * t * 34, e.c, 1, 1); });
+  },
+};
+
+/* ---- 5. BUFF / HEAL ---- */
+SPELLS.buff = {
+  dur: 1500, peak: 700,
+  init() { const r = rng(41); return { id: 'sword', parts: Array.from({ length: 12 }, (_, i) => ({ dx: (i % 2 ? -1 : 1) * (6 + r() * 7), t0: 120 + r() * 560, kind: i < 8 ? 'plus' : 'chev', sp: 26 + r() * 16 })), stars: Array.from({ length: 5 }, () => ({ dx: (r() - .5) * 26, dy: 4 + r() * 22, t0: r() * 800 })) }; },
+  events(c) { return [{ at: 200, fn: () => { UNITS[c.id].root.classList.remove('glow'); void UNITS[c.id].root.offsetWidth; UNITS[c.id].root.classList.add('glow'); } }, { at: 560, fn: () => { const p = P(c.id); floatAt(p.x - 60, p.head + 30, '+8', 'good'); floatAt(p.x + 40, p.head + 60, 'Might +2', 'gold'); addChip(c.id, { icon: 'banner', text: '+2', cls: 'good' }); } }]; },
+  done(c) { UNITS[c.id].root.classList.remove('glow'); },
+  draw(tq, c) {
+    const p = P(c.id); const x = cx5(p.x), fy = cx5(p.feet) - 1; const top = cx5(p.head);
+    const on = clamp(tq / 200, 0, 1) * (1 - clamp((tq - 1150) / 300, 0, 1));
+    if (on <= 0) return;
+    const f = Math.floor(tq / FR);
+    [['#8fb56b', 0], ['#ecd082', 3]].forEach(([col, dy]) => { ellc(x, fy + dy * 0.3, 15 - dy, 4 - (dy ? 1 : 0), col, true); });
+    for (let i = 0; i < 16; i++) { const ang = i / 16 * 6.283 + f * 0.35; if (Math.floor(i) % 2 === (f % 2)) dot(x + Math.cos(ang) * 16, fy + Math.sin(ang) * 4.2, '#ffffff', 2, 1); }
+    const H = Math.floor((fy - top) * 1.2 * on);
+    [-13, 13].forEach((o) => { for (let j = 0; j < H; j++) if ((j + f * 2) % 8 < 5) dot(x + o, fy - j, j % 16 < 8 ? '#a3c452' : '#ecd082', 1, 1); });
+    c.parts.forEach((pt) => { const a = (tq - pt.t0) / 1000; if (a < 0 || a > 0.75) return; const y = fy - 4 - a * pt.sp, xx = x + pt.dx;
+      if (pt.kind === 'plus') { dot(xx - 2, y - 1, '#8fb56b', 5, 3); dot(xx - 1, y - 2, '#8fb56b', 3, 5); dot(xx - 1, y, '#e6f2d0', 3, 1); dot(xx, y - 1, '#e6f2d0', 1, 3); }
+      else { dot(xx - 2, y + 2, '#ecd082'); dot(xx - 1, y + 1, '#ecd082'); dot(xx, y, '#faf3df'); dot(xx + 1, y + 1, '#ecd082'); dot(xx + 2, y + 2, '#ecd082'); dot(xx, y + 1, '#cfa93f'); } });
+    c.stars.forEach((s) => { const a = ((tq - s.t0) % 400); if (tq < s.t0 || a > 200) return; const sx = x + s.dx, sy = top + s.dy; dot(sx, sy - 2, '#ffffff', 1, 5); dot(sx - 2, sy, '#ffffff', 5, 1); });
+  },
+};
+
+/* ---- 6. MELEE LUNGE + SLASH ---- */
+SPELLS.slash = {
+  dur: 1500, peak: 560,
+  init() { const a = UNITS.sword, b = UNITS.orc; const pa = P('sword'), pb = P('orc'); const gap = pb.x - pa.x; return { dx: Math.round(gap - 128), gap }; },
+  events(c) {
+    const u = UNITS.sword; const ev = [];
+    ev.push({ at: 0, fn: () => { u.mv.style.setProperty('--dir', 1); u.mv.style.setProperty('--dx', c.dx + 'px'); u.mv.style.setProperty('--dur', '1000ms'); replay(u.mv, 'charge', 1050); } });
+    ev.push({ at: 460, fn: () => hitUnit('orc', '-12', '') });
+    return ev;
+  },
+  draw(tq, c) {
+    const a = tq - 400; if (a < 0) return;
+    const p = P('orc'); const cx = cx5(p.x) - 6, cy = cx5(p.mid) - 2; const k = Math.floor(a / FR);
+    if (k < 5) {
+      const R = 21; const a0 = -2.4, a1 = a0 + (k + 1) * 0.7;
+      for (let s = 0; s <= 22; s++) { const t = s / 22; const ang = a0 + (a1 - a0) * t; const th = t < 0.3 ? 2 : t < 0.7 ? 3 : 4; const col = t > 0.85 ? '#ffffff' : t > 0.5 ? '#faf3df' : '#ecd082'; const rr = R - (1 - t) * 3; dot(cx + Math.cos(ang) * rr - (th >> 1), cy + Math.sin(ang) * rr * 1.1 - (th >> 1), col, th, th); }
+      if (k >= 1 && k < 4) { line(cx - 10, cy + 10, cx + 10, cy - 10, '#ffffff', 2); line(cx - 10, cy - 10, cx + 10, cy + 10, '#ecd082', 1); }
+    }
+    if (k >= 1 && k < 6) { for (let i = 0; i < 6; i++) { const ang = i * 1.05 + 0.3; const d = 6 + (k - 1) * 4; dot(cx + Math.cos(ang) * d, cy + Math.sin(ang) * d, i % 2 ? '#ecd082' : '#ffffff', 1, 1); } }
+  },
+};
+
+
+/* ambient life: embers on the warm side, drifting frost motes on the cold side */
+function ambient() {
+  const cv = $('#amb'); cv.width = CW; cv.height = CH; const g = cv.getContext('2d'); const r = rng(9);
+  const ps = Array.from({ length: 34 }, () => ({ x: r() * CW, y: 30 + r() * 90, s: 0.5 + r() * 1.1, ph: r() * 6.28 }));
+  const draw = () => { g.clearRect(0, 0, CW, CH); ps.forEach((p) => { const warm = p.x < CW / 2; g.fillStyle = warm ? (p.ph > 3 ? '#ecd082' : '#e58f52') : (p.ph > 3 ? '#cfe8ec' : '#7fb7c4'); g.fillRect(Math.floor(p.x), Math.floor(p.y), 1, 1); }); };
+  draw(); if (RM) return;
+  setInterval(() => { ps.forEach((p) => { p.ph += 0.35; if (p.x < CW / 2) { p.y -= p.s * 0.8; p.x += Math.sin(p.ph) * 0.7; } else { p.x -= p.s * 0.7; p.y += Math.sin(p.ph) * 0.5; } if (p.y < 20 || p.x < 0 || p.y > CH - 8) { p.x = warmRestart(p); p.y = 40 + Math.random() * 70; if (p.x > CW / 2) { p.x = CW - 1; } } }); draw(); }, 130);
+}
+function warmRestart(p) { return p.x < CW / 2 ? Math.random() * CW / 2 : CW - 1; }
+
+/* ================= code-drawn pixel battlefield (5px cells, 274x123) ================= */
+function paintScene(cv) {
+  cv.width = CW; cv.height = CH;
+  const g = cv.getContext('2d'); const img = g.createImageData(CW, CH); const D = img.data; const R = rng(2024);
+  const yH = 46; const yB = yH + 2; const gy0 = yH + 3;
+  const clampc = (v) => Math.max(0, Math.min(255, Math.round(v)));
+  const set = (i, j, c) => { i = Math.floor(i); j = Math.floor(j); if (i < 0 || j < 0 || i >= CW || j >= CH) return; const o = (j * CW + i) * 4; D[o] = clampc(c[0]); D[o + 1] = clampc(c[1]); D[o + 2] = clampc(c[2]); D[o + 3] = 255; };
+  const get = (i, j) => { i = Math.max(0, Math.min(CW - 1, Math.floor(i))); j = Math.max(0, Math.min(CH - 1, Math.floor(j))); const o = (j * CW + i) * 4; return [D[o], D[o + 1], D[o + 2]]; };
+  const mix = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, a[2] + (b[2] - a[2]) * t];
+  const shade = (c, f) => [c[0] * f, c[1] * f, c[2] * f];
+  const rect = (i, j, w, hh, c) => { for (let y = 0; y < hh; y++) for (let x = 0; x < w; x++) set(i + x, j + y, c); };
+  const BAY = [0, 8, 2, 10, 12, 4, 14, 6, 3, 11, 1, 9, 15, 7, 13, 5].map((v) => (v + 0.5) / 16);
+  const bay = (i, j) => BAY[(j & 3) * 4 + (i & 3)];
+  const sstep = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
+  const tx = (i) => sstep(0.22, 0.78, i / CW);
+  const tab = Array.from({ length: 512 }, () => R());
+  const n1 = (x) => { const i = Math.floor(x), f = x - i, a = tab[((i % 512) + 512) % 512], b = tab[(((i + 1) % 512) + 512) % 512]; return a + (b - a) * (f * f * (3 - 2 * f)); };
+  const fbm = (x) => n1(x) * 0.55 + n1(x * 2.1 + 40) * 0.3 + n1(x * 4.3 + 90) * 0.15;
+  const n2 = (x, y) => n1(x * 1.7 + y * 3.1) * 0.5 + n1(y * 2.3 - x * 0.9 + 77) * 0.5;
+
+  /* --- sky: dusk gradient, warm on the player side, cold on the enemy side --- */
+  const stops = { w: [[0, [30, 22, 50]], [0.5, [106, 52, 66]], [1, [244, 150, 74]]], c: [[0, [12, 18, 42]], [0.5, [38, 58, 98]], [1, [128, 172, 198]]] };
+  const skyAt = (s, v) => { const st = stops[s]; for (let k = 0; k < st.length - 1; k++) if (v <= st[k + 1][0]) return mix(st[k][1], st[k + 1][1], (v - st[k][0]) / (st[k + 1][0] - st[k][0])); return st[st.length - 1][1]; };
+  for (let j = 0; j <= yH + 2; j++) for (let i = 0; i < CW; i++) {
+    const v = Math.pow(Math.min(1, j / yH), 1.35); const s = v * 14; let b = Math.floor(s); if (s - b > bay(i, j)) b++;
+    set(i, j, mix(skyAt('w', b / 14), skyAt('c', b / 14), tx(i)));
+  }
+  for (let k = 0; k < 46; k++) { const i = 130 + R() * 144, j = R() * 26; if (bay(i, j) < 0.9) set(i, j, [214, 230, 250]); }
+  // sun and moon
+  for (let j = 0; j < yH + 4; j++) for (let i = 50; i < 150; i++) { const d = Math.hypot(i - 98, (j - (yH - 2)) * 1.1); if (d > 13 && d < 40) { const p = Math.pow(1 - (d - 13) / 27, 2) * 0.62; if (p > bay(i, j) * 0.5) set(i, j, mix(get(i, j), [255, 190, 100], 0.6)); } if (d <= 13) set(i, j, d > 11 ? [255, 196, 108] : [255, 228, 150]); }
+  for (let j = 0; j < 40; j++) for (let i = 200; i < 274; i++) { const d = Math.hypot(i - 236, j - 15); if (d > 6 && d < 17) { const p = Math.pow(1 - (d - 6) / 11, 2) * 0.5; if (p > bay(i, j) * 0.45) set(i, j, mix(get(i, j), [150, 190, 235], 0.55)); } if (d <= 6) set(i, j, d > 4.6 ? [186, 204, 222] : [226, 238, 244]); }
+  for (const [i, j] of [[234, 13], [238, 17], [237, 11], [235, 17]]) set(i, j, [170, 190, 208]);
+  // clouds (bottoms lit by the light of their side)
+  const cloud = (ccx, ccy, len, th) => {
+    const m = new Uint8Array(CW * CH); const n = Math.max(4, Math.round(len / 7));
+    for (let k = 0; k < n; k++) { const bx = ccx + (k / (n - 1) - 0.5) * len, by = ccy + Math.sin(k * 1.7) * th * 0.35, rx = len / n * 1.5 + R() * 4, ry = th * (0.55 + R() * 0.5); for (let j = -Math.ceil(ry); j <= Math.ceil(ry); j++) for (let i = -Math.ceil(rx); i <= Math.ceil(rx); i++) if ((i * i) / (rx * rx) + (j * j) / (ry * ry) <= 1) { const X = Math.floor(bx + i), Y = Math.floor(by + j); if (X >= 0 && X < CW && Y >= 0 && Y < yH && Y > 1) m[Y * CW + X] = 1; } }
+    const snap = new Map(); for (let j = 0; j < yH; j++) for (let i = 0; i < CW; i++) if (m[j * CW + i]) snap.set(j * CW + i, get(i, j));
+    snap.forEach((base, idx) => { const i = idx % CW, j = (idx / CW) | 0; const t = tx(i); const body = mix(shade(base, 0.62), t < 0.5 ? [74, 42, 70] : [30, 44, 76], 0.5); const below = m[(j + 1) * CW + i], above = j > 0 ? m[(j - 1) * CW + i] : 0;
+      let col = body; if (!below) col = mix(base, mix([255, 176, 100], [150, 190, 220], t), 0.62); else if (!m[(j + 2) * CW + i]) col = mix(body, mix([230, 130, 84], [110, 150, 190], t), 0.45); if (!above) col = mix(col, [255, 255, 255], 0.08); set(i, j, col); });
+  };
+  [[50, 14, 76, 6], [150, 9, 90, 5], [232, 26, 70, 5], [96, 30, 62, 4], [188, 33, 70, 4], [22, 30, 40, 3], [262, 40, 34, 3], [124, 20, 40, 3]].forEach((c) => cloud(...c));
+
+  /* --- mountains --- */
+  const ridge = (base, amp, scale, off, cw, cc, hazeK, lit) => {
+    for (let i = 0; i < CW; i++) { const top = Math.floor(base - amp * fbm(i / scale + off)); const t = tx(i); for (let j = top; j <= yB + 2; j++) { const dpt = (j - top) / Math.max(1, yB - top); const col0 = mix(cw, cc, t); const hz = mix(skyAt('w', 1), skyAt('c', 1), t); let col = mix(col0, hz, hazeK * (0.35 + dpt * 0.65)); if (j === top) col = mix(col, [255, 200, 130], (1 - t) * lit); else if (j === top + 1 && (1 - t) > 0.4) col = mix(col, [255, 190, 120], 0.12); set(i, j, col); } }
+  };
+  ridge(yH - 6, 30, 40, 3, [116, 68, 96], [64, 90, 128], 0.55, 0.5);
+  ridge(yH + 1, 20, 24, 60, [68, 44, 68], [34, 52, 84], 0.3, 0.35);
+
+  /* --- pines and low woods --- */
+  const pine = (cxx, base, hgt, col) => { for (let k = 0; k < hgt; k++) { const hw = Math.round((hgt - k) / hgt * 3.2 + (k % 3 === 0 ? 0.6 : 0)); rect(cxx - hw, base - k - 1, hw * 2 + 1, 1, col); } };
+  for (let i = 2; i < CW; i += 5 + (R() * 6 | 0)) { const t = tx(i); const col = mix([34, 46, 28], [20, 38, 46], t); pine(i, yB + 3, 6 + (R() * 8 | 0), col); }
+  for (let i = 0; i < CW; i++) { const t = tx(i); const top = yB - 1 - Math.floor(2 + 3 * fbm(i / 6 + 20)); for (let j = top; j < yB + 6; j++) set(i, j, mix([38, 52, 30], [22, 40, 48], t)); if (R() < 0.5) set(i, top, mix([70, 88, 40], [46, 76, 82], t)); }
+
+  /* --- player castle (left, warm) and enemy fortress (right, cold) --- */
+  const cone = (cxx, base, hw, hgt, col, hi) => { for (let k = 0; k < hgt; k++) { const w = Math.round(hw * (1 - k / hgt)); rect(cxx - w, base - k - 1, w * 2 + 1, 1, col); if (hi) set(cxx - w, base - k - 1, hi); } };
+  const tower = (x0, w, top, base, wall, dark, rim, roof, win, cr) => {
+    rect(x0, top, w, base - top, wall); rect(x0 + w - 2, top, 2, base - top, dark); rect(x0, top, 1, base - top, rim);
+    for (let i = 0; i < w; i += 3) rect(x0 + i, top - 2, 2, 2, wall);
+    rect(x0 - 1, top, w + 2, 1, dark);
+    if (roof) cone(x0 + (w >> 1), top - 2, (w >> 1) + 2, Math.round(w * 1.3), roof, rim);
+    for (let j = top + 5; j < base - 6; j += 8) { set(x0 + (w >> 1), j, win); set(x0 + (w >> 1), j + 1, win); }
+  };
+  { const W = [86, 56, 42], WD = [50, 30, 26], WL = [176, 104, 60], RF = [150, 56, 34], WIN = [255, 216, 110];
+    rect(6, yB - 11, 58, 11, WD); for (let i = 6; i < 62; i += 4) { rect(i, yB - 13, 2, 2, WD); set(i, yB - 13, WL); }
+    for (let j = yB - 9; j < yB; j += 3) for (let i = 7; i < 62; i += 6) set(i + (j % 2 ? 3 : 0), j, shade(WD, 1.3));
+    tower(3, 10, yB - 28, yB, W, WD, WL, RF, WIN);
+    tower(52, 10, yB - 24, yB, W, WD, WL, RF, WIN);
+    rect(24, yB - 34, 18, 34, W); rect(40, yB - 34, 2, 34, WD); rect(24, yB - 34, 1, 34, WL); for (let i = 24; i < 42; i += 3) rect(i, yB - 36, 2, 2, W); rect(23, yB - 34, 20, 1, WD);
+    rect(31, yB - 9, 4, 9, [16, 10, 10]); rect(32, yB - 10, 2, 1, [16, 10, 10]);
+    for (const [i, j] of [[27, yB - 27], [27, yB - 21], [37, yB - 27], [37, yB - 21], [32, yB - 28]]) { rect(i, j, 1, 2, WIN); }
+    rect(33, yB - 50, 1, 14, WD); rect(34, yB - 50, 8, 4, [160, 48, 38]); rect(34, yB - 46, 5, 1, [160, 48, 38]); rect(35, yB - 49, 2, 1, [236, 208, 130]);
+    rect(8, yB - 39, 1, 10, WD); rect(9, yB - 39, 6, 3, [160, 48, 38]);
+    rect(57, yB - 34, 1, 10, WD); rect(58, yB - 34, 6, 3, [160, 48, 38]);
+  }
+  { const W = [32, 44, 62], WD = [16, 24, 38], WL = [96, 146, 178], RF = [22, 32, 54], WIN = [120, 232, 214]; const X0 = CW - 72;
+    rect(X0 + 4, yB - 9, 60, 9, WD); for (let i = X0 + 4; i < X0 + 64; i += 4) { const hh = 1 + (R() * 4 | 0); rect(i, yB - 9 - hh, 2, hh, WD); }
+    tower(X0 + 2, 10, yB - 26, yB, W, WD, WL, null, WIN);
+    for (let k = 0; k < 6; k++) rect(X0 + 2 + k * 2, yB - 28 - (k % 2) * 2, 1, 3 + (k % 2) * 2, WD);
+    rect(X0 + 22, yB - 22, 18, 22, W); rect(X0 + 38, yB - 22, 2, 22, WD); rect(X0 + 22, yB - 22, 1, 22, WL); for (let i = 22; i < 40; i += 3) if (i !== 31) rect(X0 + i, yB - 24, 2, 2 + (i % 2), W);
+    rect(X0 + 28, yB - 8, 5, 8, [6, 12, 20]); for (const [i, j] of [[26, yB - 18], [36, yB - 18], [31, yB - 15]]) rect(X0 + i, j, 1, 2, WIN);
+    tower(X0 + 48, 11, yB - 38, yB, W, WD, WL, RF, WIN); cone(X0 + 53, yB - 38 - 2 + 12, 7, 20, RF, WL);
+    rect(X0 + 53, yB - 62, 1, 6, WD); disc2(X0 + 53, yB - 65, 3, [120, 232, 214], set); set(X0 + 53, yB - 65, [255, 255, 255]);
+    rect(X0 + 40, yB - 30, 1, 12, WD); rect(X0 + 41, yB - 30, 5, 3, [14, 20, 30]); set(X0 + 44, yB - 27, [14, 20, 30]); set(X0 + 45, yB - 28, [14, 20, 30]);
+    const tree = (i0, j0) => { rect(i0, j0 - 14, 2, 14, [10, 16, 24]); for (const [dx, dy, l] of [[-7, -10, 7], [2, -12, 8], [-5, -15, 5], [2, -16, 5]]) line2(i0 + (dx < 0 ? 0 : 2), j0 + dy + 4, i0 + dx, j0 + dy, [10, 16, 24], set); };
+    tree(X0 - 4, yB + 2);
+  }
+
+  /* --- ground: perspective rows, grass and trodden dirt --- */
+  const horizon = mix(skyAt('w', 1), skyAt('c', 1), 0.5);
+  const G = { wa: [98, 112, 50], wb: [84, 98, 42], ca: [60, 90, 92], cb: [50, 78, 82] }, Dt = { wa: [140, 102, 62], wb: [124, 88, 52], ca: [104, 108, 108], cb: [92, 96, 100] };
+  const dirtMap = new Float32Array(CW * CH);
+  let y = gy0, bi = 0;
+  while (y < CH) {
+    const hh = Math.max(2, Math.round(2 + (y - gy0) * 0.075));
+    for (let j = y; j < Math.min(CH, y + hh); j++) {
+      const d = (j - gy0) / (CH - gy0);
+      for (let i = 0; i < CW; i++) {
+        const t = tx(i); const ex = (i - 137) / 140, ey = (j - (gy0 + (CH - gy0) * 0.62)) / ((CH - gy0) * 0.62);
+        const score = 1 - (ex * ex * 0.85 + ey * ey) - n2(i / 7, j / 5) * 0.5 + 0.12;
+        const dirt = score + (n2(i / 2.4, j / 1.8) - 0.5) * 0.2 > 0.2;
+        dirtMap[j * CW + i] = dirt ? 1 : 0;
+        const alt = bi % 2 ? 'b' : 'a'; const base = dirt ? mix(Dt['w' + alt], Dt['c' + alt], t) : mix(G['w' + alt], G['c' + alt], t);
+        let col = mix(base, horizon, Math.pow(1 - d, 3) * 0.32);
+        if (j === y) col = shade(col, 0.88);
+        const r = R(); if (r < 0.1) col = shade(col, 0.9); else if (r > 0.92) col = shade(col, 1.09);
+        set(i, j, col);
+      }
+    }
+    y += hh; bi++;
+  }
+  // perspective ruts converging on the vanishing point
+  for (let k = -9; k <= 9; k++) { if (k === 0) continue; const vx = 137, vy = yH - 22; const ex = vx + k * 58; let seg = 0; for (let jj = gy0 + 4; jj < CH; jj++) { const tt = (jj - vy) / (CH - vy); const ii = Math.round(vx + (ex - vx) * tt); if (ii < 0 || ii >= CW) continue; seg++; if (dirtMap[jj * CW + ii] && (seg % 9) < 5 && n2(ii / 3, jj / 3) > 0.42) set(ii, jj, shade(get(ii, jj), 0.84)); } }
+  // tufts, pebbles, cracks, bones
+  for (let k = 0; k < 900; k++) { const i = R() * CW | 0, j = gy0 + 2 + (R() * (CH - gy0 - 3) | 0); if (dirtMap[j * CW + i]) continue; const c = get(i, j); const hh = j > 80 ? 3 : 2; set(i, j, shade(c, 1.28)); set(i - 1, j - 1, shade(c, 1.18)); set(i + 1, j - 1, shade(c, 1.18)); if (hh > 2) { set(i, j - 1, shade(c, 0.78)); set(i - 2, j - 2, shade(c, 1.1)); set(i + 2, j - 2, shade(c, 1.1)); } }
+  for (let k = 0; k < 26; k++) { const i = R() * CW | 0, j = gy0 + 4 + (R() * (CH - gy0 - 8) | 0); if (dirtMap[j * CW + i]) continue; set(i, j, tx(i) < 0.5 ? [232, 204, 96] : [190, 220, 240]); }
+  for (let k = 0; k < 150; k++) { const i = R() * CW | 0, j = gy0 + 3 + (R() * (CH - gy0 - 6) | 0); if (!dirtMap[j * CW + i]) continue; const c = get(i, j); set(i, j, shade(c, 1.35)); set(i + 1, j, shade(c, 1.2)); set(i, j + 1, shade(c, 0.6)); set(i + 1, j + 1, shade(c, 0.6)); }
+  for (let k = 0; k < 22; k++) { let i = R() * CW | 0, j = gy0 + 6 + (R() * (CH - gy0 - 12) | 0); if (!dirtMap[j * CW + i]) continue; const len = 5 + (R() * 9 | 0); for (let s = 0; s < len; s++) { set(i, j, shade(get(i, j), 0.6)); if (R() < 0.6) i += R() < 0.5 ? 1 : -1; else j += 1; } }
+  const bone = (i, j) => { for (const [dx, dy] of [[0, 0], [1, 0], [2, 0], [3, -1], [3, 1]]) set(i + dx, j + dy, [228, 220, 196]); set(i, j + 1, [150, 140, 120]); set(i + 1, j + 1, [150, 140, 120]); };
+  const skull = (i, j) => { rect(i, j, 5, 4, [232, 224, 200]); rect(i + 1, j + 4, 3, 1, [232, 224, 200]); set(i + 1, j + 1, [16, 12, 12]); set(i + 3, j + 1, [16, 12, 12]); set(i + 2, j + 3, [90, 80, 70]); rect(i + 1, j + 5, 4, 1, [30, 26, 22]); };
+  bone(100, 92); bone(168, 100); bone(126, 74); bone(202, 84); bone(74, 106); skull(146, 76); skull(112, 104);
+  for (const [i, j, r1, r2] of [[128, 88, 9, 3], [176, 72, 7, 2], [92, 76, 6, 2]]) for (let jj = -r2; jj <= r2; jj++) for (let ii = -r1; ii <= r1; ii++) if ((ii * ii) / (r1 * r1) + (jj * jj) / (r2 * r2) <= 1 && bay(i + ii, j + jj) < 0.8) set(i + ii, j + jj, shade(get(i + ii, j + jj), 0.62));
+  // puddle
+  for (let jj = -2; jj <= 2; jj++) for (let ii = -13; ii <= 13; ii++) if ((ii * ii) / 169 + (jj * jj) / 5 <= 1) set(138 + ii, 109 + jj, jj === -2 ? [96, 124, 150] : mix([58, 84, 116], [150, 96, 84], (ii + 13) / 60));
+  for (const [dx, dj] of [[-6, 0], [-5, 0], [4, 1], [5, 1], [0, -1]]) set(138 + dx, 109 + dj, [200, 226, 240]);
+  // planted spears and arrows
+  line2(112, 82, 121, 62, [96, 66, 40], set); rect(121, 58, 1, 5, [190, 200, 210]); rect(120, 60, 3, 1, [150, 160, 170]); rect(122, 64, 5, 3, [156, 47, 38]); rect(122, 67, 3, 1, [156, 47, 38]);
+  for (const [i, j] of [[172, 86], [176, 84], [180, 88]]) { line2(i, j, i + 3, j - 9, [72, 86, 102], set); rect(i + 2, j - 11, 2, 2, [160, 190, 210]); }
+
+  /* --- vignette and dark foreground grass --- */
+  for (let j = 0; j < CH; j++) for (let i = 0; i < CW; i++) {
+    const eb = Math.max(0, (j - (CH - 15)) / 15), el = Math.max(0, (10 - Math.min(i, CW - 1 - i)) / 10), et = Math.max(0, (6 - j) / 6);
+    const v = Math.min(0.62, eb * eb * 0.62 + el * el * 0.4 + et * 0.3); if (v > 0.03) set(i, j, shade(get(i, j), 1 - Math.round(Math.min(0.55, v * 0.95) * 8) / 8));
+  }
+  for (let i = 0; i < CW; i += 2) { if (R() < 0.7) { const hh = 2 + (R() * 5 | 0), lean = (R() < 0.5 ? -1 : 1); for (let k = 0; k < hh; k++) set(i + (k > hh / 2 ? lean : 0), CH - 1 - k, tx(i) < 0.5 ? [20, 26, 14] : [14, 24, 28]); } }
+  g.putImageData(img, 0, 0);
+}
+function disc2(cx, cy, r, c, set) { for (let j = -r; j <= r; j++) for (let i = -r; i <= r; i++) if (i * i + j * j <= r * r + 1) set(cx + i, cy + j, c); }
+function line2(x0, y0, x1, y1, c, set) { x0 = Math.round(x0); y0 = Math.round(y0); x1 = Math.round(x1); y1 = Math.round(y1); const dx = Math.abs(x1 - x0), dy = -Math.abs(y1 - y0), sx = x0 < x1 ? 1 : -1, sy = y0 < y1 ? 1 : -1; let e = dx + dy; for (let n = 0; n < 500; n++) { set(x0, y0, c); if (x0 === x1 && y0 === y1) break; const e2 = 2 * e; if (e2 >= dy) { e += dy; x0 += sx; } if (e2 <= dx) { e += dx; y0 += sy; } } }
+
+/* ---- ramparts the two heroes stand behind (cells) ---- */
+function paintRampart(cv, side) {
+  const wc = 44, hc = 21; cv.width = wc; cv.height = hc; const g = cv.getContext('2d'); const R = rng(side === 'p' ? 5 : 9);
+  const P = (i, j, c, w = 1, hh = 1) => { g.fillStyle = c; g.fillRect(i, j, w, hh); };
+  if (side === 'p') {
+    const S = '#6f6052', S2 = '#8a7761', DK = '#2c2420', MO = '#3d332d', HI = '#b59c78';
+    for (let i = 0; i < wc; i += 7) { P(i, 0, S2, 5, 4); P(i, 0, HI, 5, 1); P(i + 4, 0, S, 1, 4); P(i, 3, MO, 5, 1); }
+    P(0, 4, DK, wc, 1); P(0, 5, HI, wc, 1); P(0, 6, S2, wc, hc - 6);
+    for (let j = 6; j < hc; j += 4) { P(0, j, MO, wc, 1); for (let i = ((j / 4) % 2 ? 0 : 4); i < wc; i += 8) P(i, j, MO, 1, 4); }
+    for (let k = 0; k < 90; k++) { const i = R() * wc | 0, j = 6 + (R() * (hc - 6) | 0); P(i, j, R() < 0.5 ? S : '#9c8870'); }
+    P(0, hc - 3, '#2a2119', wc, 3); P(0, hc - 4, '#3d332d', wc, 1);
+    // banner hanging on the wall
+    P(16, 5, '#7a3416', 12, 1); P(17, 6, '#9c2f26', 10, 11); P(17, 6, '#c4622d', 1, 11); P(26, 6, '#4a1712', 1, 11);
+    for (let i = 0; i < 5; i++) P(17 + i * 2, 17, '#9c2f26', 1, 1 + (i % 2 ? 0 : 1)); P(17, 17, '#4a1712', 2, 1);
+    P(20, 8, '#ecd082', 4, 1); P(21, 9, '#ecd082', 2, 5); P(19, 12, '#cfa93f', 6, 1); P(21, 14, '#cfa93f', 2, 1);
+  } else {
+    const W = '#3b4552', W2 = '#546272', DK = '#131a22', ST = '#1e2a36', HI = '#88a4bc';
+    P(0, 15, '#2b3540', wc, 6); for (let i = 0; i < wc; i += 5) { P(i, 16, '#46586a', 3, 2); P(i + 1, 16, '#6a819a', 2, 1); }
+    for (let i = 0; i < wc; i += 4) { const hh = 12 + (R() * 5 | 0); const top = 17 - hh; P(i, top + 3, W, 3, hh); P(i, top + 3, W2, 1, hh); P(i + 2, top + 3, DK, 1, hh); P(i + 1, top + 1, W, 1, 2); P(i + 1, top, HI, 1, 1); P(i, top + 3, DK, 3, 1); P(i, top + 9, ST, 3, 1); P(i, top + 10, DK, 3, 1); }
+    // skull on a stake
+    const sx = 20, sy = 2; P(sx, sy, '#dcd6c2', 5, 4); P(sx + 1, sy + 4, '#dcd6c2', 3, 1); P(sx + 1, sy + 1, '#10161c', 1, 1); P(sx + 3, sy + 1, '#10161c', 1, 1); P(sx + 2, sy + 3, '#7a7466', 1, 1); P(sx, sy, '#f0ead6', 2, 1);
+    P(0, hc - 3, '#0c1218', wc, 3);
+  }
+}
+
+/* ================= OPTION A builder ================= */
+(function () {
+  paintScene($('#scene')); fxInit(); ambient(); buildChrome();
+  const layer = $('#layer');
+  const TOP = [30, 220, 410];
+  const tilePos = (team, col, lane) => ({ x: team === 'player' ? (col === 0 ? 420 : 236) : (col === 0 ? 770 : 954), y: TOP[lane] });
+  const teeth = (() => { const pts = ['0 0']; for (let i = 0; i < 21; i++) pts.push((i * 8) + 'px 0', (i * 8 + 4) + 'px ' + (i % 3 === 1 ? 20 : 12) + 'px'); pts.push('172px 0'); return pts.join(','); })();
+
+  const hero = (side, sprite, x, name) => {
+    const el = h('div', 'hero'); el.style.cssText = 'left:' + x + 'px;top:210px'; const mv = h('div', 'mv'); mv.style.position = 'relative'; mv.appendChild(spriteEl(sprite, 6, { team: side === 'p' ? 'player' : 'enemy', flip: side === 'e', delay: 200 })); el.appendChild(mv); layer.appendChild(el);
+    HEROES[side] = { box: { cx: x + 96, top: 210, feet: 394 }, el, mv };
+    const rc = h('canvas', 'rampart'); paintRampart(rc, side); rc.style.cssText = 'left:' + (side === 'p' ? 0 : 1146) + 'px;top:348px;width:220px;height:105px;image-rendering:pixelated'; layer.appendChild(rc);
+    const tg = h('div', 'herotag ' + side, name); tg.style.cssText = 'left:' + (side === 'p' ? 110 : 1256) + 'px;top:460px;transform:translateX(-50%)'; layer.appendChild(tg);
+    const tx0 = side === 'p' ? 188 : 1146; layer.appendChild(torchEl(tx0, 288, 4)); layer.appendChild(glowEl(tx0 + 16, 312, 130));
+  };
+  hero('p', 'warlord', 4, 'Lord Aldric'); hero('e', 'mage', 1170, 'Warlock Vael');
+
+  const shadowSrc = ellipseURL(32, 8, 'fill', 'rgba(8,5,12,.45)', 'rgba(8,5,12,.5)');
+  const mkTile = (team, col, lane) => {
+    const p = tilePos(team, col, lane); const t = h('div', 'tile ' + (team === 'player' ? 'p' : 'e')); t.style.left = p.x + 'px'; t.style.top = p.y + 'px'; return { t, p };
+  };
+  /* empty slots keep the dashed outline of today's game */
+  EMPTY.forEach((e) => { const { t } = mkTile(e.team, e.col, e.lane); t.classList.add('empty'); layer.appendChild(t); });
+
+  ROSTER.forEach((d) => {
+    const { t, p } = mkTile(d.team, d.col, d.lane); d.scale = 5; t.dataset.unit = d.id; if (d.acted) t.classList.add('acted');
+    d.box = { cx: p.x + 88, top: p.y - 21, feet: p.y + 134 };
+    const win = h('div', 'win'); win.appendChild(h('div', 'fl'));
+    const sh = h('img', 'shadow'); sh.src = shadowSrc; win.appendChild(sh);
+    const mv = h('div', 'mv'); mv.appendChild(spriteEl(d.sprite, 5, { team: d.team, flip: d.team === 'enemy', delay: (d.lane * 190 + d.col * 330) % 1000 })); win.appendChild(mv);
+    t.appendChild(win);
+    const chips = h('div', 'chips'); t.appendChild(chips);
+    const bar = h('div', 'nmbar'); bar.appendChild(h('span', 'nm', d.name)); bar.appendChild(h('span', 'count', '&times;' + d.count)); t.appendChild(bar);
+    const rime = h('div', 'rime'); rime.style.clipPath = 'polygon(' + teeth + ')'; t.appendChild(rime);
+    t.addEventListener('click', () => { const was = t.classList.contains('sel'); document.querySelectorAll('.tile.sel').forEach((e) => e.classList.remove('sel')); if (!was) t.classList.add('sel'); });
+    layer.appendChild(t);
+    d.root = t; d.mv = mv; d.chipsEl = chips; UNITS[d.id] = d;
+    (d.chips || []).forEach((c) => addChip(d.id, Object.assign({ cls: '' }, c)));
+    if (d.acted) addChip(d.id, { icon: 'hourglass', text: '' });
+  });
+  UNITS.sword.root.classList.add('sel');
+
+  { const { t } = mkTile(GRAVE.team, GRAVE.col, GRAVE.lane); t.classList.add('grave');
+    const rows = ['......kkkkkkkk......', '....kkwwwwwwwwkk....', '...kwwgggggggggdk...', '..kwwggggggggggddk..', '..kwggggggddgggddk..', '..kwggggggddgggddk..', '..kwgggddddddggddk..', '..kwggggggddgggddk..', '..kwggggggddgggddk..', '..kwggggggddgggddk..', '..kwggggggggggggdk..', '..kwggggggggggggdk..', '..kkkkkkkkkkkkkkkk..', '.kTtttyttTtttrtTtttk.', 'kTTtuttTttqttTtutTTk', 'kkTTTTTTTTTTTTTTTTkk'].map((r) => r.padEnd(20, '.').slice(0, 20));
+    const pal = Object.assign({}, PAL, { g: '#8c8272', w: '#c8bfa8', d: '#4a443a' });
+    const win = h('div', 'win'); win.appendChild(h('div', 'fl'));
+    const gv = h('div', 'grave'); gv.style.background = 'url(' + canvasURL([rows], pal) + ') 0 0/120px 96px'; win.appendChild(gv); t.appendChild(win);
+    const bar = h('div', 'nmbar'); bar.appendChild(h('span', 'nm', 'Fallen')); bar.appendChild(chipEl({ icon: 'skull', text: '', cls: 'bad' })); t.appendChild(bar); layer.appendChild(t); }
+})();
+
+</script>
+</body>
+</html>

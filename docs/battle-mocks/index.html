@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Ashes of Dominion - Battle screen mocks</title>
+<meta name="viewport" content="width=1366">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=MedievalSharp&family=Silkscreen:wght@400;700&family=Alegreya+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+* { box-sizing:border-box; margin:0; padding:0; border-radius:0; }
+html { background:#0e0d0c; }
+body { width:1100px; margin:0 auto; padding:40px 0 64px; color:#c4baa4; font:400 18px/28px 'Alegreya Sans','Segoe UI',sans-serif; background:radial-gradient(ellipse at 50% 0,#2a2010 0,transparent 55%),#0e0d0c; }
+h1 { font:400 44px/56px 'MedievalSharp',Georgia,serif; color:#ecd082; text-shadow:0 3px 0 #0e0d0c; }
+.sub { font:400 8px/16px 'Silkscreen','Courier New',monospace; letter-spacing:1px; text-transform:uppercase; color:#746b5c; margin:4px 0 24px; }
+p { max-width:78ch; margin-bottom:16px; }
+.pair { display:grid; grid-template-columns:1fr 1fr; gap:24px; margin:32px 0; }
+a.card { display:block; text-decoration:none; color:inherit; background:#221f1b; box-shadow:inset 2px 2px 0 #544d42,inset -2px -2px 0 #0e0d0c,0 4px 0 rgba(0,0,0,.7); padding:12px 12px 16px; }
+a.card:hover { box-shadow:inset 2px 2px 0 #cfa93f,inset -2px -2px 0 #0e0d0c,0 4px 0 rgba(0,0,0,.7); }
+a.card img { display:block; width:100%; height:auto; image-rendering:pixelated; margin-bottom:12px; box-shadow:0 0 0 2px #0e0d0c; }
+a.card b { display:block; font:400 24px/32px 'MedievalSharp',Georgia,serif; color:#ecd082; }
+a.card span { display:block; font:400 16px/24px 'Alegreya Sans',sans-serif; color:#c4baa4; }
+.shots { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-top:8px; }
+.shots img { width:100%; height:auto; image-rendering:pixelated; box-shadow:0 0 0 2px #0e0d0c; }
+.shots figcaption { font:400 8px/12px 'Silkscreen','Courier New',monospace; text-transform:uppercase; letter-spacing:1px; color:#746b5c; margin-top:4px; }
+h2 { font:400 24px/32px 'MedievalSharp',Georgia,serif; color:#ecd082; margin:32px 0 8px; }
+code { font:400 14px/20px Consolas,monospace; color:#ecd082; }
+</style>
+</head>
+<body>
+<h1>Battle screen - two directions</h1>
+<div class="sub">AO-D081 &middot; mocks for the owner to choose from &middot; 1366x900 &middot; real 32x32 sprites</div>
+
+<p>Both mocks use the same roster, top bar, hero busts behind their ramparts, hand tray (five cards, compact End Turn, deck and discard icons per AO-D063) and the same six interactive spell showcases in the small dev panel at the top right (Lightning, Frost rain, Freeze state, Fireball, Buff / heal, Melee slash; hovering a card in the hand shows the placement marks / target highlights). <b>A</b> keeps the framed slot rectangles but turns them into heavier riveted iron frames with sprites enlarged to x5 that pop above the frame, on top of a dusk landscape instead of a flat grid. <b>B</b> removes every rectangle: the stacks stand directly on the ground with contact shadows, the back row sits higher and smaller (x4 against x5), counts and status chips are small plates on the ground beside the feet, hover and selection are ground rings with name tags, and the open ground between the armies is the field of play, as in Heroes 3 and Disciples. B reads much more like a real battlefield and gives the spells a real place to land (frozen units stand in ice blocks on the field, fireball scorches the ground); A is the safer, cheaper step that keeps every click target and the row/column readability of today's screen.</p>
+
+<div class="pair">
+  <a class="card" href="a.html"><img src="shots/a-idle.png" alt="Option A"><b>Option A - framed slots on a scene</b><span>Riveted frames, x5 sprites popping out of the frame, name and count in the frame footer.</span></a>
+  <a class="card" href="b.html"><img src="shots/b-idle.png" alt="Option B"><b>Option B - units stand on the battlefield</b><span>No rectangles: shadows, ground rings, perspective ground, hover marks only on demand.</span></a>
+</div>
+
+<h2>Spell showcase frames</h2>
+<div class="sub">A on the left of each pair, B on the right (click a mock to play them live)</div>
+<div class="shots">
+  <figure><img src="shots/a-lightning-3.png" alt=""><figcaption>A lightning</figcaption></figure>
+  <figure><img src="shots/b-lightning-1.png" alt=""><figcaption>B lightning</figcaption></figure>
+  <figure><img src="shots/a-frost-2.png" alt=""><figcaption>A frost rain</figcaption></figure>
+  <figure><img src="shots/b-frost-2.png" alt=""><figcaption>B frost rain</figcaption></figure>
+  <figure><img src="shots/a-frost-4.png" alt=""><figcaption>A frozen units</figcaption></figure>
+  <figure><img src="shots/b-frost-4.png" alt=""><figcaption>B frozen units</figcaption></figure>
+  <figure><img src="shots/a-fireball-3.png" alt=""><figcaption>A fireball</figcaption></figure>
+  <figure><img src="shots/b-fireball-3.png" alt=""><figcaption>B fireball</figcaption></figure>
+</div>
+
+<p style="margin-top:32px"><small>Standalone files: <code>a.html</code>, <code>b.html</code> (inline CSS and JS, Google Fonts links only, no build step). Sprites, palette and materials are the approved ones from <code>docs/style-proof</code> and <code>src/ui/pixel</code>; the battlefield, ramparts, ice, torches and grave are drawn in code. Motion uses stepped timing; with <code>prefers-reduced-motion</code> the idle loop, shake, flashes and travelling effects are replaced by one still frame of each spell. The dev panel is not part of the design.</small></p>
+</body>
+</html>
