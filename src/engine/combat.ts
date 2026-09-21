@@ -859,7 +859,11 @@ function buildEnemyStep(state: CombatState, kind: EnemyStep['kind'], actorStackI
 
 function resolveEnemyTurn(state: CombatState, events: CombatEvent[]): EnemyStep[] {
   const steps: EnemyStep[] = [];
-  for (const intent of state.enemyIntents) {
+  // Intents were planned at the start of the player turn; a stack that had none then (a back-row melee stack blocked by its front row,
+  // AO-D069) may be free to act now that the player killed that row, so it gets a fresh plan instead of idling.
+  const planned = new Set(state.enemyIntents.map((i) => i.stackId));
+  const plan = [...state.enemyIntents, ...generateEnemyIntents(state).filter((i) => !planned.has(i.stackId))];
+  for (const intent of plan) {
     const actor = findStack(state.enemyArmy, intent.stackId);
     // Intents are captured at the start of the player's turn — if the player kills this
     // stack (or its buff target) mid-turn, its stale intent must not still resolve.

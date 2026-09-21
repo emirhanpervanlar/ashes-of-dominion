@@ -176,37 +176,42 @@ export default function App() {
     setFxBusy(true);
     setPending(null);
     fx.begin();
-    if (leaving.length > 0) {
-      setDiscardingIds(leaving);
-      await fx.wait(320);
-    }
-    const result = applyRunAction(run, { type: 'COMBAT_ACTION', action: { type: 'END_TURN' } });
-    const steps = result.enemySteps ?? [];
-    if (import.meta.env.DEV && result.run.combat) {
-      const replayed = replayEnemySteps(pre, steps).at(-1) ?? enemyPhaseBoard(pre);
-      const bad = replayMismatches(replayed, result.run.combat);
-      if (bad.length > 0) console.error('Enemy playback diverged from the engine final state for', bad);
-    }
+    // Any throw below (engine, DEV replay check, effects) must still release the input lock, or the whole screen stays unclickable.
     try {
-      setPlaybackBoard(enemyPhaseBoard(pre));
-      setDiscardingIds(null);
-      // A frozen (or held) enemy has no step to replay: say it skips its turn instead of going silent (AO-D066).
-      spawnFloaters(
-        pre.enemyArmy
-          .filter((s) => s.count > 0 && engineCannotAct(s))
-          .map((s) => ({ stackId: s.stackId, text: 'Skips turn', icon: 'st_freeze' as const, kind: 'status' as const, delayMs: 0 })),
-      );
-      await playEnemySteps({ fx, spawnFloaters }, enemyPhaseBoard(pre), steps, setPlaybackBoard);
-    } finally {
-      setPlaybackBoard(null);
-      commitRun(result);
-      if (result.run.combat) {
-        const events = result.run.combat.log.slice(pre.log.length);
-        const tail = events.slice(events.findIndex((e) => e.type === 'ENEMY_TURN_RESOLVED') + 1);
-        const dots = cuesFromEvents(tail, pre, result.run.combat).filter((c) => c.kind === 'dot');
-        dots.forEach((c) => fx.impact(c));
-        spawnFloaters(floatersFromCues(dots));
+      if (leaving.length > 0) {
+        setDiscardingIds(leaving);
+        await fx.wait(320);
       }
+      const result = applyRunAction(run, { type: 'COMBAT_ACTION', action: { type: 'END_TURN' } });
+      const steps = result.enemySteps ?? [];
+      if (import.meta.env.DEV && result.run.combat) {
+        const replayed = replayEnemySteps(pre, steps).at(-1) ?? enemyPhaseBoard(pre);
+        const bad = replayMismatches(replayed, result.run.combat);
+        if (bad.length > 0) console.error('Enemy playback diverged from the engine final state for', bad);
+      }
+      try {
+        setPlaybackBoard(enemyPhaseBoard(pre));
+        setDiscardingIds(null);
+        // A frozen (or held) enemy has no step to replay: say it skips its turn instead of going silent (AO-D066).
+        spawnFloaters(
+          pre.enemyArmy
+            .filter((s) => s.count > 0 && engineCannotAct(s))
+            .map((s) => ({ stackId: s.stackId, text: 'Skips turn', icon: 'st_freeze' as const, kind: 'status' as const, delayMs: 0 })),
+        );
+        await playEnemySteps({ fx, spawnFloaters }, enemyPhaseBoard(pre), steps, setPlaybackBoard);
+      } finally {
+        setPlaybackBoard(null);
+        commitRun(result);
+        if (result.run.combat) {
+          const events = result.run.combat.log.slice(pre.log.length);
+          const tail = events.slice(events.findIndex((e) => e.type === 'ENEMY_TURN_RESOLVED') + 1);
+          const dots = cuesFromEvents(tail, pre, result.run.combat).filter((c) => c.kind === 'dot');
+          dots.forEach((c) => fx.impact(c));
+          spawnFloaters(floatersFromCues(dots));
+        }
+      }
+    } finally {
+      setDiscardingIds(null);
       setFxBusy(false);
     }
   }
@@ -414,8 +419,11 @@ export default function App() {
       setFlyingCard(null);
       setPlayedInstanceId(null);
       setPlaybackBoard(null);
-      if (endsBattle || !shown) commitRun(result);
-      setFxBusy(false);
+      try {
+        if (endsBattle || !shown) commitRun(result);
+      } finally {
+        setFxBusy(false);
+      }
     }
   }
 
