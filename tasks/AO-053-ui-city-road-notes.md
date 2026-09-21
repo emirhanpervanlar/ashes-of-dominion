@@ -26,3 +26,4 @@ src/engine/** (report gaps).
 
 ## Acceptance criteria
 tsc clean, vitest green. Browser (port 5215 only, never 5173/4173, state injected before load, real clicks, screenshots looked at, no console errors): Gold popup on Road and City, Barracks upgrade at top, garrison bar collect, building levels/Max and visuals at levels 1..max, card info popup scaling text, 1366x900 and 1280x720.
+- 2026-09-21 ACCEPTED (767 tests). DDR: Temple/Training Hall/Marketplace have no engine levels (single stage, read Max); Director recommends A (keep) until the owner wants tiers.
