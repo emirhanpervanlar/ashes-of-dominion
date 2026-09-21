@@ -65,7 +65,7 @@ describe('AO-D043: relic tweaks', () => {
     const bought = buyOffer(onMap(5), 'arcane_crystal');
     expect(bought.hero.maxMana).toBe(onMap(5).hero.maxMana + 2);
     expect(bought.gold).toBe(1000 - RELIC_PRICE_BY_RARITY.rare);
-    expect(bought.army.find((s) => s.unitId === 'swordsman')!.count).toBe(Math.floor(10 * 0.9));
+    expect(bought.army.find((s) => s.unitId === 'swordsman')!.count).toBe(Math.floor(8 * 0.9));
   });
 
   it('Abandoned Camp Search finds a relic about 25% of the time', () => {

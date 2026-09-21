@@ -148,6 +148,48 @@ export const RELIC_DEFINITIONS: Record<string, RelicDefinition> = {
       { kind: 'PLAYER_DAMAGE_TAKEN_MULT', multiplier: 1.25 },
     ],
   },
+  steel_gauntlets: {
+    id: 'steel_gauntlets',
+    name: 'Steel Gauntlets',
+    description: 'Army deals +8% damage.',
+    rarity: 'common',
+    effects: [{ kind: 'PLAYER_DAMAGE_MULT', multiplier: 1.08 }],
+  },
+  warded_mantle: {
+    id: 'warded_mantle',
+    name: 'Warded Mantle',
+    description: 'Army takes -6% damage.',
+    rarity: 'common',
+    effects: [{ kind: 'PLAYER_DAMAGE_TAKEN_MULT', multiplier: 0.94 }],
+  },
+  surgeons_kit: {
+    id: 'surgeons_kit',
+    name: "Surgeon's Kit",
+    description: 'Healing +15%.',
+    rarity: 'common',
+    effects: [{ kind: 'HEALING_MULT', multiplier: 1.15 }],
+  },
+  wayfarers_cloak: {
+    id: 'wayfarers_cloak',
+    name: "Wayfarer's Cloak",
+    description: 'Dodge +4%.',
+    rarity: 'common',
+    effects: [{ kind: 'DODGE_BONUS_PERCENT', amount: 4 }],
+  },
+  mana_crystal: {
+    id: 'mana_crystal',
+    name: 'Mana Crystal',
+    description: 'Hero max Mana +1.',
+    rarity: 'rare',
+    effects: [{ kind: 'HERO_MAX_MANA', amount: 1 }],
+  },
+  veterans_standard: {
+    id: 'veterans_standard',
+    name: "Veteran's Standard",
+    description: "Army size +5 (added to the run's largest stack).",
+    rarity: 'rare',
+    effects: [{ kind: 'ARMY_SIZE_FLAT_LARGEST', amount: 5 }],
+  },
 };
 
 /**

@@ -160,7 +160,7 @@ export const CARD_UPGRADES: Record<string, CardUpgradeDefinition> = {
   // Mage
   fireball: {
     description: 'Damages the target and 40% to adjacent stacks.',
-    effects: [{ kind: 'ATTACK_SPLASH', primaryMultiplier: 2.2, secondaryMultiplier: 0.6, maxSecondaryTargets: 2 }],
+    effects: [{ kind: 'ATTACK_SPLASH', primaryMultiplier: 1.75, secondaryMultiplier: 0.7, maxSecondaryTargets: 2 }],
   },
   frost: {
     description: 'Full magic damage and applies Freeze.',

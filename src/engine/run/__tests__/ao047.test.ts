@@ -152,11 +152,12 @@ describe('AO-047 item 3 (AO-D078): chapter difficulty constants', () => {
 
   it('the chapter 1 boss is about a third of the old 258 units and later bosses grow by BOSS_CHAPTER_MULTIPLIER', () => {
     const one = size(generateBossEncounter(1));
-    expect(one).toBe(BOSS_FORMATION.reduce((n, [, , count]) => n + count, 0));
+    expect(one).toBe(BOSS_FORMATION.reduce((n, [, , count]) => n + Math.round(count * BOSS_CHAPTER_MULTIPLIER[0]!), 0)); // AO-050: chapter 1 is a multiplier below 1 of the formation
     expect(one).toBeGreaterThanOrEqual(55);
     expect(one).toBeLessThanOrEqual(95);
-    expect(BOSS_CHAPTER_MULTIPLIER[0]).toBe(1);
-    expect(BOSS_CHAPTER_MULTIPLIER[1]!).toBeGreaterThan(1.2);
+    expect(BOSS_CHAPTER_MULTIPLIER[0]!).toBeGreaterThan(0.6);
+    expect(BOSS_CHAPTER_MULTIPLIER[0]!).toBeLessThan(1.1);
+    expect(BOSS_CHAPTER_MULTIPLIER[1]!).toBeGreaterThan(BOSS_CHAPTER_MULTIPLIER[0]!);
     expect(BOSS_CHAPTER_MULTIPLIER[1]!).toBeLessThan(1.5);
     expect(BOSS_CHAPTER_MULTIPLIER[2]!).toBeGreaterThan(BOSS_CHAPTER_MULTIPLIER[1]!);
     expect(size(generateBossEncounter(2))).toBeGreaterThan(one);

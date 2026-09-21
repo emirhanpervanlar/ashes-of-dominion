@@ -26,11 +26,11 @@ function inCity(run: RunState, army: ArmyStack[]): RunState {
   return withBarracks({ ...run, phase: 'city', army, gold: 1000, food: 1000 });
 }
 
-describe('AO-D007 (amended by AO-D074): starting armies per hero', () => {
+describe('AO-D007 (amended by AO-D074, AO-050): starting armies per hero', () => {
   const expected: Record<HeroId, Array<[string, number]>> = {
-    warlord: [['swordsman', 4], ['knight', 4]],
-    rogue: [['swordsman', 3], ['knight', 1], ['archer', 4]],
-    mage: [['swordsman', 4], ['archer', 2], ['priest', 2]],
+    warlord: [['knight', 2], ['priest', 2], ['swordsman', 4]],
+    rogue: [['swordsman', 3], ['knight', 1], ['archer', 3], ['priest', 1]],
+    mage: [['swordsman', 5], ['archer', 2], ['priest', 1]],
   };
 
   for (const hero of HEROES) {
@@ -98,7 +98,7 @@ describe('AO-D008: recruits join the field army directly (max 6 stacks)', () => 
     expect(result.events.some((e) => e.type === 'ACTION_REJECTED')).toBe(false);
     expect(result.run.army).toHaveLength(6);
     const archer = result.run.army.find((s) => s.unitId === 'archer')!;
-    expect(archer).toMatchObject({ count: 9, currentHp: 9 * 6, maxHp: 9 * 6, preBattleMaxCount: 9 });
+    expect(archer).toMatchObject({ count: 9, currentHp: 9 * 7, maxHp: 9 * 7, preBattleMaxCount: 9 });
     expect(result.run.gold).toBeLessThan(1000);
   });
 
@@ -118,9 +118,9 @@ describe('AO-D008: recruits join the field army directly (max 6 stacks)', () => 
 
   it('places a new type in a free slot as a full-health living stack', () => {
     const run = inCity(createRun(33), createRun(33).army);
-    const result = applyRunAction(run, { type: 'RECRUIT', unitId: 'priest', count: 5 });
-    const priest = result.run.army.find((s) => s.unitId === 'priest')!;
-    expect(priest).toMatchObject({ count: 5, currentHp: 40, maxHp: 40, preBattleMaxCount: 5 });
+    const result = applyRunAction(run, { type: 'RECRUIT', unitId: 'archer', count: 5 });
+    const archer = result.run.army.find((s) => s.unitId === 'archer')!;
+    expect(archer).toMatchObject({ count: 5, currentHp: 35, maxHp: 35, preBattleMaxCount: 5 });
     expect(new Set(result.run.army.map((s) => s.position)).size).toBe(result.run.army.length);
   });
 
@@ -242,12 +242,12 @@ describe('Royal Banner / Arcane Crystal keep the heal cap consistent (AO-D004)',
     }
   });
 
-  it('a full-health Royal Banner Swordsman x10 is not changed by a Priest heal (never negative)', () => {
+  it('a full-health Royal Banner Swordsman x8 is not changed by a Priest heal (never negative)', () => {
     const { sword, after, event } = healed('royal_banner', 0);
-    expect(sword.count).toBe(10);
+    expect(sword.count).toBe(8);
     if (event && event.type === 'STACK_HEALED') expect(event.amount).toBe(0);
     expect(after.currentHp).toBe(sword.maxHp);
-    expect(after.count).toBe(10);
+    expect(after.count).toBe(8);
   });
 
   it('a wounded Royal Banner Swordsman heals, but only up to the boosted cap', () => {

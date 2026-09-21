@@ -47,7 +47,7 @@ const FORT_TEMPLATE: Array<[UnitId, Position, number]> = [
 ];
 
 export function generateBattleEncounter(layer: number, fort: boolean, chapter = 1, threat = 0): ArmyStack[] {
-  const fortMultiplier = fort ? 1.3 : 1;
+  const fortMultiplier = fort ? 2 : 1;
   const template = fort ? FORT_TEMPLATE : NON_FORT_TEMPLATE;
   const depth = encounterDepth(layer, chapter);
   const activeSlots = template.slice(0, slotsForDepth(depth, fort));

@@ -76,10 +76,10 @@ describe('recruitment', () => {
   it('recruiting a unit type not already in the army adds a new stack', () => {
     let run = withBarracks(reachCity(6));
     run = { ...run, gold: 200, food: 200 };
-    expect(run.army.some((s) => s.unitId === 'priest')).toBe(false);
-    const result = applyRunAction(run, { type: 'RECRUIT', unitId: 'priest', count: 5 });
+    expect(run.army.some((s) => s.unitId === 'archer')).toBe(false);
+    const result = applyRunAction(run, { type: 'RECRUIT', unitId: 'archer', count: 5 });
     expect(result.events.some((e) => e.type === 'ACTION_REJECTED')).toBe(false);
-    expect(result.run.army.find((s) => s.unitId === 'priest')?.count).toBe(5);
+    expect(result.run.army.find((s) => s.unitId === 'archer')?.count).toBe(5);
   });
 });
 

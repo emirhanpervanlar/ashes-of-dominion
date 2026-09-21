@@ -219,7 +219,7 @@ describe('AO-D004: heal math', () => {
   });
 
   it('losing HP reduces count by ceil(hp / hpPerUnit)', () => {
-    const sword = createStack('swordsman', 'player', 1, 6);
+    const sword = { ...createStack('swordsman', 'player', 1, 6), currentHp: 60, maxHp: 60 }; // explicit 10 HP per soldier: the test passes hpPerUnit itself
     expect(applyDamageToStack(sword, 10, 25).stack.count).toBe(4); // 35 HP left
     expect(applyDamageToStack(sword, 10, 20).stack.count).toBe(4); // 40 HP left
     expect(applyDamageToStack(sword, 10, 60).stack.count).toBe(0);
@@ -229,20 +229,20 @@ describe('AO-D004: heal math', () => {
     const player = [wounded(createStack('swordsman', 'player', 1, 6), 3), createStack('priest', 'player', 5, 60)];
     const state = battle(player, enemyOrcs(), ['greater_heal']);
     const viaBasic = applyPlayerAction(state, { type: 'BASIC_ACTION', stackId: 'player_priest_5', targetStackId: 'player_swordsman_1' });
-    expect(stackOf(viaBasic.state, 'player_swordsman_1')).toMatchObject({ count: 6, currentHp: 60 });
+    expect(stackOf(viaBasic.state, 'player_swordsman_1')).toMatchObject({ count: 6, currentHp: 72 });
     const viaCard = applyPlayerAction(state, {
       type: 'PLAY_CARD',
       instanceId: state.hand[0]!.instanceId,
       actingStackId: 'player_priest_5',
       targetStackId: 'player_swordsman_1',
     });
-    expect(stackOf(viaCard.state, 'player_swordsman_1')).toMatchObject({ count: 6, currentHp: 60 });
+    expect(stackOf(viaCard.state, 'player_swordsman_1')).toMatchObject({ count: 6, currentHp: 72 });
   });
 
   it('a stack that is already full is not raised above its pre-battle max', () => {
     const player = [createStack('swordsman', 'player', 1, 6), createStack('priest', 'player', 5, 4)];
     const result = applyPlayerAction(battle(player, enemyOrcs()), { type: 'BASIC_ACTION', stackId: 'player_priest_5', targetStackId: 'player_swordsman_1' });
-    expect(stackOf(result.state, 'player_swordsman_1')).toMatchObject({ count: 6, currentHp: 60 });
+    expect(stackOf(result.state, 'player_swordsman_1')).toMatchObject({ count: 6, currentHp: 72 });
   });
 });
 

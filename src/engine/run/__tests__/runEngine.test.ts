@@ -54,7 +54,7 @@ describe('run creation', () => {
     const run = createRun(1);
     expect(run.phase).toBe('on_map');
     expect(run.relics.map((r) => r.id)).toEqual(['royal_banner']);
-    expect(run.army.map((s) => s.count)).toEqual([10, 4]);
+    expect(run.army.map((s) => s.count)).toEqual([8, 2, 2]);
     expect(run.masterDeck.length).toBe(10);
     expect(run.combat).toBeNull();
     expect(run.gold).toBe(100);
@@ -68,17 +68,17 @@ describe('run creation', () => {
 });
 
 describe('starting relic', () => {
-  it('Royal Banner adds +6 to the largest starting stack and moves to the map', () => {
+  it('Royal Banner adds +4 to the largest starting stack and moves to the map', () => {
     const run = createRun(2, 'warlord', undefined, 'royal_banner');
     const swordsman = run.army.find((s) => s.unitId === 'swordsman')!;
-    expect(swordsman.count).toBe(10); // 4 (Warlord's first largest starting stack) + 6 (AO-D014)
+    expect(swordsman.count).toBe(8); // 4 (Warlord's first largest starting stack) + 4 (AO-050)
     expect(run.phase).toBe('on_map');
     expect(run.combat).toBeNull();
   });
 
   it("Traveler's Purse grants +50 Gold once at run start and does not count as gathered income (AO-D043)", () => {
     const run = createRun(3, 'warlord', undefined, 'travelers_purse');
-    expect(run.gold).toBe(150);
+    expect(run.gold).toBe(175);
     expect(run.stats.goldGathered).toBe(0);
   });
 

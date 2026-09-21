@@ -31,7 +31,7 @@ describe('vertical slice scenario setup (Warlord vs Guarded Shaman)', () => {
     expect(state.hero.heroType).toBe('warlord');
     expect(state.hero.hp).toBe(100);
     expect(state.hero.mana).toBeGreaterThan(0);
-    expect(state.playerArmy.map((s) => s.count)).toEqual([4, 4]);
+    expect(state.playerArmy.map((s) => s.count)).toEqual([4, 2, 2]);
     expect(state.enemyArmy.map((s) => s.count)).toEqual([10, 10, 10, 10, 8, 10]);
     expect(state.hand.length).toBe(5); // v3 §10 "Initial draw 5"
     expect(state.enemyIntents.length).toBeGreaterThan(0);
