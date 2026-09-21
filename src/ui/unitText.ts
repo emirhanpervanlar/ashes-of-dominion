@@ -8,6 +8,7 @@ export const UNIT_DESCRIPTIONS: Record<UnitId, string> = {
   priest: 'Support healer. Healing and support effects +10%.',
   skeleton: 'Raised from your fallen by the Necromantic Doctrine. Weak, needs no Food and cannot be recruited.',
   goblin: 'Cheap raider. Adjacent Goblins deal +10% damage.',
+  goblin_archer: 'Fragile raider with a shortbow. Shoots any stack from the back row.',
   orc: 'Brutal frontline raider. +20% damage vs targets below 50% count.',
   shaman: 'Gives the weakest allied stack +4 Strength at the start of each enemy turn.',
   wolf: 'Fast beast. +25% damage against backline targets.',

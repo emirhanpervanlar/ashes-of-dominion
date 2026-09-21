@@ -88,6 +88,21 @@ export const UNIT_DEFINITIONS: Record<UnitId, UnitDefinition> = {
     passiveId: 'mob_tactics',
     targetPreference: 'frontline',
   },
+  /** AO-D089: enemy-only skirmisher for the back rows; fragile, fires at any stack like the Archer. Not recruitable. */
+  goblin_archer: {
+    id: 'goblin_archer',
+    name: 'Goblin Archer',
+    side: 'enemy',
+    hpPerUnit: 4,
+    foodPerUnit: 0.1,
+    damage: 2,
+    attack: 3,
+    defense: 0,
+    tags: ['ranged', 'archer'],
+    basicAction: 'ranged_attack',
+    rangedAllAccess: true,
+    targetPreference: 'weakest',
+  },
   orc: {
     id: 'orc',
     name: 'Orc',
