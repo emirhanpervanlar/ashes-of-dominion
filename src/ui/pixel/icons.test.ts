@@ -66,7 +66,7 @@ describe('game ids have icons', () => {
   });
 
   it('every node type and building id', () => {
-    expect(Object.keys(NODE_ICONS).sort()).toEqual(['battle', 'boss', 'elite_battle', 'event', 'merchant', 'resource', 'start', 'village']);
+    expect(Object.keys(NODE_ICONS).sort()).toEqual(['battle', 'boss', 'event', 'fort', 'merchant', 'mine', 'start', 'village']);
     expectAll('node', Object.values(NODE_ICONS));
     for (const id of [...Object.keys(BUILDING_DEFINITIONS), 'townhall', 'barracks', 'temple', 'marketplace']) {
       expect(BUILDING_ICONS[id], `building ${id}`).toBeDefined();

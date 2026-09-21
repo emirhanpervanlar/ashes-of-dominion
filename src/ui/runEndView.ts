@@ -17,7 +17,7 @@ export interface StatGroup {
 const ENGINE_GROUPS: { label: string; rows: Record<string, IconName> }[] = [
   {
     label: 'Battle',
-    rows: { battlesWon: 'node_battle', elitesDefeated: 'node_elite', bossesDefeated: 'node_boss', enemiesKilled: 'fx_skull', damageDealt: 'damage', damageTaken: 'hp', turnsPlayed: 'ui_swap', cardsPlayed: 'deck' },
+    rows: { battlesWon: 'node_battle', fortsTaken: 'node_fort', bossesDefeated: 'node_boss', enemiesKilled: 'fx_skull', damageDealt: 'damage', damageTaken: 'hp', turnsPlayed: 'ui_swap', cardsPlayed: 'deck' },
   },
   { label: 'Journey', rows: { chapter: 'crest', days: 'day', eventsResolved: 'node_event', threat: 'threat' } },
   { label: 'Economy', rows: { goldGathered: 'gold', foodGathered: 'food', foodEaten: 'food', relics: 'relic' } },

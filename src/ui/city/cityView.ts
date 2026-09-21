@@ -16,6 +16,7 @@ import {
   farmProduction,
   garrisonCap,
   isGarrisonDay,
+  mineDailyGold,
   moveFoodCost,
   recruitBlocker,
   recruitCost,
@@ -209,9 +210,9 @@ export function activeEffects(run: Pick<RunState, 'city' | 'army'>): CityEffect[
   return effects;
 }
 
-/** Gold and Food change per day from the city, for the "Per day" strip. */
-export function dailyChange(run: Pick<RunState, 'city' | 'army' | 'villages'>): { gold: number; food: number } {
-  return { gold: run.city.buildings.includes('gold_mine') ? GOLD_MINE_DAILY_GOLD : 0, food: dailyFoodNet(run) };
+/** Gold and Food change per day from the city and the captured mines, for the "Per day" strip. */
+export function dailyChange(run: Pick<RunState, 'city' | 'army' | 'villages' | 'mines'>): { gold: number; food: number } {
+  return { gold: (run.city.buildings.includes('gold_mine') ? GOLD_MINE_DAILY_GOLD : 0) + mineDailyGold(run), food: dailyFoodNet(run) };
 }
 
 export interface BarracksRow {

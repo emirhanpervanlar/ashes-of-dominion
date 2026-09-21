@@ -113,7 +113,7 @@ export function CityScreen({ run, onRecruit, onBuild, onUpgradeBarracks, onColle
   const waiting = garrisonUnits(run.garrison).reduce((sum, u) => sum + u.count, 0);
   const fixedStatus: Record<FixedBuildingId, string> = {
     townhall: `Level ${city.level}`,
-    barracks: city.barracksTier === 0 ? 'Build' : waiting > 0 ? `Tier ${ROMAN[city.barracksTier - 1]}, ${waiting} waiting` : `Tier ${ROMAN[city.barracksTier - 1]}`,
+    barracks: waiting > 0 ? `Tier ${ROMAN[city.barracksTier - 1]}, ${waiting} waiting` : `Tier ${ROMAN[city.barracksTier - 1]}`,
     marketplace: 'Buy Food',
     temple: city.doctrine ? (DOCTRINE_DEFINITIONS[city.doctrine]?.name ?? 'Chosen') : 'Choose',
   };
@@ -158,7 +158,7 @@ export function CityScreen({ run, onRecruit, onBuild, onUpgradeBarracks, onColle
                   id={id}
                   name={FIXED_BUILDING_INFO[id].name}
                   icon={BUILDING_ICONS[id]!}
-                  state="open"
+                  state={id === 'barracks' ? 'built' : 'open'}
                   status={fixedStatus[id]}
                   active={panel === id}
                   tip={{ title: FIXED_BUILDING_INFO[id].name, body: FIXED_BUILDING_INFO[id].hint }}
@@ -190,7 +190,7 @@ export function CityScreen({ run, onRecruit, onBuild, onUpgradeBarracks, onColle
 
       {panel === 'townhall' && <TownHallPanel run={run} onUpgradeCity={onUpgradeCity} onRemoveCard={onRemoveCard} onClose={() => setPanel(null)} />}
       {panel === 'barracks' && (
-        <BarracksPanel run={run} recent={recentRecruit} onRecruit={recruit} onBuild={onBuild} onUpgrade={onUpgradeBarracks} onCollect={onCollectGarrison} onClose={() => setPanel(null)} />
+        <BarracksPanel run={run} recent={recentRecruit} onRecruit={recruit} onUpgrade={onUpgradeBarracks} onCollect={onCollectGarrison} onClose={() => setPanel(null)} />
       )}
       {panel === 'marketplace' && <MarketplacePanel run={run} onBuy={onBuyFood} onClose={() => setPanel(null)} />}
       {panel === 'temple' && <TemplePanel run={run} onChoose={onChooseDoctrine} onClose={() => setPanel(null)} />}

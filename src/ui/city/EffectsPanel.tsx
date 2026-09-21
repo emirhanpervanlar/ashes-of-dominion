@@ -5,7 +5,7 @@ import { activeEffects, dailyChange } from './cityView.js';
 const signed = (n: number): string => (n > 0 ? `+${n}` : `${n}`);
 
 /** Everything the built buildings and the doctrine do right now (AO-D062), worded from engine data in cityView.ts. */
-export function EffectsPanel({ run }: { run: Pick<RunState, 'city' | 'army' | 'villages'> }) {
+export function EffectsPanel({ run }: { run: Pick<RunState, 'city' | 'army' | 'villages' | 'mines'> }) {
   const effects = activeEffects(run);
   const daily = dailyChange(run);
   return (

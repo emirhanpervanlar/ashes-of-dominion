@@ -37,10 +37,10 @@ export function describeRunEvent(event: RunEvent): string | null {
       return `Moved onward (−${event.foodCost} Food).`;
     case 'STARVED':
       return `${unitCountsText(event.deaths)} starved (starving day ${event.consecutiveDays}).`;
-    case 'RESOURCE_FOUND':
-      return `Found a cache: +${event.gold} Gold, +${event.food} Food.`;
+    case 'MINE_CAPTURED':
+      return `Mine captured: +${event.gold} Gold, +${event.food} Food, ${event.mines} ${event.mines === 1 ? 'mine' : 'mines'}.`;
     case 'ARRIVED_AT_NODE':
-      return null; // redundant with MOVED/RESOURCE_FOUND/etc.
+      return null; // redundant with MOVED/MINE_CAPTURED/etc.
     case 'BATTLE_WON':
       return 'Battle won!';
     case 'BATTLE_LOST':

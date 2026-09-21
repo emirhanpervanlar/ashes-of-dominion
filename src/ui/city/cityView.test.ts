@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { BARRACKS_TIERS, BUILDING_DEFINITIONS, DOCTRINE_DEFINITIONS, FARM_TIERS, LEVEL_SLOTS, MAGE_TOWER_TIERS, createRun, isGarrisonDay, recruitCost } from '../../engine/run/index.js';
+import { BARRACKS_TIERS, BUILDING_DEFINITIONS, DOCTRINE_DEFINITIONS, FARM_TIERS, LEVEL_SLOTS, MAGE_TOWER_TIERS, GOLD_MINE_DAILY_GOLD, MARKET_RECRUIT_DISCOUNT, MINE, RECRUIT_COSTS, createRun, isGarrisonDay, mineDailyGold, recruitCost } from '../../engine/run/index.js';
 import type { RunState } from '../../engine/run/index.js';
-import { RECRUITABLE_UNITS, SCENE_BUILDINGS, activeEffects, barracksRows, buildBlocker, buildingEffect, daysToGarrison, garrisonRows, levelRows, placementText, plotState, recruitQuote, tierRows } from './cityView.js';
+import { FIXED_BUILDINGS, RECRUITABLE_UNITS, SCENE_BUILDINGS, activeEffects, barracksRows, buildBlocker, buildingEffect, dailyChange, daysToGarrison, garrisonRows, levelRows, placementText, plotState, recruitQuote, tierRows } from './cityView.js';
 
 function cityRun(patch: Partial<RunState> = {}, city: Partial<RunState['city']> = {}): RunState {
   const run = createRun(7, 'warlord', 'Tester');
@@ -13,27 +13,28 @@ describe('recruitQuote', () => {
     const plain = cityRun();
     const q = recruitQuote(plain, 'swordsman', 10);
     expect(q.gold).toBe(recruitCost(plain.city, 'swordsman', 10)!.gold);
-    expect(q.goldPerUnit).toBe(8);
-    expect(q.food).toBe(10);
+    expect(q.goldPerUnit).toBe(RECRUIT_COSTS.swordsman!.gold);
+    expect(q.food).toBe(10 * RECRUIT_COSTS.swordsman!.food);
     const market = cityRun({}, { buildings: ['market'] });
-    expect(recruitQuote(market, 'swordsman', 10).goldPerUnit).toBeCloseTo(6.8);
+    expect(recruitQuote(market, 'swordsman', 10).goldPerUnit).toBeCloseTo(RECRUIT_COSTS.swordsman!.gold * (1 - MARKET_RECRUIT_DISCOUNT));
     expect(recruitQuote(market, 'swordsman', 10).gold).toBeLessThan(q.gold);
   });
 
   it('max affordable is the largest count Gold and Food both allow', () => {
-    const run = cityRun({ gold: 100, food: 6 });
-    const q = recruitQuote(run, 'knight', 1);
-    expect(q.maxAffordable).toBe(3); // 15g / 2f each: Food limits to 3
-    const rich = cityRun({ gold: 100, food: 500 });
-    expect(recruitQuote(rich, 'knight', 1).maxAffordable).toBe(6); // Gold limits to 6
+    const knight = RECRUIT_COSTS.knight!;
+    const run = cityRun({ gold: 1000, food: knight.food * 3 });
+    expect(recruitQuote(run, 'knight', 1).maxAffordable).toBe(3); // Food limits
+    const rich = cityRun({ gold: knight.gold * 6, food: 500 });
+    expect(recruitQuote(rich, 'knight', 1).maxAffordable).toBe(6); // Gold limits
     expect(recruitQuote(cityRun({ gold: 3 }), 'knight', 1).maxAffordable).toBe(0);
   });
 
   it('blocks on Gold, Food and a zero count, and lets an exact fit through', () => {
-    expect(recruitQuote(cityRun({ gold: 79 }), 'swordsman', 10).blocker).toBe('Not enough Gold.');
-    expect(recruitQuote(cityRun({ food: 9 }), 'swordsman', 10).blocker).toBe('Not enough Food (every recruit costs Food too).');
+    const sword = RECRUIT_COSTS.swordsman!;
+    expect(recruitQuote(cityRun({ gold: sword.gold * 10 - 1 }), 'swordsman', 10).blocker).toBe('Not enough Gold.');
+    expect(recruitQuote(cityRun({ food: sword.food * 10 - 1 }), 'swordsman', 10).blocker).toBe('Not enough Food (every recruit costs Food too).');
     expect(recruitQuote(cityRun(), 'swordsman', 0).blocker).toBe('Choose how many to recruit.');
-    expect(recruitQuote(cityRun({ gold: 80, food: 10 }), 'swordsman', 10).blocker).toBeNull();
+    expect(recruitQuote(cityRun({ gold: sword.gold * 10, food: sword.food * 10 }), 'swordsman', 10).blocker).toBeNull();
   });
 
   it('merges into an existing stack of the same type and takes the first free slot otherwise', () => {
@@ -121,8 +122,9 @@ describe('building states', () => {
 
   it('every scene building exists in the engine and none is listed twice', () => {
     expect(new Set(SCENE_BUILDINGS).size).toBe(SCENE_BUILDINGS.length);
-    // The Barracks (AO-D071) is a tiered building in the engine but its own fixed plot in the scene.
-    expect([...SCENE_BUILDINGS, 'barracks'].sort()).toEqual(Object.keys(BUILDING_DEFINITIONS).sort());
+    expect([...SCENE_BUILDINGS].sort()).toEqual(Object.keys(BUILDING_DEFINITIONS).sort());
+    // The four fixed plots (Barracks included, AO-D080) are not engine buildings that take a slot.
+    for (const id of FIXED_BUILDINGS) expect(BUILDING_DEFINITIONS[id]).toBeUndefined();
   });
 });
 
@@ -145,6 +147,17 @@ describe('ladders', () => {
     expect(rows.map((r) => r.slots)).toEqual([LEVEL_SLOTS[1], LEVEL_SLOTS[2], LEVEL_SLOTS[3]]);
     expect(rows.map((r) => r.state)).toEqual(['built', 'built', 'next']);
     expect(rows[0]!.cost).toBe(0);
+  });
+});
+
+describe('dailyChange', () => {
+  it('adds the captured mines (max paying) to the Gold Mine building', () => {
+    const plain = cityRun();
+    expect(dailyChange({ ...plain, mines: 0 }).gold).toBe(0);
+    expect(dailyChange({ ...plain, mines: 2 }).gold).toBe(mineDailyGold({ mines: 2 }));
+    expect(dailyChange({ ...plain, mines: 9 }).gold).toBe(MINE.payingMines * MINE.dailyGold);
+    const withBuilding = cityRun({}, { buildings: ['gold_mine'] });
+    expect(dailyChange({ ...withBuilding, mines: 2 }).gold).toBe(GOLD_MINE_DAILY_GOLD + mineDailyGold({ mines: 2 }));
   });
 });
 

@@ -26,6 +26,7 @@ import {
   threatMultiplier,
 } from '../engine/run/index.js';
 import type { CityBuildingDefinition, RunState } from '../engine/run/index.js';
+import { MINE, mineDailyGold } from '../engine/run/mines.js';
 import { VILLAGE } from '../engine/run/villages.js';
 import type { IconName } from './pixel/icons.js';
 import { STATUS_ICONS } from './stackStatus.js';
@@ -113,10 +114,11 @@ export function pileTip(kind: 'draw' | 'discard', count: number): TipContent {
     : { title: 'Discard pile', icon: 'discard', body: `${plural(count, 'card')} used. It is shuffled back into the draw pile when that runs out. Click to view.` };
 }
 
-export function goldTip(run: Pick<RunState, 'gold' | 'city'>): TipContent {
+export function goldTip(run: Pick<RunState, 'gold' | 'city' | 'mines'>): TipContent {
   const lines: TipLine[] = [];
   if (run.city.buildings.includes('gold_mine')) lines.push({ icon: 'gold', text: `Gold Mine: +${GOLD_MINE_DAILY_GOLD} Gold every day.`, tone: 'good' });
-  return { title: 'Gold', icon: 'gold', body: `${run.gold} Gold. Pays for recruits, buildings, cards and relics. Battles, resource nodes and events bring more.`, lines };
+  if (run.mines > 0) lines.push({ icon: 'node_mine', text: `${plural(run.mines, 'captured mine')}: +${mineDailyGold(run)} Gold every day.`, tone: 'good' });
+  return { title: 'Gold', icon: 'gold', body: `${run.gold} Gold. Pays for recruits, buildings, cards and relics. Battles, mines, villages and events bring more.`, lines };
 }
 
 export function foodTip(run: Pick<RunState, 'food' | 'army' | 'city' | 'villages'>): TipContent {
@@ -167,9 +169,25 @@ export function villageTip(): TipContent {
   };
 }
 
+export function fortTip(): TipContent {
+  return { title: 'Fort', icon: 'node_fort', body: 'Assault an enemy camp: a hard battle, then a relic and extra loot.', lines: [{ icon: 'relic', text: 'Relics from forts never carry a drawback.', tone: 'good' }] };
+}
+
+export function mineTip(): TipContent {
+  return {
+    title: 'Mine',
+    icon: 'node_mine',
+    body: 'Capture it: a small find now.',
+    lines: [{ icon: 'gold', text: `+${MINE.dailyGold} Gold every day for the rest of the run (at most ${MINE.payingMines} mines pay).`, tone: 'good' }],
+  };
+}
+
 /** Road tooltip of a node: the plain label, or the longer explanation for nodes that have one. */
 export function nodeTip(type: string, label: string): TipContent | string {
-  return type === 'village' ? villageTip() : label;
+  if (type === 'village') return villageTip();
+  if (type === 'fort') return fortTip();
+  if (type === 'mine') return mineTip();
+  return label;
 }
 
 export function chapterTip(run: Pick<RunState, 'chapter'>): TipContent {

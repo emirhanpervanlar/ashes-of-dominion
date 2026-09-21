@@ -8,6 +8,8 @@ interface Props {
   /** Gold and Food from the last BATTLE_LOOT, or null when nothing dropped. */
   loot: { gold: number; food: number } | null;
   isBoss: boolean;
+  /** A fort was assaulted (not the boss): it always grants a relic while its simple pool lasts. */
+  isFort: boolean;
   onClaimRelic: (relicId: string) => void;
   onClaimCard: (cardId: string) => void;
   onClaimUpgrade: (instanceId: string) => void;
@@ -17,8 +19,8 @@ type RewardSlot =
   | { kind: 'card'; key: string; cardId: string }
   | { kind: 'upgrade'; key: string; instanceId: string; cardId: string };
 
-/** AO-D068: the player must take one card or the upgrade slot (no Skip, no card removal here); an elite's relic is already theirs, a boss offers one of three. */
-export function RewardScreen({ reward, loot, isBoss, onClaimRelic, onClaimCard, onClaimUpgrade }: Props) {
+/** AO-D068: the player must take one card or the upgrade slot (no Skip, no card removal here); a fort's relic is already theirs (or the camp held none), a boss offers up to three. */
+export function RewardScreen({ reward, loot, isBoss, isFort, onClaimRelic, onClaimCard, onClaimUpgrade }: Props) {
   const slots: RewardSlot[] = [
     ...reward.cardOptions.map((cardId): RewardSlot => ({ kind: 'card', key: cardId, cardId })),
     ...reward.upgradeOptions.map((o): RewardSlot => ({ kind: 'upgrade', key: o.instanceId, instanceId: o.instanceId, cardId: o.cardId })),
@@ -26,7 +28,7 @@ export function RewardScreen({ reward, loot, isBoss, onClaimRelic, onClaimCard, 
 
   return (
     <div className="screen reward-overlay" data-screen="vault">
-      <div className="plaque plaque--ribbon">{isBoss ? 'The Boss Has Fallen!' : 'Victory! Choose One'}</div>
+      <div className="plaque plaque--ribbon">{isBoss ? 'The Boss Has Fallen!' : isFort ? 'Fort Taken! Choose One' : 'Victory! Choose One'}</div>
       {loot && (
         <div className="reward-loot">
           <span className="pill pill--gold">
@@ -47,16 +49,24 @@ export function RewardScreen({ reward, loot, isBoss, onClaimRelic, onClaimCard, 
         </div>
       )}
 
+      {isFort && !reward.relicGained && (
+        <div className="reward-relic-block" data-no-relic>
+          <div className="reward-relic-heading">The camp held no relic</div>
+        </div>
+      )}
+
       {reward.relicChoices.length > 0 && (
         <div className="reward-relic-block">
           <div className="reward-relic-heading">
-            Boss spoils: take one relic
-            <span className="reward-relic-note"> (picking a card first forfeits them)</span>
+            {reward.relicChoices.length === 1 ? 'Boss spoils: take the relic' : 'Boss spoils: take one relic'}
           </div>
           <div className="reward-relic-row">
             {reward.relicChoices.map((relicId) => (
               <RelicOfferCard key={relicId} relicId={relicId} compact onClick={() => onClaimRelic(relicId)} />
             ))}
+          </div>
+          <div className="reward-relic-warn">
+            <Icon name="ui_warn" /> Picking a card forfeits the unclaimed relics.
           </div>
         </div>
       )}
