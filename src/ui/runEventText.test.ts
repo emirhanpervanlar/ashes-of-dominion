@@ -15,6 +15,11 @@ describe('run event texts', () => {
     expect(text).toBe('3 Swordsmen, 1 Archer starved (starving day 2).');
   });
 
+  it('reports the Necromantic Doctrine raising Skeletons', () => {
+    expect(describeRunEvent({ type: 'UNITS_RAISED', count: 5 })).toBe('5 fallen soldiers rose as Skeletons.');
+    expect(describeRunEvent({ type: 'UNITS_RAISED', count: 1 })).toBe('1 fallen soldier rose as a Skeleton.');
+  });
+
   it('says which card an upgrade improved', () => {
     expect(describeRunEvent({ type: 'CARD_UPGRADED', instanceId: 'c1', cardId: 'charge' })).toBe('Upgraded Charge.');
   });

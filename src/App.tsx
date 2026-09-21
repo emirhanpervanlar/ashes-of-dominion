@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { CARD_DEFINITIONS, UNIT_DEFINITIONS, cannotAct as engineCannotAct, cardPlayability,cardRequirement, computeValidHealTargets, computeValidTargets, resolveCard } from './engine/index.js';
+import { CARD_DEFINITIONS, UNIT_DEFINITIONS, cannotAct as engineCannotAct, cardPlayability, cardRequirement, computeValidHealTargets, computeValidTargets, resolveCard } from './engine/index.js';
 import type { ArmyStack, CardTargeting, CombatState, PlayerAction, Position } from './engine/index.js';
 import { applyRunAction, cardRemovalQuote, createRun, enemyStrengthAfterCityVisits, eventView } from './engine/run/index.js';
 import type { RunEvent, RunState } from './engine/run/index.js';
@@ -232,6 +232,7 @@ export default function App() {
           pushToast('fx_skull', text ?? 'Units lost.');
           break;
         case 'UNITS_GAINED':
+        case 'UNITS_RAISED':
         case 'UNITS_DISMISSED':
         case 'UNIT_GAIN_DECLINED':
           pushToast('crest', text ?? 'The army changed.');

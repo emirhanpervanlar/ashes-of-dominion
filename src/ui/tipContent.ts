@@ -89,6 +89,7 @@ const ROLE_INFO: Partial<Record<IconName, { name: string; text: string }>> = {
   role_tank: { name: 'Heavy', text: 'Armoured melee frontliner. Hits its own or an adjacent lane and shields its neighbours.' },
   role_support: { name: 'Support', text: 'Uses its free action to heal a friendly stack instead of attacking.' },
   role_caster: { name: 'Caster', text: 'Magic user that backs up its allies.' },
+  role_undead: { name: 'Undead', text: 'Raised from your fallen by the Necromantic Doctrine. A weak melee stack that needs no Food.' },
   role_beast: { name: 'Beast', text: 'Fast melee raider that goes after ranged units first.' },
 };
 
