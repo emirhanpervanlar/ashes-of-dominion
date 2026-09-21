@@ -263,6 +263,20 @@ describe('AO-D033 / AO-D069 back-row melee behind any living front-row friendly 
   });
 });
 
+describe('AO-052 enemy back-row melee moves up once the front row dies during the player turn', () => {
+  it('a back-row melee stack that was blocked when intents were planned attacks on END_TURN after its front row was killed', () => {
+    const { state } = createVerticalSliceScenario(1);
+    const enemy = [createStack('orc', 'enemy', 1, 5), createStack('orc', 'enemy', 2, 5), createStack('goblin', 'enemy', 5, 5)];
+    const setup: CombatState = { ...sturdy(state), enemyArmy: enemy };
+    const planned: CombatState = { ...setup, enemyIntents: generateEnemyIntents(setup) };
+    expect(planned.enemyIntents.map((i) => i.stackId)).not.toContain('enemy_goblin_5');
+    const frontKilled: CombatState = { ...planned, enemyArmy: enemy.map((s) => (s.position <= 3 ? dead(s) : s)) };
+    const result = applyPlayerAction(frontKilled, { type: 'END_TURN' });
+    expect(result.enemySteps!.map((s) => s.actorStackId)).toEqual(['enemy_goblin_5']);
+    expect(result.enemySteps![0]!.kind).toBe('attack');
+  });
+});
+
 describe('AO-D034 healing is linear in count', () => {
   it('doubling the healer count doubles the heal', () => {
     const priest = (count: number) => createStack('priest', 'player', 5, count);

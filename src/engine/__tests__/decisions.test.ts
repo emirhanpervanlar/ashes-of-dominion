@@ -321,7 +321,8 @@ describe('AO-D005: one-turn lockdown flags expire at the start of the next playe
   });
 
   it('Shield Wall: the Knight cannot move while walled, and can move next turn', () => {
-    const state = battle([createStack('swordsman', 'player', 1, 6), createStack('knight', 'player', 2, 2)], enemyOrcs(), ['shield_wall', 'reposition', 'reposition']);
+    // The fixture has no planned intents, so since AO-052 every enemy stack gets a fresh plan on END_TURN; the Knight must survive that.
+    const state = battle([createStack('swordsman', 'player', 1, 6), createStack('knight', 'player', 2, 30)], enemyOrcs(), ['shield_wall', 'reposition', 'reposition']);
     const wall = applyPlayerAction(state, { type: 'PLAY_CARD', instanceId: state.hand[0]!.instanceId, actingStackId: 'player_knight_2' });
     expect(rejection(wall.events)).toBeUndefined();
     expect(stackOf(wall.state, 'player_knight_2').flags.cannotMove).toBe(true);
