@@ -40,6 +40,8 @@ const poolOf = (types: NodeType[]): NodeType[] => types.flatMap((t) => Array<Nod
 const STEP_TYPES = Object.keys(NODE_WEIGHTS) as NodeType[];
 const STEP_TYPE_POOL = poolOf(STEP_TYPES);
 const FORT_FREE_POOL = poolOf(STEP_TYPES.filter((t) => t !== 'fort'));
+const NO_EVENT_POOL = poolOf(STEP_TYPES.filter((t) => t !== 'event'));
+const FORT_FREE_NO_EVENT_POOL = poolOf(STEP_TYPES.filter((t) => t !== 'fort' && t !== 'event'));
 
 /**
  * One 30-day chapter (AO-D046). The start node is the current position on `startDay`;
@@ -54,9 +56,13 @@ export function generateWorldMap(rng: RngState, chapter = 1, startDay = 1): Worl
     const size = layer === 0 || layer === bossLayer ? 1 : CHOICES_PER_LAYER;
     const fortFree = chapter === 1 && layer <= FORT_FREE_STEPS;
     const pool = fortFree ? FORT_FREE_POOL : STEP_TYPE_POOL;
+    // AO-D085: at most one event per layer, so the road never shows 2-3 events at once.
+    const noEventPool = fortFree ? FORT_FREE_NO_EVENT_POOL : NO_EVENT_POOL;
     const nodes: MapNode[] = [];
     for (let i = 0; i < size; i++) {
-      const type: NodeType = layer === 0 ? 'start' : layer === bossLayer ? 'boss' : pool[nextInt(rng, pool.length)]!;
+      const eventTaken = nodes.some((n) => n.type === 'event');
+      const drawFrom = eventTaken ? noEventPool : pool;
+      const type: NodeType = layer === 0 ? 'start' : layer === bossLayer ? 'boss' : drawFrom[nextInt(rng, drawFrom.length)]!;
       nodes.push({ id: `c${chapter}n${layer}_${i}`, type, layer, visibility: 'unknown', connectsTo: [] });
     }
     layers.push(nodes);

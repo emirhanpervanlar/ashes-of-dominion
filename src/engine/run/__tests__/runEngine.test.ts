@@ -121,13 +121,13 @@ describe('movement', () => {
     expect(result.events.some((e) => e.type === 'STARVED')).toBe(true);
   });
 
-  it('a resource node grants Gold and Food and stays on the map', () => {
+  it('a mine starts a battle and pays nothing until it is won (AO-D083)', () => {
     const onMap = startOnMap(13);
     const { run, nodeId } = withNextNodeType(onMap, 'mine');
     const result = applyRunAction(run, { type: 'MOVE_TO', nodeId });
-    expect(result.run.phase).toBe('on_map');
-    expect(result.run.gold).toBeGreaterThan(run.gold - 3); // food cost only reduces food, not gold
-    expect(result.run.food).toBeGreaterThan(0);
+    expect(result.run.phase).toBe('in_battle');
+    expect(result.run.mines).toBe(0);
+    expect(result.events.some((e) => e.type === 'MINE_CAPTURED')).toBe(false);
   });
 
   it('the boss node starts a battle, not an immediate run_complete', () => {

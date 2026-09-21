@@ -114,7 +114,7 @@ export const CARD_UPGRADES: Record<string, CardUpgradeDefinition> = {
     effects: [{ kind: 'DAMAGE_AND_DEFENSE_BUFF', damageAmount: 65, defenseAmount: 40, duration: 1 }],
   },
   formation: {
-    description: 'All friendly stacks +20% Defense this turn.',
+    description: 'All friendly stacks +80% Defense this turn.',
     effects: [{ kind: 'DEFENSE_BUFF_ALL', amount: 80, duration: 1 }],
   },
   execution_order: {
@@ -159,7 +159,7 @@ export const CARD_UPGRADES: Record<string, CardUpgradeDefinition> = {
 
   // Mage
   fireball: {
-    description: 'Damages the target and 40% to adjacent stacks.',
+    description: 'Hits the target for 175% and the stacks beside it in its row for 70%.',
     effects: [{ kind: 'ATTACK_SPLASH', primaryMultiplier: 1.75, secondaryMultiplier: 0.7, maxSecondaryTargets: 2 }],
   },
   frost: {

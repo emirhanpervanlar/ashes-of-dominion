@@ -17,6 +17,7 @@ import {
   BUILDING_DEFINITIONS,
   DOCTRINE_DEFINITIONS,
   ECONOMIC_DOCTRINE_MULTIPLIER,
+  nextDoctrineChangeDay,
   FARM_TIERS,
   GOLD_MINE_DAILY_GOLD,
   LEVEL_SLOTS,
@@ -70,13 +71,13 @@ function cloneRun(run: RunState): RunState {
 }
 
 /** Version of the persisted RunState shape. A save without the field predates versioning and counts as version 1. */
-export const CURRENT_SAVE_VERSION = 4;
+export const CURRENT_SAVE_VERSION = 5;
 
 /**
  * Upgrades one version step. Every field-by-field guess for pre-versioning saves lives in `fromVersion1`;
  * a future format change adds `fromVersion2` here instead of another "field is undefined" check.
  */
-const MIGRATIONS: Record<number, (run: RunState) => RunState> = { 1: fromVersion1, 2: fromVersion2, 3: fromVersion3 };
+const MIGRATIONS: Record<number, (run: RunState) => RunState> = { 1: fromVersion1, 2: fromVersion2, 3: fromVersion3, 4: fromVersion4 };
 
 /**
  * Brings a run loaded from storage to the current save format (the reducer also applies it, so an old run keeps
@@ -156,6 +157,11 @@ function renameLegacyNodes(run: RunState): RunState {
     worldMap: { ...run.worldMap, nodes: run.worldMap.nodes.map((n) => ({ ...n, type: rename(n.type) as NodeType })) },
     log: (run.log ?? []).map((e) => (e.type === 'ARRIVED_AT_NODE' ? { ...e, nodeType: rename(e.nodeType) } : e)),
   };
+}
+
+/** Version 4 to 5 (AO-D087): the Temple tracks the day its doctrine was chosen; a doctrine from an older save has no recorded day and can be changed at once. */
+function fromVersion4(run: RunState): RunState {
+  return { ...run, city: { ...run.city, doctrineChosenDay: null } };
 }
 
 /** Version 3 to 4 (AO-047, AO-D080): resource nodes became mines and elite battles forts, the Barracks is fixed; the run counts captured mines and forts taken instead of elites defeated. */
@@ -404,7 +410,7 @@ function reject(events: RunEvent[], reason: string): void {
   events.push({ type: 'ACTION_REJECTED', reason });
 }
 
-/** AO-D076: capturing a mine finds a small one-off amount and adds a permanent Gold income (paid every day in advanceDay). */
+/** AO-D076, AO-D083: winning the fight at a mine node captures it: it finds a small one-off amount and adds a permanent Gold income (paid every day in advanceDay). */
 function captureMine(run: RunState, events: RunEvent[]): void {
   const { gold, food } = rollMineFind(run.rng, run.city.doctrine === 'economic' ? ECONOMIC_DOCTRINE_MULTIPLIER : 1);
   changeGold(run, gold);
@@ -485,15 +491,13 @@ function moveTo(run: RunState, nodeId: string, events: RunEvent[]): RunApplyResu
       run.combat = startBattleForRun(run, generateBossEncounter(run.chapter, run.threat));
       break;
     case 'battle':
+    case 'mine':
     case 'fort': {
       const encounter = generateBattleEncounter(destination.layer, destination.type === 'fort', run.chapter, run.threat);
       run.phase = 'in_battle';
       run.combat = startBattleForRun(run, encounter);
       break;
     }
-    case 'mine':
-      captureMine(run, events);
-      break;
     case 'village':
       run.pendingVillage = villageOffer(run.chapter);
       run.phase = 'village';
@@ -554,6 +558,7 @@ function forwardCombatAction(run: RunState, action: PlayerAction, events: RunEve
     else if (arrivedAt?.type === 'fort') run.stats.fortsTaken += 1;
     run.lastCasualties = tallyCasualties(result.state.playerArmy, settled.army);
     events.push({ type: 'BATTLE_WON' });
+    if (!run.bossBattle && arrivedAt?.type === 'mine') captureMine(run, events);
     if (settled.revived > 0) events.push({ type: 'UNITS_REVIVED', count: settled.revived });
     const raising = raiseSkeletons(run.army, run.lastCasualties.reduce((n, c) => n + c.count, 0), necromancyRatio(result.state.activeRelicEffects));
     run.army = raising.army;
@@ -1332,15 +1337,21 @@ function chooseDoctrine(run: RunState, doctrineId: string, events: RunEvent[]): 
     reject(events, 'Not at the city.');
     return { run, events };
   }
-  if (run.city.doctrine) {
-    reject(events, 'A Doctrine has already been chosen for this city.');
-    return { run, events };
-  }
   if (!DOCTRINE_DEFINITIONS[doctrineId]) {
     reject(events, 'Unknown doctrine.');
     return { run, events };
   }
+  if (run.city.doctrine === doctrineId) {
+    reject(events, 'That Doctrine is already active.');
+    return { run, events };
+  }
+  const nextChange = nextDoctrineChangeDay(run.city);
+  if (run.city.doctrine && nextChange !== null && run.day < nextChange) {
+    reject(events, `The Doctrine can be changed again on day ${nextChange}.`);
+    return { run, events };
+  }
   run.city.doctrine = doctrineId;
+  run.city.doctrineChosenDay = run.day;
   events.push({ type: 'DOCTRINE_CHOSEN', doctrineId });
   return { run, events };
 }

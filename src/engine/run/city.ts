@@ -102,6 +102,8 @@ export interface CityState {
   level: 1 | 2 | 3;
   buildings: string[];
   doctrine: string | null;
+  /** AO-D087: the day the doctrine was last chosen; null when none is chosen or the save predates the field (then it can be changed at once). */
+  doctrineChosenDay: number | null;
   /** 0 = no Mage Tower. The tower is one building slot at every tier. */
   mageTowerTier: 0 | 1 | 2 | 3;
   /** 0 = no Farm (AO-D048). One building slot at every tier. */
@@ -257,8 +259,16 @@ export function raiseSkeletons(army: ArmyStack[], casualties: number, ratio: num
   return updated ? { army: updated, raised: wanted } : { army, raised: 0 };
 }
 
+/** AO-D087: days the Temple's doctrine stays fixed before it can be swapped. */
+export const DOCTRINE_CHANGE_INTERVAL_DAYS = 7;
+
+/** First day the doctrine can be changed again; null when there is no cooldown running (nothing chosen yet, or an old save). */
+export function nextDoctrineChangeDay(city: Pick<CityState, 'doctrine' | 'doctrineChosenDay'>): number | null {
+  return city.doctrine && city.doctrineChosenDay !== null ? city.doctrineChosenDay + DOCTRINE_CHANGE_INTERVAL_DAYS : null;
+}
+
 export function createInitialCityState(): CityState {
-  return { level: 1, buildings: [], doctrine: null, mageTowerTier: 0, farmTier: 0, barracksTier: 1 };
+  return { level: 1, buildings: [], doctrine: null, doctrineChosenDay: null, mageTowerTier: 0, farmTier: 0, barracksTier: 1 };
 }
 
 /** Unit types the Barracks has unlocked so far (AO-D071), in tier order. */
