@@ -1,4 +1,5 @@
 import { chainsUrl } from './pixel/chains.js';
+import { HERO_ATTACKER_ID } from '../engine/index.js';
 import type { Cue, HitCue } from './battleCues.js';
 
 /** Windup before contact (ms at speed 1): a lunge reaches the target in 80ms (+10 hold), a projectile flies 240ms. */
@@ -77,7 +78,11 @@ export function createFx(): Fx {
     });
   }
 
-  const frame = (id: string) => layer?.parentElement?.querySelector<HTMLElement>(`[data-stack-id="${id}"] .portrait-frame`) ?? null;
+  /** A stack's portrait frame; the hero (hero-cast spells) is the portrait in the top plaque. */
+  const frame = (id: string) =>
+    id === HERO_ATTACKER_ID
+      ? document.querySelector<HTMLElement>('.hero-portrait')
+      : (layer?.parentElement?.querySelector<HTMLElement>(`[data-stack-id="${id}"] .portrait-frame`) ?? null);
 
   function rectOf(el: HTMLElement): { x: number; y: number; w: number; h: number } {
     const a = el.getBoundingClientRect();
@@ -225,9 +230,11 @@ export function createFx(): Fx {
     motion: (ms) => (reduced() ? Promise.resolve() : wait(ms)),
     windup(cue) {
       if (!layer || reduced() || skipped) return 0;
-      if (cue.style === 'melee') return lunge(cue.attackerStackId, cue.hits[0]!.targetStackId);
+      const fromHero = cue.attackerStackId === HERO_ATTACKER_ID;
+      // The hero does not lunge: a hero command (Strength) flies as a fast bolt and lands as a slash.
+      if (cue.style === 'melee' && !fromHero) return lunge(cue.attackerStackId, cue.hits[0]!.targetStackId);
       const targets = new Set(cue.hits.map((h) => h.targetStackId));
-      targets.forEach((t) => projectile(cue.attackerStackId, t, cue.style === 'bolt' ? 'bolt' : 'orb'));
+      targets.forEach((t) => projectile(cue.attackerStackId, t, cue.style === 'orb' ? 'orb' : 'bolt'));
       return PROJECTILE_MS;
     },
     impact(cue) {

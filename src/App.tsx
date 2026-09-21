@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { CARD_DEFINITIONS, UNIT_DEFINITIONS, cardPlayability, cardRequirement, computeValidHealTargets, computeValidTargets, resolveCard } from './engine/index.js';
+import { CARD_DEFINITIONS, UNIT_DEFINITIONS, cannotAct as engineCannotAct, cardPlayability,cardRequirement, computeValidHealTargets, computeValidTargets, resolveCard } from './engine/index.js';
 import type { ArmyStack, CardTargeting, CombatState, PlayerAction, Position } from './engine/index.js';
 import { applyRunAction, cardRemovalQuote, createRun, enemyStrengthAfterCityVisits, eventView } from './engine/run/index.js';
 import type { RunEvent, RunState } from './engine/run/index.js';
@@ -163,6 +163,12 @@ export default function App() {
   async function handleEndTurn() {
     if (!run.combat || fxBusy) return;
     const pre = run.combat;
+    // AO-D067: with every enemy dead the button finishes the battle: no discard, no enemy turn, the engine resolves the victory.
+    if (pre.enemiesCleared) {
+      setPending(null);
+      commitRun(applyRunAction(run, { type: 'COMBAT_ACTION', action: { type: 'END_TURN' } }));
+      return;
+    }
     const leaving = pre.hand.filter((c) => !CARD_DEFINITIONS[c.cardId]?.retain).map((c) => c.instanceId);
     setFxBusy(true);
     setPending(null);
@@ -181,6 +187,12 @@ export default function App() {
     try {
       setPlaybackBoard(enemyPhaseBoard(pre));
       setDiscardingIds(null);
+      // A frozen (or held) enemy has no step to replay: say it skips its turn instead of going silent (AO-D066).
+      spawnFloaters(
+        pre.enemyArmy
+          .filter((s) => s.count > 0 && engineCannotAct(s))
+          .map((s) => ({ stackId: s.stackId, text: 'Skips its turn', icon: 'st_freeze' as const, kind: 'status' as const, delayMs: 0 })),
+      );
       await playEnemySteps({ fx, spawnFloaters }, enemyPhaseBoard(pre), steps, setPlaybackBoard);
     } finally {
       setPlaybackBoard(null);
@@ -780,11 +792,33 @@ export default function App() {
   if (canAct && !pending && !menuOpen && !historyOpen && !inspectedStack) spaceEndTurn.current = handleEndTurn;
   if (fxBusy) skipPlayback.current = fx.skip;
 
-  /** Clicking bare battlefield (not a unit, the drop zone or End Turn) drops the selection and any pending card. */
+  /** True while a card that needs no target is pending: the whole battlefield is its drop area. */
+  const fieldArmed = pending?.kind === 'card' && pending.targeting === 'none';
+
+  /** Clicking bare battlefield (not a unit or the drop zone) plays a pending no-target card, otherwise drops the selection. */
   function onFieldClick(e: React.MouseEvent) {
     if (flyingCard || fxBusy) return;
     if ((e.target as HTMLElement).closest('.portrait-slot:not(.empty), .portrait-slot.selectable, .drop-zone')) return;
-    setPending(null);
+    if (fieldArmed) finalize({});
+    else setPending(null);
+  }
+
+  /** A dragged card may be dropped on a unit (same as clicking it) or, for a no-target card, anywhere on the field. */
+  function onFieldDragOver(e: React.DragEvent) {
+    if (pending?.kind === 'card' && !fxBusy && !flyingCard) e.preventDefault();
+  }
+
+  function onFieldDrop(e: React.DragEvent) {
+    e.preventDefault();
+    if (flyingCard || fxBusy) return;
+    const slot = (e.target as HTMLElement).closest<HTMLElement>('[data-stack-id]');
+    const stack = slot ? [...combat!.playerArmy, ...combat!.enemyArmy].find((s) => s.stackId === slot.dataset.stackId) : undefined;
+    if (stack && stack.count > 0) onArmyStackClick(stack, stack.position, stack.side);
+    else if (fieldArmed) finalize({});
+  }
+
+  function onCardDragStart(instanceId: string, cardId: string, upgraded: boolean) {
+    if (pending?.kind !== 'card' || pending.id !== instanceId) handleCardClick(instanceId, cardId, upgraded);
   }
 
   return (
@@ -841,7 +875,7 @@ export default function App() {
         </div>
       </div>
 
-      <div className="frame-body" onClick={onFieldClick}>
+      <div className={`frame-body${fieldArmed ? ' field-armed' : ''}`} onClick={onFieldClick} onDragOver={onFieldDragOver} onDrop={onFieldDrop}>
         <div className="portrait-rail player-rail">
           <div className="portrait-col">
             {back.map((p) => {
@@ -884,12 +918,13 @@ export default function App() {
         </div>
 
         <div className="frame-scene">
+          {combat.enemiesCleared && combat.result === 'ongoing' && <div className="battle-end-banner">All enemies fallen - heal up, then finish the battle</div>}
           {pending?.targeting === 'none' && (
             <div
               className="drop-zone"
               role="button"
               tabIndex={0}
-              aria-label={pending.kind === 'card' ? 'Drop card' : 'Confirm'}
+              aria-label={pending.kind === 'card' ? 'Play card' : 'Confirm'}
               onClick={() => finalize({})}
               onKeyDown={(e) => {
                 if (e.key !== 'Enter' && e.key !== ' ') return;
@@ -898,7 +933,7 @@ export default function App() {
               }}
             >
               <Icon name="deck" size={2} />
-              <div className="drop-zone-label">{pending.kind === 'card' ? 'Drop Card' : 'Confirm'}</div>
+              <div className="drop-zone-label">{pending.kind === 'card' ? 'Play Card' : 'Confirm'}</div>
             </div>
           )}
         </div>
@@ -972,7 +1007,14 @@ export default function App() {
               .filter(Boolean)
               .join(' ');
             return (
-              <div key={instance.instanceId} className={slotClass} style={slotStyle} data-instance-id={instance.instanceId}>
+              <div
+                key={instance.instanceId}
+                className={slotClass}
+                style={slotStyle}
+                data-instance-id={instance.instanceId}
+                draggable={canAct && play.playable}
+                onDragStart={() => onCardDragStart(instance.instanceId, instance.cardId, !!instance.upgraded)}
+              >
                 <ActionCardTile
                   id={cardDef.id}
                   upgraded={instance.upgraded}
@@ -991,7 +1033,7 @@ export default function App() {
         <div className="frame-round-buttons">
           <div className="endturn-bar shadowed-1">
           <button className="btn btn--primary btn--sq endturn-btn" disabled={!canAct} onClick={handleEndTurn}>
-            End Turn
+            {combat.enemiesCleared ? 'Finish Battle' : 'End Turn'}
           </button>
         </div>
         
