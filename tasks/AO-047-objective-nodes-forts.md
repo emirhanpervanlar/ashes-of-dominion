@@ -23,3 +23,6 @@ UI, combat rules, unit/card stats.
 
 ## Acceptance criteria
 tsc errors only in UI files using renamed node types (list); vitest green; report includes the simulation tables and constants changed.
+
+## Status
+- 2026-09-21 ACCEPTED locally (engine 606 tests; UI-side failures remain until AO-049/AO-051). DDRs answered: simple relic pool -> AO-050; hero spread -> AO-050; loot curve kept.
