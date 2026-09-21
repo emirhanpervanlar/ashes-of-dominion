@@ -1027,6 +1027,7 @@ p { margin: 0; }
 }
 
 .endturn-btn { width: 150px; float: right; }
+.endturn-btn--finish { width: 196px; }
 
 .drop-zone {
   position: absolute;
@@ -1053,6 +1054,7 @@ p { margin: 0; }
 }
 
 .drop-zone-label {
+  text-align: center;
   font: var(--t-btn);
   text-transform: uppercase;
   letter-spacing: 1px;
@@ -1630,7 +1632,7 @@ p { margin: 0; }
   justify-content: center;
   /* room so a lifted card is not clipped */
   padding: 32px var(--s-1) var(--s-1);
-  height: 212px;
+  height: 224px;
 }
 
 .frame-pile {
@@ -1797,9 +1799,9 @@ p { margin: 0; }
   padding: 0 var(--s-1);
   background: var(--stone-950);
   border: 2px solid var(--arcane-500);
-  font: var(--t-small);
+  font: 400 12px/14px var(--font-body);
   color: var(--text-dim);
-  text-transform: uppercase;
+  white-space: nowrap;
 }
 
 .polarity-attack { --trim: var(--blood-700); }

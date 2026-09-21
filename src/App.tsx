@@ -191,7 +191,7 @@ export default function App() {
       spawnFloaters(
         pre.enemyArmy
           .filter((s) => s.count > 0 && engineCannotAct(s))
-          .map((s) => ({ stackId: s.stackId, text: 'Skips its turn', icon: 'st_freeze' as const, kind: 'status' as const, delayMs: 0 })),
+          .map((s) => ({ stackId: s.stackId, text: 'Skips turn', icon: 'st_freeze' as const, kind: 'status' as const, delayMs: 0 })),
       );
       await playEnemySteps({ fx, spawnFloaters }, enemyPhaseBoard(pre), steps, setPlaybackBoard);
     } finally {
@@ -1033,7 +1033,7 @@ export default function App() {
 
         <div className="frame-round-buttons">
           <div className="endturn-bar shadowed-1">
-          <button className="btn btn--primary btn--sq endturn-btn" disabled={!canAct} onClick={handleEndTurn}>
+          <button className={`btn btn--primary btn--sq endturn-btn${combat.enemiesCleared ? ' endturn-btn--finish' : ''}`} disabled={!canAct} onClick={handleEndTurn}>
             {combat.enemiesCleared ? 'Finish Battle' : 'End Turn'}
           </button>
         </div>

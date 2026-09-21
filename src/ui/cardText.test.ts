@@ -30,7 +30,7 @@ describe('card texts follow the engine data', () => {
   });
 
   it('Fireball states its splash', () => {
-    expect(CARD_DESCRIPTIONS.fireball).toContain('left and right');
+    expect(CARD_DESCRIPTIONS.fireball).toContain('stacks beside it');
   });
 
   it('a hero-cast card carries the stat it scales with; other cards do not', () => {

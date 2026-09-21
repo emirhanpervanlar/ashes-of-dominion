@@ -13,7 +13,7 @@ export const CARD_DESCRIPTIONS: Record<string, string> = {
   shield_wall: '+60% Defense self, +20% adjacent allies. Cannot move. 1 turn.',
   protect: "Redirects 40% of an ally's next damage taken to this Knight.",
   lance_breaker: 'Attack with +100% damage and apply Weak (-15% damage). This stack loses 20% Defense for 1 turn.',
-  greater_heal: 'The acting stack heals a friendly stack: restores lost soldiers up to its pre-battle size.',
+  greater_heal: 'The acting stack heals a friendly stack: lost soldiers return, up to its pre-battle size.',
   bless: 'Friendly stack +25% Damage, +15% Defense. 1 turn.',
   purify: 'Removes Poison/Bleed/Burn/Weak from a friendly stack.',
   divine_protection: 'Next lethal hit leaves the stack at 1 soldier instead. +20% Defense.',
@@ -41,11 +41,11 @@ export const CARD_DESCRIPTIONS: Record<string, string> = {
   execute: '+150% damage if the target is below 20% HP.',
 
   // Hero Cards — Mage
-  fireball: 'Hits the target for 140% damage and the stacks left and right of it in its row for 40%.',
+  fireball: 'Hits the target for 140% and the stacks beside it in its row for 40%.',
   frost: 'Hits the target for 80% damage and Freezes it: it skips its next turn.',
   arcane_storm: 'Hits every enemy stack for 50% damage; the first one takes 100%.',
   arcane_shield: 'Friendly stack incoming damage -35% this turn.',
-  heal: 'The acting stack heals a friendly stack: restores lost soldiers up to its pre-battle size.',
+  heal: 'The acting stack heals a friendly stack: lost soldiers return, up to its pre-battle size.',
   mana_surge: 'Gain +2 Mana this turn. Exhaust.',
   chain_lightning: 'Hits the target for 100% damage and up to 2 other enemy stacks for 50%.',
   arcane_overload: 'Gain +3 Mana and draw a card. Unique.',
