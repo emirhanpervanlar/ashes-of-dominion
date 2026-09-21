@@ -65,7 +65,7 @@ export function FoodPopup({ run, onClose }: Props) {
           {run.villages > 0 && (
             <div className="food-popup-row">
               <span>
-                Villages helped: {run.villages} (Food per day)
+                Villages: {run.villages} helped
               </span>
               <span>+{villageFood}</span>
             </div>

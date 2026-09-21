@@ -139,7 +139,7 @@ export function BarracksPanel({ run, recent, onRecruit, onBuild, onUpgrade, onCo
                     >
                       <span>
                         <button className="btn btn--s" disabled={!row.fits} onClick={() => onCollect(row.unitId)}>
-                          Collect {row.waiting}
+                          {row.waiting > 0 ? `Collect ${row.waiting}` : 'Collect'}
                         </button>
                       </span>
                     </Tip>

@@ -2054,6 +2054,7 @@ p { margin: 0; }
 .node-elite_battle { --node: var(--ember-500); }
 .node-resource { --node: var(--moss-500); }
 .node-merchant { --node: var(--gold-500); }
+.node-village { --node: var(--moss-300); }
 .node-event { --node: var(--steel-500); }
 .node-boss { --node: var(--blood-700); }
 

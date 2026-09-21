@@ -40,7 +40,7 @@ export function MarketplacePanel({ run, onBuy, onClose }: Props) {
           <div className="city-section">
             <h3>Food packs</h3>
             <p className="city-effect-big">
-              A pack gives {FOOD_MARKET.foodPerPack} Food and costs <Icon name="gold" /> {quote.packPrice} now; the next one costs <Icon name="gold" /> {quote.nextPackPrice}.
+              A pack gives {FOOD_MARKET.foodPerPack} Food and costs <Icon name="gold" /> {one.packPrice} now; the next one costs <Icon name="gold" /> {one.nextPackPrice}.
             </p>
             <p className="city-note">
               The price rises {growth}% with every pack you buy and never falls back. {run.foodPurchases === 0 ? 'You have bought none yet.' : `You have bought ${run.foodPurchases} so far.`}
