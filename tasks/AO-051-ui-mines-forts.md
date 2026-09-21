@@ -22,3 +22,6 @@ src/engine/**.
 
 ## Acceptance criteria
 tsc clean, vitest green. Browser (puppeteer-core, dev server port 5213, never 5173/4173; inject state BEFORE load; real clicks): Road with all node types incl. fort, mine, village; capture a mine (toast, +1 Gold/day appears in the day income), assault a fort and win (Relic gained banner, loot), a fort with an exhausted relic pool, boss reward with 0 and 3 relics, city Barracks tabs, end screen "Forts taken"; screenshots looked at; no console errors.
+
+## Status
+- 2026-09-21 ACCEPTED (762 tests, tsc clean). Open: mine icon low contrast; toasts behind modals dimmed; Recruit tab scrolls at 1280x720; minesCaptured not in runSummary.
