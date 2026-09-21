@@ -1791,6 +1791,17 @@ p { margin: 0; }
   pointer-events: none;
 }
 
+/* Hero-cast cards: the stat their damage scales with. */
+.scales-badge {
+  margin-top: 2px;
+  padding: 0 var(--s-1);
+  background: var(--stone-950);
+  border: 2px solid var(--arcane-500);
+  font: var(--t-small);
+  color: var(--text-dim);
+  text-transform: uppercase;
+}
+
 .polarity-attack { --trim: var(--blood-700); }
 .polarity-defense { --trim: var(--steel-700); }
 .polarity-buff { --trim: var(--moss-700); }

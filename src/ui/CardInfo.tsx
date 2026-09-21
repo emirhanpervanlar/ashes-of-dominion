@@ -9,6 +9,7 @@ import { POLARITY_ICONS, cardVisual } from './cardVisuals.js';
 import { LargeCard } from './LargeCard.js';
 import { Modal } from './Modal.js';
 import { Icon } from './pixel/Icon.js';
+import { statName } from './ScalesBadge.js';
 
 const POLARITY_NAMES = { attack: 'Attack', defense: 'Defense', buff: 'Buff', debuff: 'Debuff', utility: 'Utility' } as const;
 const RARITY_NAMES: Record<CardDefinition['rarity'], string> = { common: 'Common', uncommon: 'Uncommon', rare: 'Rare', legendary: 'Legendary' };
@@ -67,7 +68,8 @@ function CardInfoPopup({ cardId, options, onClose }: { cardId: string; options: 
               Costs <b>{view.manaCost}</b> Mana.
               {view.manaCost < view.baseManaCost && <span className="card-info-upgraded"> (was {view.baseManaCost})</span>}
             </li>
-            {def.exhaust && <li>Exhaust: removed for the rest of the battle once played.</li>}
+            {view.scalesWith && <li>Damage scales with your hero&apos;s {statName(view.scalesWith)}.</li>}
+            {def.exhaust &&<li>Exhaust: removed for the rest of the battle once played.</li>}
             {def.retain && <li>Retain: stays in your hand at the end of the turn.</li>}
             {upgraded && <li className="card-info-upgraded">Upgraded.</li>}
           </ul>
