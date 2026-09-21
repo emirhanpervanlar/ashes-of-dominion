@@ -1,5 +1,6 @@
 import type { PendingVillage } from '../engine/run/index.js';
 import { VILLAGE } from '../engine/run/villages.js';
+import { villageHelpGain } from './tipContent.js';
 import { Icon } from './pixel/Icon.js';
 import { Tip } from './Tip.js';
 import { VillageScene } from './VillageScene.js';
@@ -17,6 +18,7 @@ interface Props {
 
 /** A village on the road (AO-D072): raid it for Gold and Food now at the price of Threat, or help it for a smaller gift and a permanent village. */
 export function VillageScreen({ offer, gold, food, threat, helped, onRaid, onHelp }: Props) {
+  const gain = villageHelpGain(helped);
   return (
     <div className="screen village-overlay" data-screen="village">
       <VillageScene />
@@ -69,10 +71,13 @@ export function VillageScreen({ offer, gold, food, threat, helped, onRaid, onHel
           </div>
           <ul className="village-perks">
             <li>
-              <Icon name="food" /> +{VILLAGE.dailyFood} Food per day, for the rest of the run
+              <Icon name="food" /> +{gain.food} Food per day, for the rest of the run
             </li>
             <li>
-              <Icon name="garrison" /> +{VILLAGE.militiaPerVillage} militia per week in the city garrison (up to {VILLAGE.militiaVillageCap} villages)
+              <Icon name="garrison" />{' '}
+              {gain.militia > 0
+                ? `+${gain.militia} militia per week in the city garrison (only the first ${VILLAGE.militiaVillageCap} villages send any)`
+                : `No more militia: ${VILLAGE.militiaVillageCap} villages already send the most`}
             </li>
           </ul>
           <button className="btn btn--primary btn--l" onClick={onHelp}>

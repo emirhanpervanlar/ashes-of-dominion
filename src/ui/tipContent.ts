@@ -27,7 +27,7 @@ import {
 } from '../engine/run/index.js';
 import type { CityBuildingDefinition, RunState } from '../engine/run/index.js';
 import { MINE, mineDailyGold } from '../engine/run/mines.js';
-import { VILLAGE } from '../engine/run/villages.js';
+import { VILLAGE, villageDailyFood, villageMilitiaPerWeek } from '../engine/run/villages.js';
 import type { IconName } from './pixel/icons.js';
 import { STATUS_ICONS } from './stackStatus.js';
 import { UNIT_ROLE_ICONS } from './unitIcons.js';
@@ -154,6 +154,13 @@ export function dayTip(run: Pick<RunState, 'day'>): TipContent {
     body: `Day ${run.day}. Every step along the road takes one day.`,
     lines: [{ icon: 'garrison', text: `Garrison grows in ${plural(untilGarrison, 'day')} (the city gets free soldiers every week).` }],
   };
+}
+
+/** What helping one more village adds to the daily Food and the weekly militia, given how many are helped already (militia stops at the engine's village cap). */
+export function villageHelpGain(helped: number): { food: number; militia: number } {
+  const before = { villages: helped };
+  const after = { villages: helped + 1 };
+  return { food: villageDailyFood(after) - villageDailyFood(before), militia: villageMilitiaPerWeek(after) - villageMilitiaPerWeek(before) };
 }
 
 /** The Road tooltip of a village node: both choices, with the numbers that never change between chapters. */

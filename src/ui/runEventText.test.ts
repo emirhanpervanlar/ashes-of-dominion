@@ -100,6 +100,6 @@ describe('run event texts', () => {
     expect(describeRunEvent({ type: 'BARRACKS_UPGRADED', tier: 2 })).toBe('Barracks upgraded to tier II.');
     expect(describeRunEvent({ type: 'FOOD_PURCHASED', packs: 3, food: 30, gold: 40 })).toBe('Bought 3 Food packs (+30 Food) for 40 Gold.');
     expect(describeRunEvent({ type: 'VILLAGE_RAIDED', gold: 60, food: 15 })).toBe('Raided a village: +60 Gold, +15 Food.');
-    expect(describeRunEvent({ type: 'VILLAGE_HELPED', gold: 15, food: 5, villages: 2 })).toContain('(2 helped)');
+    expect(describeRunEvent({ type: 'VILLAGE_HELPED', gold: 15, food: 5, villages: 2 })).toBe('Helped a village: +15 Gold, +5 Food. Helped villages now send 2 Food every day and 2 militia every week (2 helped).');
   });
 });
