@@ -13,6 +13,7 @@ import type { RunAction, RunState } from '../types.js';
 import { validateSave } from '../save.js';
 import { NODE_WEIGHTS, generateWorldMap, type NodeType } from '../worldMap.js';
 import { legacySave } from './legacy.js';
+import { pickReward } from './rewardHelpers.js';
 
 const act = (run: RunState, action: RunAction) => applyRunAction(run, action);
 const roundTrip = <T>(value: T): T => JSON.parse(JSON.stringify(value)) as T;
@@ -47,9 +48,28 @@ describe('AO-047 item 1 (AO-D076): node generation', () => {
 });
 
 describe('AO-047 item 1: mines', () => {
-  it('capturing a mine pays a small one-off find, stays on the map and counts in the stats', () => {
-    const run = arriveAt(createRun(5), 'mine');
-    expect(run.phase).toBe('on_map');
+  it('arriving at a mine starts a fight (AO-D083): nothing is captured or paid for free', () => {
+    const fighting = arriveAt(createRun(5), 'mine');
+    expect(fighting.phase).toBe('in_battle');
+    expect(fighting.mines).toBe(0);
+    expect(fighting.stats.minesCaptured).toBe(0);
+    expect(fighting.log.some((e) => e.type === 'MINE_CAPTURED')).toBe(false);
+    // a regular fight, not a fort: same enemy count as a plain battle at that layer
+    const plain = generateBattleEncounter(1, false).reduce((n, s) => n + s.count, 0);
+    expect(fighting.combat!.enemyArmy.reduce((n, s) => n + s.count, 0)).toBe(plain);
+  });
+
+  it('losing the fight at a mine captures nothing', () => {
+    const fighting = arriveAt(createRun(5), 'mine');
+    const lost: CombatState = { ...fighting.combat!, playerArmy: fighting.combat!.playerArmy.map((s) => ({ ...s, count: 0, currentHp: 0 })) };
+    const result = act({ ...fighting, combat: lost }, { type: 'COMBAT_ACTION', action: { type: 'END_TURN' } }).run;
+    expect(result.phase).toBe('defeat');
+    expect(result.mines).toBe(0);
+  });
+
+  it('winning the fight captures the mine: a small one-off find, then the normal reward, and counts in the stats', () => {
+    const run = winFight(arriveAt(createRun(5), 'mine'));
+    expect(run.phase).toBe('reward');
     expect(run.mines).toBe(1);
     expect(run.stats.minesCaptured).toBe(1);
     const found = run.log.find((e) => e.type === 'MINE_CAPTURED');
@@ -60,12 +80,12 @@ describe('AO-047 item 1: mines', () => {
   });
 
   it('is deterministic per seed', () => {
-    expect(arriveAt(createRun(9), 'mine').gold).toBe(arriveAt(createRun(9), 'mine').gold);
+    expect(winFight(arriveAt(createRun(9), 'mine')).gold).toBe(winFight(arriveAt(createRun(9), 'mine')).gold);
   });
 
   it('every captured mine pays its Gold on every day, stacking with the Gold Mine building', () => {
     let run = createRun(6);
-    for (let i = 0; i < 3; i++) run = arriveAt(run, 'mine');
+    for (let i = 0; i < 3; i++) run = pickReward(winFight(arriveAt(run, 'mine'))).run;
     expect(run.mines).toBe(3);
     expect(mineDailyGold(run)).toBe(3 * MINE.dailyGold);
 

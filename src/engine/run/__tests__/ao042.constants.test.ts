@@ -107,8 +107,17 @@ describe('AO-042: building and doctrine numbers are single constants, and the te
     const current = base.worldMap.nodes.find((n) => n.id === base.worldMap.currentNodeId)!;
     const nextId = current.connectsTo[0]!;
     const worldMap = { ...base.worldMap, nodes: base.worldMap.nodes.map((n) => (n.id === nextId ? { ...n, type: 'mine' as const } : n)) };
-    const found = (doctrine: string | null) => applyRunAction({ ...base, worldMap, city: { ...base.city, doctrine } }, { type: 'MOVE_TO', nodeId: nextId }).events.find((e) => e.type === 'MINE_CAPTURED')!;
-    const rng = () => createRng(base.rng.seed);
+    let seed = 0;
+    const found = (doctrine: string | null) => {
+      const fighting = applyRunAction({ ...base, worldMap, city: { ...base.city, doctrine } }, { type: 'MOVE_TO', nodeId: nextId }).run;
+      const combat = fighting.combat!;
+      seed = combat.rng.seed;
+      const won = { ...combat, enemyArmy: combat.enemyArmy.map((s) => ({ ...s, count: 0, currentHp: 0 })) };
+      const result = applyRunAction({ ...fighting, combat: won }, { type: 'COMBAT_ACTION', action: { type: 'END_TURN' } });
+      seed = result.run.combat!.rng.seed;
+      return result.events.find((e) => e.type === 'MINE_CAPTURED')!;
+    };
+    const rng = () => createRng(seed);
     expect(found(null)).toMatchObject(rollMineFind(rng(), 1));
     expect(found('economic')).toMatchObject(rollMineFind(rng(), ECONOMIC_DOCTRINE_MULTIPLIER));
   });

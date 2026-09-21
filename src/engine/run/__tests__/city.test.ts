@@ -171,8 +171,14 @@ describe('doctrines', () => {
 
     const baseNode = withNextResource(leftBase);
     const doctrineNode = withNextResource(leftDoctrine);
-    const baseResult = applyRunAction(baseNode.run, { type: 'MOVE_TO', nodeId: baseNode.nodeId });
-    const doctrineResult = applyRunAction(doctrineNode.run, { type: 'MOVE_TO', nodeId: doctrineNode.nodeId });
+    const winMine = (n: { run: RunState; nodeId: string }) => {
+      const fighting = applyRunAction(n.run, { type: 'MOVE_TO', nodeId: n.nodeId }).run;
+      const combat = fighting.combat!;
+      const won = { ...combat, enemyArmy: combat.enemyArmy.map((s) => ({ ...s, count: 0, currentHp: 0 })) };
+      return applyRunAction({ ...fighting, combat: won }, { type: 'COMBAT_ACTION', action: { type: 'END_TURN' } });
+    };
+    const baseResult = winMine(baseNode);
+    const doctrineResult = winMine(doctrineNode);
 
     const baseFound = baseResult.events.find((e) => e.type === 'MINE_CAPTURED');
     const doctrineFound = doctrineResult.events.find((e) => e.type === 'MINE_CAPTURED');

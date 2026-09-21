@@ -120,7 +120,7 @@ describe('AO-031: runSummary', () => {
     const run = { ...createRun(30), threat: 4, chapter: 2 };
     const summary = runSummary(run);
     expect(summary.rows.map((r) => r.id)).toEqual([
-      'chapter', 'days', 'battlesWon', 'bossesDefeated', 'fortsTaken', 'eventsResolved', 'enemiesKilled', 'unitsLost', 'unitsStarved', 'unitsRevived',
+      'chapter', 'days', 'battlesWon', 'bossesDefeated', 'fortsTaken', 'minesCaptured', 'eventsResolved', 'enemiesKilled', 'unitsLost', 'unitsStarved', 'unitsRevived',
       'largestStack', 'damageDealt', 'damageTaken', 'turnsPlayed', 'cardsPlayed', 'goldGathered', 'foodGathered', 'foodEaten', 'relics', 'threat',
     ]);
     expect(summary.rows.find((r) => r.id === 'chapter')!.value).toBe(2);

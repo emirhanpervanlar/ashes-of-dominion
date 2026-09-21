@@ -37,6 +37,9 @@ function winFight(fighting: RunState): RunState {
   return act({ ...fighting, combat: won }, { type: 'COMBAT_ACTION', action: { type: 'END_TURN' } }).run;
 }
 
+/** A mine is a fight (AO-D083): one step that ends back on the map, used here as "one more day passes". */
+const mineWon = (run: RunState): RunState => pickReward(winFight(arriveAt(run, 'mine'))).run;
+
 describe('AO-046 item 1 (AO-D068): the reward cannot be skipped', () => {
   it('always offers at least 2 new cards, also when nothing in the deck can be upgraded', () => {
     const deck = createRun(1).masterDeck.map((c) => ({ ...c, upgraded: true }));
@@ -118,7 +121,7 @@ describe('AO-046 item 3 (AO-D071): recruiting at any city visit', () => {
   /** Walks `days` resource nodes forward so the run is on that day, then visits the city. */
   function cityOnDay(seed: number, days: number): RunState {
     let run = createRun(seed);
-    for (let i = 0; i < days; i++) run = arriveAt(run, 'mine');
+    for (let i = 0; i < days; i++) run = mineWon(run);
     return act(withBarracks(run), { type: 'TRAVEL_TO_CITY' }).run;
   }
 
@@ -168,7 +171,7 @@ describe('AO-046 item 4 (AO-D071): tiered Barracks and the weekly garrison', () 
   const inCity = (run: RunState): RunState => ({ ...run, phase: 'city' });
   const walk = (run: RunState, days: number): RunState => {
     let current = run;
-    for (let i = 0; i < days; i++) current = arriveAt(current, 'mine');
+    for (let i = 0; i < days; i++) current = mineWon(current);
     return current;
   };
   const withTier = (run: RunState, tier: 1 | 2 | 3 | 4): RunState => ({ ...run, city: { ...run.city, barracksTier: tier } });
@@ -389,7 +392,7 @@ describe('AO-046 item 6 (AO-D072): villages', () => {
 
     const two = { ...helped.run, villages: 2, city: { ...helped.run.city, farmTier: 1 as const } };
     expect(dailyProduction(two)).toBe(FARM_TIERS[0]!.food + 2 * VILLAGE.dailyFood);
-    const day = arriveAt(two, 'mine');
+    const day = mineWon(two);
     expect(day.log).toContainEqual({ type: 'DAILY_INCOME', gold: 0, food: FARM_TIERS[0]!.food + 2 * VILLAGE.dailyFood });
   });
 
@@ -400,7 +403,7 @@ describe('AO-046 item 6 (AO-D072): villages', () => {
     expect(weeklyGarrison(three)).toEqual({ swordsman: tier1 + paying });
     expect(weeklyGarrison({ ...three, villages: VILLAGE.militiaVillageCap + 4 })).toEqual({ swordsman: tier1 + VILLAGE.militiaVillageCap * VILLAGE.militiaPerVillage });
     let run = three;
-    for (let i = 0; i < 6; i++) run = arriveAt(run, 'mine');
+    for (let i = 0; i < 6; i++) run = mineWon(run);
     expect(run.day).toBe(7);
     expect(run.garrison).toEqual({ swordsman: tier1 + paying });
     expect(garrisonCap(three)).toEqual({ swordsman: 2 * (tier1 + paying) });
