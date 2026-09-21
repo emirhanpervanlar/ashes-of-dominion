@@ -4,7 +4,7 @@ import { RELIC_DEFINITIONS } from '../../data/relics.js';
 import { isSimpleRelic } from '../relicSources.js';
 import { createRng } from '../../rng.js';
 import { BOSS_CHAPTER_MULTIPLIER, CITY_VISIT_WARNING, DAYS_PER_CHAPTER, FORT_FREE_STEPS, TOTAL_CHAPTERS, bossWarning, daysUntilBoss, enemyStrengthAfterCityVisits, threatMultiplier } from '../chapters.js';
-import { generateBattleEncounter, generateBossEncounter } from '../encounters.js';
+import { BOSS_FORMATION, generateBattleEncounter, generateBossEncounter } from '../encounters.js';
 import { applyRunAction, createRun, migrateRun } from '../runEngine.js';
 import type { RunAction, RunState } from '../types.js';
 import { generateWorldMap } from '../worldMap.js';
@@ -212,7 +212,7 @@ describe('city any time with Threat (AO-D047, AO-D051)', () => {
     const stronger = total(generateBattleEncounter(12, false, 1, 10));
     expect(stronger).toBeGreaterThan(base);
     expect(stronger).toBeGreaterThanOrEqual(Math.round(base * 1.5) - 6); // per-stack rounding only
-    expect(total(generateBossEncounter(1, 10))).toBe(Math.round(60 * 1.6) * 3 + Math.round(30 * 1.6) * 2 + Math.round(18 * 1.6));
+    expect(total(generateBossEncounter(1, 10))).toBe(BOSS_FORMATION.reduce((n, [, , count]) => n + Math.round(count * 1.6), 0));
   });
 
   it('battles started after visits use the run threat', () => {

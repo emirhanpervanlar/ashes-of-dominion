@@ -8,14 +8,16 @@ import type { RunState } from './types.js';
  */
 export const MINE = {
   /** Gold per day for every captured mine. */
-  dailyGold: 2,
+  dailyGold: 1,
+  /** Only this many captured mines pay their daily Gold (more can be captured for the one-off find and the stat). */
+  payingMines: 6,
   /** One-off find on capture: inclusive ranges (the Economic Doctrine scales them). About a third of the old free resource node (AO-D076). */
   find: { gold: [7, 13], food: [3, 7] },
 } as const;
 
 /** Gold the captured mines pay every day. */
 export function mineDailyGold(run: Pick<RunState, 'mines'>): number {
-  return run.mines * MINE.dailyGold;
+  return Math.min(run.mines, MINE.payingMines) * MINE.dailyGold;
 }
 
 /** Gold first, then Food, both from the run RNG; `multiplier` is the Economic Doctrine's (1 without it). */

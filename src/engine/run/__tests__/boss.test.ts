@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { applyRunAction, createRun } from '../runEngine.js';
 import { resolveEventToMap } from './eventHelpers.js';
-import { generateBossEncounter } from '../encounters.js';
+import { generateBattleEncounter, generateBossEncounter } from '../encounters.js';
 import type { CombatState } from '../../types.js';
 import type { RunState } from '../types.js';
 import { pickReward } from './rewardHelpers.js';
@@ -42,7 +42,8 @@ describe('boss encounter generation', () => {
   it('fields a formation noticeably larger than a standard encounter', () => {
     const encounter = generateBossEncounter();
     const total = encounter.reduce((sum, s) => sum + s.count, 0);
-    expect(total).toBeGreaterThan(150);
+    const strongestFort = generateBattleEncounter(29, true).reduce((sum, s) => sum + s.count, 0);
+    expect(total).toBeGreaterThan(strongestFort);
     expect(encounter.every((s) => s.side === 'enemy')).toBe(true);
   });
 });

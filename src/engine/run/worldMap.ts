@@ -30,7 +30,7 @@ const CHOICES_PER_LAYER = 3;
 export const NODE_WEIGHTS: Readonly<Record<Exclude<NodeType, 'start' | 'boss'>, number>> = {
   battle: 4,
   event: 2,
-  mine: 2,
+  mine: 1,
   village: 1,
   merchant: 1,
   fort: 1,

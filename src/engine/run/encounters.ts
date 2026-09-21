@@ -1,14 +1,14 @@
 import { MAX_ARMY_STACKS, createStack } from '../army.js';
 import { roundSafe } from '../floatSafe.js';
 import type { ArmyStack, Position, UnitId } from '../types.js';
-import { BOSS_CHAPTER_MULTIPLIER, CHAPTER_DEPTH_BONUS, LAYERS_PER_DEPTH, threatMultiplier } from './chapters.js';
+import { BOSS_CHAPTER_MULTIPLIER, CHAPTER_DEPTH_BONUS, ENCOUNTER_DEPTH_SLOPE, ENCOUNTER_EXTRA_SLOTS, LAYERS_PER_DEPTH, threatMultiplier } from './chapters.js';
 
 /**
  * PROTOTYPE scaling: deeper map layers, later chapters (AO-D046), fort nodes and Threat (AO-D047) all
  * field larger stacks so the run can't be farmed forever at the same difficulty.
  */
 function scale(base: number, depth: number, fortMultiplier: number, threat: number): number {
-  const depthMultiplier = 1 + depth * 0.18;
+  const depthMultiplier = 1 + depth * ENCOUNTER_DEPTH_SLOPE;
   return Math.max(1, roundSafe(base * depthMultiplier * fortMultiplier * threatMultiplier(threat)));
 }
 
@@ -25,7 +25,7 @@ function encounterDepth(layer: number, chapter: number): number {
  */
 function slotsForDepth(depth: number, fort: boolean): number {
   const base = fort ? 2 : 1;
-  return Math.min(MAX_ARMY_STACKS, base + depth);
+  return Math.min(MAX_ARMY_STACKS, base + depth + ENCOUNTER_EXTRA_SLOTS);
 }
 
 const NON_FORT_TEMPLATE: Array<[UnitId, Position, number]> = [
@@ -55,6 +55,16 @@ export function generateBattleEncounter(layer: number, fort: boolean, chapter = 
   return activeSlots.map(([unitId, position, base]) => createStack(unitId, 'enemy', position, scale(base, depth, fortMultiplier, threat)));
 }
 
+/** The chapter 1 boss at Threat 0 (AO-D078: about a third of the old 258 units); later chapters multiply it by BOSS_CHAPTER_MULTIPLIER. */
+export const BOSS_FORMATION: ReadonlyArray<readonly [UnitId, Position, number]> = [
+  ['orc', 1, 15],
+  ['orc', 2, 15],
+  ['orc', 3, 15],
+  ['wolf', 4, 8],
+  ['shaman', 5, 4],
+  ['wolf', 6, 8],
+];
+
 /**
  * PLACEHOLDER boss encounter — v3 §22 "The Ashen Warlord" (a named 3-phase boss
  * entity with its own HP/behavior, not a stack of a roster unit) is Phase 6
@@ -63,14 +73,6 @@ export function generateBattleEncounter(layer: number, fort: boolean, chapter = 
  * (BOSS_CHAPTER_MULTIPLIER) rather than adding new boss definitions.
  */
 export function generateBossEncounter(chapter = 1, threat = 0): ArmyStack[] {
-  const positions: Array<[UnitId, Position, number]> = [
-    ['orc', 1, 60],
-    ['orc', 2, 60],
-    ['orc', 3, 60],
-    ['wolf', 4, 30],
-    ['shaman', 5, 18],
-    ['wolf', 6, 30],
-  ];
   const multiplier = (BOSS_CHAPTER_MULTIPLIER[chapter - 1] ?? BOSS_CHAPTER_MULTIPLIER[BOSS_CHAPTER_MULTIPLIER.length - 1]!) * threatMultiplier(threat);
-  return positions.map(([unitId, position, count]) => createStack(unitId, 'enemy', position, Math.max(1, roundSafe(count * multiplier))));
+  return BOSS_FORMATION.map(([unitId, position, count]) => createStack(unitId, 'enemy', position, Math.max(1, roundSafe(count * multiplier))));
 }

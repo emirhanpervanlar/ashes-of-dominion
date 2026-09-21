@@ -10,9 +10,9 @@ import { DAYS_PER_CHAPTER, threatMultiplier } from './chapters.js';
 export const BATTLE_LOOT = {
   /** Base bands by chapter (index 0 = chapter 1), at day 1 of the chapter, normal enemy, Threat 0. */
   chapters: [
-    { gold: [12, 24], foodChance: 0.45, food: [5, 10] },
-    { gold: [25, 45], foodChance: 0.5, food: [8, 16] },
-    { gold: [40, 70], foodChance: 0.55, food: [12, 22] },
+    { gold: [10, 20], foodChance: 0.45, food: [4, 8] },
+    { gold: [11, 21], foodChance: 0.5, food: [5, 10] },
+    { gold: [13, 25], foodChance: 0.55, food: [6, 12] },
   ] as ReadonlyArray<{ gold: readonly [number, number]; foodChance: number; food: readonly [number, number] }>,
   /** Gold amount and Food chance are multiplied by 1 + dayBonus x (share of the chapter's days already gone). */
   dayBonus: 0.5,

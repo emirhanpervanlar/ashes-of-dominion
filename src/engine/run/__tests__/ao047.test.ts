@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { createRng } from '../../rng.js';
 import type { CombatState } from '../../types.js';
+import { BOSS_CHAPTER_MULTIPLIER, ENCOUNTER_EXTRA_SLOTS, LAYERS_PER_DEPTH } from '../chapters.js';
 import { GOLD_MINE_DAILY_GOLD } from '../city.js';
+import { BOSS_FORMATION, generateBattleEncounter, generateBossEncounter } from '../encounters.js';
 import { battleLootBands } from '../loot.js';
 import { MINE, mineDailyGold } from '../mines.js';
 import { isSimpleRelic } from '../relicSources.js';
@@ -142,5 +144,33 @@ describe('AO-047: save migration', () => {
     const migrated = validateSave(old)!;
     expect(migrated.phase).toBe('in_battle');
     expect(migrated.combat!.enemyArmy.map((s) => s.count)).toEqual(expected);
+  });
+});
+
+describe('AO-047 item 3 (AO-D078): chapter difficulty constants', () => {
+  const size = (army: { count: number }[]) => army.reduce((n, s) => n + s.count, 0);
+
+  it('the chapter 1 boss is about a third of the old 258 units and later bosses grow by BOSS_CHAPTER_MULTIPLIER', () => {
+    const one = size(generateBossEncounter(1));
+    expect(one).toBe(BOSS_FORMATION.reduce((n, [, , count]) => n + count, 0));
+    expect(one).toBeGreaterThanOrEqual(55);
+    expect(one).toBeLessThanOrEqual(95);
+    expect(BOSS_CHAPTER_MULTIPLIER[0]).toBe(1);
+    expect(BOSS_CHAPTER_MULTIPLIER[1]!).toBeGreaterThan(1.2);
+    expect(BOSS_CHAPTER_MULTIPLIER[1]!).toBeLessThan(1.5);
+    expect(BOSS_CHAPTER_MULTIPLIER[2]!).toBeGreaterThan(BOSS_CHAPTER_MULTIPLIER[1]!);
+    expect(size(generateBossEncounter(2))).toBeGreaterThan(one);
+    expect(size(generateBossEncounter(3))).toBeGreaterThan(size(generateBossEncounter(2)));
+  });
+
+  it('no boss stack is anywhere near the old 150 units per stack, even in chapter 3', () => {
+    for (const chapter of [1, 2, 3]) expect(Math.max(...generateBossEncounter(chapter).map((s) => s.count))).toBeLessThan(45);
+  });
+
+  it('the first fights field an extra slot, and a late chapter 1 fight stays below the boss', () => {
+    expect(generateBattleEncounter(1, false).length).toBe(1 + Math.ceil(1 / LAYERS_PER_DEPTH) + ENCOUNTER_EXTRA_SLOTS);
+    expect(size(generateBattleEncounter(28, false))).toBeLessThan(size(generateBossEncounter(1)));
+    expect(size(generateBattleEncounter(28, true))).toBeLessThan(size(generateBossEncounter(1)));
+    expect(size(generateBattleEncounter(28, false))).toBeGreaterThan(size(generateBattleEncounter(1, false)));
   });
 });

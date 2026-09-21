@@ -219,10 +219,10 @@ export const LEVEL_SLOTS: Record<1 | 2 | 3, number> = { 1: 3, 2: 5, 3: 6 };
 export const LEVEL_UP_COST: Record<2 | 3, number> = { 2: 150, 3: 300 };
 
 export const RECRUIT_COSTS: Partial<Record<UnitId, { gold: number; food: number }>> = {
-  swordsman: { gold: 8, food: 1 },
-  archer: { gold: 10, food: 1 },
-  knight: { gold: 15, food: 2 },
-  priest: { gold: 12, food: 1 },
+  swordsman: { gold: 14, food: 1 },
+  archer: { gold: 17, food: 1 },
+  knight: { gold: 26, food: 2 },
+  priest: { gold: 21, food: 1 },
 };
 
 /**

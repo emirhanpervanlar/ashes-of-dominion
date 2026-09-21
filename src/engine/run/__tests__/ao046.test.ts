@@ -3,7 +3,7 @@ import { createRng } from '../../rng.js';
 import type { CombatState } from '../../types.js';
 import { UNIT_DEFINITIONS } from '../../data/units.js';
 import { nextCityVisitRaisesThreat } from '../chapters.js';
-import { BARRACKS_TIERS, FARM_TIERS } from '../city.js';
+import { BARRACKS_TIERS, FARM_TIERS, RECRUIT_COSTS } from '../city.js';
 import { dailyProduction, dailyUpkeep } from '../food.js';
 import { BATTLE_LOOT, battleLootBands, rollBattleLoot } from '../loot.js';
 import { garrisonCap, garrisonUnits, weeklyGarrison } from '../garrison.js';
@@ -378,7 +378,7 @@ describe('AO-046 item 6 (AO-D072): villages', () => {
     expect([result.run.stats.villagesRaided, result.run.stats.villagesHelped, result.run.villages]).toEqual([1, 0, 0]);
   });
 
-  it('Help pays a smaller gift and makes the village permanent: +3 Food a day each (stacking, in the daily hook with the Farm) and militia every week', () => {
+  it('Help pays a smaller gift and makes the village permanent: +VILLAGE.dailyFood Food a day each (stacking, in the daily hook with the Farm) and militia every week', () => {
     const run = atVillage();
     const offer = run.pendingVillage!;
     expect(offer.help.gold).toBeLessThan(offer.raid.gold);
@@ -394,15 +394,16 @@ describe('AO-046 item 6 (AO-D072): villages', () => {
   });
 
   it('helped villages add Swordsman militia to the weekly garrison (capped) on top of the Barracks, and the garrison cap follows', () => {
+    const tier1 = BARRACKS_TIERS[0]!.weekly;
     const three = { ...createRun(41), villages: 3 };
-    expect(weeklyGarrison(three)).toEqual({ swordsman: 4 + 3 });
-    expect(weeklyGarrison({ ...three, villages: VILLAGE.militiaVillageCap + 4 })).toEqual({ swordsman: 4 + VILLAGE.militiaVillageCap });
+    const paying = Math.min(3, VILLAGE.militiaVillageCap) * VILLAGE.militiaPerVillage;
+    expect(weeklyGarrison(three)).toEqual({ swordsman: tier1 + paying });
+    expect(weeklyGarrison({ ...three, villages: VILLAGE.militiaVillageCap + 4 })).toEqual({ swordsman: tier1 + VILLAGE.militiaVillageCap * VILLAGE.militiaPerVillage });
     let run = three;
     for (let i = 0; i < 6; i++) run = arriveAt(run, 'mine');
     expect(run.day).toBe(7);
-    expect(run.garrison).toEqual({ swordsman: 4 + 3 });
-    expect(weeklyGarrison(three)).toEqual({ swordsman: 4 + 3 });
-    expect(garrisonCap(three)).toEqual({ swordsman: 14 });
+    expect(run.garrison).toEqual({ swordsman: tier1 + paying });
+    expect(garrisonCap(three)).toEqual({ swordsman: 2 * (tier1 + paying) });
   });
 
   it('both choices are rejected outside a village and change nothing', () => {
@@ -433,7 +434,7 @@ describe('AO-046 item 7 (AO-D074): Food balance', () => {
 
   it('the Food chance after a battle is about 45% early and rises with chapter, day and elites; the amounts are unchanged', () => {
     expect(battleLootBands(ctx).foodChance).toBe(0.45);
-    expect(battleLootBands(ctx).food).toEqual([5, 10]);
+    expect(battleLootBands(ctx).food).toEqual([...BATTLE_LOOT.chapters[0]!.food]);
     expect(battleLootBands({ ...ctx, day: 29 }).foodChance).toBeGreaterThan(0.6);
     expect(battleLootBands({ ...ctx, chapter: 2, day: 31 }).foodChance).toBeGreaterThan(battleLootBands(ctx).foodChance);
     expect(battleLootBands({ ...ctx, chapter: 3, day: 61 }).foodChance).toBeGreaterThan(battleLootBands({ ...ctx, chapter: 2, day: 31 }).foodChance);
@@ -480,6 +481,6 @@ describe('AO-046 item 8 (AO-D074): starting armies and the start', () => {
     const recruited = act(run, { type: 'RECRUIT', unitId: 'swordsman', count: 5 });
     expect(rejected(recruited.events)).toBe(false);
     expect(recruited.run.army.reduce((n, s) => n + s.count, 0)).toBe(before + 5);
-    expect([recruited.run.threat, recruited.run.gold]).toEqual([0, STARTING_GOLD - 5 * 8]);
+    expect([recruited.run.threat, recruited.run.gold]).toEqual([0, STARTING_GOLD - 5 * RECRUIT_COSTS.swordsman!.gold]);
   });
 });

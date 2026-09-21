@@ -297,7 +297,8 @@ describe('AO-D053: battle loot', () => {
     const elite = battleLootBands({ ...ctx, fort: true });
     expect(expectedGold(late)).toBeGreaterThan(expectedGold(early));
     expect(late.foodChance).toBeGreaterThan(early.foodChance);
-    expect(expectedGold(ch2)).toBeGreaterThan(expectedGold(late));
+    // AO-D078: a chapter starts poorer than the previous one ends (the day bonus is the within-chapter growth), but above where that chapter began.
+    expect(expectedGold(ch2)).toBeGreaterThan(expectedGold(early));
     expect(expectedGold(ch3)).toBeGreaterThan(expectedGold(ch2));
     expect(expectedFood(ch3)).toBeGreaterThan(expectedFood(ch2));
     expect(expectedFood(ch2)).toBeGreaterThan(expectedFood(early));

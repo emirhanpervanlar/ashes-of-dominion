@@ -3,6 +3,7 @@ import { applyRunAction, createRun } from '../runEngine.js';
 import { resolveEventToMap } from './eventHelpers.js';
 import type { RunState } from '../types.js';
 import type { CombatState } from '../../types.js';
+import { RECRUIT_COSTS } from '../city.js';
 import { pickReward } from './rewardHelpers.js';
 import { withBarracks } from './cityHelpers.js';
 
@@ -61,7 +62,7 @@ describe('recruitment', () => {
     expect(result.events.some((e) => e.type === 'ACTION_REJECTED')).toBe(false);
     const swordsmanAfter = result.run.army.find((s) => s.unitId === 'swordsman')!.count;
     expect(swordsmanAfter).toBe(swordsmanBefore + 10);
-    expect(result.run.gold).toBe(200 - 8 * 10);
+    expect(result.run.gold).toBe(200 - RECRUIT_COSTS.swordsman!.gold * 10);
     expect(result.run.food).toBe(200 - 1 * 10);
   });
 

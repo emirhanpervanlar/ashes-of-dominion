@@ -1,3 +1,4 @@
+import { generateBattleEncounter } from '../encounters.js';
 import { describe, expect, it } from 'vitest';
 import { applyRunAction, createRun } from '../runEngine.js';
 import { resolveEventToMap } from './eventHelpers.js';
@@ -136,7 +137,8 @@ describe('movement', () => {
     expect(result.run.phase).toBe('in_battle');
     expect(result.run.bossBattle).toBe(true);
     const total = result.run.combat!.enemyArmy.reduce((sum, s) => sum + s.count, 0);
-    expect(total).toBeGreaterThan(150);
+    const strongestFort = generateBattleEncounter(29, true).reduce((sum, s) => sum + s.count, 0);
+    expect(total).toBeGreaterThan(strongestFort);
   });
 });
 
