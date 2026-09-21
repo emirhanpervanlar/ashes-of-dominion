@@ -27,3 +27,6 @@ src/engine/** (report gaps).
 
 ## Acceptance criteria
 tsc clean, vitest green. Browser (puppeteer-core, dev server port 5212, never 5173/4173; inject state BEFORE load; real clicks): reward with relic gained banner and no Skip/Remove; village Raid and Help (Food per day appears in the Food popup); city with Barracks tiers, garrison collect (partial when the army is nearly full), recruit with locked/unlocked units; Marketplace purchases with rising price; free first city visit warning; history entries; screenshots looked at; no console errors.
+
+## Status
+- 2026-09-21 ACCEPTED (739 tests). Open: village scene empty sky band; Barracks modal tall; toasts over panels; see AO-051.
