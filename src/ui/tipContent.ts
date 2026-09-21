@@ -22,9 +22,11 @@ import {
   dailyProduction,
   dailyUpkeep,
   foodDaysLeft,
+  isGarrisonDay,
   threatMultiplier,
 } from '../engine/run/index.js';
 import type { CityBuildingDefinition, RunState } from '../engine/run/index.js';
+import { VILLAGE } from '../engine/run/villages.js';
 import type { IconName } from './pixel/icons.js';
 import { STATUS_ICONS } from './stackStatus.js';
 import { UNIT_ROLE_ICONS } from './unitIcons.js';
@@ -117,14 +119,14 @@ export function goldTip(run: Pick<RunState, 'gold' | 'city'>): TipContent {
   return { title: 'Gold', icon: 'gold', body: `${run.gold} Gold. Pays for recruits, buildings, cards and relics. Battles, resource nodes and events bring more.`, lines };
 }
 
-export function foodTip(run: Pick<RunState, 'food' | 'army' | 'city'>): TipContent {
+export function foodTip(run: Pick<RunState, 'food' | 'army' | 'city' | 'villages'>): TipContent {
   const upkeep = dailyUpkeep(run);
   const production = dailyProduction(run);
   const net = dailyFoodNet(run);
   const days = foodDaysLeft(run);
   const lines: TipLine[] = [
     { text: `Army eats ${upkeep} per day.` },
-    { text: `Farm makes ${production} per day.` },
+    { text: `Farm and villages make ${production} per day.` },
     { text: `Net ${signed(net)} per day.`, tone: net < 0 ? 'bad' : 'good' },
   ];
   if (net < 0) lines.push({ icon: 'ui_warn', text: `Lasts ${plural(days, 'more day')}, then the army starves.`, tone: 'bad' });
@@ -142,7 +144,32 @@ export function threatTip(run: Pick<RunState, 'threat'>): TipContent {
 }
 
 export function dayTip(run: Pick<RunState, 'day'>): TipContent {
-  return { title: 'Day', icon: 'day', body: `Day ${run.day}. Every step along the road takes one day.` };
+  let untilGarrison = 1;
+  while (!isGarrisonDay(run.day + untilGarrison)) untilGarrison++;
+  return {
+    title: 'Day',
+    icon: 'day',
+    body: `Day ${run.day}. Every step along the road takes one day.`,
+    lines: [{ icon: 'garrison', text: `Garrison grows in ${plural(untilGarrison, 'day')} (the city gets free soldiers every week).` }],
+  };
+}
+
+/** The Road tooltip of a village node: both choices, with the numbers that never change between chapters. */
+export function villageTip(): TipContent {
+  return {
+    title: 'Village',
+    icon: 'node_village',
+    body: 'You choose when you arrive.',
+    lines: [
+      { icon: 'gold', text: 'Raid: Gold and Food at once, but Threat +1.', tone: 'bad' },
+      { icon: 'food', text: `Help: a smaller gift, then +${VILLAGE.dailyFood} Food every day and +${VILLAGE.militiaPerVillage} militia every week, for the rest of the run.`, tone: 'good' },
+    ],
+  };
+}
+
+/** Road tooltip of a node: the plain label, or the longer explanation for nodes that have one. */
+export function nodeTip(type: string, label: string): TipContent | string {
+  return type === 'village' ? villageTip() : label;
 }
 
 export function chapterTip(run: Pick<RunState, 'chapter'>): TipContent {

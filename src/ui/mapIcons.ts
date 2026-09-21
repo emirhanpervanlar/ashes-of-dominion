@@ -9,13 +9,15 @@ export const NODE_ICONS: Record<NodeType, IconName> = {
   merchant: 'node_merchant',
   event: 'node_event',
   boss: 'node_boss',
+  village: 'node_village',
 };
 
-/** Engine building ids plus the three fixed city hotspots (town hall, barracks, temple), which are not buildable. */
+/** Engine building ids plus the fixed city hotspots (town hall, barracks, temple, marketplace), which take no building slot. */
 export const BUILDING_ICONS: Record<string, IconName> = {
   townhall: 'bld_townhall',
   barracks: 'bld_barracks',
   temple: 'bld_temple',
+  marketplace: 'bld_marketplace',
   market: 'bld_market',
   gold_mine: 'bld_gold_mine',
   mage_tower: 'bld_mage_tower',

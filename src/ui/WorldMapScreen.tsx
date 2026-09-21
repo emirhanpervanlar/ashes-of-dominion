@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import type { Position } from '../engine/index.js';
-import { CITY_VISIT_WARNING, THREAT_PER_CITY_VISIT, bossWarning, dailyFoodNet, daysUntilBoss, enemyStrengthAfterCityVisits, foodDaysLeft, foodWarning, starvationForecast } from '../engine/run/index.js';
+import { CITY_VISIT_WARNING, THREAT_PER_CITY_VISIT, bossWarning, dailyFoodNet, daysUntilBoss, enemyStrengthAfterCityVisits, foodDaysLeft, foodWarning, nextCityVisitRaisesThreat, starvationForecast } from '../engine/run/index.js';
 import type { MapNode, RunState } from '../engine/run/index.js';
 import { GarrisonBar } from './GarrisonBar.js';
 import { StarvationLines } from './FoodPopup.js';
@@ -8,6 +8,7 @@ import { NODE_ICONS } from './mapIcons.js';
 import { Modal } from './Modal.js';
 import { Icon } from './pixel/Icon.js';
 import { Tip } from './Tip.js';
+import { nodeTip } from './tipContent.js';
 
 interface Props {
   run: RunState;
@@ -29,6 +30,7 @@ const NODE_LABELS: Record<MapNode['type'], string> = {
   merchant: 'Merchant',
   event: 'Event',
   boss: 'Boss',
+  village: 'Village',
 };
 
 /** Chapters whose boss-warning banner was already shown this session ("once when entering the window"). */
@@ -39,6 +41,7 @@ const strengthText = (multiplier: number): string => `x${multiplier.toFixed(2)}`
 export function WorldMapScreen({ run, onMoveTo, onEnterCity, onOpenMenu, onSplitStack, onSplitMerge, onMergeStacks, onMoveStack, onDismissStack }: Props) {
   const [confirmCity, setConfirmCity] = useState(false);
   const warning = bossWarning(run);
+  const raisesThreat = nextCityVisitRaisesThreat(run);
   const [bannerOpen, setBannerOpen] = useState(() => warning && !announcedChapters.has(run.chapter));
 
   useEffect(() => {
@@ -103,12 +106,14 @@ export function WorldMapScreen({ run, onMoveTo, onEnterCity, onOpenMenu, onSplit
         <div className="path-choice-row">
           {nextChoices.length === 0 && <div className="subtitle">This is the end of the road.</div>}
           {nextChoices.map((node) => (
-            <div key={node.id} className={`path-choice-card node-${node.type}`} onClick={() => onMoveTo(node.id)}>
-              <span className="path-choice-badge">
-                <Icon name={NODE_ICONS[node.type]} size={3} />
-              </span>
-              <div className="path-choice-name">{NODE_LABELS[node.type]}</div>
-            </div>
+            <Tip key={node.id} tip={nodeTip(node.type, NODE_LABELS[node.type])}>
+              <div className={`path-choice-card node-${node.type}`} onClick={() => onMoveTo(node.id)}>
+                <span className="path-choice-badge">
+                  <Icon name={NODE_ICONS[node.type]} size={3} />
+                </span>
+                <div className="path-choice-name">{NODE_LABELS[node.type]}</div>
+              </div>
+            </Tip>
           ))}
         </div>
 
@@ -119,7 +124,7 @@ export function WorldMapScreen({ run, onMoveTo, onEnterCity, onOpenMenu, onSplit
               <Tip key={layer} tip={`Step ${layer}`}>
                 <div className="scout-strip-layer">
                   {nodes.map((n) => (
-                    <Tip key={n.id} tip={NODE_LABELS[n.type]}>
+                    <Tip key={n.id} tip={nodeTip(n.type, NODE_LABELS[n.type])}>
                       <span className={`scout-strip-node node-${n.type}`}>
                         <Icon name={NODE_ICONS[n.type]} />
                       </span>
@@ -164,19 +169,35 @@ export function WorldMapScreen({ run, onMoveTo, onEnterCity, onOpenMenu, onSplit
             </>
           }
         >
-          <p className="city-confirm-warning">
-            <Icon name="threat" /> {CITY_VISIT_WARNING}
-          </p>
-          <div className="city-confirm-rows">
-            <div className="food-popup-row">
-              <span>Enemy strength now (Threat {run.threat})</span>
-              <span>{strengthText(enemyStrengthAfterCityVisits(run))}</span>
-            </div>
-            <div className="food-popup-row food-popup-net negative">
-              <span>After this visit (Threat {run.threat + THREAT_PER_CITY_VISIT})</span>
-              <span>{strengthText(enemyStrengthAfterCityVisits(run, 1))}</span>
-            </div>
-          </div>
+          {raisesThreat ? (
+            <>
+              <p className="city-confirm-warning">
+                <Icon name="threat" /> {CITY_VISIT_WARNING}
+              </p>
+              <div className="city-confirm-rows">
+                <div className="food-popup-row">
+                  <span>Enemy strength now (Threat {run.threat})</span>
+                  <span>{strengthText(enemyStrengthAfterCityVisits(run))}</span>
+                </div>
+                <div className="food-popup-row food-popup-net negative">
+                  <span>After this visit (Threat {run.threat + THREAT_PER_CITY_VISIT})</span>
+                  <span>{strengthText(enemyStrengthAfterCityVisits(run, 1))}</span>
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="city-confirm-warning city-confirm-warning--free">
+                <Icon name="threat" /> No Threat increase: the first visit of the chapter is free. Later visits make enemies stronger for the rest of the run.
+              </p>
+              <div className="city-confirm-rows">
+                <div className="food-popup-row">
+                  <span>Enemy strength now and after this visit (Threat {run.threat})</span>
+                  <span>{strengthText(enemyStrengthAfterCityVisits(run))}</span>
+                </div>
+              </div>
+            </>
+          )}
           <p className="subtitle">The visit costs no days or Food.</p>
         </Modal>
       )}

@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { BUILDING_DEFINITIONS, DOCTRINE_DEFINITIONS, FARM_TIERS, LEVEL_SLOTS, MAGE_TOWER_TIERS, createRun, recruitCost } from '../../engine/run/index.js';
+import { BARRACKS_TIERS, BUILDING_DEFINITIONS, DOCTRINE_DEFINITIONS, FARM_TIERS, LEVEL_SLOTS, MAGE_TOWER_TIERS, createRun, isGarrisonDay, recruitCost } from '../../engine/run/index.js';
 import type { RunState } from '../../engine/run/index.js';
-import { RECRUITABLE_UNITS, SCENE_BUILDINGS, activeEffects, buildBlocker, buildingEffect, levelRows, placementText, plotState, recruitQuote, tierRows } from './cityView.js';
+import { RECRUITABLE_UNITS, SCENE_BUILDINGS, activeEffects, barracksRows, buildBlocker, buildingEffect, daysToGarrison, garrisonRows, levelRows, placementText, plotState, recruitQuote, tierRows } from './cityView.js';
 
 function cityRun(patch: Partial<RunState> = {}, city: Partial<RunState['city']> = {}): RunState {
   const run = createRun(7, 'warlord', 'Tester');
-  return { ...run, phase: 'city', gold: 1000, food: 200, ...patch, city: { ...run.city, ...city } };
+  return { ...run, phase: 'city', gold: 1000, food: 200, ...patch, city: { ...run.city, barracksTier: 4, ...city } };
 }
 
 describe('recruitQuote', () => {
@@ -31,7 +31,7 @@ describe('recruitQuote', () => {
 
   it('blocks on Gold, Food and a zero count, and lets an exact fit through', () => {
     expect(recruitQuote(cityRun({ gold: 79 }), 'swordsman', 10).blocker).toBe('Not enough Gold.');
-    expect(recruitQuote(cityRun({ food: 9 }), 'swordsman', 10).blocker).toBe('Not enough Food.');
+    expect(recruitQuote(cityRun({ food: 9 }), 'swordsman', 10).blocker).toBe('Not enough Food (every recruit costs Food too).');
     expect(recruitQuote(cityRun(), 'swordsman', 0).blocker).toBe('Choose how many to recruit.');
     expect(recruitQuote(cityRun({ gold: 80, food: 10 }), 'swordsman', 10).blocker).toBeNull();
   });
@@ -57,9 +57,51 @@ describe('recruitQuote', () => {
     const full = cityRun({ army });
     const archer = recruitQuote(full, 'archer', 1);
     expect(archer.placement).toBe('full');
-    expect(archer.blocker).toMatch(/Army full/);
+    expect(archer.blocker).toMatch(/Field army is full/);
     expect(recruitQuote(full, 'swordsman', 1).placement).toBe('merge');
     expect(recruitQuote(full, 'swordsman', 1).blocker).toBeNull();
+  });
+});
+
+describe('recruit locks', () => {
+  it('a unit above the Barracks tier is blocked with the engine reason', () => {
+    expect(recruitQuote(cityRun({}, { barracksTier: 1 }), 'archer', 1).blocker).toMatch(/needs Barracks tier II/);
+    expect(recruitQuote(cityRun({}, { barracksTier: 1 }), 'swordsman', 1).blocker).toBeNull();
+  });
+});
+
+describe('barracks ladder and garrison', () => {
+  it('rows follow BARRACKS_TIERS and mark built / next / locked', () => {
+    const rows = barracksRows(2);
+    expect(rows.map((r) => r.unitId)).toEqual(BARRACKS_TIERS.map((t) => t.unitId));
+    expect(rows.map((r) => r.state)).toEqual(['built', 'built', 'next', 'locked']);
+    expect(rows[2]!.cost).toBe(BARRACKS_TIERS[2]!.cost);
+  });
+
+  it('garrison rows show waiting, cap and weekly per unlocked type, and whether the army has room', () => {
+    const run = cityRun({ garrison: { swordsman: 5, archer: 3 }, villages: 0 }, { barracksTier: 2 });
+    const rows = garrisonRows(run);
+    expect(rows.map((r) => r.unitId)).toEqual(['swordsman', 'archer']);
+    expect(rows[0]).toMatchObject({ waiting: 5, weekly: 4, cap: 8, fits: true });
+    expect(rows[1]).toMatchObject({ waiting: 3, weekly: 3, cap: 6 });
+  });
+
+  it('a type with no matching stack and no free slot does not fit', () => {
+    const base = cityRun();
+    const template = base.army[0]!;
+    const army = (['swordsman', 'knight', 'goblin', 'orc', 'shaman', 'wolf'] as const).map((unitId, i) => ({ ...template, stackId: `s${i}`, unitId, position: (i + 1) as never, count: 3 }));
+    const rows = garrisonRows(cityRun({ army, garrison: { swordsman: 2, archer: 2 } }, { barracksTier: 2 }));
+    expect(rows.find((r) => r.unitId === 'swordsman')!.fits).toBe(true);
+    expect(rows.find((r) => r.unitId === 'archer')!.fits).toBe(false);
+  });
+
+  it('counts the days to the next garrison day from the engine calendar', () => {
+    for (const day of [1, 6, 7, 8, 13, 14]) {
+      const n = daysToGarrison(day);
+      expect(isGarrisonDay(day + n)).toBe(true);
+      expect(n).toBeGreaterThanOrEqual(1);
+      for (let k = 1; k < n; k++) expect(isGarrisonDay(day + k)).toBe(false);
+    }
   });
 });
 

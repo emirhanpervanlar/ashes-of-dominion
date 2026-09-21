@@ -175,6 +175,7 @@
 [data-screen='city'] { --tint-void: #160f0a; --tint-a: #3b2e22; --tint-b: #4d3a28; --tint-trim: var(--wood-500); --tint-glow: #7a4a1c; }
 [data-screen='battle'] { --tint-void: #0a0c0f; --tint-a: #171b20; --tint-b: #232a31; --tint-trim: var(--iron-600); --tint-glow: #10202c; }
 [data-screen='vault'] { --tint-void: #08080a; --tint-a: #14131a; --tint-b: #201e27; --tint-trim: var(--gold-700); --tint-glow: #2a2210; }
+[data-screen='village'] { --tint-void: #0b100a; --tint-a: #1c2216; --tint-b: #2b311f; --tint-trim: var(--moss-700); --tint-glow: #4a3413; }
 [data-screen='defeat'] { --tint-void: #0c0808; --tint-a: #1d1413; --tint-b: #2c1d1b; --tint-trim: var(--blood-700); --tint-glow: #3a1210; }
 [data-screen='victory'] { --tint-void: #0b0a07; --tint-a: #1f1b12; --tint-b: #302a19; --tint-trim: var(--gold-500); --tint-glow: #4a3a12; }
 
@@ -2708,6 +2709,8 @@ button.pill {
 }
 
 .city-threat .px-icon { color: var(--blood-300); }
+.city-threat--free { color: var(--moss-300); }
+.city-threat--free .px-icon { color: var(--moss-300); }
 
 .city-plots {
   flex: 1;
@@ -2731,8 +2734,6 @@ button.pill {
   color: inherit;
   background: none;
 }
-
-.city-plot--wide { grid-column: span 2; }
 
 .city-plot:hover { --bev-light: var(--gold-400); transform: translateY(-2px); }
 .city-plot:focus-visible { outline: none; }
@@ -3214,6 +3215,20 @@ button.pill {
 .city-recruit-place { min-height: 32px; font: var(--t-small); line-height: 16px; color: var(--text-dim); }
 .city-recruit-btn { align-self: stretch; padding: 0 var(--s-2); }
 .city-recruit-blocker { min-height: 16px; justify-content: center; }
+.city-recruit--locked { opacity: 0.55; filter: saturate(0.3); }
+.city-recruit-lock {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-2);
+  margin-top: auto;
+  padding: var(--s-2) 0;
+  font: var(--t-label);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--gold-200);
+}
+.city-recruit-note { margin: var(--s-3) 0; }
 .city-recent { min-height: 24px; margin-top: var(--s-3); text-align: center; font: var(--t-body); color: var(--moss-300); }
 
 .option-tile {
@@ -4111,12 +4126,6 @@ button.frame-pile:hover .pile-card-back::before { --bev-light: var(--gold-400); 
 
 .reward-empty { color: var(--text-dim); }
 
-.reward-actions {
-  display: flex;
-  gap: var(--s-4);
-  align-items: flex-start;
-}
-
 .merchant-overlay {
   z-index: 55;
   display: flex;
@@ -4442,6 +4451,8 @@ button.frame-pile:hover .pile-card-back::before { --bev-light: var(--gold-400); 
   color: var(--blood-300);
 }
 
+.city-confirm-warning--free { color: var(--moss-300); }
+
 .city-confirm-rows,
 .food-popup-rows {
   display: flex;
@@ -4568,6 +4579,8 @@ button.frame-pile:hover .pile-card-back::before { --bev-light: var(--gold-400); 
 .relic-offer--compact .reward-card-icon { width: 64px; flex: none; }
 .relic-offer-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .relic-offer--compact .relic-offer-rarity { font: var(--t-label); text-transform: uppercase; letter-spacing: 1px; }
+.relic-offer--gained { cursor: default; }
+.relic-offer--gained:hover { transform: none; }
 .relic-offer-name { font: 400 16px/24px var(--font-display); color: var(--stone-100); text-shadow: 0 2px 0 var(--stone-950); }
 .relic-offer--compact .relic-text { font: var(--t-small); color: var(--stone-200); }
 .relic-offer--compact .relic-drawback { color: var(--blood-300); }
@@ -4586,3 +4599,101 @@ button.frame-pile:hover .pile-card-back::before { --bev-light: var(--gold-400); 
 .reward-relic-row { display: flex; gap: var(--s-5); justify-content: center; flex-wrap: wrap; }
 
 .modal-scroll .subtitle { margin-bottom: var(--s-3); }
+
+/* ---------- village (AO-D072) ---------- */
+
+.village-overlay {
+  z-index: 55;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-5);
+  padding-bottom: var(--s-6);
+  background: linear-gradient(180deg, #171a2b 0%, #3a2a2d 42%, #6b3f1f 66%, var(--tint-void) 100%);
+}
+
+.village-scene {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 62%;
+  pointer-events: none;
+}
+
+.village-scene .vs-hills { fill: #2a2f24; }
+.village-scene .vs-smoke { fill: #8a8378; opacity: 0.6; }
+.village-scene .vs-trunk { fill: var(--wood-800); }
+.village-scene .vs-leaves { fill: var(--moss-700); }
+.village-scene .vs-wall { fill: var(--wood-700); }
+.village-scene .vs-roof { fill: var(--blood-900); }
+.village-scene .vs-door { fill: var(--wood-800); }
+.village-scene .vs-window { fill: var(--gold-400); }
+.village-scene .vs-earth { fill: var(--moss-900); }
+
+.village-overlay > :not(.village-scene) { position: relative; }
+
+.village-topbar {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--s-4) var(--s-8) var(--s-4) var(--s-6);
+}
+
+.village-topbar-stats { display: flex; gap: var(--s-3); }
+
+.village-lead {
+  max-width: 640px;
+  padding: var(--s-2) var(--s-4);
+  text-align: center;
+  font: var(--t-body);
+  color: var(--text-strong);
+  background: rgba(8, 8, 10, 0.6);
+}
+
+.village-choices {
+  display: flex;
+  gap: var(--s-6);
+  justify-content: center;
+  flex-wrap: wrap;
+  padding: 0 var(--s-5);
+}
+
+.village-choice {
+  width: 400px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-3);
+  padding: var(--s-4);
+  text-align: center;
+}
+
+.village-choice-title { font: var(--t-h2); color: var(--gold-200); text-shadow: 0 2px 0 var(--stone-950); }
+.village-choice-text { font: var(--t-small); color: var(--text-dim); }
+.village-rewards { display: flex; gap: var(--s-3); }
+
+.village-warn {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font: var(--t-body);
+  color: var(--blood-300);
+}
+
+.village-perks {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font: var(--t-body);
+  color: var(--moss-300);
+}
+
+.village-perks li { display: flex; align-items: center; justify-content: center; gap: var(--s-2); }
+
+.village-choice .btn { margin-top: auto; }

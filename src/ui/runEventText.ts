@@ -1,5 +1,5 @@
 import { CARD_DEFINITIONS, UNIT_DEFINITIONS } from '../engine/index.js';
-import { RELIC_DEFINITIONS, STARTING_RELIC_DEFINITIONS } from '../engine/run/index.js';
+import { RELIC_DEFINITIONS, ROMAN, STARTING_RELIC_DEFINITIONS } from '../engine/run/index.js';
 import type { RunEvent, UnitCount } from '../engine/run/index.js';
 
 function relicName(relicId: string): string {
@@ -52,7 +52,7 @@ export function describeRunEvent(event: RunEvent): string | null {
     case 'CHAPTER_STARTED':
       return `Chapter ${event.chapter} begins.`;
     case 'CITY_VISITED':
-      return `Visited the city. Threat is now ${event.threat}: enemies grew stronger.`;
+      return event.free ? `Visited the city. First visit: no Threat increase (Threat ${event.threat}).` : `Visited the city. Threat is now ${event.threat}: enemies grew stronger.`;
     case 'THREAT_CHANGED':
       return `Threat ${event.delta > 0 ? 'rose' : 'fell'} to ${event.threat}.`;
     case 'RELIC_CLAIMED':
@@ -61,8 +61,6 @@ export function describeRunEvent(event: RunEvent): string | null {
       return `Added card to deck: ${cardName(event.cardId)}.`;
     case 'CARD_UPGRADED':
       return `Upgraded ${cardName(event.cardId)}.`;
-    case 'REWARD_SKIPPED':
-      return 'Skipped the reward.';
     case 'CARD_REMOVED':
       return `Removed ${cardName(event.cardId)} from the deck${event.goldPaid > 0 ? ` for ${event.goldPaid}g` : ''}.`;
     case 'UNITS_REVIVED':
@@ -75,6 +73,18 @@ export function describeRunEvent(event: RunEvent): string | null {
     }
     case 'FARM_UPGRADED':
       return `Farm upgraded to tier ${event.tier}.`;
+    case 'BARRACKS_UPGRADED':
+      return `Barracks upgraded to tier ${ROMAN[event.tier - 1]}.`;
+    case 'GARRISON_GROWN':
+      return `The garrison grew: ${unitCountsText(event.units)} are waiting in the city.`;
+    case 'GARRISON_COLLECTED':
+      return `Collected ${unitCountText(event.unitId, event.count)} from the garrison.`;
+    case 'FOOD_PURCHASED':
+      return `Bought ${event.packs} ${event.packs === 1 ? 'Food pack' : 'Food packs'} (+${event.food} Food) for ${event.gold} Gold.`;
+    case 'VILLAGE_RAIDED':
+      return `Raided a village: +${event.gold} Gold, +${event.food} Food.`;
+    case 'VILLAGE_HELPED':
+      return `Helped a village: +${event.gold} Gold, +${event.food} Food. It now sends Food every day and militia every week (${event.villages} helped).`;
     case 'MAGE_TOWER_UPGRADED':
       return `Mage Tower upgraded to tier ${event.tier}.`;
     case 'EVENT_RESOLVED':

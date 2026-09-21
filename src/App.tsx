@@ -19,6 +19,7 @@ import { WorldMapScreen } from './ui/WorldMapScreen.js';
 import { EventScreen } from './ui/EventScreen.js';
 import { MerchantScreen } from './ui/MerchantScreen.js';
 import { CityScreen } from './ui/CityScreen.js';
+import { VillageScreen } from './ui/VillageScreen.js';
 import { describeEvent } from './ui/eventText.js';
 import { describeRunEvent } from './ui/runEventText.js';
 import { relicIcon } from './ui/relicIcons.js';
@@ -245,6 +246,25 @@ export default function App() {
           break;
         case 'FARM_UPGRADED':
           pushToast('bld_farm', text ?? 'Farm upgraded.');
+          break;
+        case 'BARRACKS_UPGRADED':
+          pushToast('bld_barracks', text ?? 'Barracks upgraded.');
+          break;
+        case 'GARRISON_GROWN':
+        case 'GARRISON_COLLECTED':
+          pushToast('garrison', text ?? 'The garrison changed.');
+          break;
+        case 'FOOD_PURCHASED':
+          pushToast('bld_marketplace', text ?? 'Food bought.');
+          break;
+        case 'VILLAGE_RAIDED':
+          pushToast('node_village', text ?? 'The village was raided.', 6000);
+          break;
+        case 'VILLAGE_HELPED':
+          pushToast('node_village', text ?? 'The village was helped.', 8000);
+          break;
+        case 'RELIC_CLAIMED':
+          pushToast('relic', text ?? 'Relic claimed.');
           break;
         case 'THREAT_CHANGED':
           pushToast('threat', text ?? 'Threat changed.');
@@ -678,10 +698,6 @@ export default function App() {
           onClaimRelic={(relicId) => dispatchRun({ type: 'CLAIM_RELIC', relicId })}
           onClaimCard={(cardId) => dispatchRun({ type: 'CLAIM_CARD', cardId })}
           onClaimUpgrade={(instanceId) => dispatchRun({ type: 'CLAIM_UPGRADE', instanceId })}
-          deck={run.masterDeck}
-          removalQuote={cardRemovalQuote(run)}
-          onRemoveCard={(instanceId) => dispatchRun({ type: 'REMOVE_CARD', instanceId })}
-          onSkip={() => dispatchRun({ type: 'SKIP_REWARD' })}
         />
       </>
     );
@@ -723,6 +739,9 @@ export default function App() {
           run={run}
           onRecruit={(unitId, count) => dispatchRun({ type: 'RECRUIT', unitId, count })}
           onBuild={(buildingId) => dispatchRun({ type: 'BUILD_BUILDING', buildingId })}
+          onUpgradeBarracks={() => dispatchRun({ type: 'UPGRADE_BARRACKS' })}
+          onCollectGarrison={(unitId) => dispatchRun({ type: 'COLLECT_GARRISON', unitId })}
+          onBuyFood={(packs) => dispatchRun({ type: 'BUY_FOOD', packs })}
           onUpgradeCity={() => dispatchRun({ type: 'UPGRADE_CITY' })}
           onUpgradeMageTower={() => dispatchRun({ type: 'UPGRADE_MAGE_TOWER' })}
           onUpgradeFarm={() => dispatchRun({ type: 'UPGRADE_FARM' })}
@@ -757,6 +776,23 @@ export default function App() {
           onCancelChoice={() => dispatchRun({ type: 'CANCEL_EVENT_CHOICE' })}
           onDismissStack={(stackId, count) => dispatchRun({ type: 'DISMISS_STACK', stackId, count })}
           onDeclineGain={() => dispatchRun({ type: 'DECLINE_UNIT_GAIN' })}
+        />
+      </>
+    );
+  }
+
+  if (run.phase === 'village' && run.pendingVillage) {
+    return (
+      <>
+        {gameChrome}
+        <VillageScreen
+          offer={run.pendingVillage}
+          gold={run.gold}
+          food={run.food}
+          threat={run.threat}
+          helped={run.villages}
+          onRaid={() => dispatchRun({ type: 'RAID_VILLAGE' })}
+          onHelp={() => dispatchRun({ type: 'HELP_VILLAGE' })}
         />
       </>
     );
