@@ -1978,7 +1978,7 @@ p { margin: 0; }
   position: fixed;
   top: 64px;
   right: var(--s-2);
-  z-index: 940; /* under the modal backdrop (950): a toast never covers an open city panel */
+  z-index: 960; /* above the modal layer (950): a toast is never dimmed by the backdrop */
   display: flex;
   flex-direction: column;
   gap: var(--s-2);
@@ -3151,9 +3151,9 @@ button.pill {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--s-2) var(--s-5);
-  padding: var(--s-2) var(--s-3);
-  margin-bottom: var(--s-2);
+  gap: var(--s-1) var(--s-5);
+  padding: var(--s-1) var(--s-3);
+  margin-bottom: var(--s-1);
 }
 
 .city-strip-item--big { font-size: 20px; line-height: 20px; color: var(--gold-200); }
@@ -3170,9 +3170,9 @@ button.pill {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--s-2) var(--s-4);
-  padding: var(--s-2) var(--s-3);
-  margin-bottom: var(--s-2);
+  gap: var(--s-1) var(--s-4);
+  padding: var(--s-1) var(--s-3);
+  margin-bottom: var(--s-1);
 }
 
 .city-recruits {
@@ -3187,8 +3187,8 @@ button.pill {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--s-2);
-  padding: var(--s-3);
+  gap: var(--s-1);
+  padding: var(--s-2);
   text-align: center;
   background: var(--bg-stone-smooth);
   box-shadow: inset 4px 4px 0 var(--bev-light), inset -4px -4px 0 var(--bev-dark);
@@ -3197,7 +3197,7 @@ button.pill {
 .city-recruit-art {
   position: relative;
   align-self: stretch;
-  height: 88px;
+  height: 52px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3215,7 +3215,7 @@ button.pill {
 }
 
 .city-recruit-name { font: var(--t-h3); color: var(--gold-200); text-shadow: 0 2px 0 var(--stone-950); }
-.city-recruit-desc { min-height: 64px; font: var(--t-small); color: var(--text-dim); }
+.city-recruit-desc { min-height: 32px; font: var(--t-small); color: var(--text-dim); }
 
 .city-recruit-stats {
   align-self: stretch;
@@ -3236,13 +3236,12 @@ button.pill {
   flex-wrap: wrap;
   justify-content: center;
   gap: var(--s-1) var(--s-3);
-  padding-top: var(--s-2);
+  padding-top: var(--s-1);
   border-top: 2px solid var(--stone-900);
   font: var(--t-small);
   color: var(--gold-200);
 }
 
-.city-recruit-costlabel { flex-basis: 100%; justify-content: center; }
 .city-recruit-upkeep { flex-basis: 100%; justify-content: center; color: var(--text-dim); }
 
 /* Small [-] number [+]: the number is a display, changed only by the buttons (hold to repeat). */
@@ -3268,9 +3267,9 @@ button.pill {
 }
 
 .city-recruit-total span { display: inline-flex; align-items: center; gap: var(--s-1); }
-.city-recruit-place { min-height: 32px; font: var(--t-small); line-height: 16px; color: var(--text-dim); }
+.city-recruit-place { min-height: 16px; font: var(--t-small); line-height: 16px; color: var(--text-dim); }
 .city-recruit-btn { align-self: stretch; padding: 0 var(--s-2); }
-.city-recruit-blocker { min-height: 16px; justify-content: center; }
+.city-recruit-blocker { justify-content: center; }
 .city-recruit--locked { opacity: 0.55; filter: saturate(0.3); }
 .city-recruit-lock {
   display: flex;
@@ -3284,8 +3283,8 @@ button.pill {
   letter-spacing: 1px;
   color: var(--gold-200);
 }
-.city-recruit-note { margin: var(--s-3) 0; }
-.city-recent { min-height: 24px; margin-top: var(--s-3); text-align: center; font: var(--t-body); color: var(--moss-300); }
+.city-recruit-note { margin: var(--s-1) 0; }
+.city-recent { min-height: 16px; margin-top: var(--s-1); text-align: center; font: var(--t-body); color: var(--moss-300); }
 
 .option-tile {
   --bev-light: var(--stone-500);

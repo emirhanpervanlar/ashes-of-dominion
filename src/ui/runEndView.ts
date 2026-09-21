@@ -43,7 +43,11 @@ export function statGroups(run: RunState, summary: RunSummary): StatGroup[] {
     ...(starved ?? []),
     ...(revived ?? []),
   ];
-  return [...ENGINE_GROUPS.map((g) => ({ label: g.label, rows: pick(g.rows) })), { label: 'Army', rows: army }];
+  const groups = ENGINE_GROUPS.map((g) => ({ label: g.label, rows: pick(g.rows) }));
+  // runSummary has no minesCaptured row yet (gap reported in AO-054), so it is read from the run stats and shown beside Forts taken.
+  const battle = groups[0]!.rows;
+  battle.splice(battle.findIndex((r) => r.id === 'fortsTaken') + 1, 0, { id: 'minesCaptured', label: 'Mines captured', value: run.stats.minesCaptured, icon: 'node_mine' });
+  return [...groups, { label: 'Army', rows: army }];
 }
 
 /** The three big numbers on top of the screen. */

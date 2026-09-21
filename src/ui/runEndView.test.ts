@@ -14,6 +14,12 @@ describe('run end view', () => {
     expect(ids).toEqual(expect.arrayContaining(['damageDealt', 'damageTaken', 'days', 'goldGathered', 'unitsLost', 'largestStack', 'unitsNow']));
   });
 
+  it('shows Mines captured right after Forts taken, counted from the run stats', () => {
+    const battle = statGroups({ ...run, stats: { ...run.stats, minesCaptured: 3 } }, summary)[0]!.rows;
+    const at = battle.findIndex((r) => r.id === 'fortsTaken');
+    expect(battle[at + 1]).toMatchObject({ id: 'minesCaptured', label: 'Mines captured', value: 3 });
+  });
+
   it('the army row counts the living units and the highlights are the three headline numbers', () => {
     const army = statGroups(run, summary).find((g) => g.label === 'Army')!;
     expect(army.rows.find((r) => r.id === 'unitsNow')!.value).toBe(run.army.reduce((n, s) => n + s.count, 0));
